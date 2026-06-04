@@ -34,7 +34,7 @@ def parse_args() -> argparse.Namespace | None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description="外部連結檢查爬蟲 (External Link Checker Crawler)")
     parser.add_argument('-c', '--config', type=str, help='YAML 設定檔的路徑')
     parser.add_argument('-g', '--global-config', type=str, default='config_global.yaml', help='全域 YAML 設定檔的路徑')
-    parser.add_argument('--resume', type=str, help='欲恢復執行之任務 (Job) ID')
+    parser.add_argument('-r', '--resume', type=str, help='欲恢復執行之任務 (Job) ID')
     args: argparse.Namespace = parser.parse_args()
 
     if not args.config and args.resume is None:
