@@ -1,0 +1,16 @@
+# Python 執行期產生的快取檔
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 虛擬環境 (Virtual Environments)
+.venv/
+
+# 資料庫目錄
+db/
+
+# 使用者的個別任務設定檔目錄
+jobs/
+
+# 環境變數與機密資訊
+.env
