@@ -36,18 +36,8 @@ ext-link-checker/
 
 ## CLI 操作指南
 
-爬蟲核心可以完全不依賴網站後台，透過命令列直接執行與管理。請確認已進入虛擬環境，並參考以下指令：
-
-- **建立並啟動新爬蟲任務**：
-  依據 `config.yaml` 的設定，建立新的 Job 並開始執行。
-  ```bash
-  python cli.py -c config.yaml
-  ```
-- **恢復中斷的爬蟲任務**：
-  若是爬蟲在中途被終止 (例如按下 `Ctrl+C`)，可以使用 `--resume` 參數加上 Job ID，讓爬蟲從未完成的 Queue 繼續執行。
-  ```bash
-  python cli.py --resume <JOB_ID>
-  ```
+關於如何建立、啟動與恢復爬蟲任務的詳細指令說明，請參閱獨立的說明文件：
+👉 **[命令列 (CLI) 操作指南](file:///home/mfhsieh/projects/python/ext-link-checker/doc/cli_usage.md)**
 
 
 ## 開發階段規劃
