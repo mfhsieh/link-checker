@@ -8,6 +8,7 @@
 import logging
 import os
 import time
+import csv
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -210,3 +211,82 @@ class JobManager:
                     session.commit()
             finally:
                 crawler.close()
+
+    def get_all_jobs(self) -> list[dict[str, Any]]:
+        """
+        取得所有任務的列表與基本資訊。
+        """
+        with self.SessionLocal() as session:
+            jobs = session.query(Job).order_by(Job.created_at.desc()).all()
+            return [
+                {
+                    'id': job.id,
+                    'start_url': job.start_url,
+                    'status': job.status,
+                    'created_at': job.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                for job in jobs
+            ]
+
+    def get_job_report(self, job_id: str) -> dict[str, Any] | None:
+        """
+        取得指定任務的詳細統計報告。
+        """
+        with self.SessionLocal() as session:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if not job:
+                return None
+
+            total_queue = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
+            completed = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == 'completed').count()
+            pending = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == 'pending').count()
+            failed = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == 'failed').count()
+            
+            total_external = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
+
+            return {
+                'id': job.id,
+                'start_url': job.start_url,
+                'status': job.status,
+                'created_at': job.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': job.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'queue': {
+                    'total': total_queue,
+                    'completed': completed,
+                    'pending': pending,
+                    'failed': failed
+                },
+                'external_links': total_external
+            }
+
+    def export_job_results(self, job_id: str, output_path: str) -> bool:
+        """
+        將指定任務收集到的外部連結匯出為 CSV 格式。
+        """
+        with self.SessionLocal() as session:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if not job:
+                logger.error(f"找不到指定的任務 ID: {job_id}")
+                return False
+
+            links = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).order_by(ExternalLink.created_at).all()
+            
+            output_dir = os.path.dirname(output_path)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+
+            try:
+                with open(output_path, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['Source URL', 'Target URL', 'IP Address', 'Found At'])
+                    for link in links:
+                        writer.writerow([
+                            link.source_url,
+                            link.target_url,
+                            link.ip_address if link.ip_address else '',
+                            link.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                        ])
+                return True
+            except Exception as e:
+                logger.error(f"匯出 CSV 時發生錯誤: {e}")
+                return False

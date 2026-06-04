@@ -35,9 +35,13 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument('-c', '--config', type=str, help='YAML 設定檔的路徑')
     parser.add_argument('-g', '--global-config', type=str, default='config_global.yaml', help='全域 YAML 設定檔的路徑')
     parser.add_argument('-r', '--resume', type=str, help='欲恢復執行之任務 (Job) ID')
+    parser.add_argument('-l', '--list-jobs', action='store_true', help='列出所有已建立的爬蟲任務')
+    parser.add_argument('--report', type=str, help='檢視指定任務的詳細進度與統計報表')
+    parser.add_argument('--export', type=str, help='將指定任務找到的外部連結匯出為 CSV')
+    parser.add_argument('-o', '--output', type=str, help='CSV 匯出路徑 (搭配 --export 使用)')
     args: argparse.Namespace = parser.parse_args()
 
-    if not args.config and args.resume is None:
+    if not args.config and args.resume is None and not args.list_jobs and not args.report and not args.export:
         parser.print_help()
         return None
         
@@ -136,6 +140,48 @@ def main() -> None:
 
     db_url: str = global_config.get('db_url', 'sqlite:///db/crawler.db')
     manager: JobManager = JobManager(db_url=db_url)
+
+    if args.list_jobs:
+        jobs = manager.get_all_jobs()
+        print("\n=== 爬蟲任務列表 ===")
+        print(f"{'Job ID':<38} | {'Status':<10} | {'Created At':<20} | {'Start URL'}")
+        print("-" * 100)
+        for j in jobs:
+            print(f"{j['id']:<38} | {j['status']:<10} | {j['created_at']:<20} | {j['start_url']}")
+        print("====================\n")
+        return
+
+    if args.report:
+        report = manager.get_job_report(args.report)
+        if not report:
+            logging.error(f"找不到指定的任務 ID: {args.report}")
+            return
+        
+        print(f"\n=== 任務進度報表 ===")
+        print(f"任務 ID: {report['id']}")
+        print(f"起始網址: {report['start_url']}")
+        print(f"當前狀態: {report['status']}")
+        print(f"建立時間: {report['created_at']}")
+        print(f"最後更新: {report['updated_at']}")
+        print("-" * 20)
+        print("【佇列進度統計】")
+        print(f"  總計網址數: {report['queue']['total']}")
+        print(f"  已完成 (Completed): {report['queue']['completed']}")
+        print(f"  等待中 (Pending):   {report['queue']['pending']}")
+        print(f"  已失敗 (Failed):    {report['queue']['failed']}")
+        print("-" * 20)
+        print("【產出成果】")
+        print(f"  尋獲外部連結數: {report['external_links']}")
+        print("====================\n")
+        return
+
+    if args.export:
+        output_path = args.output if args.output else f"reports/{args.export}.csv"
+        logging.info(f"準備將任務 {args.export} 匯出至 {output_path}...")
+        success = manager.export_job_results(args.export, output_path)
+        if success:
+            logging.info("匯出成功！")
+        return
 
     config: dict[str, Any] = {}
     if args.config:
