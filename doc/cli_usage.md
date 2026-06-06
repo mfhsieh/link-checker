@@ -116,13 +116,10 @@ crawler:
 
 ### 步驟 2：利用環境變數覆寫機密配置（資安防護）
 
-為了防範機密憑證（例如 Webhook URL、Proxy 等）明文寫入 YAML 檔中造成安全洩漏，系統優先支援自環境變數載入與覆寫配置。您可以在執行前設置：
+為了防範機密憑證（例如 Proxy 等）明文寫入 YAML 檔中造成安全洩漏，系統優先支援自環境變數載入與覆寫配置。您可以在執行前設置：
 ```bash
 # 設定外部代理伺服器
 export CRAWLER_PROXY_URL="http://user:password@proxy.example.com:8080"
-
-# 設定 Webhook 警報通知目的地
-export CRAWLER_WEBHOOK_URL="https://hooks.slack.com/services/T00/B00/X00"
 
 # 增補 SSL 自簽憑證豁免網域（以逗號分隔）
 export CRAWLER_SSL_EXEMPT_DOMAINS="exempt1.com,exempt2.org"

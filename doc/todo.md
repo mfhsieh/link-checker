@@ -6,8 +6,8 @@
 
 ## 1. 任務完成與異常警報通知 (Alert Notifications / Webhooks)
 * **功能描述**：爬蟲執行過程可能耗時數小時，手動輪詢進度效率低。
-* **規劃方案**：在全域設定檔中配置 Slack、Discord、Microsoft Teams 或 Email 通訊協議（目前 CLI 已支援載入 `webhook_url` 與環境變數機密覆寫）。任務轉換至 `completed`（完成）或 `error`（嚴重異常崩潰）時，自動發送訊息通報，並附帶尋獲的 `dead` 連結與 `broken` 連結統計。
-* **狀態**：**已實作機密配置讀取與環境變數覆寫邏輯**，發送通知之實質功能暫緩（Pending Review）。
+* **規劃方案**：在全域設定檔中配置 Slack、Discord、Microsoft Teams 或 Email 通訊協議。任務轉換至 `completed`（完成）或 `error`（嚴重異常崩潰）時，自動發送訊息通報，並附帶尋獲的 `dead` 連結與 `broken` 連結統計。
+* **狀態**：**待評估與實作（Pending Review）**。
 
 ---
 

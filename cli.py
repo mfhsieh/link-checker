@@ -146,7 +146,7 @@ def merge_and_validate_crawler_config(config: dict[str, Any], global_config: dic
     allowed_crawler_keys: set[str] = {
         'timeout', 'delay', 'ignore_extensions', 'retries', 'mime_type_filter', 
         'ignore_regexes', 'user_agent', 'approved_domains', 'ssl_exempt_domains', 
-        'domain_delays', 'max_depth', 'max_pages', 'proxy_url', 'webhook_url'
+        'domain_delays', 'max_depth', 'max_pages', 'proxy_url'
     }
     for key in list(crawler_config.keys()):
         if key not in allowed_crawler_keys:
@@ -215,8 +215,7 @@ def merge_and_validate_crawler_config(config: dict[str, Any], global_config: dic
         crawler_config['max_pages'] = global_crawler_config.get('max_pages', None)
     if 'proxy_url' not in crawler_config:
         crawler_config['proxy_url'] = global_crawler_config.get('proxy_url', None)
-    if 'webhook_url' not in crawler_config:
-        crawler_config['webhook_url'] = global_crawler_config.get('webhook_url', None)
+
 
     # 優先從環境變數載入關鍵配置，防範機密憑證洩漏
     import os
@@ -224,9 +223,7 @@ def merge_and_validate_crawler_config(config: dict[str, Any], global_config: dic
     if env_proxy:
         crawler_config['proxy_url'] = env_proxy
         
-    env_webhook = os.environ.get("CRAWLER_WEBHOOK_URL")
-    if env_webhook:
-        crawler_config['webhook_url'] = env_webhook
+
         
     env_ssl_exempt = os.environ.get("CRAWLER_SSL_EXEMPT_DOMAINS")
     if env_ssl_exempt:
