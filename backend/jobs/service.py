@@ -17,13 +17,18 @@ import os
 import subprocess
 import sys
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.orm import Session as DBSession
 
 from crawler.manager import JobManager
 from crawler.models import CrawlQueue, ExternalLink, Job
-from crawler.utils import get_domain, is_in_domain_list
+from crawler.utils import (
+    get_domain,
+    is_in_domain_list,
+    get_approved_domains_from_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,36 +36,41 @@ logger = logging.getLogger(__name__)
 _running_processes: dict[str, subprocess.Popen] = {}
 
 
+@dataclass
+class JobCreateConfig:
+    """建立任務的設定封裝。"""
+    start_url: str
+    target_domains: list[str]
+    internal_domains: list[str]
+    crawler_config: dict[str, Any]
+
+
+@dataclass
+class JobResultQuery:
+    """查詢任務結果的參數封裝。"""
+    job_id: str
+    user_id: str
+    status_filter: str | None = None
+    search: str | None = None
+    group: bool = False
+    page: int = 1
+    page_size: int = 50
+
+
 def create_job(
     manager: JobManager,
     user_id: str,
-    start_url: str,
-    target_domains: list[str],
-    internal_domains: list[str],
-    crawler_config: dict[str, Any],
+    config: JobCreateConfig,
 ) -> str:
-    """
-    建立新的爬蟲任務。
-
-    Args:
-        manager (JobManager): JobManager 實例。
-        user_id (str): 任務擁有者 ID（來自 Session）。
-        start_url (str): 爬蟲起始網址。
-        target_domains (list[str]): 允許深入爬取的網域清單。
-        internal_domains (list[str]): 視為內部的網域清單。
-        crawler_config (dict[str, Any]): 爬蟲設定快照。
-
-    Returns:
-        str: 新建立的任務 ID。
-    """
+    """建立新的爬蟲任務。"""
     job_id = manager.create_job(
-        start_url=start_url,
-        target_domains=target_domains,
-        internal_domains=internal_domains,
-        crawler_config=crawler_config,
+        start_url=config.start_url,
+        target_domains=config.target_domains,
+        internal_domains=config.internal_domains,
+        crawler_config=config.crawler_config,
         user_id=user_id,
     )
-    logger.info("使用者 %s 建立新任務 %s，起始 URL: %s", user_id, job_id, start_url)
+    logger.info("使用者 %s 建立新任務 %s，起始 URL: %s", user_id, job_id, config.start_url)
     return job_id
 
 
@@ -94,11 +104,11 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError("任務已在執行中。")
 
     # 取得專案根目錄的 cli.py 路徑
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     cli_path = os.path.join(project_root, "cli.py")
 
     try:
-        proc = subprocess.Popen(
+        proc = subprocess.Popen(  # pylint: disable=consider-using-with
             [sys.executable, cli_path, "--resume", job_id],
             cwd=project_root,
             stdout=subprocess.DEVNULL,
@@ -231,106 +241,83 @@ def reset_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     return manager.reset_job(job_id)
 
 
+def _group_results(links: list[ExternalLink]) -> list[dict[str, Any]]:
+    """將結果去重聚合。"""
+    agg: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        "target_url": "",
+        "ip_address": None,
+        "is_secure": True,
+        "http_status_code": None,
+        "error_message": None,
+        "occurrence_count": 0,
+        "source_urls": set(),
+    })
+    for lnk in links:
+        d = agg[lnk.target_url]
+        d["target_url"] = lnk.target_url
+        d["occurrence_count"] += 1
+        d["source_urls"].add(lnk.source_url)
+        d["is_secure"] = lnk.is_secure
+        if not d["ip_address"] and lnk.ip_address:
+            d["ip_address"] = lnk.ip_address
+        if d["http_status_code"] is None and lnk.http_status_code is not None:
+            d["http_status_code"] = lnk.http_status_code
+        if not d["error_message"] and lnk.error_message:
+            d["error_message"] = lnk.error_message
+
+    return [
+        {**v, "source_urls": sorted(list(v["source_urls"]))}
+        for v in agg.values()
+    ]
+
+
+def _filter_unapproved_links(links: list[ExternalLink], job: Job) -> list[ExternalLink]:
+    """過濾出未核准的外部連結。"""
+    approved_domains = get_approved_domains_from_config(job.config_json)
+    filtered = []
+    for lnk in links:
+        domain = get_domain(lnk.target_url) or ""
+        if not is_in_domain_list(domain, approved_domains):
+            filtered.append(lnk)
+    return filtered
+
+
 def get_job_results(
     db: DBSession,
-    job_id: str,
-    user_id: str,
-    status_filter: str | None = None,
-    search: str | None = None,
-    group: bool = False,
-    page: int = 1,
-    page_size: int = 50,
+    query_args: JobResultQuery,
 ) -> dict[str, Any]:
-    """
-    查詢任務的外連結果，支援篩選、搜尋、去重聚合與分頁。
-
-    Args:
-        db (DBSession): Crawler DB Session。
-        job_id (str): 任務 ID。
-        user_id (str): 請求者使用者 ID（驗證歸屬）。
-        status_filter (str | None): 篩選類型（dead/broken/unapproved）。
-        search (str | None): 關鍵字搜尋（匹配 target_url 或 source_url）。
-        group (bool): 是否使用去重聚合視圖。
-        page (int): 頁碼（從 1 開始）。
-        page_size (int): 每頁筆數。
-
-    Returns:
-        dict: 包含 items、total、page、page_size 的分頁結果。
-    """
-    job = db.query(Job).filter(Job.id == job_id).first()
+    """查詢任務的外連結果，支援篩選、搜尋、去重聚合與分頁。"""
+    job = db.query(Job).filter(Job.id == query_args.job_id).first()
     if not job:
-        raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+        raise ValueError(f"找不到任務 ID: {query_args.job_id}")
+    if job.user_id != query_args.user_id:
         raise ValueError("無權限存取此任務。")
 
-    query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
+    query = db.query(ExternalLink).filter(ExternalLink.job_id == query_args.job_id)
 
-    # 關鍵字搜尋
-    if search:
-        search_pattern = f"%{search}%"
+    if query_args.search:
+        search_pattern = f"%{query_args.search}%"
         query = query.filter(
             ExternalLink.target_url.like(search_pattern)
             | ExternalLink.source_url.like(search_pattern)
         )
 
-    # 狀態篩選
-    approved_domains: list[str] = []
-    if status_filter == "dead":
+    if query_args.status_filter == "dead":
+        query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
+    elif query_args.status_filter == "broken":
         query = query.filter(
-            (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == "")
+            (ExternalLink.http_status_code >= 400) | ExternalLink.http_status_code.is_(None)
         )
-    elif status_filter == "broken":
-        query = query.filter(
-            (ExternalLink.http_status_code >= 400)
-            | ExternalLink.http_status_code.is_(None)
-        )
-    elif status_filter == "unapproved":
-        if job.config_json:
-            try:
-                cfg = json.loads(job.config_json)
-                approved_domains = cfg.get("approved_domains", [])
-            except json.JSONDecodeError:
-                pass
 
     links = query.order_by(ExternalLink.created_at).all()
 
-    # unapproved 需在 Python 層過濾（因為需要網域比對邏輯）
-    if status_filter == "unapproved":
-        links = [
-            lnk for lnk in links
-            if not is_in_domain_list(get_domain(lnk.target_url) or "", approved_domains)
-        ]
+    if query_args.status_filter == "unapproved":
+        links = _filter_unapproved_links(links, job)
 
-    if group:
-        # 去重聚合視圖
-        agg: dict[str, dict[str, Any]] = defaultdict(lambda: {
-            "target_url": "",
-            "ip_address": None,
-            "is_secure": True,
-            "http_status_code": None,
-            "error_message": None,
-            "occurrence_count": 0,
-            "source_urls": set(),
-        })
-        for lnk in links:
-            d = agg[lnk.target_url]
-            d["target_url"] = lnk.target_url
-            d["occurrence_count"] += 1
-            d["source_urls"].add(lnk.source_url)
-            d["is_secure"] = lnk.is_secure
-            if not d["ip_address"] and lnk.ip_address:
-                d["ip_address"] = lnk.ip_address
-            if d["http_status_code"] is None and lnk.http_status_code is not None:
-                d["http_status_code"] = lnk.http_status_code
-            if not d["error_message"] and lnk.error_message:
-                d["error_message"] = lnk.error_message
-
-        items_raw = [
-            {**v, "source_urls": sorted(list(v["source_urls"]))}
-            for v in agg.values()
-        ]
+    if query_args.group:
+        items_list = _group_results(links)
     else:
-        items_raw = [
+        items_list = [
             {
                 "id": lnk.id,
                 "source_url": lnk.source_url,
@@ -344,16 +331,19 @@ def get_job_results(
             for lnk in links
         ]
 
-    total = len(items_raw)
-    offset = (page - 1) * page_size
-    items = items_raw[offset: offset + page_size]
+    total = len(items_list)
+    offset = (query_args.page - 1) * query_args.page_size
+    items = items_list[offset: offset + query_args.page_size]
+
+    # 計算總頁數
+    total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
 
     return {
         "items": items,
         "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
+        "page": query_args.page,
+        "page_size": query_args.page_size,
+        "total_pages": total_pages,
     }
 
 

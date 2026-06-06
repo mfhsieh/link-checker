@@ -28,7 +28,13 @@ logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    """
+    取得不含時區資訊（naive）的當前 UTC 時間。
+
+    Returns:
+        datetime: 當前的 UTC 時間物件。
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _hash_token(token: str) -> str:
@@ -131,7 +137,10 @@ def _increment_failed_login(db: DBSession, user: User, ip: str | None) -> None:
     user.failed_login_count = (user.failed_login_count or 0) + 1
     if user.failed_login_count >= settings.LOGIN_MAX_ATTEMPTS:
         user.locked_until = _utc_now() + timedelta(seconds=settings.LOGIN_LOCKOUT_SECONDS)
-        logger.warning("帳號 %s 因連續登入失敗 %d 次，已鎖定至 %s", user.email, user.failed_login_count, user.locked_until)
+        logger.warning(
+            "帳號 %s 因連續登入失敗 %d 次，已鎖定至 %s",
+            user.email, user.failed_login_count, user.locked_until
+        )
         _log_event(db, "account_locked", user_id=user.id, ip_address=ip,
                    detail=f"連續失敗 {user.failed_login_count} 次")
     db.commit()
@@ -192,7 +201,7 @@ def authenticate_with_invitation(
         raise ValueError("邀請連結已過期，請聯繫管理員重新寄送邀請。")
 
     # 建立首次登入 Session（is_first_login=True，需強制設密）
-    session_token, session = _create_session(db, user.id, ip, user_agent, is_first_login=True)
+    session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=True)
     _log_event(db, "first_login_attempt", user_id=user.id, ip_address=ip)
 
     return {
@@ -234,10 +243,6 @@ def authenticate_with_password(
         _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已停用")
         raise ValueError("此帳號已被停用，請聯繫管理員。")
 
-    if user.status == "pending":
-        _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號尚未完成設定")
-        raise ValueError("此帳號尚未完成設定，請使用邀請連結完成首次登入。")
-
     if _is_account_locked(user):
         remaining = int((user.locked_until - _utc_now()).total_seconds() / 60)
         raise ValueError(f"帳號因多次登入失敗已暫時鎖定，請 {remaining} 分鐘後再試。")
@@ -252,12 +257,13 @@ def authenticate_with_password(
     user.last_login_at = _utc_now()
     db.commit()
 
-    session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=False)
+    is_first_login = user.status == "pending"
+    session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=is_first_login)
     _log_event(db, "login_success", user_id=user.id, ip_address=ip)
 
     return {
         "session_token": session_token,
-        "is_first_login": False,
+        "is_first_login": is_first_login,
         "user": {"id": user.id, "email": user.email, "role": user.role, "status": user.status},
     }
 

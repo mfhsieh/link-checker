@@ -13,10 +13,10 @@ FastAPI 共用依賴注入模組。
 import logging
 from typing import Generator
 
-from fastapi import Cookie, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session as DBSession
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session as DBSession # pylint: disable=unused-import
 
-from backend.auth.db import get_auth_session_local
+from backend.auth.db import get_auth_session_local # pylint: disable=unused-import
 from backend.auth.models import Session as AuthSession, User
 from backend.config import get_settings
 from crawler.manager import JobManager
@@ -35,33 +35,23 @@ def get_auth_db() -> Generator[DBSession, None, None]:
     Yields:
         DBSession: Auth DB SQLAlchemy Session。
     """
-    SessionLocal = get_auth_session_local()
-    db = SessionLocal()
-    try:
+    session_factory = get_auth_session_local()
+    with session_factory() as db:
         yield db
-    finally:
-        db.close()
 
 
 # ── Crawler DB 依賴（透過 JobManager）──────────────────────────────────────────
 
-_job_manager: JobManager | None = None
+_JOB_MANAGER: JobManager | None = None
 
 
 def get_job_manager() -> JobManager:
-    """
-    取得 JobManager 單例。
-
-    JobManager 封裝了 Crawler DB 的所有操作，此函式確保全域只有一個實例。
-
-    Returns:
-        JobManager: 已初始化的 JobManager。
-    """
-    global _job_manager  # pylint: disable=global-statement
-    if _job_manager is None:
+    """提供全域單一實例的 JobManager。"""
+    global _JOB_MANAGER  # pylint: disable=global-statement
+    if _JOB_MANAGER is None:
         settings = get_settings()
-        _job_manager = JobManager(db_url=settings.CRAWLER_DB_URL)
-    return _job_manager
+        _JOB_MANAGER = JobManager(db_url=settings.CRAWLER_DB_URL)
+    return _JOB_MANAGER
 
 
 def get_crawler_db() -> Generator[DBSession, None, None]:
@@ -103,6 +93,7 @@ def get_current_session(
     Raises:
         HTTPException 401: 若 Cookie 不存在或 Session 已過期。
     """
+    # pylint: disable=import-outside-toplevel
     from backend.auth import service as auth_service  # 避免循環匯入
 
     settings = get_settings()

@@ -4,9 +4,10 @@
 此模組提供網域擷取、網域驗證、IP 位址解析以及網址正規化等輔助函式。
 """
 
-import urllib.parse
-import socket
+import json
 import logging
+import socket
+import urllib.parse
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -79,3 +80,12 @@ def normalize_url(url: str, base_url: str) -> str:
         str: 完整的絕對網址字串。
     """
     return urllib.parse.urljoin(base_url, url)
+
+def get_approved_domains_from_config(config_json: str | None) -> list[str]:
+    """從 config_json 解析 approved_domains。"""
+    if config_json:
+        try:
+            return json.loads(config_json).get("approved_domains", [])
+        except json.JSONDecodeError:
+            pass
+    return []

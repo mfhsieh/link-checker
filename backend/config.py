@@ -17,6 +17,7 @@ class Settings:
     所有設定值皆從環境變數讀取，若環境變數不存在則使用預設值。
     機密項目（SECRET_KEY、SMTP_PASSWORD）在生產環境中必須透過環境變數提供。
     """
+    # pylint: disable=too-few-public-methods
 
     # ── 應用程式基本設定 ────────────────────────────────────────────────────────
     APP_NAME: str = os.environ.get("APP_NAME", "外部連結檢查系統")

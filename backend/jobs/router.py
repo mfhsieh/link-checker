@@ -22,7 +22,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel, HttpUrl, field_validator
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
@@ -38,9 +38,11 @@ router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 # ── Request Schema ─────────────────────────────────────────────────────────────
 
 class CreateJobRequest(BaseModel):
+    """建立任務請求的 Schema。"""
     start_url: str
     target_domains: list[str]
     internal_domains: list[str] = []
+    ignore_regexes: list[str] = []
     max_depth: int | None = None
     max_pages: int | None = None
     delay: float | None = None
@@ -49,6 +51,7 @@ class CreateJobRequest(BaseModel):
     @field_validator("start_url")
     @classmethod
     def validate_url(cls, v: str) -> str:
+        """驗證 URL 格式。"""
         v = v.strip()
         if not (v.startswith("http://") or v.startswith("https://")):
             raise ValueError("起始 URL 必須以 http:// 或 https:// 開頭。")
@@ -57,6 +60,7 @@ class CreateJobRequest(BaseModel):
     @field_validator("target_domains")
     @classmethod
     def validate_domains(cls, v: list[str]) -> list[str]:
+        """確保至少有一個目標網域。"""
         if not v:
             raise ValueError("至少需要指定一個目標網域。")
         return [d.strip() for d in v]
@@ -83,6 +87,8 @@ async def create_job(
     """建立新的爬蟲任務。"""
     # 組建 crawler_config（從全域設定合併）
     crawler_config: dict[str, Any] = {}
+    if body.ignore_regexes:
+        crawler_config["ignore_regexes"] = body.ignore_regexes
     if body.max_depth is not None:
         crawler_config["max_depth"] = body.max_depth
     if body.max_pages is not None:
@@ -93,14 +99,13 @@ async def create_job(
         crawler_config["timeout"] = body.timeout
 
     try:
-        job_id = job_service.create_job(
-            manager=manager,
-            user_id=current_user.id,
+        config_obj = job_service.JobCreateConfig(
             start_url=body.start_url,
             target_domains=body.target_domains,
             internal_domains=body.internal_domains,
             crawler_config=crawler_config,
         )
+        job_id = job_service.create_job(manager, current_user.id, config_obj)
     except Exception as e:  # pylint: disable=broad-exception-caught
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
@@ -195,27 +200,44 @@ async def delete_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
+class ResultsQueryArgs:
+    """任務結果查詢參數。"""
+    # pylint: disable=too-few-public-methods,too-many-arguments,too-many-positional-arguments
+    def __init__(
+        self,
+        status_filter: str | None = Query(None, alias="filter"),
+        search: str | None = Query(None),
+        group: bool = Query(False),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(50, ge=1, le=200),
+    ):
+        """初始化結果查詢參數。"""
+        self.status_filter = status_filter
+        self.search = search
+        self.group = group
+        self.page = page
+        self.page_size = page_size
+
+
 @router.get("/{job_id}/results", status_code=status.HTTP_200_OK)
 async def get_results(
     job_id: str,
-    status_filter: str | None = Query(None, alias="filter"),
-    search: str | None = Query(None),
-    group: bool = Query(False),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    query_args: ResultsQueryArgs = Depends(),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> dict[str, Any]:
     """外連結果列表（支援篩選、搜尋、去重聚合與分頁）。"""
     try:
-        return job_service.get_job_results(
-            db, job_id, current_user.id,
-            status_filter=status_filter,
-            search=search,
-            group=group,
-            page=page,
-            page_size=page_size,
+        query_obj = job_service.JobResultQuery(
+            job_id=job_id,
+            user_id=current_user.id,
+            status_filter=query_args.status_filter,
+            search=query_args.search,
+            group=query_args.group,
+            page=query_args.page,
+            page_size=query_args.page_size,
         )
+        return job_service.get_job_results(db, query_obj)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -233,12 +255,25 @@ async def get_results_summary(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
+class ExportQueryArgs:
+    """匯出結果查詢參數。"""
+    # pylint: disable=too-few-public-methods,too-many-arguments,too-many-positional-arguments
+    def __init__(
+        self,
+        status_filter: str | None = Query(None, alias="filter"),
+        group: bool = Query(False),
+        fmt: str = Query("csv", regex="^(csv|json)$"),
+    ):
+        """初始化匯出查詢參數。"""
+        self.status_filter = status_filter
+        self.group = group
+        self.fmt = fmt
+
+
 @router.get("/{job_id}/results/export")
 async def export_results(
     job_id: str,
-    status_filter: str | None = Query(None, alias="filter"),
-    group: bool = Query(False),
-    fmt: str = Query("csv", regex="^(csv|json)$"),
+    query_args: ExportQueryArgs = Depends(),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> Response:
@@ -251,24 +286,26 @@ async def export_results(
     - fmt: csv 或 json（預設 csv）
     """
     try:
-        results = job_service.get_job_results(
-            db, job_id, current_user.id,
-            status_filter=status_filter,
-            group=group,
+        query_obj = job_service.JobResultQuery(
+            job_id=job_id,
+            user_id=current_user.id,
+            status_filter=query_args.status_filter,
+            group=query_args.group,
             page=1,
             page_size=999999,
         )
+        results = job_service.get_job_results(db, query_obj)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
     items = results["items"]
     filename = f"job_{job_id}_results"
-    if status_filter:
-        filename += f"_{status_filter}"
-    if group:
+    if query_args.status_filter:
+        filename += f"_{query_args.status_filter}"
+    if query_args.group:
         filename += "_grouped"
 
-    if fmt == "json":
+    if query_args.fmt == "json":
         content = json.dumps(items, ensure_ascii=False, indent=2)
         return Response(
             content=content,

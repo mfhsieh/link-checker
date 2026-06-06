@@ -56,18 +56,22 @@ if os.path.isdir(_frontend_dir):
 
     @app.get("/app.html", include_in_schema=False)
     async def serve_app():
+        """提供前台爬蟲任務主介面"""
         return FileResponse(os.path.join(_frontend_dir, "app.html"))
 
     @app.get("/admin.html", include_in_schema=False)
     async def serve_admin():
+        """提供系統管理員後台介面"""
         return FileResponse(os.path.join(_frontend_dir, "admin.html"))
 
     @app.get("/set-password.html", include_in_schema=False)
     async def serve_set_password():
+        """提供首次登入設定密碼介面"""
         return FileResponse(os.path.join(_frontend_dir, "set-password.html"))
 
     @app.get("/", include_in_schema=False)
     async def serve_index():
+        """提供登入與首頁介面"""
         return FileResponse(os.path.join(_frontend_dir, "index.html"))
 
 

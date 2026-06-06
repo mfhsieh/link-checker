@@ -4,6 +4,7 @@
 此模組定義了 SQLAlchemy ORM 模型，用於追蹤 Job、爬取佇列 (Queue) 
 以及探索到的外部連結，並採用 SQLAlchemy 2.0 的 Type Hinting 宣告風格。
 """
+# pylint: disable=unsubscriptable-object
 
 from datetime import datetime, timezone
 import uuid

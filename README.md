@@ -84,3 +84,14 @@ python cli.py --export <JOB_ID> --output report.csv
 # 查詢可用的參數選項
 python cli.py --help
 ```
+
+## 進階文件與資源
+
+為了保持 README 的簡潔，更詳細的系統設計與操作手冊已拆分至 `doc/` 目錄中：
+
+* **[系統架構說明](doc/architecture.md)**：了解系統目錄結構與核心技術選型。
+* **[命令列 (CLI) 操作指南](doc/cli_usage.md)**：完整的 CLI 參數、功能介紹與全域設定檔說明。
+* **[API 路由清單](doc/api_routes.md)**：後端 RESTful API 規格說明。
+* **[系統需求規格書](doc/requirements.md)**：詳細的功能需求與業務邏輯邊界。
+* **資料庫 Schema**：[Crawler DB](doc/db_schema_crawler.md) / [Auth DB](doc/db_schema_auth.md)
+* **[待辦清單與後續規劃](doc/todo.md)**

@@ -6,10 +6,7 @@
 """
 
 import re
-from passlib.context import CryptContext
-
-# 設定 bcrypt 作為唯一允許的雜湊演算法
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 
 # 密碼強度規則
 _MIN_LENGTH = 12
@@ -32,7 +29,9 @@ def hash_password(plain_password: str) -> str:
     Returns:
         str: bcrypt 雜湊字串。
     """
-    return _pwd_context.hash(plain_password)
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(plain_password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -46,7 +45,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: 若相符回傳 True，否則回傳 False。
     """
-    return _pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode('utf-8'),
+            hashed_password.encode('utf-8')
+        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        return False
 
 
 def validate_password_strength(password: str, email: str) -> list[str]:

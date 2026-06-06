@@ -22,8 +22,8 @@ class AuthBase(DeclarativeBase):
 
 
 def _utc_now() -> datetime:
-    """取得含時區資訊的當前 UTC 時間。"""
-    return datetime.now(timezone.utc)
+    """取得不含時區資訊（naive）的當前 UTC 時間，以配合 SQLite。"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(AuthBase):

@@ -49,8 +49,10 @@ async function request(path, options = {}) {
 
   // 401 → 清除客戶端狀態並重導向登入頁
   if (response.status === 401) {
-    window.location.replace('/');
-    return;
+    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+      window.location.replace('/');
+      return;
+    }
   }
 
   // 嘗試解析 JSON

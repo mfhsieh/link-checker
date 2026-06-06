@@ -13,9 +13,10 @@ Session Token 以 HTTP-only Cookie 承載，不允許前端 JS 直接存取。
 """
 
 import logging
-from typing import Annotated, Any
+import secrets
+from typing import Any
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session as DBSession
 
@@ -32,6 +33,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # ── Request / Response Schema ──────────────────────────────────────────────────
 
 class LoginRequest(BaseModel):
+    """登入請求的 Schema。"""
     email: EmailStr
     password: str | None = None
     token: str | None = None  # 邀請 UUID（首次登入用）
@@ -39,14 +41,17 @@ class LoginRequest(BaseModel):
     @field_validator("email")
     @classmethod
     def normalize_email(cls, v: str) -> str:
+        """將信箱轉為小寫去空白。"""
         return v.strip().lower()
 
 
 class SetPasswordRequest(BaseModel):
+    """首次登入設定密碼的 Schema。"""
     new_password: str
 
 
 class ChangePasswordRequest(BaseModel):
+    """修改密碼的 Schema。"""
     current_password: str
     new_password: str
 
@@ -106,8 +111,6 @@ async def login(
 
     登入成功後設定 HTTP-only Session Cookie 與 CSRF Cookie。
     """
-    import secrets as _secrets
-
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
 
@@ -136,7 +139,7 @@ async def login(
         ) from e
 
     session_token = result["session_token"]
-    csrf_token = _secrets.token_urlsafe(32)
+    csrf_token = secrets.token_urlsafe(32)
 
     _set_session_cookie(response, session_token)
     _set_csrf_cookie(response, csrf_token)
@@ -150,7 +153,6 @@ async def login(
 @router.post("/set-password", status_code=status.HTTP_200_OK)
 async def set_password(
     body: SetPasswordRequest,
-    response: Response,
     db: DBSession = Depends(get_auth_db),
     current_session: AuthSession = Depends(get_current_session),
     _csrf: None = Depends(require_csrf),

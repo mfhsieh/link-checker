@@ -7,7 +7,7 @@ Auth DB 的資料庫連線設定。
 
 import os
 from sqlalchemy import Engine, create_engine, event
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 from backend.auth.models import AuthBase
 from backend.config import get_settings
@@ -33,11 +33,17 @@ def _create_auth_engine() -> Engine:
         if db_dir:
             os.makedirs(db_dir, exist_ok=True)
 
-    engine = create_engine(db_url, connect_args={"check_same_thread": False} if db_url.startswith("sqlite") else {})
+    # sqlite 預設為單執行緒，使用 check_same_thread=False
+    # 允許多執行緒共用 (FastAPI / Celery)
+    engine = create_engine(
+        db_url,
+        connect_args={"check_same_thread": False} if db_url.startswith("sqlite") else {},
+    )
 
     if db_url.startswith("sqlite"):
         @event.listens_for(engine, "connect")
         def set_sqlite_pragma(dbapi_connection, _connection_record):
+            """設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。"""
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
@@ -51,9 +57,25 @@ def _create_auth_engine() -> Engine:
     return engine
 
 
-# 模組層級的 engine 與 SessionLocal（延遲初始化以讀取正確的設定）
-_engine: Engine | None = None
-_SessionLocal: sessionmaker[Session] | None = None
+# 模組層級的變數（單例模式）
+_ENGINE: Engine | None = None
+_SESSION_LOCAL: sessionmaker | None = None  # pylint: disable=unsubscriptable-object
+
+
+def init_auth_db(db_url: str) -> None:
+    """
+    初始化資料庫連線並建立所有未建立的資料表。
+
+    Args:
+        db_url (str): 資料庫連線字串（例如 sqlite:///db/auth.db）。
+    """
+    global _ENGINE, _SESSION_LOCAL  # pylint: disable=global-statement
+    _ENGINE = create_engine(
+        db_url,
+        connect_args={"check_same_thread": False} if "sqlite" in db_url else {},
+    )
+    _SESSION_LOCAL = sessionmaker(autocommit=False, autoflush=False, bind=_ENGINE)
+    AuthBase.metadata.create_all(_ENGINE)
 
 
 def get_auth_engine() -> Engine:
@@ -63,20 +85,20 @@ def get_auth_engine() -> Engine:
     Returns:
         Engine: Auth DB engine。
     """
-    global _engine  # pylint: disable=global-statement
-    if _engine is None:
-        _engine = _create_auth_engine()
-    return _engine
+    global _ENGINE  # pylint: disable=global-statement
+    if _ENGINE is None:
+        _ENGINE = _create_auth_engine()
+    return _ENGINE
 
 
-def get_auth_session_local() -> "sessionmaker[Session]":
+def get_auth_session_local() -> sessionmaker:
     """
     取得 Auth DB SessionLocal 的單例。
 
     Returns:
-        sessionmaker[Session]: SessionLocal 工廠。
+        sessionmaker: SessionLocal 工廠。
     """
-    global _SessionLocal  # pylint: disable=global-statement
-    if _SessionLocal is None:
-        _SessionLocal = sessionmaker(bind=get_auth_engine(), autocommit=False, autoflush=False)
-    return _SessionLocal
+    global _SESSION_LOCAL  # pylint: disable=global-statement
+    if _SESSION_LOCAL is None:
+        _SESSION_LOCAL = sessionmaker(bind=get_auth_engine(), autocommit=False, autoflush=False)
+    return _SESSION_LOCAL

@@ -20,7 +20,12 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from crawler.core import CrawlerCore
 from crawler.models import Base, Job, CrawlQueue, ExternalLink
-from crawler.utils import resolve_ip, get_domain, is_in_domain_list
+from crawler.utils import (
+    resolve_ip,
+    get_domain,
+    is_in_domain_list,
+    get_approved_domains_from_config,
+)
 
 
 def _get_domain_delay(
@@ -90,6 +95,7 @@ class JobManager:
 
             @event.listens_for(self.engine, "connect")
             def set_sqlite_pragma(dbapi_connection, _connection_record):
+                """設定 SQLite 的 PRAGMA 參數，提升效能。"""
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA journal_mode=WAL")
                 cursor.execute("PRAGMA synchronous=NORMAL")
@@ -394,6 +400,7 @@ class JobManager:
                         if links_needing_http_check:
                             # 並發處理實際需要進行探測的外部連結，最快提升檢測效能
                             def check_single_link(l):
+                                """獨立進行單一外部連結的存活與 IP 解析檢查。"""
                                 tgt_dom = get_domain(l)
                                 ip_res = resolve_ip(tgt_dom) if tgt_dom else None
                                 code_res, err_res = crawler.check_external_link(l)
@@ -649,15 +656,8 @@ class JobManager:
 
             links = query.order_by(ExternalLink.created_at).all()
 
-            # unapproved 篩選 (不在 approved_domains 白名單中)
             if status_filter == "unapproved":
-                approved_domains = []
-                if job.config_json:
-                    try:
-                        cfg = json.loads(job.config_json)
-                        approved_domains = cfg.get("approved_domains", [])
-                    except json.JSONDecodeError:
-                        pass
+                approved_domains = get_approved_domains_from_config(job.config_json)
 
                 filtered_links = []
                 for link in links:

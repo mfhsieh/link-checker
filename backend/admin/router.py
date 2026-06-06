@@ -6,6 +6,7 @@
 """
 
 import logging
+import os
 from typing import Any
 
 import yaml
@@ -19,13 +20,13 @@ from backend.config import get_settings
 from backend.deps import (
     get_auth_db,
     get_crawler_db,
-    get_current_user,
     get_job_manager,
     require_admin,
     require_csrf,
 )
 from backend.email_sender import send_test_email
 from crawler.manager import JobManager
+from crawler.models import Job
 
 logger = logging.getLogger(__name__)
 
@@ -35,21 +36,25 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 # ── Request Schema ─────────────────────────────────────────────────────────────
 
 class CreateUserRequest(BaseModel):
+    """建立使用者的請求結構。"""
     email: EmailStr
 
     @field_validator("email")
     @classmethod
     def normalize_email(cls, v: str) -> str:
+        """將信箱轉為小寫去空白。"""
         return v.strip().lower()
 
 
 class UpdateUserRequest(BaseModel):
+    """更新使用者的請求結構。"""
     status: str | None = None   # active / suspended
     role: str | None = None     # user / admin
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
+        """驗證 status 是否合法。"""
         if v is not None and v not in ("active", "suspended"):
             raise ValueError("status 必須為 active 或 suspended。")
         return v
@@ -57,12 +62,14 @@ class UpdateUserRequest(BaseModel):
     @field_validator("role")
     @classmethod
     def validate_role(cls, v: str | None) -> str | None:
+        """驗證 role 是否合法。"""
         if v is not None and v not in ("user", "admin"):
             raise ValueError("role 必須為 user 或 admin。")
         return v
 
 
 class SendTestEmailRequest(BaseModel):
+    """寄送測試郵件的請求結構。"""
     to_email: EmailStr
 
 
@@ -160,7 +167,6 @@ async def delete_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
     # 1. 先刪 Crawler DB 中該 user_id 的所有任務（cascade 刪除隊列與外連）
-    from crawler.models import Job
     crawler_jobs = crawler_db.query(Job).filter(Job.user_id == user_id).all()
     for job in crawler_jobs:
         crawler_db.delete(job)
@@ -252,7 +258,6 @@ async def get_config(
     _admin: User = Depends(require_admin),
 ) -> dict[str, Any]:
     """取得全域爬蟲配置（讀取 config_global.yaml）。"""
-    import os
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
     if not os.path.exists(config_path):
@@ -279,13 +284,12 @@ async def update_config(
     只允許修改 crawler 區塊下的安全參數，
     禁止透過此端點修改 db_url 等系統級設定。
     """
-    import os
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
 
     # 安全限制：不允許修改 db_url 等敏感欄位
-    FORBIDDEN_KEYS = {"db_url", "secret_key"}
-    for key in FORBIDDEN_KEYS:
+    forbidden_keys = {"db_url", "secret_key"}
+    for key in forbidden_keys:
         body.pop(key, None)
 
     try:
