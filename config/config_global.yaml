@@ -40,6 +40,19 @@ crawler:
   # 用於模擬瀏覽器行為以防範目標網站直接封鎖預設爬蟲標頭
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+  # 依據 HTTP Header 中的 MIME 類型來決定是否下載完整內容
+  # 若個別任務的設定檔中未覆寫，將自動套用此全域預設值
+  mime_type_filter:
+    enabled: true
+    allowed_types:
+      - "text/html"
+      - "application/xhtml+xml"
+
+  # 代理伺服器 URL (例如 "http://user:password@proxy.example.com:8080")
+  # 預設為 null。當設定時，所有 HTTP 請求都會透過此代理伺服器發送
+  # 注意：可透過環境變數 CRAWLER_PROXY_URL 優先覆寫
+  proxy_url: null
+
   # 預設的 HTTP 請求連線逾時時間 (單位：秒)
   # 若個別任務的 config.yaml 未設定 timeout，將自動套用此全域預設值
   timeout: 30
@@ -52,13 +65,22 @@ crawler:
   # 若個別任務未設定 retries，將自動套用此全域預設值
   retries: 3
 
-  # 依據 HTTP Header 中的 MIME 類型來決定是否下載完整內容
-  # 若個別任務的設定檔中未覆寫，將自動套用此全域預設值
-  mime_type_filter:
-    enabled: true
-    allowed_types:
-      - "text/html"
-      - "application/xhtml+xml"
+  # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證，降低資安風險)
+  # 支援子網域匹配 (例如設定 "example.com" 亦可匹配 "sub.example.com")
+  # 注意：可透過環境變數 CRAWLER_SSL_EXEMPT_DOMAINS 進行增補
+  ssl_exempt_domains:
+    # - "example.com"
+
+  # 信任的外部網域白名單 (Domain Whitelist)
+  # 若在導出時加上 --filter unapproved，則僅導出不屬於此白名單的所有外部網域網址
+  approved_domains:
+    # - "www.google.com"
+
+  # 網域特定請求延遲時間對照表 (單位：秒)
+  # 當爬取特定網域時，將以其設定的時間覆寫預設的 delay 時間，避免過度存取造成對方伺服器負載過大
+  # 系統使用最長匹配優先原則 (例如 "sub.example.com" 優先於 "example.com")
+  domain_delays:
+    # example.com: 5.0
 
   # 預設略過且不進行 HTML 抓取解析的副檔名清單
   # 這些副檔名的連結會與個別任務設定檔中的清單進行聯集合併，以節省系統頻寬與處理資源
@@ -145,38 +167,3 @@ crawler:
     - ".so"
     - ".class"
     - ".jar"
-
-  # 信任的外部網域白名單 (Domain Whitelist)
-  # 若在導出時加上 --filter unapproved，則僅導出不屬於此白名單的所有外部網域網址
-  approved_domains:
-    - "www.google.com"
-    - "www.google-analytics.com"
-    - "fonts.googleapis.com"
-    - "fonts.gstatic.com"
-
-  # 最大探索深度限制 (從起始網頁開始的點擊次數)
-  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
-  max_depth: null
-
-  # 最大抓取實質網頁頁面數量上限
-  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
-  max_pages: null
-
-  # 代理伺服器 URL (例如 "http://user:password@proxy.example.com:8080")
-  # 預設為 null。當設定時，所有 HTTP 請求都會透過此代理伺服器發送
-  # 注意：可透過環境變數 CRAWLER_PROXY_URL 優先覆寫
-  proxy_url: null
-
-  # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證，降低資安風險)
-  # 支援子網域匹配 (例如設定 "example.com" 亦可匹配 "sub.example.com")
-  # 注意：可透過環境變數 CRAWLER_SSL_EXEMPT_DOMAINS 進行增補
-  ssl_exempt_domains:
-    # - "example.com"
-
-  # 網域特定請求延遲時間對照表 (單位：秒)
-  # 當爬取特定網域時，將以其設定的時間覆寫預設的 delay 時間，避免過度存取造成對方伺服器負載過大
-  # 系統使用最長匹配優先原則 (例如 "sub.example.com" 優先於 "example.com")
-  domain_delays:
-    # example.com: 5.0
-
-
