@@ -9,6 +9,7 @@ import httpx
 from bs4 import BeautifulSoup
 import logging
 from urllib.parse import urlparse, ParseResult
+from typing import Any
 from crawler.utils import normalize_url, get_domain, is_in_domain_list
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -123,7 +124,7 @@ class CrawlerCore:
         try:
             soup: BeautifulSoup = BeautifulSoup(html, 'html.parser')
             links: list[str] = []
-            raw_links: list[str] = []
+            raw_links: list[Any] = []
             
             # 1. 擷取 href 屬性 (超連結 a, 樣式表 link)
             for tag in soup.find_all(['a', 'link'], href=True):
