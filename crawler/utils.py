@@ -23,8 +23,8 @@ def get_domain(url: str) -> str:
     try:
         parsed_uri: urllib.parse.ParseResult = urllib.parse.urlparse(url)
         return parsed_uri.netloc.split(':')[0]  # 移除可能存在的通訊埠
-    except Exception as e:
-        logger.error(f"解析網址 {url} 時發生錯誤: {e}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("解析網址 %s 時發生錯誤: %s", url, e)
         return ""
 
 def is_in_domain_list(domain: str, domain_list: list[str]) -> bool:
@@ -61,10 +61,10 @@ def resolve_ip(domain: str) -> str | None:
         ip: str = socket.gethostbyname(domain)
         return ip
     except socket.gaierror:
-        logger.warning(f"無法解析此網域的 IP 位址: {domain}")
+        logger.warning("無法解析此網域的 IP 位址: %s", domain)
         return None
-    except Exception as e:
-        logger.error(f"解析 {domain} IP 時發生未預期錯誤: {e}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("解析 %s IP 時發生未預期錯誤: %s", domain, e)
         return None
 
 def normalize_url(url: str, base_url: str) -> str:

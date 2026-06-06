@@ -5,15 +5,27 @@
 解析 HTML、擷取連結，並依據網域規則過濾與分類連結。
 """
 
+import logging
+import re
+from typing import Any
+from urllib.parse import urlparse, ParseResult
 import httpx
 from bs4 import BeautifulSoup
-import logging
-from urllib.parse import urlparse, ParseResult
-from typing import Any
 from crawler.utils import normalize_url, get_domain, is_in_domain_list
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+SOCIAL_DOMAINS: tuple[str, ...] = (
+    "facebook.com",
+    "fb.com",
+    "youtube.com",
+    "instagram.com",
+    "twitter.com",
+    "linkedin.com",
+)
+
+
+# pylint: disable=too-many-instance-attributes
 class CrawlerCore:
     """
     網頁爬蟲的核心引擎。
@@ -26,7 +38,17 @@ class CrawlerCore:
         client (httpx.Client): 用於發送同步連線的 HTTPX 客戶端物件。
     """
 
-    def __init__(self, timeout: int = 30, ignore_extensions: list[str] | None = None, mime_type_filter: dict | None = None, ignore_regexes: list[str] | None = None, user_agent: str | None = None, ssl_exempt_domains: list[str] | None = None, proxy_url: str | None = None) -> None:
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def __init__(
+        self,
+        timeout: int = 30,
+        ignore_extensions: list[str] | None = None,
+        mime_type_filter: dict | None = None,
+        ignore_regexes: list[str] | None = None,
+        user_agent: str | None = None,
+        ssl_exempt_domains: list[str] | None = None,
+        proxy_url: str | None = None,
+    ) -> None:
         """
         初始化 CrawlerCore 物件。
 
@@ -40,26 +62,39 @@ class CrawlerCore:
             proxy_url (str | None): (選填) 代理伺服器 URL。
         """
         self.timeout: int = timeout
-        self.ignore_extensions: list[str] = ignore_extensions or ['.pdf', '.jpg', '.png', '.gif', '.mp4', '.zip']
-        self.mime_type_filter: dict = mime_type_filter or {'enabled': True, 'allowed_types': ['text/html', 'application/xhtml+xml']}
-        import re
+        self.ignore_extensions: list[str] = ignore_extensions or [
+            ".pdf",
+            ".jpg",
+            ".png",
+            ".gif",
+            ".mp4",
+            ".zip",
+        ]
+        self.mime_type_filter: dict = mime_type_filter or {
+            "enabled": True,
+            "allowed_types": ["text/html", "application/xhtml+xml"],
+        }
         self.ignore_regexes: list[str] = ignore_regexes or []
         self.ignore_regex_compiled = [re.compile(p) for p in self.ignore_regexes]
-        self.user_agent: str = user_agent or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        self.user_agent: str = user_agent or (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
         self.ssl_exempt_domains: list[str] = ssl_exempt_domains or []
         self.proxy_url: str | None = proxy_url
         self.client: httpx.Client = httpx.Client(
-            timeout=self.timeout, 
+            timeout=self.timeout,
             follow_redirects=True,
-            headers={'User-Agent': self.user_agent},
-            proxy=self.proxy_url
+            headers={"User-Agent": self.user_agent},
+            proxy=self.proxy_url,
         )
         self.exempt_client: httpx.Client = httpx.Client(
-            timeout=self.timeout, 
+            timeout=self.timeout,
             follow_redirects=True,
-            headers={'User-Agent': self.user_agent},
+            headers={"User-Agent": self.user_agent},
             verify=False,  # 自簽憑證豁免
-            proxy=self.proxy_url
+            proxy=self.proxy_url,
         )
 
     def _get_client(self, url: str) -> httpx.Client:
@@ -82,30 +117,40 @@ class CrawlerCore:
         """
         # 略過符合 Regex 規則的連結以節省請求
         if any(pattern.search(url) for pattern in self.ignore_regex_compiled):
-            logger.debug(f"網址 {url} 符合忽略之 Regex 規則，略過爬取")
-            return None, None, 'skip', url, False
+            logger.debug("網址 %s 符合忽略之 Regex 規則，略過爬取", url)
+            return None, None, "skip", url, False
 
         # 略過指定的非 HTML 副檔名以節省頻寬與時間
         if any(url.lower().endswith(ext) for ext in self.ignore_extensions):
-            return None, None, 'skip', url, False
-        
+            return None, None, "skip", url, False
+
         client = self._get_client(url)
         with client.stream("GET", url) as response:
             response.raise_for_status()
-            
+
             # 檢查 HTTP 回應的 Content-Type
             content_type: str = response.headers.get("Content-Type", "").lower()
-            
-            if self.mime_type_filter.get('enabled', True):
-                allowed_types: list[str] = self.mime_type_filter.get('allowed_types', ['text/html'])
+
+            if self.mime_type_filter.get("enabled", True):
+                allowed_types: list[str] = self.mime_type_filter.get(
+                    "allowed_types", ["text/html"]
+                )
                 # 若 content_type 不包含任何一個 allowed_type，則提早中斷並回傳 None
-                if not any(allowed.lower() in content_type for allowed in allowed_types):
-                    logger.debug(f"網址 {url} 略過，不符 MIME 類型: {content_type}")
-                    return None, response.status_code, 'skip', str(response.url), True
-                    
+                if not any(
+                    allowed.lower() in content_type for allowed in allowed_types
+                ):
+                    logger.debug("網址 %s 略過，不符 MIME 類型: %s", url, content_type)
+                    return None, response.status_code, "skip", str(response.url), True
+
             # 若檢查通過，讀取所有資料
             response.read()
-            return response.text, response.status_code, 'completed', str(response.url), True
+            return (
+                response.text,
+                response.status_code,
+                "completed",
+                str(response.url),
+                True,
+            )
 
     def extract_links(self, html: str, base_url: str) -> list[str]:
         """
@@ -120,53 +165,55 @@ class CrawlerCore:
         """
         if not html:
             return []
-            
+
         try:
-            soup: BeautifulSoup = BeautifulSoup(html, 'html.parser')
+            soup: BeautifulSoup = BeautifulSoup(html, "html.parser")
             links: list[str] = []
             raw_links: list[Any] = []
-            
+
             # 1. 擷取 href 屬性 (超連結 a, 樣式表 link)
-            for tag in soup.find_all(['a', 'link'], href=True):
-                raw_links.append(tag.get('href'))
-                
+            for tag in soup.find_all(["a", "link"], href=True):
+                raw_links.append(tag.get("href"))
+
             # 2. 擷取 src 屬性 (script, iframe, img, embed)
-            for tag in soup.find_all(['script', 'iframe', 'img', 'embed'], src=True):
-                raw_links.append(tag.get('src'))
-                
+            for tag in soup.find_all(["script", "iframe", "img", "embed"], src=True):
+                raw_links.append(tag.get("src"))
+
             # 3. 擷取 action 屬性 (form)
-            for tag in soup.find_all('form', action=True):
-                raw_links.append(tag.get('action'))
-                
+            for tag in soup.find_all("form", action=True):
+                raw_links.append(tag.get("action"))
+
             # 4. 擷取 data 屬性 (object)
-            for tag in soup.find_all('object', data=True):
-                raw_links.append(tag.get('data'))
+            for tag in soup.find_all("object", data=True):
+                raw_links.append(tag.get("data"))
 
             for attr_val in raw_links:
                 if isinstance(attr_val, list):
-                    val_str = attr_val[0] if attr_val else ''
+                    val_str = attr_val[0] if attr_val else ""
                 else:
                     val_str = attr_val
 
                 if not isinstance(val_str, str):
                     continue
-                    
+
                 href: str = val_str.strip()
                 # 排除 javascript, mailto 等非 http(s) 的錨點連結
-                if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
+                if not href or href.startswith(("javascript:", "mailto:", "tel:", "#")):
                     continue
                 normalized_link: str = normalize_url(href, base_url)
-                
+
                 # 進行基礎驗證，確保為有效的 HTTP/HTTPS 網址
                 parsed: ParseResult = urlparse(normalized_link)
-                if parsed.scheme in ('http', 'https'):
+                if parsed.scheme in ("http", "https"):
                     links.append(normalized_link)
             return list(set(links))  # 移除陣列中的重複網址
-        except Exception as e:
-            logger.error(f"從 {base_url} 擷取連結時發生錯誤: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("從 %s 擷取連結時發生錯誤: %s", base_url, e)
             return []
 
-    def process_url(self, url: str, target_domains: list[str], internal_domains: list[str]) -> tuple[list[str], list[str], int | None, str, bool]:
+    def process_url(
+        self, url: str, target_domains: list[str], internal_domains: list[str]
+    ) -> tuple[list[str], list[str], int | None, str, bool]:
         """
         處理單一網址，包含抓取網頁、擷取連結以及分類。
 
@@ -183,36 +230,31 @@ class CrawlerCore:
                 - status: 最終狀態 ('completed' 或 'skip')。
                 - request_sent: 是否發送了 HTTP 請求。
         """
-        html: str | None
-        status_code: int | None
-        status: str
-        final_url: str
-        request_sent: bool
         html, status_code, status, final_url, request_sent = self.fetch(url)
-        
+
         if not html:
             return [], [], status_code, status, request_sent
 
         links: list[str] = self.extract_links(html, final_url)
-        
+
         internal_links: list[str] = []
         external_target_links: list[str] = []
-        
+
         for link in links:
             domain: str = get_domain(link)
             if not domain:
                 continue
-                
+
             # 規則 1: 遍歷在允許網域 (target_domains) 內的網頁
             if is_in_domain_list(domain, target_domains):
                 internal_links.append(link)
-                
+
             # 規則 2: 找出連向內部網域 (internal_domains) 以外的外部網址
             if not is_in_domain_list(domain, internal_domains):
                 external_target_links.append(link)
-                
+
         return internal_links, external_target_links, status_code, status, request_sent
-        
+
     def check_external_link(self, url: str) -> tuple[int | None, str | None]:
         """
         對外部連結進行存活檢查，回傳 (HTTP 狀態碼, 錯誤訊息)。
@@ -221,22 +263,28 @@ class CrawlerCore:
             client = self._get_client(url)
             # 優先使用 HEAD 請求以節省流量與時間，逾時時間設為較短的 10 秒
             response = client.request("HEAD", url, timeout=10.0, follow_redirects=True)
-            
+
             # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
             domain = get_domain(url)
-            is_social_media = domain and any(m in domain.lower() for m in ["facebook.com", "fb.com", "youtube.com", "instagram.com", "twitter.com", "linkedin.com"])
-            
-            if response.status_code in (400, 403, 405) or (response.status_code >= 400 and is_social_media):
+            is_social_media = domain and any(
+                m in domain.lower() for m in SOCIAL_DOMAINS
+            )
+
+            if response.status_code in (400, 403, 405) or (
+                response.status_code >= 400 and is_social_media
+            ):
                 # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案
                 headers = {"Range": "bytes=0-1023"}
-                with client.stream("GET", url, headers=headers, timeout=10.0, follow_redirects=True) as resp:
+                with client.stream(
+                    "GET", url, headers=headers, timeout=10.0, follow_redirects=True
+                ) as resp:
                     return resp.status_code, None
             return response.status_code, None
         except httpx.HTTPStatusError as e:
             return e.response.status_code, str(e)
         except httpx.RequestError as e:
             return None, str(e)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return None, str(e)
 
     def close(self) -> None:

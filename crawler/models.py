@@ -10,9 +10,9 @@ import uuid
 from sqlalchemy import String, Text, ForeignKey, DateTime, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+# pylint: disable=too-few-public-methods
 class Base(DeclarativeBase):
     """所有 SQLAlchemy 宣告式模型的基底類別 (Base Class)。"""
-    pass
 
 def get_utc_now() -> datetime:
     """取得包含時區資訊的當前 UTC 時間"""
@@ -36,7 +36,7 @@ class Job(Base):
         external_links (list[ExternalLink]): 此任務中所找到的外部連結紀錄關聯。
     """
     __tablename__ = 'jobs'
-    
+
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     start_url: Mapped[str] = mapped_column(String(2048), nullable=False)
@@ -45,10 +45,16 @@ class Job(Base):
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default='pending')
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
-    
-    queues: Mapped[list["CrawlQueue"]] = relationship(back_populates="job", cascade="all, delete-orphan")
-    external_links: Mapped[list["ExternalLink"]] = relationship(back_populates="job", cascade="all, delete-orphan")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=get_utc_now, onupdate=get_utc_now
+    )
+
+    queues: Mapped[list["CrawlQueue"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )
+    external_links: Mapped[list["ExternalLink"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )
 
 class CrawlQueue(Base):
     """
@@ -71,7 +77,7 @@ class CrawlQueue(Base):
         Index('ix_crawl_queue_job_url', 'job_id', 'url'),
         Index('ix_crawl_queue_job_status', 'job_id', 'status'),
     )
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[str] = mapped_column(ForeignKey('jobs.id'), nullable=False)
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
@@ -82,8 +88,10 @@ class CrawlQueue(Base):
     depth: Mapped[int] = mapped_column(default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
-    
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=get_utc_now, onupdate=get_utc_now
+    )
+
     job: Mapped["Job"] = relationship(back_populates="queues")
 
 class ExternalLink(Base):
@@ -103,7 +111,7 @@ class ExternalLink(Base):
     __table_args__ = (
         Index('ix_external_links_job_src_tgt', 'job_id', 'source_url', 'target_url'),
     )
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[str] = mapped_column(ForeignKey('jobs.id'), nullable=False)
     source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
@@ -113,5 +121,5 @@ class ExternalLink(Base):
     http_status_code: Mapped[int | None] = mapped_column(nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
-    
+
     job: Mapped["Job"] = relationship(back_populates="external_links")

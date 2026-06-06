@@ -1,4 +1,8 @@
 {
     "python.defaultInterpreterPath": ".venv/bin/python3.12",
-    "python.useEnvironmentsExtension": true
+    "python.useEnvironmentsExtension": true,
+    "pylint.importStrategy": "fromEnvironment",
+    "pylint.args": [
+        "--rcfile=${workspaceFolder}/.pylintrc"
+    ]
 }

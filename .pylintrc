@@ -1,0 +1,17 @@
+[MASTER]
+# 忽略特定虛擬檔案與虛擬環境目錄
+ignore=__pyrefly_virtual__,.venv
+
+# [MESSAGES CONTROL]
+# 停用一些對此專案噪音較多或較嚴苛的檢查：
+# C0114: Missing module docstring (缺少模組說明文件)
+# C0115: Missing class docstring (缺少類別說明文件)
+# C0116: Missing function or method docstring (缺少函數說明文件)
+# R0903: Too few public methods (公開方法過少)
+# R0913: Too many arguments (參數過多)
+# W0621: Redefining name from outer scope (與外部作用域變數重名，常在 SQLAlchemy 或閉包中出現)
+# E1101: Instance has no member (SQLAlchemy 欄位與動態屬性常被 pylint 誤判為無此成員)
+# disable=C0114,C0115,C0116,R0903,R0913,W0621,E1101
+
+# [REPORTS]
+# output-format=colorized
