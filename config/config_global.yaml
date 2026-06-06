@@ -176,6 +176,7 @@ crawler:
   # 網域特定請求延遲時間對照表 (單位：秒)
   # 當爬取特定網域時，將以其設定的時間覆寫預設的 delay 時間，避免過度存取造成對方伺服器負載過大
   # 系統使用最長匹配優先原則 (例如 "sub.example.com" 優先於 "example.com")
-  domain_delays: {}
+  domain_delays:
+    # example.com: 5.0
 
 
