@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>外部連結檢查系統 — 登入</title>
+  <meta name="description" content="外部連結檢查系統登入頁面。本系統採邀請制，請使用邀請郵件中的連結登入。" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/components.css" />
+  <link rel="stylesheet" href="/static/css/layout.css" />
+</head>
+<body>
+
+<main class="login-page" id="login-page">
+  <div class="login-card" role="main">
+
+    <!-- Logo -->
+    <div class="login-logo">
+      <div class="login-logo-icon" aria-hidden="true">EL</div>
+      <div>
+        <div style="font-size:0.75rem;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase">External Link</div>
+        <div style="font-size:1.125rem;font-weight:700;color:var(--text-primary)">Checker</div>
+      </div>
+    </div>
+
+    <!-- Heading -->
+    <h1 class="login-heading">歡迎回來</h1>
+    <p class="login-subheading" id="login-mode-label">請輸入您的帳號與密碼登入</p>
+
+    <!-- Login Form -->
+    <form class="login-form" id="login-form" novalidate>
+
+      <!-- Email -->
+      <div class="form-group">
+        <label class="form-label" for="login-email">電子郵件 <span class="required">*</span></label>
+        <input
+          class="form-input"
+          type="email"
+          id="login-email"
+          name="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+          required
+        />
+      </div>
+
+      <!-- Password（一般登入用）-->
+      <div class="form-group" id="password-group">
+        <label class="form-label" for="login-password">密碼 <span class="required">*</span></label>
+        <input
+          class="form-input"
+          type="password"
+          id="login-password"
+          name="password"
+          placeholder="••••••••••••"
+          autocomplete="current-password"
+        />
+      </div>
+
+      <!-- Invite Token（首次登入，hidden by default）-->
+      <div class="form-group" id="token-group" style="display:none">
+        <label class="form-label" for="login-token">邀請驗證碼</label>
+        <input
+          class="form-input font-mono"
+          type="text"
+          id="login-token"
+          name="token"
+          readonly
+          style="background:var(--surface-raised);color:var(--text-muted)"
+        />
+        <div class="form-hint">邀請碼已從邀請連結自動填入</div>
+      </div>
+
+      <!-- Error -->
+      <div id="login-error" role="alert" style="color:var(--color-danger-400);font-size:0.875rem;min-height:1.25rem"></div>
+
+      <!-- Submit -->
+      <button class="btn btn-primary btn-lg" type="submit" id="login-btn" style="width:100%;margin-top:0.5rem">
+        登入
+      </button>
+
+    </form>
+
+    <!-- Footer -->
+    <div style="margin-top:2rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">
+      本系統採邀請制。如需帳號，請聯繫系統管理員。
+    </div>
+
+  </div>
+</main>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script type="module">
+  import { initLoginPage } from '/static/js/auth.js';
+  initLoginPage();
+</script>
+
+</body>
+</html>

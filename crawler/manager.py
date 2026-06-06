@@ -26,6 +26,19 @@ from crawler.utils import resolve_ip, get_domain, is_in_domain_list
 def _get_domain_delay(
     url: str, domain_delays: dict[str, float], default_delay: float
 ) -> float:
+    """
+    根據給定網址，取得對應網域的請求延遲時間。
+
+    比對時遵循「最長匹配優先原則」。若無匹配項目，則回傳預設的延遲時間。
+
+    Args:
+        url (str): 目標網址。
+        domain_delays (dict[str, float]): 網域與對應延遲時間的字典。
+        default_delay (float): 預設的延遲時間 (秒)。
+
+    Returns:
+        float: 計算出的延遲時間 (秒)。
+    """
     domain = get_domain(url)
     if not domain:
         return default_delay
@@ -509,6 +522,12 @@ class JobManager:
     def get_all_jobs(self, user_id: str | None = None) -> list[dict[str, Any]]:
         """
         取得所有任務的列表與基本資訊。可透過 user_id 進行過濾。
+
+        Args:
+            user_id (str | None): (選填) 若提供，則僅回傳該擁有者的任務。
+
+        Returns:
+            list[dict[str, Any]]: 包含任務基本資訊的字典陣列。
         """
         with self.SessionLocal() as session:
             query = session.query(Job)
@@ -529,6 +548,12 @@ class JobManager:
     def get_job_report(self, job_id: str) -> dict[str, Any] | None:
         """
         取得指定任務的詳細統計報告。
+
+        Args:
+            job_id (str): 欲查詢報告的任務 ID。
+
+        Returns:
+            dict[str, Any] | None: 任務的詳細統計資料。若任務不存在則回傳 None。
         """
         with self.SessionLocal() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -591,6 +616,15 @@ class JobManager:
     ) -> bool:
         """
         將指定任務收集到的外部連結匯出為 CSV 或 JSON 格式。
+
+        Args:
+            job_id (str): 欲匯出結果的任務 ID。
+            output_path (str): 匯出檔案的目的地路徑。
+            status_filter (str | None): (選填) 'dead', 'broken' 或 'unapproved' 的過濾條件。
+            export_group (bool): 是否啟用去重與聚合導出。
+
+        Returns:
+            bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
         """
         with self.SessionLocal() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -781,6 +815,12 @@ class JobManager:
     def pause_job(self, job_id: str) -> bool:
         """
         將指定任務狀態更新為 paused（僅在任務當前為 running 時允許）。
+
+        Args:
+            job_id (str): 欲暫停的任務 ID。
+
+        Returns:
+            bool: 成功暫停回傳 True，否則回傳 False。
         """
         with self.SessionLocal() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -799,6 +839,12 @@ class JobManager:
     def delete_job(self, job_id: str) -> bool:
         """
         刪除指定任務，並利用級聯刪除 (Cascade Delete) 機制清理其所有佇列與外連結果。
+
+        Args:
+            job_id (str): 欲刪除的任務 ID。
+
+        Returns:
+            bool: 成功刪除回傳 True，若任務不存在則回傳 False。
         """
         with self.SessionLocal() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -812,6 +858,12 @@ class JobManager:
     def reset_job(self, job_id: str) -> bool:
         """
         重設指定任務：將任務狀態設回 pending，清除已發生的外連記錄，重置佇列。
+
+        Args:
+            job_id (str): 欲重設的任務 ID。
+
+        Returns:
+            bool: 成功重設回傳 True，若任務不存在則回傳 False。
         """
         with self.SessionLocal() as session:
             job = session.query(Job).filter(Job.id == job_id).first()

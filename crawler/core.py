@@ -98,7 +98,18 @@ class CrawlerCore:
         )
 
     def _get_client(self, url: str) -> httpx.Client:
-        """根據網址的網域選擇是否使用 SSL 豁免連線客戶端。"""
+        """
+        根據網址的網域選擇適合的 HTTPX 客戶端。
+
+        若目標網域在 ssl_exempt_domains 白名單中，則回傳關閉憑證驗證的 exempt_client，
+        否則回傳預設的 client。
+
+        Args:
+            url (str): 目標網址。
+
+        Returns:
+            httpx.Client: 應使用的 HTTPX 客戶端實例。
+        """
         domain = get_domain(url)
         if domain and is_in_domain_list(domain, self.ssl_exempt_domains):
             return self.exempt_client
@@ -121,7 +132,8 @@ class CrawlerCore:
             return None, None, "skip", url, False
 
         # 略過指定的非 HTML 副檔名以節省頻寬與時間
-        if any(url.lower().endswith(ext) for ext in self.ignore_extensions):
+        parsed_path = urlparse(url).path.lower()
+        if any(parsed_path.endswith(ext) for ext in self.ignore_extensions):
             return None, None, "skip", url, False
 
         client = self._get_client(url)
@@ -198,7 +210,7 @@ class CrawlerCore:
 
                 href: str = val_str.strip()
                 # 排除 javascript, mailto 等非 http(s) 的錨點連結
-                if not href or href.startswith(("javascript:", "mailto:", "tel:", "#")):
+                if not href or href.lower().startswith(("javascript:", "mailto:", "tel:", "#")):
                     continue
                 normalized_link: str = normalize_url(href, base_url)
 
@@ -257,7 +269,16 @@ class CrawlerCore:
 
     def check_external_link(self, url: str) -> tuple[int | None, str | None]:
         """
-        對外部連結進行存活檢查，回傳 (HTTP 狀態碼, 錯誤訊息)。
+        對外部連結進行存活檢查。
+
+        優先使用 HEAD 請求以節省流量。若遇到特定阻擋狀態碼或目標為社群平台，
+        則自動降級為帶有 Range 標頭的 GET 請求，嘗試繞過反爬蟲機制。
+
+        Args:
+            url (str): 準備進行探測的外部網址。
+
+        Returns:
+            tuple[int | None, str | None]: 回傳 (HTTP 狀態碼, 錯誤訊息)。
         """
         try:
             client = self._get_client(url)
@@ -288,6 +309,10 @@ class CrawlerCore:
             return None, str(e)
 
     def close(self) -> None:
-        """關閉底層的 HTTPX 客戶端連線。"""
+        """
+        關閉底層的 HTTPX 客戶端連線。
+
+        釋放底層連線池資源。建議在爬蟲任務結束時呼叫。
+        """
         self.client.close()
         self.exempt_client.close()

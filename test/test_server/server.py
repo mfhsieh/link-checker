@@ -13,8 +13,8 @@ import sys
 from typing import Any
 
 # 全域計數器與鎖，用以安全記錄請求次數
-request_counter = {"/temporary-error": 0}
-counter_lock = threading.Lock()
+request_counter: dict[str, int] = {"/temporary-error": 0}
+counter_lock: threading.Lock = threading.Lock()
 
 
 class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
@@ -44,7 +44,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         if self.path == "/temporary-error":
             with counter_lock:
                 request_counter["/temporary-error"] += 1
-                current_count = request_counter["/temporary-error"]
+                current_count: int = request_counter["/temporary-error"]
 
             if current_count <= 2:
                 self.send_response(503)
@@ -115,8 +115,11 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         # 6. 靜態檔案回傳（index.html, page2.html, 以及重新導向後的 subfolder 目錄內容）
+        # 先分離 query string 與 path
+        path_without_query: str = self.path.split("?")[0]
+
         # 移除前面的斜線，以便在本地目錄尋找
-        local_path = self.path.lstrip("/")
+        local_path: str = path_without_query.lstrip("/")
         if local_path == "":
             local_path = "index.html"
 
@@ -166,7 +169,7 @@ def run(port: int = 8000) -> None:
 
 
 if __name__ == "__main__":
-    server_port = 8000
+    server_port: int = 8000
     if len(sys.argv) > 1:
         try:
             server_port = int(sys.argv[1])

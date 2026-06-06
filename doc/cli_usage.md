@@ -26,6 +26,8 @@
 | `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容。支援 `dead`、`broken`、`unapproved`。 | 無 |
 | `--group` | *(無)* | 旗標 | (選填) 搭配 `--export` 使用，將相同外部連結在不同頁面出現時去重聚合。 | 無 |
 | `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及 `--export` 的 JSON 檔案導出。 | 無 |
+| `--serve` | *(無)* | 旗標 | 啟動 Web 後端伺服器 (FastAPI / Uvicorn)。 | 無 |
+| `--create-admin` | *(無)* | 字串(2) | 建立或更新系統管理員帳號。需依序傳入 `EMAIL` 與 `PASSWORD`。 | 無 |
 
 > **💡 提示：** 
 > * `--config` 與 `--resume` 為互斥概念。如果是啟動新爬蟲，請使用 `--config`；如果是中斷後繼續，請使用 `--resume`。若兩者皆未輸入，系統將會印出幫助說明。
@@ -303,3 +305,24 @@ python cli.py --export <JOB_ID> --json
 # 聚合去重導出 (同個外連在不同頁面出現時會被合併，並附帶引用的出現次數與來源頁面清單)
 python cli.py --export <JOB_ID> --group
 ```
+
+
+---
+
+## 6. 後端伺服器與管理員帳號
+
+雖然本系統可以純 CLI 獨立運行，但若您需要使用網頁前台或後台管理介面，可以透過 CLI 快速啟動 FastAPI 伺服器並設定初始權限。
+
+### 建立初始管理員帳號
+在一個封閉的邀請制系統中，您需要透過 CLI 建立系統的第一位管理員：
+```bash
+python cli.py --create-admin "admin@example.com" "SecurePassword123!"
+```
+> **⚠️ 提示：** 建立後請妥善保管此密碼。後續的其他管理員可直接由網頁後台邀請與設定，不需要再次使用此指令。
+
+### 啟動 Web 伺服器
+若要啟動後端 API 伺服器以供前端介面連線：
+```bash
+python cli.py --serve
+```
+伺服器啟動後，將預設監聽 `0.0.0.0:8000`。您可透過終端機的標準輸出檢視存取紀錄，按下 `Ctrl+C` 即可安全關閉伺服器。

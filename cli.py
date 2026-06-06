@@ -9,6 +9,7 @@ import argparse
 import json
 import logging
 import os
+import sys
 from typing import Any
 import yaml
 from crawler.manager import JobManager
@@ -178,6 +179,17 @@ def parse_args() -> argparse.Namespace | None:
         "--json",
         action="store_true",
         help="(選填) 以 JSON 格式輸出或導出結果 (支援 --list-jobs, --report, --export)",
+    )
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="啟動 Web 後端伺服器 (FastAPI / Uvicorn)",
+    )
+    parser.add_argument(
+        "--create-admin",
+        nargs=1,
+        metavar="EMAIL",
+        help="建立或更新系統管理員帳號 (隨機產生密碼並設為待設密狀態)",
     )
 
     args: argparse.Namespace = parser.parse_args()
@@ -413,14 +425,37 @@ def main() -> None:
         logging.warning("找不到全域設定檔: %s，將使用預設全域設定", args.global_config)
     except PermissionError as pe:
         logging.error("安全驗證失敗：%s", pe)
-        return
-    except Exception as e:  #pylint: disable=broad-exception-caught
+        sys.exit(1)
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logging.error("讀取全域設定檔時發生錯誤: %s", e)
-        return
+        sys.exit(1)
 
     setup_logging(global_config)
 
     db_url: str = global_config.get("db_url", "sqlite:///db/crawler.db")
+    # 若帶有 --create-admin 參數，執行管理員帳號建立並結束
+    if args.create_admin:
+        try:
+            import create_admin as ca
+            email = args.create_admin[0]
+            ca.create_admin(email)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logging.error("建立管理員帳號失敗: %s", e)
+            sys.exit(1)
+        return
+
+    # 若帶有 --serve 參數，啟動 Web 伺服器並結束
+    if args.serve:
+        logging.info("啟動 Web 後端伺服器...")
+        try:
+            import uvicorn
+
+            uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=False)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logging.error("啟動 Web 伺服器失敗: %s", e)
+            sys.exit(1)
+        return
+
     manager: JobManager = JobManager(db_url=db_url)
 
     if args.list_jobs:
@@ -445,7 +480,7 @@ def main() -> None:
         report = manager.get_job_report(args.report)
         if not report:
             logging.error("找不到指定的任務 ID: %s", args.report)
-            return
+            sys.exit(1)
 
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -478,24 +513,32 @@ def main() -> None:
         )
         if success:
             logging.info("匯出成功！")
+        else:
+            sys.exit(1)
         return
 
     if args.pause:
         logging.info("準備暫停任務 %s...", args.pause)
         if manager.pause_job(args.pause):
             logging.info("已成功發送暫停指令，任務狀態已設為 paused。")
+        else:
+            sys.exit(1)
         return
 
     if args.delete:
         logging.info("準備刪除任務 %s...", args.delete)
         if manager.delete_job(args.delete):
             logging.info("任務已成功刪除，相關佇列與外連記錄已清理。")
+        else:
+            sys.exit(1)
         return
 
     if args.reset:
         logging.info("準備重設任務 %s...", args.reset)
         if manager.reset_job(args.reset):
             logging.info("任務已成功重設。")
+        else:
+            sys.exit(1)
         return
 
     config: dict[str, Any] = {}
@@ -508,13 +551,13 @@ def main() -> None:
             config = load_config(config_path, allowed_directory="job")
         except FileNotFoundError:
             logging.error("找不到指定的設定檔: %s", config_path)
-            return
+            sys.exit(1)
         except PermissionError as pe:
             logging.error("安全驗證失敗：%s", pe)
-            return
+            sys.exit(1)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logging.error("讀取設定檔時發生錯誤: %s", e)
-            return
+            sys.exit(1)
 
     crawler_config: dict[str, Any] = merge_and_validate_crawler_config(
         config, global_config
@@ -534,7 +577,7 @@ def main() -> None:
 
         if not start_url:
             logging.error("設定檔中缺少必填參數: start_url")
-            return
+            sys.exit(1)
 
         logging.info("準備建立新任務...")
         job_id: str = manager.create_job(
@@ -550,6 +593,7 @@ def main() -> None:
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         logging.error("啟動爬蟲時發生例外錯誤: %s", e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

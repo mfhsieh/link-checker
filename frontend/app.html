@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>任務管理 — 外部連結檢查系統</title>
+  <meta name="description" content="管理外部連結掃描任務，查閱進度與結果。" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/components.css" />
+  <link rel="stylesheet" href="/static/css/layout.css" />
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+
+  <!-- ── Top Bar ──────────────────────────────────────────── -->
+  <header class="topbar">
+    <a class="topbar-brand" href="/app.html" id="topbar-brand">
+      <div class="topbar-logo" aria-hidden="true">EL</div>
+      <span class="topbar-title">外部連結檢查系統</span>
+    </a>
+    <div class="topbar-actions">
+      <div class="topbar-user" id="topbar-user" role="button" tabindex="0" title="帳號選單">
+        <div class="topbar-avatar" id="topbar-avatar">-</div>
+        <div class="topbar-user-info">
+          <span class="topbar-user-name" id="topbar-email">載入中...</span>
+          <span class="topbar-user-role" id="topbar-role"></span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="logout-btn">登出</button>
+    </div>
+  </header>
+
+  <!-- ── Sidebar ────────────────────────────────────────── -->
+  <nav class="sidebar" aria-label="主導覽">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">任務管理</div>
+      <ul class="sidebar-nav">
+        <li>
+          <a class="sidebar-item" id="nav-jobs" href="#/jobs" data-view="jobs">
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+            所有任務
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- 後台管理（僅 admin 可見）-->
+    <div class="sidebar-section" id="admin-nav-section" style="display:none">
+      <div class="sidebar-section-title">後台管理</div>
+      <ul class="sidebar-nav">
+        <li>
+          <a class="sidebar-item" id="nav-admin-users" href="/admin.html" data-view="admin-users">
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
+            使用者管理
+          </a>
+        </li>
+        <li>
+          <a class="sidebar-item" id="nav-admin-config" href="/admin.html#/admin/config" data-view="admin-config">
+            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            系統配置
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ── Main Content ────────────────────────────────────── -->
+  <main class="main-content" id="main-content">
+
+    <!-- ── 任務列表視圖 ────────────────────────────────────── -->
+    <div id="view-jobs">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">我的任務</h1>
+          <p class="page-subtitle">管理外部連結掃描任務</p>
+        </div>
+        <button class="btn btn-primary" id="create-job-btn">
+          <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px">
+            <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+          </svg>
+          新增任務
+        </button>
+      </div>
+      <div id="jobs-list-container"></div>
+    </div>
+
+    <!-- ── 任務詳情視圖 ────────────────────────────────────── -->
+    <div id="view-job-detail" style="display:none">
+
+      <!-- 麵包屑 + 操作 -->
+      <div class="page-header">
+        <div>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+            <button class="btn btn-ghost btn-sm" id="btn-back-jobs" style="padding:0.25rem 0.5rem">
+              ← 返回列表
+            </button>
+          </div>
+          <h1 class="page-title" id="job-title">任務詳情</h1>
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.5rem">
+            <span id="job-status" class="badge badge-pending">等待中</span>
+            <span class="text-xs font-mono text-muted" id="job-id-display"></span>
+          </div>
+        </div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none">▶ 啟動</button>
+          <button class="btn btn-secondary btn-sm" id="btn-pause-job" style="display:none">⏸ 暫停</button>
+          <button class="btn btn-secondary btn-sm" id="btn-reset-job" style="display:none">↺ 重置</button>
+          <button class="btn btn-danger btn-sm" id="btn-delete-job">🗑 刪除</button>
+        </div>
+      </div>
+
+      <!-- 任務資訊卡片 -->
+      <div class="grid-2" style="margin-bottom:2rem">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">任務資訊</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.75rem">
+            <div>
+              <div class="text-xs text-muted">起始 URL</div>
+              <div class="font-mono text-sm truncate" id="job-start-url" style="max-width:100%"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+              <div>
+                <div class="text-xs text-muted">建立時間</div>
+                <div class="text-sm" id="job-created-at"></div>
+              </div>
+              <div>
+                <div class="text-xs text-muted">最後更新</div>
+                <div class="text-sm" id="job-updated-at"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 爬取進度 -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">爬取進度</span>
+            <span class="text-sm" id="job-progress-text">0%</span>
+          </div>
+          <div class="progress-bar" style="margin-bottom:1.25rem">
+            <div class="progress-fill" id="job-progress-fill" style="width:0%"></div>
+          </div>
+          <div class="grid-stats" style="grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:0">
+            <div class="stat-card" style="padding:0.75rem">
+              <div class="stat-label">總計</div>
+              <div class="stat-value text-xl" id="stat-total">0</div>
+            </div>
+            <div class="stat-card" style="padding:0.75rem">
+              <div class="stat-label text-success">完成</div>
+              <div class="stat-value text-xl text-success" id="stat-completed">0</div>
+            </div>
+            <div class="stat-card" style="padding:0.75rem">
+              <div class="stat-label">等待中</div>
+              <div class="stat-value text-xl" id="stat-pending">0</div>
+            </div>
+            <div class="stat-card" style="padding:0.75rem">
+              <div class="stat-label text-danger">失敗</div>
+              <div class="stat-value text-xl text-danger" id="stat-failed">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 外連結果摘要 -->
+      <div class="grid-stats" style="margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-label">外部連結總數</div>
+          <div class="stat-value" id="summary-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label text-danger">DNS 解析失敗</div>
+          <div class="stat-value text-danger" id="summary-dns-failed">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label text-danger">HTTP 錯誤</div>
+          <div class="stat-value text-danger" id="summary-http-error">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label text-warning">非 HTTPS</div>
+          <div class="stat-value text-warning" id="summary-insecure">0</div>
+        </div>
+      </div>
+
+      <!-- 外連結果 -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="card-header" style="padding:1.25rem 1.5rem">
+          <span class="card-title">外部連結結果</span>
+          <div style="display:flex;gap:0.75rem">
+            <button class="btn btn-secondary btn-sm" id="btn-export-csv">⬇ CSV</button>
+            <button class="btn btn-secondary btn-sm" id="btn-export-json">⬇ JSON</button>
+          </div>
+        </div>
+
+        <!-- 篩選列 -->
+        <div class="filter-bar" style="padding:0 1.5rem 1rem">
+          <div class="search-bar">
+            <svg class="search-bar-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+            </svg>
+            <input class="form-input" type="search" id="results-search" placeholder="搜尋 URL..." style="padding-left:2.25rem" />
+          </div>
+          <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
+          <button class="filter-chip" data-filter="broken">⚠ HTTP 錯誤</button>
+          <button class="filter-chip" data-filter="unapproved">🔍 未核准</button>
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-secondary);cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="results-group-toggle" /> 去重聚合
+          </label>
+        </div>
+
+        <div id="results-container" style="padding:0 0 1rem">
+          <div class="empty-state"><div class="empty-state-desc">載入中...</div></div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<div class="toast-container"></div>
+
+<script type="module">
+  import * as api from '/static/js/api.js';
+  import { toast } from '/static/js/toast.js';
+  import { logout, getCurrentUser } from '/static/js/auth.js';
+  import { renderJobList, initCreateJobModal } from '/static/js/jobs.js';
+  import { initJobDetailPage, destroyJobDetailPage } from '/static/js/job-detail.js';
+
+  // ── 初始化使用者資訊 ──────────────────────────────────────
+  async function initUser() {
+    const user = await getCurrentUser();
+    if (!user) { window.location.replace('/'); return; }
+
+    const emailEl = document.getElementById('topbar-email');
+    const roleEl = document.getElementById('topbar-role');
+    const avatarEl = document.getElementById('topbar-avatar');
+    const adminSection = document.getElementById('admin-nav-section');
+
+    if (emailEl) emailEl.textContent = user.email;
+    if (roleEl) roleEl.textContent = user.role === 'admin' ? '管理員' : '使用者';
+    if (avatarEl) avatarEl.textContent = user.email.charAt(0).toUpperCase();
+    if (adminSection && user.role === 'admin') adminSection.style.display = '';
+  }
+
+  // ── Hash-based SPA Router ─────────────────────────────────
+  const viewJobs = document.getElementById('view-jobs');
+  const viewDetail = document.getElementById('view-job-detail');
+
+  async function loadJobsList() {
+    try {
+      const jobs = await api.get('/api/jobs');
+      renderJobList(jobs, document.getElementById('jobs-list-container'));
+      initCreateJobModal((newJobId) => {
+        window.location.hash = `#/jobs/${newJobId}`;
+      });
+    } catch (err) {
+      toast.error('無法載入任務列表：' + err.message);
+    }
+  }
+
+  let _currentView = null;
+
+  async function route() {
+    const hash = window.location.hash || '#/jobs';
+    const jobMatch = hash.match(/^#\/jobs\/([^/]+)$/);
+
+    if (jobMatch) {
+      const jobId = jobMatch[1];
+      if (_currentView !== 'detail') {
+        viewJobs.style.display = 'none';
+        viewDetail.style.display = '';
+        _currentView = 'detail';
+      }
+      document.getElementById('job-id-display').textContent = jobId;
+      destroyJobDetailPage();
+      await initJobDetailPage(jobId);
+    } else {
+      if (_currentView !== 'list') {
+        viewDetail.style.display = 'none';
+        viewJobs.style.display = '';
+        _currentView = 'list';
+        destroyJobDetailPage();
+      }
+      await loadJobsList();
+    }
+  }
+
+  // 登出
+  document.getElementById('logout-btn').addEventListener('click', logout);
+
+  // 初始化
+  await initUser();
+  await route();
+  window.addEventListener('hashchange', route);
+</script>
+
+</body>
+</html>

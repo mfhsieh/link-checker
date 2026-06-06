@@ -1,0 +1,387 @@
+"""
+後台管理 API 路由。
+
+實作 §13.4 定義的後台管理端點（所有端點需 Admin 角色）：
+使用者管理、任務監控、全域配置、SMTP 測試、操作日誌查閱。
+"""
+
+import logging
+from typing import Any
+
+import yaml
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, EmailStr, field_validator
+from sqlalchemy.orm import Session as DBSession
+
+from backend.auth import service as auth_service
+from backend.auth.models import AuthLog, Invitation, User
+from backend.config import get_settings
+from backend.deps import (
+    get_auth_db,
+    get_crawler_db,
+    get_current_user,
+    get_job_manager,
+    require_admin,
+    require_csrf,
+)
+from backend.email_sender import send_test_email
+from crawler.manager import JobManager
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+# ── Request Schema ─────────────────────────────────────────────────────────────
+
+class CreateUserRequest(BaseModel):
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class UpdateUserRequest(BaseModel):
+    status: str | None = None   # active / suspended
+    role: str | None = None     # user / admin
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("active", "suspended"):
+            raise ValueError("status 必須為 active 或 suspended。")
+        return v
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("user", "admin"):
+            raise ValueError("role 必須為 user 或 admin。")
+        return v
+
+
+class SendTestEmailRequest(BaseModel):
+    to_email: EmailStr
+
+
+# ── 使用者管理 ─────────────────────────────────────────────────────────────────
+
+@router.get("/users", status_code=status.HTTP_200_OK)
+async def list_users(
+    auth_db: DBSession = Depends(get_auth_db),
+    _admin: User = Depends(require_admin),
+) -> list[dict[str, Any]]:
+    """列出所有使用者帳號。"""
+    users = auth_db.query(User).order_by(User.created_at.desc()).all()
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "role": u.role,
+            "status": u.status,
+            "created_at": u.created_at.isoformat(),
+            "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
+        }
+        for u in users
+    ]
+
+
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+async def create_user(
+    body: CreateUserRequest,
+    auth_db: DBSession = Depends(get_auth_db),
+    _admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, Any]:
+    """新增使用者並寄送邀請郵件。"""
+    try:
+        result = auth_service.create_invitation(auth_db, body.email)
+        return {"message": "邀請已建立並寄送。", **result}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
+
+
+@router.patch("/users/{user_id}", status_code=status.HTTP_200_OK)
+async def update_user(
+    user_id: str,
+    body: UpdateUserRequest,
+    auth_db: DBSession = Depends(get_auth_db),
+    current_admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """修改帳號狀態或角色。帳號停用時自動清除所有 Session。"""
+    if user_id == current_admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不能修改自己的帳號狀態或角色。",
+        )
+
+    user = auth_db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
+
+    if body.status:
+        user.status = body.status
+        if body.status == "suspended":
+            # 停用帳號 → 清除所有 Session
+            count = auth_service.invalidate_all_user_sessions(auth_db, user_id)
+            logger.info("帳號 %s 已停用，清除 %d 個 Session", user.email, count)
+
+    if body.role:
+        user.role = body.role
+
+    auth_db.commit()
+    return {"message": f"帳號 {user.email} 已更新。"}
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
+async def delete_user(
+    user_id: str,
+    auth_db: DBSession = Depends(get_auth_db),
+    crawler_db: DBSession = Depends(get_crawler_db),
+    current_admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """
+    刪除帳號及所有關聯資料（含 Crawler DB 中的任務）。
+
+    跨庫刪除順序（§12.4）：先刪 Crawler DB 資料，再刪 Auth DB 帳號。
+    """
+    if user_id == current_admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不能刪除自己的帳號。",
+        )
+
+    user = auth_db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
+
+    # 1. 先刪 Crawler DB 中該 user_id 的所有任務（cascade 刪除隊列與外連）
+    from crawler.models import Job
+    crawler_jobs = crawler_db.query(Job).filter(Job.user_id == user_id).all()
+    for job in crawler_jobs:
+        crawler_db.delete(job)
+    crawler_db.commit()
+    logger.info("已刪除使用者 %s 的 %d 個爬蟲任務", user.email, len(crawler_jobs))
+
+    # 2. 再刪 Auth DB 帳號（Sessions / Invitations 不依賴 FK，手動清除）
+    auth_service.invalidate_all_user_sessions(auth_db, user_id)
+    auth_db.query(Invitation).filter(Invitation.user_id == user_id).delete()
+    auth_db.delete(user)
+    auth_db.commit()
+
+    return {"message": f"帳號 {user.email} 及所有關聯資料已刪除。"}
+
+
+@router.post("/users/{user_id}/resend-invite", status_code=status.HTTP_200_OK)
+async def resend_invite(
+    user_id: str,
+    auth_db: DBSession = Depends(get_auth_db),
+    _admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """重新寄送邀請郵件（重置邀請 token）。"""
+    user = auth_db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
+
+    if user.status not in ("pending", "expired"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"帳號狀態為 {user.status}，無法重新寄送邀請。",
+        )
+
+    try:
+        auth_service.create_invitation(auth_db, user.email)
+        return {"message": f"邀請已重新寄送至 {user.email}。"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+# ── 任務監控（Admin 視圖）─────────────────────────────────────────────────────
+
+@router.get("/jobs", status_code=status.HTTP_200_OK)
+async def list_all_jobs(
+    manager: JobManager = Depends(get_job_manager),
+    _admin: User = Depends(require_admin),
+) -> list[dict[str, Any]]:
+    """列出所有使用者的任務（Admin 全視圖）。"""
+    return manager.get_all_jobs()  # 不傳 user_id 取全部
+
+
+@router.post("/jobs/{job_id}/takeover", status_code=status.HTTP_200_OK)
+async def takeover_job(
+    job_id: str,
+    manager: JobManager = Depends(get_job_manager),
+    _admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """強制接管卡死任務（重置 running 狀態為 paused）。"""
+    job = manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
+    if job.status != "running":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"任務狀態為 {job.status}，只有 running 狀態的任務才能被強制接管。",
+        )
+    manager.pause_job(job_id)
+    return {"message": f"任務 {job_id} 已強制接管並設為 paused。"}
+
+
+@router.delete("/jobs/{job_id}", status_code=status.HTTP_200_OK)
+async def admin_delete_job(
+    job_id: str,
+    manager: JobManager = Depends(get_job_manager),
+    _admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """強制刪除任意任務（Admin 用）。"""
+    if not manager.delete_job(job_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
+    return {"message": f"任務 {job_id} 已刪除。"}
+
+
+# ── 全域配置管理 ───────────────────────────────────────────────────────────────
+
+@router.get("/config", status_code=status.HTTP_200_OK)
+async def get_config(
+    _admin: User = Depends(require_admin),
+) -> dict[str, Any]:
+    """取得全域爬蟲配置（讀取 config_global.yaml）。"""
+    import os
+    settings = get_settings()
+    config_path = settings.GLOBAL_CONFIG_PATH
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"讀取設定檔失敗: {e}",
+        ) from e
+
+
+@router.patch("/config", status_code=status.HTTP_200_OK)
+async def update_config(
+    body: dict[str, Any],
+    _admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """
+    修改全域配置（覆寫 config_global.yaml 指定欄位）。
+
+    只允許修改 crawler 區塊下的安全參數，
+    禁止透過此端點修改 db_url 等系統級設定。
+    """
+    import os
+    settings = get_settings()
+    config_path = settings.GLOBAL_CONFIG_PATH
+
+    # 安全限制：不允許修改 db_url 等敏感欄位
+    FORBIDDEN_KEYS = {"db_url", "secret_key"}
+    for key in FORBIDDEN_KEYS:
+        body.pop(key, None)
+
+    try:
+        existing: dict[str, Any] = {}
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
+                existing = yaml.safe_load(f) or {}
+
+        existing.update(body)
+
+        os.makedirs(os.path.dirname(config_path) or ".", exist_ok=True)
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(existing, f, allow_unicode=True, default_flow_style=False)
+
+        return {"message": "全域配置已更新。"}
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"寫入設定檔失敗: {e}",
+        ) from e
+
+
+# ── SMTP 配置（唯讀狀態）─────────────────────────────────────────────────────
+
+@router.get("/smtp", status_code=status.HTTP_200_OK)
+async def get_smtp_config(
+    _admin: User = Depends(require_admin),
+) -> dict[str, Any]:
+    """取得 SMTP 配置狀態（密碼遮罩，從環境變數讀取）。"""
+    settings = get_settings()
+    return {
+        "host": settings.SMTP_HOST,
+        "port": settings.SMTP_PORT,
+        "username": settings.SMTP_USERNAME,
+        "password": "***" if settings.SMTP_PASSWORD else "(未設定)",
+        "from_name": settings.SMTP_FROM_NAME,
+        "from_email": settings.SMTP_FROM_EMAIL,
+        "use_tls": settings.SMTP_USE_TLS,
+        "console_mode": settings.SMTP_CONSOLE_MODE,
+        "note": "SMTP 設定透過環境變數管理，如需修改請更新伺服器環境變數後重啟服務。",
+    }
+
+
+@router.post("/smtp/test", status_code=status.HTTP_200_OK)
+async def test_smtp(
+    body: SendTestEmailRequest,
+    _admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """寄送測試郵件以驗證 SMTP 設定。"""
+    success = send_test_email(body.to_email)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SMTP 測試郵件寄送失敗，請確認 SMTP 環境變數設定是否正確。",
+        )
+    return {"message": f"測試郵件已成功寄送至 {body.to_email}。"}
+
+
+# ── 操作日誌查閱 ───────────────────────────────────────────────────────────────
+
+@router.get("/logs", status_code=status.HTTP_200_OK)
+async def get_logs(
+    event_type: str | None = Query(None),
+    user_id: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    auth_db: DBSession = Depends(get_auth_db),
+    _admin: User = Depends(require_admin),
+) -> dict[str, Any]:
+    """查閱系統操作日誌（支援事件類型與使用者 ID 篩選）。"""
+    query = auth_db.query(AuthLog).order_by(AuthLog.created_at.desc())
+
+    if event_type:
+        query = query.filter(AuthLog.event_type == event_type)
+    if user_id:
+        query = query.filter(AuthLog.user_id == user_id)
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    logs = query.offset(offset).limit(page_size).all()
+
+    return {
+        "items": [
+            {
+                "id": log.id,
+                "user_id": log.user_id,
+                "event_type": log.event_type,
+                "ip_address": log.ip_address,
+                "detail": log.detail,
+                "created_at": log.created_at.isoformat(),
+            }
+            for log in logs
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
+    }

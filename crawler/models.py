@@ -35,7 +35,7 @@ class Job(Base):
         queues (list[CrawlQueue]): 此任務中等待爬取的網址佇列關聯。
         external_links (list[ExternalLink]): 此任務中所找到的外部連結紀錄關聯。
     """
-    __tablename__ = 'jobs'
+    __tablename__ = "jobs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
@@ -43,7 +43,7 @@ class Job(Base):
     target_domains: Mapped[str] = mapped_column(Text, nullable=False)
     internal_domains: Mapped[str] = mapped_column(Text, nullable=False)
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default='pending')
+    status: Mapped[str] = mapped_column(String(50), default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=get_utc_now, onupdate=get_utc_now
@@ -72,17 +72,17 @@ class CrawlQueue(Base):
         updated_at (datetime): 此網址狀態最後更新的時間戳記。
         job (Job): 關聯的任務物件。
     """
-    __tablename__ = 'crawl_queue'
+    __tablename__ = "crawl_queue"
     __table_args__ = (
-        Index('ix_crawl_queue_job_url', 'job_id', 'url'),
-        Index('ix_crawl_queue_job_status', 'job_id', 'status'),
+        Index("ix_crawl_queue_job_url", "job_id", "url"),
+        Index("ix_crawl_queue_job_status", "job_id", "status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[str] = mapped_column(ForeignKey('jobs.id'), nullable=False)
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default='pending')
+    status: Mapped[str] = mapped_column(String(50), default="pending")
     status_code: Mapped[int | None] = mapped_column(nullable=True)
     retry_count: Mapped[int] = mapped_column(default=0)
     depth: Mapped[int] = mapped_column(default=0)
@@ -107,9 +107,9 @@ class ExternalLink(Base):
         created_at (datetime): 紀錄此外部連結的時間戳記。
         job (Job): 關聯的任務物件。
     """
-    __tablename__ = 'external_links'
+    __tablename__ = "external_links"
     __table_args__ = (
-        Index('ix_external_links_job_src_tgt', 'job_id', 'source_url', 'target_url'),
+        Index("ix_external_links_job_src_tgt", "job_id", "source_url", "target_url"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

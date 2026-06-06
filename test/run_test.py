@@ -13,9 +13,9 @@ import time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-PORT = 8000
-DB_PATH = "db/crawler.db"
-YAML_CONFIG = "job/test_job.yaml"
+PORT: int = 8000
+DB_PATH: str = "db/crawler.db"
+YAML_CONFIG: str = "job/test_job.yaml"
 
 
 def is_port_in_use(port: int) -> bool:
