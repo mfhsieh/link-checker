@@ -220,9 +220,15 @@ class CrawlerCore:
             client = self._get_client(url)
             # 優先使用 HEAD 請求以節省流量與時間，逾時時間設為較短的 10 秒
             response = client.request("HEAD", url, timeout=10.0, follow_redirects=True)
-            # 如果 HEAD 返回 403 或 405，有可能是目標網站禁止 HEAD 請求，改用 GET stream 試探
-            if response.status_code in (403, 405):
-                with client.stream("GET", url, timeout=10.0, follow_redirects=True) as resp:
+            
+            # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
+            domain = get_domain(url)
+            is_social_media = domain and any(m in domain.lower() for m in ["facebook.com", "fb.com", "youtube.com", "instagram.com", "twitter.com", "linkedin.com"])
+            
+            if response.status_code in (400, 403, 405) or (response.status_code >= 400 and is_social_media):
+                # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案
+                headers = {"Range": "bytes=0-1023"}
+                with client.stream("GET", url, headers=headers, timeout=10.0, follow_redirects=True) as resp:
                     return resp.status_code, None
             return response.status_code, None
         except httpx.HTTPStatusError as e:

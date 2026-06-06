@@ -207,6 +207,12 @@ class JobManager:
                 ((CrawlQueue.status == 'skip') & (CrawlQueue.status_code != None))
             ).count()
             
+            # 預熱外連快取：從資料庫中載入此任務已探測過的外連結果，避免重複請求
+            checked_links_cache: dict[str, tuple[str | None, int | None, str | None]] = {}
+            for ext in session.query(ExternalLink).filter(ExternalLink.job_id == job_id).all():
+                if ext.http_status_code is not None or ext.error_message is not None:
+                    checked_links_cache[ext.target_url] = (ext.ip_address, ext.http_status_code, ext.error_message)
+            
             try:
                 while True:
                     # 協同暫停檢查：確認任務狀態是否在外部被更改
@@ -270,34 +276,66 @@ class JobManager:
                                 session.add(new_item)
                                 
                         # 處理找到的外部目標連結
+                        links_to_check = []
                         for link in external_target_links:
                             # 避免同一個來源記錄重複的目標
-                            exists_ext: ExternalLink | None = session.query(ExternalLink).filter(
+                            exists_ext = session.query(ExternalLink).filter(
                                 ExternalLink.job_id == job_id,
                                 ExternalLink.source_url == current_url,
                                 ExternalLink.target_url == link
                             ).first()
                             
                             if not exists_ext:
-                                # 解析 IP 位址
-                                target_domain: str = get_domain(link)
-                                ip: str | None = resolve_ip(target_domain) if target_domain else None
+                                links_to_check.append(link)
+
+                        if links_to_check:
+                            links_needing_http_check = []
+                            for link in links_to_check:
+                                if link in checked_links_cache:
+                                    # 直接從快取取得結果，免除重複 DNS 與 HTTP 探測
+                                    ip, status_code, err_msg = checked_links_cache[link]
+                                    is_sec = link.lower().startswith('https://')
+                                    new_ext = ExternalLink(
+                                        job_id=job_id,
+                                        source_url=current_url,
+                                        target_url=link,
+                                        ip_address=ip,
+                                        is_secure=is_sec,
+                                        http_status_code=status_code,
+                                        error_message=err_msg
+                                    )
+                                    session.add(new_ext)
+                                else:
+                                    links_needing_http_check.append(link)
+
+                            if links_needing_http_check:
+                                # 並發處理實際需要進行探測的外部連結，最快提升檢測效能
+                                from concurrent.futures import ThreadPoolExecutor
                                 
-                                # 對外部連結進行 HTTP 存活檢查
-                                status_code, err_msg = crawler.check_external_link(link)
-                                
-                                is_sec = link.lower().startswith('https://')
-                                
-                                new_ext: ExternalLink = ExternalLink(
-                                    job_id=job_id,
-                                    source_url=current_url,
-                                    target_url=link,
-                                    ip_address=ip,
-                                    is_secure=is_sec,
-                                    http_status_code=status_code,
-                                    error_message=err_msg
-                                )
-                                session.add(new_ext)
+                                def check_single_link(l):
+                                    tgt_dom = get_domain(l)
+                                    ip_res = resolve_ip(tgt_dom) if tgt_dom else None
+                                    code_res, err_res = crawler.check_external_link(l)
+                                    return l, ip_res, code_res, err_res
+
+                                with ThreadPoolExecutor(max_workers=5) as executor:
+                                    results = list(executor.map(check_single_link, links_needing_http_check))
+
+                                for link, ip, status_code, err_msg in results:
+                                    # 寫入快取供後續網頁共享
+                                    checked_links_cache[link] = (ip, status_code, err_msg)
+                                    
+                                    is_sec = link.lower().startswith('https://')
+                                    new_ext = ExternalLink(
+                                        job_id=job_id,
+                                        source_url=current_url,
+                                        target_url=link,
+                                        ip_address=ip,
+                                        is_secure=is_sec,
+                                        http_status_code=status_code,
+                                        error_message=err_msg
+                                    )
+                                    session.add(new_ext)
                                 
                         queue_item.status = status
                         session.commit()
