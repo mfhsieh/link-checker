@@ -296,9 +296,8 @@ class CrawlerCore:
 
             # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
             domain = get_domain(url)
-            is_social_media = domain and any(
-                m in domain.lower() for m in SOCIAL_DOMAINS
-            )
+            # 使用精確的子網域比對（防止 notfacebook.com 被誤判為社群網域）
+            is_social_media = domain and is_in_domain_list(domain.lower(), list(SOCIAL_DOMAINS))
 
             if response.status_code in (400, 403, 405) or (
                 response.status_code >= 400 and is_social_media

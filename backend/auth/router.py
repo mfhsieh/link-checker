@@ -110,6 +110,19 @@ async def login(
     2. 一般登入：提供 email + password
 
     登入成功後設定 HTTP-only Session Cookie 與 CSRF Cookie。
+
+    Args:
+        body (LoginRequest): 登入請求內容，包含 email、密碼或邀請 token。
+        request (Request): FastAPI 請求物件。
+        response (Response): FastAPI 回應物件，用於設定 Cookie。
+        db (DBSession): Auth 資料庫 Session。
+
+    Returns:
+        dict[str, Any]: 登入結果，包含是否為首次登入 (is_first_login) 與使用者資訊 (user)。
+
+    Raises:
+        HTTPException 400: 若參數不完整（同時提供或同時缺少密碼與 token）。
+        HTTPException 401: 若驗證失敗或帳號異常。
     """
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
@@ -162,6 +175,19 @@ async def set_password(
 
     只允許 is_first_login=True 的 Session 呼叫此端點。
     密碼設定完成後，Session 狀態轉為正常，帳號啟用。
+
+    Args:
+        body (SetPasswordRequest): 新密碼設定請求。
+        db (DBSession): Auth 資料庫 Session。
+        current_session (AuthSession): 當前的 Session 物件。
+        _csrf (None): CSRF 防禦依賴。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 403: 若當前 Session 不是首次登入 Session。
+        HTTPException 422: 若新密碼不符合安全強度規範。
     """
     if not current_session.is_first_login:
         raise HTTPException(

@@ -16,8 +16,14 @@ class Base(DeclarativeBase):
     """所有 SQLAlchemy 宣告式模型的基底類別 (Base Class)。"""
 
 def get_utc_now() -> datetime:
-    """取得包含時區資訊的當前 UTC 時間"""
-    return datetime.now(timezone.utc)
+    """取得不含時區資訊（naive）的當前 UTC 時間，以配合 SQLite 儲存格式。
+
+    與 auth/models.py 的 _utc_now() 保持一致策略。
+
+    Returns:
+        datetime: 不含時區的當前 UTC 時間物件。
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 class Job(Base):
     """

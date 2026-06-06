@@ -152,7 +152,7 @@ def get_current_user(
 
     if user.status != "active":
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=f"帳號狀態異常（{user.status}），請聯繫管理員。",
         )
 

@@ -232,13 +232,18 @@ def delete_job(manager: JobManager, job_id: str, user_id: str) -> bool:
 
 
 def reset_job(manager: JobManager, job_id: str, user_id: str) -> bool:
-    """重置任務（清除佇列與外連，回到 pending 狀態）。"""
+    """重置任務（清除佇列與外連，回到 pending 狀態）。執行中的任務無法重置。"""
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
     if job.user_id != user_id:
         raise ValueError("無權限重置此任務。")
-    return manager.reset_job(job_id)
+    if job.status == "running":
+        raise ValueError("任務正在執行中，無法直接重置，請先暫停任務。")
+    result = manager.reset_job(job_id)
+    if not result:
+        raise ValueError("重置任務失敗，請確認任務狀態後再試。")
+    return result
 
 
 def _group_results(links: list[ExternalLink]) -> list[dict[str, Any]]:
@@ -303,15 +308,22 @@ def get_job_results(
         )
 
     if query_args.status_filter == "dead":
+        # dead：DNS 解析失敗（IP 位址為空）
         query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
     elif query_args.status_filter == "broken":
-        query = query.filter(
-            (ExternalLink.http_status_code >= 400) | ExternalLink.http_status_code.is_(None)
-        )
+        # broken：有 HTTP 回應但狀態碼 >= 400（不含 NULL，NULL 屬於連線錯誤/尚未探測）
+        query = query.filter(ExternalLink.http_status_code >= 400)
 
     links = query.order_by(ExternalLink.created_at).all()
 
     if query_args.status_filter == "unapproved":
+        # 注意：unapproved 篩選需在 Python 層全量載入後過濾（無法下推至 SQL）
+        # 當外連數量龐大時（> 10000 筆）效能可能較差
+        if len(links) > 10000:
+            logger.warning(
+                "任務 %s 的 unapproved 篩選需載入 %d 筆外連記錄，可能較緩慢。",
+                query_args.job_id, len(links)
+            )
         links = _filter_unapproved_links(links, job)
 
     if query_args.group:

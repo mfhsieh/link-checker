@@ -162,8 +162,16 @@ async def resume_job(
     manager: JobManager = Depends(get_job_manager),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """恢復已暫停的任務（同樣 spawn 子程序）。"""
+    """恢復已暫停的任務（只允許 paused 狀態）。"""
     try:
+        # 先確認任務狀態，resume 只允許 paused 狀態
+        job = manager.get_job(job_id)
+        if not job:
+            raise ValueError(f"找不到任務 ID: {job_id}")
+        if job.user_id != current_user.id:
+            raise ValueError("無權限操作此任務。")
+        if job.status != "paused":
+            raise ValueError(f"任務目前狀態為 {job.status}，resume 只允許恢復 paused 狀態的任務。")
         job_service.start_job(manager, job_id, current_user.id)
         return {"message": "任務已恢復執行。"}
     except ValueError as e:
@@ -212,7 +220,7 @@ class ResultsQueryArgs:
         group: bool = Query(False),
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
-    ):
+    ) -> None:
         """初始化結果查詢參數。"""
         self.status_filter = status_filter
         self.search = search
@@ -266,8 +274,8 @@ class ExportQueryArgs:
             None, alias="filter", pattern="^(dead|broken|unapproved)$"
         ),
         group: bool = Query(False),
-        fmt: str = Query("csv", regex="^(csv|json)$"),
-    ):
+        fmt: str = Query("csv", pattern="^(csv|json)$"),
+    ) -> None:
         """初始化匯出查詢參數。"""
         self.status_filter = status_filter
         self.group = group
@@ -288,6 +296,18 @@ async def export_results(
     - filter: dead / broken / unapproved
     - group: 是否去重聚合
     - fmt: csv 或 json（預設 csv）
+
+    Args:
+        job_id (str): 任務 UUID。
+        query_args (ExportQueryArgs): 匯出查詢參數，含過濾條件、聚合設定與格式。
+        current_user (User): 當前登入使用者。
+        db (DBSession): Crawler 資料庫 Session。
+
+    Returns:
+        Response: 包含匯出檔案內容的 FastAPI Response 物件。
+
+    Raises:
+        HTTPException 404: 若任務不存在或不屬於當前使用者。
     """
     try:
         query_obj = job_service.JobResultQuery(

@@ -155,6 +155,20 @@ async def delete_user(
     刪除帳號及所有關聯資料（含 Crawler DB 中的任務）。
 
     跨庫刪除順序（§12.4）：先刪 Crawler DB 資料，再刪 Auth DB 帳號。
+
+    Args:
+        user_id (str): 被刪除使用者的 UUID。
+        auth_db (DBSession): Auth 資料庫 Session。
+        crawler_db (DBSession): Crawler 資料庫 Session。
+        current_admin (User): 當前操作的管理員使用者物件。
+        _csrf (None): CSRF 防禦依賴。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 若管理員企圖刪除自己的帳號。
+        HTTPException 404: 若被刪除的使用者不存在。
     """
     if user_id == current_admin.id:
         raise HTTPException(
@@ -279,18 +293,54 @@ async def update_config(
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
     """
-    修改全域配置（覆寫 config_global.yaml 指定欄位）。
+    修改全域配置（僅允許修改 crawler 區塊下的安全欄位）。
 
-    只允許修改 crawler 區塊下的安全參數，
-    禁止透過此端點修改 db_url 等系統級設定。
+    採用白名單機制：只允許修改 crawler.* 區塊中預先核准的欄位，
+    禁止修改 db_url、logging（含 log_file 路徑）等系統級設定，
+    防範 Path Traversal 等攻擊。
+
+    Args:
+        body (dict[str, Any]): 包含欲修改設定值的 Dict。
+        _admin (User): 管理員使用者依賴，確保具備管理員權限。
+        _csrf (None): CSRF 防禦依賴。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 若請求格式不正確。
+        HTTPException 500: 若寫入設定檔時發生 I/O 錯誤。
     """
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
 
-    # 安全限制：不允許修改 db_url 等敏感欄位
-    forbidden_keys = {"db_url", "secret_key"}
-    for key in forbidden_keys:
-        body.pop(key, None)
+    # 安全白名單：只允許修改 crawler 區塊下的已知安全欄位
+    ALLOWED_CRAWLER_KEYS = {
+        "timeout", "delay", "retries", "max_depth", "max_pages",
+        "user_agent", "proxy_url", "ssl_exempt_domains", "approved_domains",
+        "domain_delays", "ignore_extensions", "mime_type_filter",
+        "min_timeout", "max_timeout", "min_delay", "max_delay",
+        "min_retries", "max_retries",
+    }
+
+    # 強制只允許修改 crawler 區塊
+    crawler_updates = body.get("crawler", {})
+    if not isinstance(crawler_updates, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="請求內容必須包含 'crawler' 區塊。",
+        )
+
+    # 過濾不在白名單內的欄位
+    rejected_keys = [k for k in crawler_updates if k not in ALLOWED_CRAWLER_KEYS]
+    if rejected_keys:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"以下欄位不允許透過 API 修改：{', '.join(rejected_keys)}",
+        )
+
+    # 僅更新 crawler 區塊
+    safe_body = {"crawler": crawler_updates}
 
     try:
         existing: dict[str, Any] = {}
@@ -298,7 +348,10 @@ async def update_config(
             with open(config_path, "r", encoding="utf-8") as f:
                 existing = yaml.safe_load(f) or {}
 
-        existing.update(body)
+        # 深度合併 crawler 區塊（不覆蓋其他頂層欄位）
+        existing_crawler = existing.get("crawler", {})
+        existing_crawler.update(safe_body["crawler"])
+        existing["crawler"] = existing_crawler
 
         os.makedirs(os.path.dirname(config_path) or ".", exist_ok=True)
         with open(config_path, "w", encoding="utf-8") as f:

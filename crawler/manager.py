@@ -94,7 +94,7 @@ class JobManager:
         if db_url.startswith("sqlite:"):
 
             @event.listens_for(self.engine, "connect")
-            def set_sqlite_pragma(dbapi_connection, _connection_record):
+            def set_sqlite_pragma(dbapi_connection: Any, _connection_record: Any) -> None:
                 """設定 SQLite 的 PRAGMA 參數，提升效能。"""
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA journal_mode=WAL")
@@ -399,7 +399,9 @@ class JobManager:
 
                         if links_needing_http_check:
                             # 並發處理實際需要進行探測的外部連結，最快提升檢測效能
-                            def check_single_link(l):
+                            def check_single_link(
+                                l: str,
+                            ) -> tuple[str, str | None, int | None, str | None]:
                                 """獨立進行單一外部連結的存活與 IP 解析檢查。"""
                                 tgt_dom = get_domain(l)
                                 ip_res = resolve_ip(tgt_dom) if tgt_dom else None
@@ -647,12 +649,9 @@ class JobManager:
                     (ExternalLink.ip_address.is_(None))
                     | (ExternalLink.ip_address == "")
                 )
-            # broken: HTTP 狀態碼 >= 400 或連線錯誤無狀態碼
+            # broken: 有 HTTP 回應但狀態碼 >= 400（不含 NULL，NULL 屬於連線錯誤/尚未探測）
             elif status_filter == "broken":
-                query = query.filter(
-                    (ExternalLink.http_status_code >= 400)
-                    | (ExternalLink.http_status_code.is_(None))
-                )
+                query = query.filter(ExternalLink.http_status_code >= 400)
 
             links = query.order_by(ExternalLink.created_at).all()
 
@@ -869,6 +868,13 @@ class JobManager:
             job = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
+                return False
+
+            # 執行中的任務不允許直接重置，避免子程序仍在運行時造成狀態不一致
+            if job.status == "running":
+                logger.error(
+                    "任務 %s 目前正在執行中，無法直接重置。請先暫停任務再進行重置。", job_id
+                )
                 return False
 
             job.status = "pending"

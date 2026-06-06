@@ -11,6 +11,7 @@ import logging
 import smtplib
 import ssl
 from email.message import EmailMessage
+from urllib.parse import quote_plus
 
 from backend.config import get_settings
 
@@ -37,7 +38,7 @@ def _build_invitation_email(
     """
     settings = get_settings()
     login_url = (
-        f"{settings.BASE_URL}/?email={to_email}&token={invitation_token}"
+        f"{settings.BASE_URL}/?email={quote_plus(to_email)}&token={invitation_token}"
     )
 
     plain_text = (
@@ -108,7 +109,7 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
             to_email,
             msg["Subject"],
             settings.BASE_URL,
-            to_email,
+            quote_plus(to_email),
             invitation_token,
         )
         return True

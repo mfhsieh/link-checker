@@ -239,6 +239,11 @@ def authenticate_with_password(
         _log_event(db, "login_failed", ip_address=ip, detail=f"帳號不存在或尚未設密: {email}")
         raise ValueError("電子郵件或密碼錯誤。")
 
+    if user.status == "pending":
+        # pending 帳號應透過邀請連結完成首次設密，不允許直接密碼登入
+        _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號尚未完成設密")
+        raise ValueError("此帳號尚未完成首次設定，請使用邀請郵件中的連結進行登入。")
+
     if user.status == "suspended":
         _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已停用")
         raise ValueError("此帳號已被停用，請聯繫管理員。")
@@ -257,13 +262,12 @@ def authenticate_with_password(
     user.last_login_at = _utc_now()
     db.commit()
 
-    is_first_login = user.status == "pending"
-    session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=is_first_login)
+    session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=False)
     _log_event(db, "login_success", user_id=user.id, ip_address=ip)
 
     return {
         "session_token": session_token,
-        "is_first_login": is_first_login,
+        "is_first_login": False,
         "user": {"id": user.id, "email": user.email, "role": user.role, "status": user.status},
     }
 
@@ -328,6 +332,10 @@ def refresh_session(db: DBSession, session: Session) -> None:
     滑動更新 Session 有效期（Sliding Window）。
 
     每次成功的 API 請求後呼叫，重置 expires_at（不影響 absolute_expires_at）。
+
+    Args:
+        db (DBSession): Auth 資料庫 Session。
+        session (Session): 要更新的 Session 物件。
     """
     settings = get_settings()
     session.expires_at = _utc_now() + timedelta(seconds=settings.SESSION_EXPIRE_SECONDS)

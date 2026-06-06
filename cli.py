@@ -113,17 +113,22 @@ def generate_random_password(length: int = 16) -> str:
         length (int): 欲產生的密碼長度，預設為 16 字元。
 
     Returns:
-        str: 隨機產生的高強度密碼字串，包含大小寫英文字母、數字及特殊字元，且數字至少包含 3 個。
+        str: 隨機產生的高強度密碼字串，包含大小寫英文字母、數字及特殊字元。
+
+    Raises:
+        RuntimeError: 若超過最大重試次數仍無法產生符合條件的密碼（理論上不會發生）。
     """
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-    while True:
-        password = "".join(secrets.choice(alphabet) for i in range(length))
+    max_attempts = 100
+    for _ in range(max_attempts):
+        password = "".join(secrets.choice(alphabet) for _ in range(length))
         if (
             any(c.islower() for c in password)
             and any(c.isupper() for c in password)
             and sum(c.isdigit() for c in password) >= 3
         ):
             return password
+    raise RuntimeError("無法在合理嘗試次數內產生符合條件的密碼，請檢查 alphabet 設定。")
 
 
 def create_admin(email: str) -> None:
@@ -154,24 +159,24 @@ def create_admin(email: str) -> None:
         random_password = generate_random_password()
         if existing:
             print(
-                f"使用者 {email} 已存在，將更新其密碼並設為管理員，狀態重置為待設密。"
+                f"使用者 {email} 已存在，將更新其密碼並設為管理員。"
             )
             existing.password_hash = hash_password(random_password)
             existing.role = "admin"
-            existing.status = "pending"
+            existing.status = "active"
         else:
             user = User(
                 email=email,
                 password_hash=hash_password(random_password),
                 role="admin",
-                status="pending",
+                status="active",
             )
             db.add(user)
         db.commit()
         print(f"成功設定管理員帳號：{email}")
         print("============================================================")
         print(f"系統產生的初始隨機密碼：{random_password}")
-        print("請使用此密碼進行首次登入，並依照系統要求重新設定安全密碼。")
+        print("請使用此密碼登入系統，登入後請自行至「修改密碼」設定安全密碼。")
         print("============================================================")
 
 
@@ -633,6 +638,10 @@ def _handle_resume_or_create(
 
     if args.resume is not None:
         logging.info("正在恢復執行任務 %s...", args.resume)
+        if args.config:
+            logging.warning(
+                "--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。"
+            )
         manager.run_job(job_id=args.resume, force=args.force)
         return
 

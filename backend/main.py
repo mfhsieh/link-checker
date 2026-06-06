@@ -8,7 +8,8 @@ CORS（開發模式）、全域例外處理。
 import logging
 import os
 
-from fastapi import FastAPI, Request
+from typing import Callable, Awaitable
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -50,12 +51,26 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     設定 CSP、X-Frame-Options、X-Content-Type-Options 以防禦常見攻擊。
     """
     # pylint: disable=too-few-public-methods
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """
+        攔截請求並為回應加上安全性標頭。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+            call_next: 下一個中間件或路由處理常式。
+
+        Returns:
+            Response: 加上安全性標頭後的回應物件。
+        """
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
+            # 'unsafe-inline' 因前端 HTML 包含內嵌 <script> 與 <style> 而必須允許
+            # TODO: 未來改用 nonce 或 hash 機制取代 unsafe-inline 以強化 XSS 防禦
             "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:;"
@@ -77,22 +92,22 @@ if os.path.isdir(_frontend_dir):
     app.mount("/static", StaticFiles(directory=_frontend_dir), name="static")
 
     @app.get("/app.html", include_in_schema=False)
-    async def serve_app():
+    async def serve_app() -> FileResponse:
         """提供前台爬蟲任務主介面"""
         return FileResponse(os.path.join(_frontend_dir, "app.html"))
 
     @app.get("/admin.html", include_in_schema=False)
-    async def serve_admin():
+    async def serve_admin() -> FileResponse:
         """提供系統管理員後台介面"""
         return FileResponse(os.path.join(_frontend_dir, "admin.html"))
 
     @app.get("/set-password.html", include_in_schema=False)
-    async def serve_set_password():
+    async def serve_set_password() -> FileResponse:
         """提供首次登入設定密碼介面"""
         return FileResponse(os.path.join(_frontend_dir, "set-password.html"))
 
     @app.get("/", include_in_schema=False)
-    async def serve_index():
+    async def serve_index() -> FileResponse:
         """提供登入與首頁介面"""
         return FileResponse(os.path.join(_frontend_dir, "index.html"))
 
