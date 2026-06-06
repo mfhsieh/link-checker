@@ -53,6 +53,14 @@ crawler:
   # 注意：可透過環境變數 CRAWLER_PROXY_URL 優先覆寫
   proxy_url: null
 
+  # 最大探索深度限制 (從起始網頁開始的點擊次數)
+  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
+  max_depth: null
+
+  # 最大抓取實質網頁頁面數量上限
+  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
+  max_pages: null
+
   # 預設的 HTTP 請求連線逾時時間 (單位：秒)
   # 若個別任務的 config.yaml 未設定 timeout，將自動套用此全域預設值
   timeout: 30
