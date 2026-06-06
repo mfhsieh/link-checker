@@ -38,6 +38,70 @@
 
 ---
 
+## 1.5 全域設定檔說明 (config_global.yaml)
+
+系統使用 `config/config_global.yaml` 作為預設的全域設定檔，用以定義資料庫連線、日誌層級，以及爬蟲引擎的安全上下限閥值：
+
+```yaml
+# 全域資料庫連線字串
+db_url: "sqlite:///db/crawler.db"
+
+# 全域 Logging 設定
+logging:
+  console_level: "INFO"       # 輸出到畫面的日誌層級
+  file_level: "DEBUG"         # 儲存到檔案的日誌層級
+  log_file: "log/crawler.log" # 日誌儲存的路徑
+
+# 爬蟲引擎的全域限制與預設值
+crawler:
+  # 安全上下限限制（個別任務若超出此範圍將被強制修正，以防負載過大或逾時失效）
+  min_timeout: 30             # 逾時時間最小值限制 (秒)
+  max_timeout: 60             # 逾時時間最大值限制 (秒)
+  min_delay: 3.0              # 請求延遲時間最小值限制 (秒)
+  max_delay: 6.0              # 請求延遲時間最大值限制 (秒)
+  min_retries: 0              # 錯誤重試次數最小值限制 (次)
+  max_retries: 5              # 錯誤重試次數最大值限制 (次)
+
+  # 預設瀏覽器 User-Agent（防範 WAF 阻擋）
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+  # MIME 類型過濾器（防止爬蟲下載非網頁媒體資源）
+  mime_type_filter:
+    enabled: true
+    allowed_types:
+      - "text/html"
+      - "application/xhtml+xml"
+
+  # 代理伺服器 URL (預設為 null，可藉由環境變數優先覆寫)
+  proxy_url: null
+
+  # 預設行為參數（當個別任務設定檔未指定時自動套用此預設值）
+  timeout: 30                 # 預設逾時時間 (秒)
+  delay: 3.0                  # 預設請求延遲 (秒)
+  retries: 3                  # 預設重試次數 (次)
+
+  # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證)
+  ssl_exempt_domains:
+    # - "example.com"
+
+  # 信任的外部網域白名單 (Domain Whitelist)
+  approved_domains:
+    # - "www.google.com"
+
+  # 網域特定請求延遲時間對照表 (單位：秒，支援最長匹配優先原則)
+  domain_delays:
+    # example.com: 5.0
+
+  # 預設略過且不進行 HTML 抓取解析的副檔名清單（會與個別任務清單聯集合併）
+  ignore_extensions:
+    - ".pdf"
+    - ".doc"
+    - ".docx"
+    # ... (其餘壓縮檔、影音檔與程式庫詳見預設設定檔)
+```
+
+---
+
 ## 2. 建立並啟動新爬蟲任務
 
 爬蟲需要一個任務設定檔來定義起始網址 (`start_url`)、允許深入的目標網域與內部網域。基於專案規範，建議將這些個別設定檔放置於 `job/` 目錄中。
