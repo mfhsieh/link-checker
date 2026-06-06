@@ -6,20 +6,27 @@
 
 ```text
 ext-link-checker/
+├── .gitignore
+├── pyrefly.toml        # 靜態分析與開發環境配置
+├── cli.py              # 命令列工具 (CLI)，啟動獨立爬蟲任務
+├── requirements.txt    # Python 依賴套件清單
 ├── backend/            # [未來擴充] 網站後台 (FastAPI / Web API Server)
 ├── frontend/           # [未來擴充] 網站前台 UI (網頁管理介面)
 ├── config/             # 存放全域設定檔 (config_global.yaml)
 ├── crawler/            # 爬蟲程式與 JOB 管理 (核心模組)
 │   ├── __init__.py
 │   ├── core.py         # 爬蟲核心邏輯 (抓取網頁、解析 HTML、提取與過濾連結)
-│   ├── manager.py      # JOB 管理 (任務分派、狀態機、中斷與斷點續傳機制)
+│   ├── manager.py      # JOB 管理 (任務分派、資料持久化、防呆安全鎖)
 │   ├── models.py       # 資料庫模型 (Job, CrawlQueue, ExternalLink)
 │   └── utils.py        # 工具程式 (IP 解析、網域比對邏輯)
-├── doc/                # 說明文件與規格
-├── job/                # 存放個別爬蟲任務 (JOB) 的 YAML 設定檔
-├── log/                # 存放爬蟲執行日誌 (crawler.log)
-├── cli.py              # 命令列工具 (CLI)，讀取 yaml 設定檔並啟動獨立爬蟲
-└── requirements.txt    # Python 依賴套件清單
+├── db/                 # 存放 SQLite 本地資料庫 (crawler.db)
+├── doc/                # 說明文件與需求規格書
+├── job/                # 存放個別任務 YAML 設定檔的安全目錄
+├── log/                # 存放系統日誌 (crawler.log)
+├── report/             # 外部連結分析報告之預設匯出目錄
+└── test/               # 一鍵式自動化整合測試套件
+    ├── test_server/    # 本機 Mock HTTP 測試伺服器
+    └── run_test.py     # 測試套件主執行程式
 ```
 
 ## 核心技術選型與設計理念
