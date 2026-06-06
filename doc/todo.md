@@ -7,7 +7,7 @@
 ## 1. 任務完成與異常警報通知 (Alert Notifications / Webhooks)
 * **功能描述**：爬蟲執行過程可能耗時數小時，手動輪詢進度效率低。
 * **規劃方案**：在全域設定檔中配置 Slack、Discord、Microsoft Teams 或 Email 通訊協議。任務轉換至 `completed`（完成）或 `error`（嚴重異常崩潰）時，自動發送訊息通報，並附帶尋獲的 `dead` 連結與 `broken` 連結統計。
-* **狀態**：**待評估與實作（Pending Review）**。
+* **狀態**：**已實作 (Resolved)**：當任務狀態切換為 `completed` 或 `error` 時，系統會透過 `backend/email_sender.py` 自動發送 Email 通知信給該任務的擁有者，並附上損壞 (broken) 與失效 (dead) 連結的統計數據。
 
 ---
 
@@ -29,10 +29,3 @@
 * **功能描述**：目前前台任務詳情頁面透過客戶端每 3 秒輪詢（Polling）`GET /api/jobs/{id}` 來取得進度更新，會造成不必要的無效請求。
 * **規劃方案**：後端實作 `GET /api/jobs/{id}/stream` SSE 端點，爬蟲子程序狀態變更時主動推送事件至前台；前台改用 `EventSource` API 訂閱，減少網路往返並提升即時性。
 * **狀態**：**待後續優化（Pending Review）**。
-
----
-
-## 5. CLI `--create-admin` 管理員建立的密碼行為 (Implementation Difference)
-* **功能描述**：目前 `--create-admin` 指令在建立管理員時的密碼設定行為，與 `requirements.md` 所述的初始管理員 Bootstrap 機制存在實作差異。
-* **規劃方案**：後續需盤點 CLI 實際行為與文件規範，對齊密碼產生邏輯或更新文件，確保整體安全設計一致。
-* **狀態**：**已修正 (Resolved)**：已調整 `create_admin.py` 及 `cli.py` 邏輯，改為自動產生高強度隨機密碼並標記帳號為 `pending` (待設密)，符合原始規格要求。

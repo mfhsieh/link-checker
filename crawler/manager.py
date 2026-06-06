@@ -27,6 +27,14 @@ from crawler.utils import (
     get_approved_domains_from_config,
 )
 
+try:
+    from backend.auth.db import get_auth_session_local
+    from backend.auth.models import User
+    from backend.email_sender import send_notification_email
+    _BACKEND_AVAILABLE = True
+except ImportError:
+    _BACKEND_AVAILABLE = False
+
 
 def _get_domain_delay(
     url: str, domain_delays: dict[str, float], default_delay: float
@@ -105,6 +113,135 @@ class JobManager:
         Base.metadata.create_all(self.engine)
         # pylint: disable=invalid-name, unsubscriptable-object
         self.SessionLocal: sessionmaker[Session] = sessionmaker(bind=self.engine)
+
+    def _send_job_status_notification(self, job_id: str, status: str) -> None:
+        """
+        在任務完成或發生錯誤時，向任務建立者發送 Email 通知，並附帶結果統計。
+
+        Args:
+            job_id (str): 任務 ID。
+            status (str): 結束的狀態 ('completed' 或 'error')。
+        """
+        if not _BACKEND_AVAILABLE:
+            logger.warning("[Email Notification] 因無法載入後端模組，跳過通知信發送。")
+            return
+
+        with self.SessionLocal() as session:
+            job: Job | None = session.query(Job).filter(Job.id == job_id).first()
+            if not job:
+                return
+            
+            user_id = job.user_id
+            if not user_id:
+                logger.info("[Email Notification] 任務為匿名任務，不發送通知信。")
+                return
+
+            # 取得使用者的 Email
+            try:
+                auth_session_factory = get_auth_session_local()
+                with auth_session_factory() as auth_session:
+                    user = auth_session.query(User).filter(User.id == user_id).first()
+                    if not user or not user.email:
+                        logger.warning("[Email Notification] 找不到使用者 ID %s 或其無信箱設定，跳過通知信發送。", user_id)
+                        return
+                    to_email = user.email
+            except Exception as ex:
+                logger.error("[Email Notification] 自 Auth DB 查詢使用者 %s 的信箱時發生錯誤: %s", user_id, ex)
+                return
+
+            # 統計外部連結狀態
+            # dead: DNS 解析失敗（IP 為 None 或空）
+            dead_count = (
+                session.query(ExternalLink)
+                .filter(
+                    ExternalLink.job_id == job_id,
+                    (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
+                )
+                .count()
+            )
+            # broken: HTTP 狀態碼 >= 400
+            broken_count = (
+                session.query(ExternalLink)
+                .filter(
+                    ExternalLink.job_id == job_id,
+                    ExternalLink.http_status_code >= 400,
+                )
+                .count()
+            )
+            # 總外連數
+            total_count = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
+
+            # 組裝信件
+            status_text = "已完成 (Completed)" if status == "completed" else "發生嚴重異常 (Error)"
+            subject = f"【外部連結檢查系統】任務狀態通知 ({status_text}) - 任務 ID: {job_id}"
+
+            plain_text = (
+                f"您好，\n\n"
+                f"您所建立的外部連結檢查任務已執行結束。\n\n"
+                f"任務資訊：\n"
+                f"  - 任務 ID：{job_id}\n"
+                f"  - 起始網址：{job.start_url}\n"
+                f"  - 任務狀態：{status_text}\n"
+                f"  - 建立時間：{job.created_at}\n"
+                f"  - 結束時間：{job.updated_at}\n\n"
+                f"外部連結檢查統計：\n"
+                f"  - 總共發現外部連結數：{total_count}\n"
+                f"  - 損壞連結 (Broken Links，HTTP 狀態碼 >= 400)：{broken_count} 個\n"
+                f"  - 失效連結 (Dead Links，DNS 解析失敗)：{dead_count} 個\n\n"
+                f"詳細檢查結果，請登入系統後台查看。\n\n"
+                f"此為系統自動發送的郵件，請勿回覆。"
+            )
+
+            html_body = f"""\
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#333;">
+  <h2 style="color:#1a1a2e;border-bottom:2px solid #eee;padding-bottom:12px;">外部連結檢查任務通知</h2>
+  <p>您好，</p>
+  <p>您所建立的外部連結檢查任務已執行結束。</p>
+  
+  <table style="width:100%;border-collapse:collapse;margin:20px 0;background:#f9f9f9;border-radius:6px;overflow:hidden;">
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:10px;font-weight:bold;width:120px;">任務 ID</td>
+      <td style="padding:10px;font-family:monospace;">{job_id}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:10px;font-weight:bold;">起始網址</td>
+      <td style="padding:10px;"><a href="{job.start_url}" target="_blank">{job.start_url}</a></td>
+    </tr>
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:10px;font-weight:bold;">任務狀態</td>
+      <td style="padding:10px;color:{"#10b981" if status == "completed" else "#ef4444"};font-weight:bold;">{status_text}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:10px;font-weight:bold;">建立時間</td>
+      <td style="padding:10px;">{job.created_at}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;font-weight:bold;">結束時間</td>
+      <td style="padding:10px;">{job.updated_at}</td>
+    </tr>
+  </table>
+
+  <h3 style="color:#2563eb;margin-top:24px;">外部連結檢查統計</h3>
+  <ul style="padding-left:20px;line-height:1.6;">
+    <li>總共發現外部連結數：<strong>{total_count}</strong></li>
+    <li>損壞連結 (Broken Links，HTTP 狀態碼 &gt;= 400)：<span style="color:#ef4444;font-weight:bold;">{broken_count}</span> 個</li>
+    <li>失效連結 (Dead Links，DNS 解析失敗)：<span style="color:#ef4444;font-weight:bold;">{dead_count}</span> 個</li>
+  </ul>
+
+  <p style="margin-top:24px;">詳細檢查結果與完整匯出報表，請登入系統後台查看。</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+  <p style="color:#999;font-size:0.75rem;">此為系統自動發送的郵件，請勿回覆。</p>
+</body>
+</html>"""
+
+            try:
+                # 寄出郵件
+                send_notification_email(to_email, subject, plain_text, html_body)
+            except Exception as ex:
+                logger.error("[Email Notification] 寄送任務通知信失敗: %s", ex)
 
     # pylint: disable=too-many-arguments, too-many-positional-arguments
     def create_job(
@@ -302,6 +439,7 @@ class JobManager:
                         )
                         job.status = "completed"
                         session.commit()
+                        self._send_job_status_notification(job_id, "completed")
                         break
 
                     # 從佇列中取得下一個等待處理的網址
@@ -317,6 +455,7 @@ class JobManager:
                         logger.info("任務 %s 已無等待中的網址。任務完成。", job_id)
                         job.status = "completed"
                         session.commit()
+                        self._send_job_status_notification(job_id, "completed")
                         break
 
                     current_url: str = queue_item.url
@@ -525,6 +664,7 @@ class JobManager:
                 if job_err:
                     job_err.status = "error"
                     session.commit()
+                    self._send_job_status_notification(job_id, "error")
             finally:
                 crawler.close()
 

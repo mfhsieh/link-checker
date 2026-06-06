@@ -182,3 +182,64 @@ def send_test_email(to_email: str) -> bool:
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("SMTP 測試郵件寄送失敗: %s", e)
         return False
+
+
+def send_notification_email(
+    to_email: str,
+    subject: str,
+    plain_text: str,
+    html_body: str | None = None,
+) -> bool:
+    """
+    發送一般通知郵件至指定的電子郵件地址。
+
+    Args:
+        to_email (str): 收件者電子郵件地址。
+        subject (str): 郵件主旨。
+        plain_text (str): 郵件純文字內容。
+        html_body (str | None): 郵件 HTML 格式內容，若無則只發送純文字。
+
+    Returns:
+        bool: 發送成功回傳 True，失敗回傳 False。
+    """
+    settings = get_settings()
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+    msg["To"] = to_email
+    msg.set_content(plain_text)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
+
+    if settings.SMTP_CONSOLE_MODE:
+        logger.info(
+            "[SMTP Console Mode] 通知郵件（未實際寄送）:\n"
+            "  收件者: %s\n  Subject: %s\n  內文:\n%s",
+            to_email,
+            subject,
+            plain_text,
+        )
+        return True
+
+    try:
+        context = ssl.create_default_context()
+        if settings.SMTP_USE_TLS:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
+                smtp.ehlo()
+                smtp.starttls(context=context)
+                smtp.ehlo()
+                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                smtp.send_message(msg)
+        else:
+            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as smtp:
+                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+                smtp.send_message(msg)
+
+        logger.info("通知郵件已成功寄送至 %s", to_email)
+        return True
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("寄送通知郵件至 %s 時發生錯誤: %s", to_email, e)
+        return False
+
