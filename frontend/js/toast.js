@@ -29,12 +29,18 @@ export function showToast(message, type = 'info', duration = 4000) {
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.setAttribute('role', 'alert');
-  toast.innerHTML = `
-    <div class="toast-message">${escapeHtml(message)}</div>
-    <button class="toast-close" aria-label="關閉通知">✕</button>
-  `;
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'toast-message';
+  msgDiv.textContent = message;
 
-  const closeBtn = toast.querySelector('.toast-close');
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'toast-close';
+  closeBtn.setAttribute('aria-label', '關閉通知');
+  closeBtn.textContent = '✕';
+
+  toast.appendChild(msgDiv);
+  toast.appendChild(closeBtn);
+
   const remove = () => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(24px)';
@@ -57,9 +63,3 @@ export const toast = {
   info: (msg, d) => showToast(msg, 'info', d),
 };
 
-/** 跳脫 HTML 特殊字元以防 XSS */
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}

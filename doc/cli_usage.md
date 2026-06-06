@@ -27,6 +27,7 @@
 | `--group` | *(無)* | 旗標 | (選填) 搭配 `--export` 使用，將相同外部連結在不同頁面出現時去重聚合。 | 無 |
 | `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及 `--export` 的 JSON 檔案導出。 | 無 |
 | `--serve` | *(無)* | 旗標 | 啟動 Web 後端伺服器 (FastAPI / Uvicorn)。 | 無 |
+| `--reload` | *(無)* | 旗標 | (選填) 搭配 `--serve` 使用，啟用 Uvicorn 的開發模式熱重載。 | 無 |
 | `--create-admin` | *(無)* | 字串 | 建立或更新系統管理員帳號。只需傳入 `EMAIL`，系統將自動產生並印出一次性臨時密碼。 | 無 |
 
 > **💡 提示：** 
@@ -323,6 +324,6 @@ python cli.py --create-admin "admin@example.com" "SecurePassword123!"
 ### 啟動 Web 伺服器
 若要啟動後端 API 伺服器以供前端介面連線：
 ```bash
-python cli.py --serve
+python cli.py --serve  # 若為開發環境，可加上 --reload 啟用熱重載
 ```
 伺服器啟動後，將預設監聽 `0.0.0.0:8000`。您可透過終端機的標準輸出檢視存取紀錄，按下 `Ctrl+C` 即可安全關閉伺服器。

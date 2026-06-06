@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urlparse, ParseResult
 import httpx
 from bs4 import BeautifulSoup
-from crawler.utils import normalize_url, get_domain, is_in_domain_list
+from crawler.utils import normalize_url, get_domain, is_in_domain_list, resolve_ip, is_safe_ip
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -137,6 +137,15 @@ class CrawlerCore:
             return None, None, "skip", url, False
 
         client = self._get_client(url)
+
+        # SSRF 防禦：解析 IP 並確保為安全的外部 IP
+        domain = get_domain(url)
+        if domain:
+            ip = resolve_ip(domain)
+            if ip and not is_safe_ip(ip):
+                logger.warning("網址 %s 的 IP (%s) 被判定為不安全，已攔截潛在的 SSRF 攻擊！", url, ip)
+                return None, None, "skip", url, False
+
         with client.stream("GET", url) as response:
             response.raise_for_status()
 

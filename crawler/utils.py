@@ -4,8 +4,10 @@
 此模組提供網域擷取、網域驗證、IP 位址解析以及網址正規化等輔助函式。
 """
 
+import ipaddress
 import json
 import logging
+import os
 import socket
 import urllib.parse
 
@@ -67,6 +69,33 @@ def resolve_ip(domain: str) -> str | None:
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("解析 %s IP 時發生未預期錯誤: %s", domain, e)
         return None
+
+def is_safe_ip(ip_str: str) -> bool:
+    """
+    檢查 IP 是否為安全的外部 IP（阻擋 SSRF 攻擊）。
+
+    Args:
+        ip_str (str): 欲檢查的 IP 位址字串。
+
+    Returns:
+        bool: 如果是安全的公開 IP 則回傳 True，否則（如 Loopback, Private, Link-local）回傳 False。
+    """
+    if os.environ.get("CRAWLER_ALLOW_LOCAL_IPS", "false").lower() == "true":
+        return True
+
+    if not ip_str:
+        return False
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        # 阻擋本機、私有網段、鏈結本地端、多播網段，以及未指定位置
+        if (ip.is_loopback or ip.is_private or ip.is_link_local
+                or ip.is_multicast or ip.is_unspecified):
+            return False
+        if str(ip) == "0.0.0.0":
+            return False
+        return True
+    except ValueError:
+        return False
 
 def normalize_url(url: str, base_url: str) -> str:
     """

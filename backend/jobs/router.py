@@ -205,7 +205,9 @@ class ResultsQueryArgs:
     # pylint: disable=too-few-public-methods,too-many-arguments,too-many-positional-arguments
     def __init__(
         self,
-        status_filter: str | None = Query(None, alias="filter"),
+        status_filter: str | None = Query(
+            None, alias="filter", pattern="^(dead|broken|unapproved)$"
+        ),
         search: str | None = Query(None),
         group: bool = Query(False),
         page: int = Query(1, ge=1),
@@ -260,7 +262,9 @@ class ExportQueryArgs:
     # pylint: disable=too-few-public-methods,too-many-arguments,too-many-positional-arguments
     def __init__(
         self,
-        status_filter: str | None = Query(None, alias="filter"),
+        status_filter: str | None = Query(
+            None, alias="filter", pattern="^(dead|broken|unapproved)$"
+        ),
         group: bool = Query(False),
         fmt: str = Query("csv", regex="^(csv|json)$"),
     ):

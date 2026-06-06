@@ -1,12 +1,5 @@
 /**
  * job-detail.js — 任務詳情頁面邏輯（ESM）
- *
- * 功能：
- * - 任務詳情（狀態、進度條、統計摘要）
- * - 3 秒輪詢進度（任務執行中時）
- * - 啟動 / 暫停 / 恢復 / 重置 / 刪除
- * - 外連結果查閱（篩選、搜尋、分頁）
- * - CSV / JSON 匯出下載
  */
 
 import * as api from './api.js';
@@ -25,8 +18,6 @@ let _currentSearch = '';
 let _currentGroup = false;
 let _currentPage = 1;
 
-// ── 進度輪詢 ──────────────────────────────────────────────────
-
 function startPolling(jobId) {
   stopPolling();
   _pollTimer = setInterval(() => refreshJobDetail(jobId), 3000);
@@ -35,8 +26,6 @@ function startPolling(jobId) {
 function stopPolling() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 }
-
-// ── 主初始化 ──────────────────────────────────────────────────
 
 export async function initJobDetailPage(jobId) {
   _currentJobId = jobId;
@@ -70,8 +59,6 @@ async function refreshJobDetail(jobId) {
   }
 }
 
-// ── 渲染任務資訊 ───────────────────────────────────────────────
-
 function renderJobInfo(job) {
   const el = (id) => document.getElementById(id);
 
@@ -86,7 +73,6 @@ function renderJobInfo(job) {
   setTextContent('job-updated-at', job.updated_at ? new Date(job.updated_at).toLocaleString('zh-TW') : '-');
   setTextContent('job-external-count', job.external_link_count ?? 0);
 
-  // 進度條
   const progress = job.progress || {};
   const total = progress.total || 0;
   const done = (progress.completed || 0) + (progress.skipped || 0) + (progress.failed || 0);
@@ -102,18 +88,15 @@ function renderJobInfo(job) {
   setTextContent('stat-pending', progress.pending || 0);
   setTextContent('stat-failed', progress.failed || 0);
 
-  // 控制按鈕顯示邏輯
   const canStart = ['pending', 'paused'].includes(job.status);
   const canPause = job.status === 'running';
   const canReset = ['completed', 'error', 'paused'].includes(job.status);
 
   toggleDisplay('btn-start-job', canStart);
-  toggleDisplay('btn-resume-job', false);  // 合併到 start
+  toggleDisplay('btn-resume-job', false);
   toggleDisplay('btn-pause-job', canPause);
   toggleDisplay('btn-reset-job', canReset);
 }
-
-// ── 控制按鈕 ──────────────────────────────────────────────────
 
 function bindControlButtons(jobId) {
   bindBtn('btn-start-job', async () => {
@@ -148,8 +131,6 @@ function bindControlButtons(jobId) {
   });
 }
 
-// ── 外連結果 ──────────────────────────────────────────────────
-
 async function loadResults(jobId) {
   const container = document.getElementById('results-container');
   if (!container) return;
@@ -166,7 +147,12 @@ async function loadResultsPage(jobId) {
   const container = document.getElementById('results-container');
   if (!container) return;
 
-  container.innerHTML = '<div class="skeleton" style="height:200px;border-radius:0.5rem"></div>';
+  container.replaceChildren();
+  const skeleton = document.createElement('div');
+  skeleton.className = 'skeleton';
+  skeleton.style.height = '200px';
+  skeleton.style.borderRadius = '0.5rem';
+  container.appendChild(skeleton);
 
   try {
     const params = {
@@ -180,7 +166,14 @@ async function loadResultsPage(jobId) {
     renderResultsTable(res, container);
     renderPagination(res, jobId);
   } catch (err) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-state-desc text-danger">${escapeHtml(err.message)}</div></div>`;
+    container.replaceChildren();
+    const emptyState = document.createElement('div');
+    emptyState.className = 'empty-state';
+    const desc = document.createElement('div');
+    desc.className = 'empty-state-desc text-danger';
+    desc.textContent = err.message;
+    emptyState.appendChild(desc);
+    container.appendChild(emptyState);
   }
 }
 
@@ -193,90 +186,167 @@ function renderResultsSummary(summary) {
 
 function renderResultsTable(res, container) {
   const items = res.items || [];
+  container.replaceChildren();
   if (items.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-title">無結果</div>
-        <div class="empty-state-desc">目前沒有符合條件的外連結果</div>
-      </div>
-    `;
+    const emptyState = document.createElement('div');
+    emptyState.className = 'empty-state';
+    const title = document.createElement('div');
+    title.className = 'empty-state-title';
+    title.textContent = '無結果';
+    const desc = document.createElement('div');
+    desc.className = 'empty-state-desc';
+    desc.textContent = '目前沒有符合條件的外連結果';
+    emptyState.appendChild(title);
+    emptyState.appendChild(desc);
+    container.appendChild(emptyState);
     return;
   }
 
   const isGrouped = _currentGroup;
-
   const headers = isGrouped
     ? ['目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '來源數', '錯誤訊息']
     : ['來源頁面', '目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '錯誤訊息'];
 
-  const rows = items.map(item => {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'table-wrapper';
+
+  const table = document.createElement('table');
+  table.className = 'table';
+
+  const thead = document.createElement('thead');
+  const trHead = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  items.forEach(item => {
     const isSecure = item.is_secure;
     const status = item.http_status_code;
     const statusClass = !status ? 'text-muted' : (status >= 400 ? 'text-danger' : 'text-success');
 
-    if (isGrouped) {
-      return `<tr>
-        <td class="truncate" style="max-width:260px" title="${escapeHtml(item.target_url)}">${escapeHtml(item.target_url)}</td>
-        <td class="font-mono text-xs">${escapeHtml(item.ip_address || '-')}</td>
-        <td>${isSecure ? '<span class="text-success">✓</span>' : '<span class="text-danger">✗</span>'}</td>
-        <td class="${statusClass}">${status ?? '-'}</td>
-        <td>${item.occurrence_count ?? '-'}</td>
-        <td class="text-xs text-muted truncate" style="max-width:180px">${escapeHtml(item.error_message || '-')}</td>
-      </tr>`;
-    } else {
-      return `<tr>
-        <td class="truncate text-xs text-muted" style="max-width:200px" title="${escapeHtml(item.source_url)}">${escapeHtml(item.source_url)}</td>
-        <td class="truncate" style="max-width:260px" title="${escapeHtml(item.target_url)}">${escapeHtml(item.target_url)}</td>
-        <td class="font-mono text-xs">${escapeHtml(item.ip_address || '-')}</td>
-        <td>${isSecure ? '<span class="text-success">✓</span>' : '<span class="text-danger">✗</span>'}</td>
-        <td class="${statusClass}">${status ?? '-'}</td>
-        <td class="text-xs text-muted truncate" style="max-width:160px">${escapeHtml(item.error_message || '-')}</td>
-      </tr>`;
+    const tr = document.createElement('tr');
+    
+    if (!isGrouped) {
+      const tdSource = document.createElement('td');
+      tdSource.className = 'truncate text-xs text-muted';
+      tdSource.style.maxWidth = '200px';
+      tdSource.title = item.source_url;
+      tdSource.textContent = item.source_url;
+      tr.appendChild(tdSource);
     }
-  }).join('');
 
-  container.innerHTML = `
-    <div class="table-wrapper">
-      <table class="table">
-        <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <div id="results-pagination"></div>
-  `;
+    const tdTarget = document.createElement('td');
+    tdTarget.className = 'truncate';
+    tdTarget.style.maxWidth = '260px';
+    tdTarget.title = item.target_url;
+    tdTarget.textContent = item.target_url;
+    tr.appendChild(tdTarget);
+
+    const tdIp = document.createElement('td');
+    tdIp.className = 'font-mono text-xs';
+    tdIp.textContent = item.ip_address || '-';
+    tr.appendChild(tdIp);
+
+    const tdSecure = document.createElement('td');
+    const spanSecure = document.createElement('span');
+    spanSecure.className = isSecure ? 'text-success' : 'text-danger';
+    spanSecure.textContent = isSecure ? '✓' : '✗';
+    tdSecure.appendChild(spanSecure);
+    tr.appendChild(tdSecure);
+
+    const tdStatus = document.createElement('td');
+    tdStatus.className = statusClass;
+    tdStatus.textContent = status ?? '-';
+    tr.appendChild(tdStatus);
+
+    if (isGrouped) {
+      const tdOcc = document.createElement('td');
+      tdOcc.textContent = item.occurrence_count ?? '-';
+      tr.appendChild(tdOcc);
+    }
+
+    const tdError = document.createElement('td');
+    tdError.className = 'text-xs text-muted truncate';
+    tdError.style.maxWidth = isGrouped ? '180px' : '160px';
+    tdError.textContent = item.error_message || '-';
+    tr.appendChild(tdError);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrapper.appendChild(table);
+
+  container.appendChild(wrapper);
+
+  const paginationContainer = document.createElement('div');
+  paginationContainer.id = 'results-pagination';
+  container.appendChild(paginationContainer);
 }
 
 function renderPagination(res, jobId) {
   const paginationEl = document.getElementById('results-pagination');
   if (!paginationEl) return;
 
+  paginationEl.replaceChildren();
   const { page, total_pages } = res;
-  if (total_pages <= 1) { paginationEl.innerHTML = ''; return; }
+  if (total_pages <= 1) return;
 
-  const pages = [];
-  const delta = 2;
-  for (let i = Math.max(1, page - delta); i <= Math.min(total_pages, page + delta); i++) {
-    pages.push(i);
-  }
+  const paginationDiv = document.createElement('div');
+  paginationDiv.className = 'pagination';
 
-  paginationEl.innerHTML = `
-    <div class="pagination">
-      <button class="page-btn" ${page <= 1 ? 'disabled' : ''} data-page="${page - 1}">‹</button>
-      ${pages.map(p => `<button class="page-btn ${p === page ? 'active' : ''}" data-page="${p}">${p}</button>`).join('')}
-      <button class="page-btn" ${page >= total_pages ? 'disabled' : ''} data-page="${page + 1}">›</button>
-    </div>
-  `;
-
-  paginationEl.querySelectorAll('.page-btn:not([disabled])').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      _currentPage = parseInt(btn.dataset.page);
+  const btnPrev = document.createElement('button');
+  btnPrev.className = 'page-btn';
+  btnPrev.textContent = '‹';
+  if (page <= 1) btnPrev.disabled = true;
+  else {
+    btnPrev.dataset.page = page - 1;
+    btnPrev.addEventListener('click', async () => {
+      _currentPage = page - 1;
       await loadResultsPage(jobId);
     });
-  });
+  }
+  paginationDiv.appendChild(btnPrev);
+
+  const delta = 2;
+  const start = Math.max(1, page - delta);
+  const end = Math.min(total_pages, page + delta);
+
+  for (let i = start; i <= end; i++) {
+    const pBtn = document.createElement('button');
+    pBtn.className = i === page ? 'page-btn active' : 'page-btn';
+    pBtn.textContent = i;
+    pBtn.dataset.page = i;
+    if (i !== page) {
+      pBtn.addEventListener('click', async () => {
+        _currentPage = i;
+        await loadResultsPage(jobId);
+      });
+    }
+    paginationDiv.appendChild(pBtn);
+  }
+
+  const btnNext = document.createElement('button');
+  btnNext.className = 'page-btn';
+  btnNext.textContent = '›';
+  if (page >= total_pages) btnNext.disabled = true;
+  else {
+    btnNext.dataset.page = page + 1;
+    btnNext.addEventListener('click', async () => {
+      _currentPage = page + 1;
+      await loadResultsPage(jobId);
+    });
+  }
+  paginationDiv.appendChild(btnNext);
+
+  paginationEl.appendChild(paginationDiv);
 }
 
 function bindResultsControls(jobId) {
-  // 篩選 Chips
   document.querySelectorAll('.filter-chip[data-filter]').forEach(chip => {
     chip.addEventListener('click', async () => {
       const filter = chip.dataset.filter || null;
@@ -289,7 +359,6 @@ function bindResultsControls(jobId) {
     });
   });
 
-  // 搜尋
   const searchInput = document.getElementById('results-search');
   if (searchInput) {
     let debounceTimer;
@@ -303,7 +372,6 @@ function bindResultsControls(jobId) {
     });
   }
 
-  // 去重聚合切換
   const groupToggle = document.getElementById('results-group-toggle');
   if (groupToggle) {
     groupToggle.addEventListener('change', async () => {
@@ -313,7 +381,6 @@ function bindResultsControls(jobId) {
     });
   }
 
-  // 匯出按鈕
   bindBtn('btn-export-csv', async () => {
     const params = new URLSearchParams({ fmt: 'csv', group: _currentGroup });
     if (_currentFilter) params.set('filter', _currentFilter);
@@ -326,8 +393,6 @@ function bindResultsControls(jobId) {
     await download(`/api/jobs/${jobId}/results/export?${params}`);
   });
 }
-
-// ── 工具函式 ───────────────────────────────────────────────────
 
 function setTextContent(id, value) {
   const el = document.getElementById(id);
@@ -354,10 +419,4 @@ function bindBtn(id, handler) {
       btn.disabled = false;
     }
   });
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = String(str || '');
-  return div.innerHTML;
 }

@@ -62,7 +62,7 @@ python cli.py --create-admin admin@example.com
 使用 CLI 指令啟動內建的 FastAPI + Uvicorn 伺服器：
 
 ```bash
-python cli.py --serve
+python cli.py --serve  # 若為開發環境，可加上 --reload 啟用熱重載
 ```
 
 伺服器將預設在 `http://0.0.0.0:8000` 啟動，請開啟瀏覽器並訪問。
@@ -73,7 +73,7 @@ python cli.py --serve
 
 ```bash
 # 執行單次爬蟲任務（讀取 YAML 設定檔）
-python cli.py -c job/my_job_config.yaml
+python cli.py -c y_job_config.yaml
 
 # 列出所有任務
 python cli.py --list-jobs

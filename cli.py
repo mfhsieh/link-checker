@@ -284,6 +284,11 @@ def parse_args() -> argparse.Namespace | None:
         help="啟動 Web 後端伺服器 (FastAPI / Uvicorn)",
     )
     parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="(選填) 搭配 --serve 使用，啟用 Uvicorn 的開發模式熱重載",
+    )
+    parser.add_argument(
         "--create-admin",
         nargs=1,
         metavar="EMAIL",
@@ -706,7 +711,7 @@ def main() -> None:
         try:
             import uvicorn  # pylint: disable=import-outside-toplevel
 
-            uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=False)
+            uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=args.reload)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logging.error("啟動 Web 伺服器失敗: %s", e)
             sys.exit(1)

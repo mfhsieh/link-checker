@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.auth.router import router as auth_router
 from backend.jobs.router import router as jobs_router
@@ -38,9 +39,30 @@ if settings.DEBUG:
         CORSMiddleware,
         allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
+
+# ── 安全性標頭 (Security Headers) ──────────────────────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    實作安全性標頭的 Middleware。
+    設定 CSP、X-Frame-Options、X-Content-Type-Options 以防禦常見攻擊。
+    """
+    # pylint: disable=too-few-public-methods
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:;"
+        )
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ── Router 掛載 ────────────────────────────────────────────────────────────────
 app.include_router(auth_router)

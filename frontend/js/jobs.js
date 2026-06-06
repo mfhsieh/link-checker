@@ -5,7 +5,6 @@
 import * as api from './api.js';
 import { toast } from './toast.js';
 
-// ── 狀態 → 中文標籤 ───────────────────────────────────────────
 const STATUS_LABELS = {
   pending:   '等待中',
   running:   '執行中',
@@ -14,56 +13,56 @@ const STATUS_LABELS = {
   error:     '錯誤',
 };
 
-// ── 任務列表 ──────────────────────────────────────────────────
-
-/**
- * 渲染任務列表
- * @param {Array} jobs - 任務資料陣列
- * @param {HTMLElement} container - 容器元素
- */
 export function renderJobList(jobs, container) {
+  container.replaceChildren();
   if (!jobs || jobs.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-        </svg>
-        <div class="empty-state-title">尚無任務</div>
-        <div class="empty-state-desc">點擊右上角「新增任務」開始建立您的第一個外連掃描任務</div>
-      </div>
-    `;
+    const emptyState = document.createElement('div');
+    emptyState.className = 'empty-state';
+    
+    const svgDoc = new DOMParser().parseFromString(
+        '<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>',
+        'image/svg+xml'
+    );
+    emptyState.appendChild(svgDoc.documentElement);
+    
+    const title = document.createElement('div');
+    title.className = 'empty-state-title';
+    title.textContent = '尚無任務';
+    emptyState.appendChild(title);
+    
+    const desc = document.createElement('div');
+    desc.className = 'empty-state-desc';
+    desc.textContent = '點擊右上角「新增任務」開始建立您的第一個外連掃描任務';
+    emptyState.appendChild(desc);
+    
+    container.appendChild(emptyState);
     return;
   }
 
-  container.innerHTML = `
-    <div class="table-wrapper">
-      <table class="table" id="jobs-table">
-        <thead>
-          <tr>
-            <th>任務 ID</th>
-            <th>起始 URL</th>
-            <th>狀態</th>
-            <th>建立時間</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${jobs.map(job => renderJobRow(job)).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  // 綁定行點擊事件（查看詳情）
-  container.querySelectorAll('.job-row').forEach(row => {
-    row.style.cursor = 'pointer';
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('.job-actions')) return;  // 不觸發操作按鈕點擊
-      const jobId = row.dataset.jobId;
-      window.location.hash = `#/jobs/${jobId}`;
-    });
+  const wrapper = document.createElement('div');
+  wrapper.className = 'table-wrapper';
+  
+  const table = document.createElement('table');
+  table.className = 'table';
+  table.id = 'jobs-table';
+  
+  const thead = document.createElement('thead');
+  const trHead = document.createElement('tr');
+  ['任務 ID', '起始 URL', '狀態', '建立時間', '操作'].forEach(text => {
+      const th = document.createElement('th');
+      th.textContent = text;
+      trHead.appendChild(th);
   });
+  thead.appendChild(trHead);
+  table.appendChild(thead);
+  
+  const tbody = document.createElement('tbody');
+  jobs.forEach(job => {
+      tbody.appendChild(renderJobRow(job));
+  });
+  table.appendChild(tbody);
+  wrapper.appendChild(table);
+  container.appendChild(wrapper);
 }
 
 function renderJobRow(job) {
@@ -73,34 +72,65 @@ function renderJobRow(job) {
   const shortId = job.id ? job.id.substring(0, 8) + '...' : '-';
   const truncatedUrl = job.start_url || '-';
 
-  return `
-    <tr class="job-row" data-job-id="${escapeAttr(job.id)}">
-      <td>
-        <span class="font-mono text-xs" title="${escapeHtml(job.id)}">${escapeHtml(shortId)}</span>
-      </td>
-      <td>
-        <span class="truncate" style="max-width:280px;display:block" title="${escapeHtml(truncatedUrl)}">
-          ${escapeHtml(truncatedUrl)}
-        </span>
-      </td>
-      <td><span class="badge ${escapeHtml(statusClass)}">${escapeHtml(label)}</span></td>
-      <td class="text-muted text-sm">${escapeHtml(createdAt)}</td>
-      <td>
-        <div class="job-actions" style="display:flex;gap:8px">
-          <button class="btn btn-sm btn-secondary" onclick="viewJob('${escapeAttr(job.id)}')">詳情</button>
-        </div>
-      </td>
-    </tr>
-  `;
-}
+  const tr = document.createElement('tr');
+  tr.className = 'job-row';
+  tr.dataset.jobId = job.id;
+  tr.style.cursor = 'pointer';
+  tr.addEventListener('click', (e) => {
+    if (e.target.closest('.job-actions')) return;
+    window.location.hash = `#/jobs/${job.id}`;
+  });
 
-// ── 新增任務 Modal ────────────────────────────────────────────
+  const td1 = document.createElement('td');
+  const span1 = document.createElement('span');
+  span1.className = 'font-mono text-xs';
+  span1.title = job.id;
+  span1.textContent = shortId;
+  td1.appendChild(span1);
+  tr.appendChild(td1);
+
+  const td2 = document.createElement('td');
+  const span2 = document.createElement('span');
+  span2.className = 'truncate';
+  span2.style.maxWidth = '280px';
+  span2.style.display = 'block';
+  span2.title = truncatedUrl;
+  span2.textContent = truncatedUrl;
+  td2.appendChild(span2);
+  tr.appendChild(td2);
+
+  const td3 = document.createElement('td');
+  const span3 = document.createElement('span');
+  span3.className = `badge ${statusClass}`;
+  span3.textContent = label;
+  td3.appendChild(span3);
+  tr.appendChild(td3);
+
+  const td4 = document.createElement('td');
+  td4.className = 'text-muted text-sm';
+  td4.textContent = createdAt;
+  tr.appendChild(td4);
+
+  const td5 = document.createElement('td');
+  const divActions = document.createElement('div');
+  divActions.className = 'job-actions';
+  divActions.style.display = 'flex';
+  divActions.style.gap = '8px';
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-sm btn-secondary';
+  btn.textContent = '詳情';
+  btn.addEventListener('click', () => { window.viewJob(job.id); });
+  divActions.appendChild(btn);
+  td5.appendChild(divActions);
+  tr.appendChild(td5);
+
+  return tr;
+}
 
 let _onJobCreated = null;
 
 export function initCreateJobModal(onJobCreated) {
   _onJobCreated = onJobCreated;
-
   const createBtn = document.getElementById('create-job-btn');
   if (createBtn) {
     createBtn.addEventListener('click', openCreateJobModal);
@@ -111,7 +141,8 @@ function openCreateJobModal() {
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.id = 'create-job-modal';
-  backdrop.innerHTML = `
+  
+  const modalHTML = `
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-header">
         <h2 class="modal-title" id="modal-title">建立新任務</h2>
@@ -121,43 +152,28 @@ function openCreateJobModal() {
         <form id="create-job-form" novalidate>
           <div class="form-group" style="margin-bottom:1rem">
             <label class="form-label" for="cj-start-url">起始 URL <span class="required">*</span></label>
-            <input class="form-input" type="url" id="cj-start-url"
-              placeholder="https://example.com" autocomplete="off" required />
+            <input class="form-input" type="url" id="cj-start-url" placeholder="https://example.com" autocomplete="off" required />
           </div>
           <div class="form-group" style="margin-bottom:1rem">
-            <label class="form-label" for="cj-target-domains">
-              目標網域 <span class="required">*</span>
-              <span class="form-hint">（每行一個，爬蟲僅深入這些網域）</span>
-            </label>
-            <textarea class="form-textarea" id="cj-target-domains"
-              placeholder="example.com&#10;www.example.com" rows="3" required></textarea>
+            <label class="form-label" for="cj-target-domains">目標網域 <span class="required">*</span> <span class="form-hint">（每行一個，爬蟲僅深入這些網域）</span></label>
+            <textarea class="form-textarea" id="cj-target-domains" placeholder="example.com\nwww.example.com" rows="3" required></textarea>
           </div>
           <div class="form-group" style="margin-bottom:1rem">
-            <label class="form-label" for="cj-internal-domains">
-              內部網域
-              <span class="form-hint">（每行一個，這些網域的外連不會被記錄）</span>
-            </label>
-            <textarea class="form-textarea" id="cj-internal-domains"
-              placeholder="（選填）" rows="2"></textarea>
+            <label class="form-label" for="cj-internal-domains">內部網域 <span class="form-hint">（每行一個，這些網域的外連不會被記錄）</span></label>
+            <textarea class="form-textarea" id="cj-internal-domains" placeholder="（選填）" rows="2"></textarea>
           </div>
           <div class="form-group" style="margin-bottom:1rem">
-            <label class="form-label" for="cj-ignore-regexes">
-              排除的正則表達式
-              <span class="form-hint">（每行一個，符合的 URL 將不會被爬取與探測）</span>
-            </label>
-            <textarea class="form-textarea" id="cj-ignore-regexes"
-              placeholder="^https://example\.com/download/.*&#10;（選填）" rows="2"></textarea>
+            <label class="form-label" for="cj-ignore-regexes">排除的正則表達式 <span class="form-hint">（每行一個，符合的 URL 將不會被爬取與探測）</span></label>
+            <textarea class="form-textarea" id="cj-ignore-regexes" placeholder="^https://example\\.com/download/.*&#10;（選填）" rows="2"></textarea>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div class="form-group">
               <label class="form-label" for="cj-max-depth">最大爬取深度</label>
-              <input class="form-input" type="number" id="cj-max-depth"
-                placeholder="不限制" min="1" max="20" />
+              <input class="form-input" type="number" id="cj-max-depth" placeholder="不限制" min="1" max="20" />
             </div>
             <div class="form-group">
               <label class="form-label" for="cj-max-pages">最大抓取頁數</label>
-              <input class="form-input" type="number" id="cj-max-pages"
-                placeholder="不限制" min="1" />
+              <input class="form-input" type="number" id="cj-max-pages" placeholder="不限制" min="1" />
             </div>
           </div>
           <div id="create-job-error" style="color:var(--color-danger-400);font-size:0.875rem;min-height:1.25rem"></div>
@@ -169,6 +185,10 @@ function openCreateJobModal() {
       </div>
     </div>
   `;
+  const doc = new DOMParser().parseFromString(modalHTML, 'text/html');
+  while (doc.body.firstChild) {
+      backdrop.appendChild(doc.body.firstChild);
+  }
 
   document.body.appendChild(backdrop);
 
@@ -219,18 +239,6 @@ function openCreateJobModal() {
   });
 }
 
-// ── 全域輔助 ───────────────────────────────────────────────────
-
 window.viewJob = (jobId) => {
   window.location.hash = `#/jobs/${jobId}`;
 };
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = String(str || '');
-  return div.innerHTML;
-}
-
-function escapeAttr(str) {
-  return String(str || '').replace(/"/g, '&quot;');
-}
