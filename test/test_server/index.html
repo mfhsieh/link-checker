@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Link Checker Verification Page</title>
+    <!-- CSS style link for verification -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
+    <!-- JS script link for verification -->
+    <script src="https://www.google-analytics.com/analytics.js"></script>
+</head>
+<body>
+    <h1>Link Checker Verification Sandbox</h1>
+    <p>This page contains various types of internal and external links for testing all crawler features.</p>
+    
+    <h2>1. Crawl traversal & Aggregation Verification</h2>
+    <ul>
+        <li><a href="page2.html">Page 2 (Internal traversal test)</a></li>
+        <li><a href="https://httpbin.org/status/404">Repeated 404 Link (Aggregation test)</a></li>
+        <li>
+            <!-- form action verification -->
+            <form action="https://httpbin.org/post" method="POST">
+                <input type="submit" value="Form Submit Test">
+            </form>
+        </li>
+        <li>
+            <!-- img src verification -->
+            <img src="https://example.com/broken-img.jpg" alt="Img verification">
+        </li>
+    </ul>
+
+    <h2>2. HTTP Redirect Follow & Base URL Offset Verification</h2>
+    <ul>
+        <li><a href="/redirect">Redirect to Subfolder (302 Redirect test)</a></li>
+    </ul>
+
+    <h2>3. Resource Filters (Skip & Delay Rules) Verification</h2>
+    <ul>
+        <li><a href="test.pdf">Ignored PDF File (Extension skip verification - Expect No Request, Zero Delay)</a></li>
+        <li><a href="/infinite-stream">Binary Stream File (MIME-type check verification - Expect Aborted Connection, With Delay)</a></li>
+    </ul>
+
+    <h2>4. Error Recovery & Retries Verification</h2>
+    <ul>
+        <li><a href="/temporary-error">Temporary 503 Server Error (Expect 3 Attempts & Index Backoff Retry)</a></li>
+        <li><a href="/slow-response">Slow Connection Hang (Expect Timeout Exceeded)</a></li>
+    </ul>
+
+    <h2>5. Security & Domain White-listing Verification</h2>
+    <ul>
+        <li><a href="/protected-area">Protected Page (User-Agent header disguise verification)</a></li>
+        <li><a href="https://www.google.com">Google (Approved Whitelisted domain)</a></li>
+        <li><a href="https://this-dns-does-not-exist-at-all-123456789.com">Dead Link (DNS resolve failure test)</a></li>
+        <li><a href="https://httpbin.org/status/500">500 Server Error Link</a></li>
+        <li><a href="http://neverssl.com">NeverSSL (HTTP link for security flag check)</a></li>
+    </ul>
+</body>
+</html>

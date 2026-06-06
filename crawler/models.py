@@ -7,7 +7,7 @@
 
 from datetime import datetime, timezone
 import uuid
-from sqlalchemy import String, Text, ForeignKey, DateTime
+from sqlalchemy import String, Text, ForeignKey, DateTime, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -24,10 +24,12 @@ class Job(Base):
 
     Attributes:
         id (str): 任務的主鍵 (Primary Key)，使用 UUID 格式。
+        user_id (str | None): 該任務的擁有者 ID。若是系統匿名任務則為 None。
         start_url (str): 爬蟲起始的網址。
         target_domains (str): 允許爬蟲進入的網域清單，以逗號分隔。
         internal_domains (str): 被視為內部網域的清單，以逗號分隔。
         status (str): 任務的當前狀態 (例如：pending, running, paused, completed, error)。
+        config_json (str | None): 紀錄啟動時的爬蟲設定 (JSON 格式)，以確保後續 Resume 設定一致。
         created_at (datetime): 任務建立的時間戳記。
         updated_at (datetime): 任務最後更新的時間戳記。
         queues (list[CrawlQueue]): 此任務中等待爬取的網址佇列關聯。
@@ -36,9 +38,11 @@ class Job(Base):
     __tablename__ = 'jobs'
     
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     start_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     target_domains: Mapped[str] = mapped_column(Text, nullable=False)
     internal_domains: Mapped[str] = mapped_column(Text, nullable=False)
+    config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default='pending')
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
@@ -54,6 +58,7 @@ class CrawlQueue(Base):
         id (int): 佇列項目的主鍵。
         job_id (str): 關聯到所屬任務的外部鍵 (Foreign Key)。
         url (str): 準備要爬取的網址。
+        source_url (str | None): 發現此網址的來源網頁網址 (若為起始網址則為 None)。
         status (str): 此網址的當前狀態 (例如：pending, completed, failed)。
         retry_count (int): 目前已經失敗並重試的次數。
         error_message (str | None): 若爬取失敗時的例外或錯誤訊息紀錄。
@@ -62,12 +67,19 @@ class CrawlQueue(Base):
         job (Job): 關聯的任務物件。
     """
     __tablename__ = 'crawl_queue'
+    __table_args__ = (
+        Index('ix_crawl_queue_job_url', 'job_id', 'url'),
+        Index('ix_crawl_queue_job_status', 'job_id', 'status'),
+    )
     
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[str] = mapped_column(ForeignKey('jobs.id'), nullable=False)
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default='pending')
+    status_code: Mapped[int | None] = mapped_column(nullable=True)
     retry_count: Mapped[int] = mapped_column(default=0)
+    depth: Mapped[int] = mapped_column(default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
@@ -88,12 +100,18 @@ class ExternalLink(Base):
         job (Job): 關聯的任務物件。
     """
     __tablename__ = 'external_links'
+    __table_args__ = (
+        Index('ix_external_links_job_src_tgt', 'job_id', 'source_url', 'target_url'),
+    )
     
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[str] = mapped_column(ForeignKey('jobs.id'), nullable=False)
     source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     target_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    is_secure: Mapped[bool] = mapped_column(default=True)
+    http_status_code: Mapped[int | None] = mapped_column(nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
     
     job: Mapped["Job"] = relationship(back_populates="external_links")

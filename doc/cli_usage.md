@@ -10,24 +10,39 @@
 
 | 參數 | 縮寫 | 類型 | 說明 | 預設值 |
 | :--- | :--- | :--- | :--- | :--- |
-| `--config` | `-c` | 字串 | **[建立新任務時必填]** 指定個別任務的 YAML 設定檔路徑。建議將其統一放置於 `jobs/` 目錄下。 | 無 |
-| `--resume` | `-r` | 字串 | **[恢復任務時必填]** 指定要恢復執行的任務 Job ID (UUID 格式)。 | 無 |
-| `--global-config`| `-g` | 字串 | (選填) 指定全域設定檔的路徑。用於定義全域逾時、延遲、重試上下限等。 | `config_global.yaml` |
-| `--list-jobs` | `-l` | 旗標 | 印出系統中所有的爬蟲任務與狀態列表。 | 無 |
-| `--report` | *(無)* | 字串 | 指定任務 ID，顯示該任務的詳細進度與統計報表。 | 無 |
-| `--export` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結與 IP 匯出成 CSV 檔案。 | 無 |
-| `--output` | `-o` | 字串 | (選填) 搭配 `--export` 使用，自訂 CSV 輸出路徑。 | `reports/<JOB_ID>.csv` |
 | `--help` | `-h` | 旗標 | 顯示此說明訊息並離開。 | 無 |
+| `--global-config`| `-g` | 字串 | (選填) 指定全域設定檔的路徑。用於定義日誌層級(Logging)、全域逾時、延遲、重試上下限等。 | `config/config_global.yaml` |
+| `--config` | `-c` | 字串 | **[建立新任務時必填]** 指定個別任務的 YAML 設定檔路徑。具備**路徑智慧自動補齊功能**（若未指定 `job/` 前綴且不含相對/絕對路徑，自動在前綴補上 `job/`）。 | 無 |
+| `--user-id` | `-u` | 字串 | (選填) 綁定任務的擁有者 ID 或作為查詢過濾條件 (多使用者隔離用)。 | 無 |
+| `--resume` | `-r` | 字串 | **[恢復任務時必填]** 指定要恢復執行的任務 Job ID (UUID 格式)。 | 無 |
+| `--force` | `-f` | 旗標 | (選填) 搭配 `--resume` 使用，當任務狀態卡在 `running` 時強制接管任務。 | 無 |
+| `--list-jobs` | *(無)* | 旗標 | 印出系統中所有的爬蟲任務與狀態列表。 | 無 |
+| `--pause` | *(無)* | 字串 | 暫停指定任務 (僅在任務狀態為 `running` 時生效)。 | 無 |
+| `--delete` | *(無)* | 字串 | 刪除指定任務，並清理其所有佇列與外連記錄。 | 無 |
+| `--reset` | *(無)* | 字串 | 重設指定任務，清除已探索外連並將狀態與佇列歸零。 | 無 |
+| `--report` | *(無)* | 字串 | 指定任務 ID，顯示該任務的詳細進度與統計報表。 | 無 |
+| `--export` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
+| `--output` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，自訂輸出路徑。 | `report/<JOB_ID>.csv` (或 `.json`) |
+| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容。支援 `dead`、`broken`、`unapproved`。 | 無 |
+| `--group` | *(無)* | 旗標 | (選填) 搭配 `--export` 使用，將相同外部連結在不同頁面出現時去重聚合。 | 無 |
+| `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及 `--export` 的 JSON 檔案導出。 | 無 |
 
-> **💡 提示：** `--config` 與 `--resume` 為互斥概念。如果是啟動新爬蟲，請使用 `--config`；如果是中斷後繼續，請使用 `--resume`。若兩者皆未輸入，系統將會印出幫助說明。
+> **💡 提示：** 
+> * `--config` 與 `--resume` 為互斥概念。如果是啟動新爬蟲，請使用 `--config`；如果是中斷後繼續，請使用 `--resume`。若兩者皆未輸入，系統將會印出幫助說明。
+> * **路徑自動補齊**：使用 `-c` 參數啟動時，若指定設定檔在 `job/` 底下，您可以直接簡寫為 `python cli.py -c my_task.yaml`（程式會自動補齊路徑並在 `job/` 目錄中搜尋）。
+> * `--filter` 篩選條件說明：
+>   * `dead`：特指 **「DNS 解析失敗 (IP 位址為空) 的無效外部連結」**（例如網域已過期）。
+>   * `broken`：特指 **「HTTP 狀態碼為異常 (>= 400) 或連線失敗的超連結與資源」**。
+>   * `unapproved`：特指 **「不在 approved_domains 白名單中的外部網域超連結與資源」**。
+> * 爬蟲執行過程中的日誌會依據全域設定，同時輸出至畫面並備份至 `log/crawler.log`。
 
 ---
 
 ## 2. 建立並啟動新爬蟲任務
 
-爬蟲需要一個任務設定檔來定義起始網址 (`start_url`)、允許深入的目標網域與內部網域。基於專案規範，建議將這些個別設定檔放置於 `jobs/` 目錄中。
+爬蟲需要一個任務設定檔來定義起始網址 (`start_url`)、允許深入的目標網域與內部網域。基於專案規範，建議將這些個別設定檔放置於 `job/` 目錄中。
 
-### 步驟 1：建立任務設定檔 (例如 `jobs/my_task.yaml`)
+### 步驟 1：建立任務設定檔 (例如 `job/my_task.yaml`)
 
 請參考以下範例建立您的設定檔。檔案中包含了必填的核心邏輯，以及可選的爬蟲行為覆寫：
 
@@ -55,31 +70,75 @@ internal_domains:
 # 選填設定 (爬蟲行為覆寫)
 # ==========================================
 crawler:
-  # 每次發送 HTTP 請求前的延遲時間 (單位：秒)
+  # 每次發送 HTTP 請求前的預設延遲時間 (單位：秒)
   delay: 4.0
   
   # HTTP 請求連線逾時時間 (單位：秒)
   timeout: 45
   
-  # 遇到錯誤時的重試次數
+  # 遇到暫時性錯誤時的重試次數
   retries: 2
+
+  # 最大爬取深度限制 (選填，預設為無限制)
+  # 1 代表僅爬起始網頁；2 代表向下延伸一層內部連結，依此類推。
+  max_depth: 2
+
+  # 最大抓取頁數限制 (選填，預設為無限制)
+  # 超過此抓取頁數時，爬蟲將優雅終止任務。
+  max_pages: 100
+
+  # 網域特定請求延遲設定 (選填)
+  # 支援最長匹配優先原則，用以精確調控特定目標網站的請求頻率。
+  domain_delays:
+    "example.com": 5.0
+    "sub.example.com": 10.0
+
+  # 信任的自簽憑證豁免網域白名單 (選填)
+  # 位於此清單之網域將豁免 SSL 鏈結校驗，避免自簽憑證導致存活探測失敗。
+  ssl_exempt_domains:
+    - "internal-self-signed.local"
+    - "my-partner-api.com"
+
+  # 自訂此任務的 User-Agent 標頭，用以偽裝瀏覽器 (選填)
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   
   # 額外要略過解析的副檔名 (會與全域設定檔中的清單聯集)
   ignore_extensions:
     - ".custom_ext"
+
+  # 信任的外部網域白名單 (選填，會與全域設定檔聯集)
+  approved_domains:
+    - "partner-service.com"
 ```
 
 > [!WARNING]
-> 在 `crawler` 區塊中自訂的 `delay`、`timeout` 與 `retries` 數值，必須落在全域設定檔 (`config_global.yaml`) 定義的上下限內。若超出範圍，系統將印出警告並強制套用全域的安全限制。
+> 在 `crawler` 區塊中自訂的 `delay`、`timeout` 與 `retries` 數值，必須落在全域設定檔 (`config/config_global.yaml`) 定義的上下限內。若超出範圍，系統將印出警告並強制套用全域的安全限制。
 
-### 步驟 2：執行 CLI 指令
+### 步驟 2：利用環境變數覆寫機密配置（資安防護）
+
+為了防範機密憑證（例如 Webhook URL、Proxy 等）明文寫入 YAML 檔中造成安全洩漏，系統優先支援自環境變數載入與覆寫配置。您可以在執行前設置：
+```bash
+# 設定外部代理伺服器
+export CRAWLER_PROXY_URL="http://user:password@proxy.example.com:8080"
+
+# 設定 Webhook 警報通知目的地
+export CRAWLER_WEBHOOK_URL="https://hooks.slack.com/services/T00/B00/X00"
+
+# 增補 SSL 自簽憑證豁免網域（以逗號分隔）
+export CRAWLER_SSL_EXEMPT_DOMAINS="exempt1.com,exempt2.org"
+```
+
+### 步驟 3：執行 CLI 指令
 
 ```bash
-# 使用預設的 config_global.yaml
-python cli.py -c jobs/my_task.yaml
+# 使用預設的 config/config_global.yaml
+python cli.py -c job/my_task.yaml
 
 # (選填) 若有客製化的全域設定檔，可加上 -g 指定
-python cli.py -g my_custom_global.yaml -c jobs/my_task.yaml
+python cli.py -g my_custom_global.yaml -c job/my_task.yaml
+
+# (選填) 綁定任務擁有者，以便支援多使用者隔離
+python cli.py -c job/my_task.yaml --user-id "user-alpha-123"
 ```
 
 系統啟動後，終端機會顯示類似如下的訊息，告知您被分配的 Job ID：
@@ -94,28 +153,61 @@ INFO - 成功建立任務 5eebf2ac-250f-463d-a4cc-98a64d50b5fc。爬蟲啟動中
 
 如果爬蟲在執行中途遇到網路中斷、被強制關閉 (例如按下 `Ctrl+C`) 或是發生預期外的崩潰，所有的爬取狀態 (Pending, Completed, Failed) 都已經妥善保存在 SQLite 資料庫中。
 
-要讓該任務接續未完成的網址繼續爬取，只需要透過 `-r` 或 `--resume` 帶入先前的任務 ID 即可，**不需要**重新指定 `-c`。
+若要恢復執行，請使用 `--resume` (或 `-r`) 參數並帶上任務的 Job ID：
 
 ```bash
-# 使用完整指令
-python cli.py --resume 5eebf2ac-250f-463d-a4cc-98a64d50b5fc
-
-# 或是使用縮寫
-python cli.py -r 5eebf2ac-250f-463d-a4cc-98a64d50b5fc
+# 恢復已暫停的爬蟲任務
+python cli.py -r 123e4567-e89b-12d3-a456-426614174000
 ```
+
+> **⚠️ 競爭危害與強制接管：** 
+> 為了避免多個終端機同時執行相同的任務，系統在恢復任務時會檢查狀態。若狀態為 `running`，系統會拒絕執行。若您確定前一次的爬蟲程序已經因為斷電或強制終止而意外死亡，您可以加上 `-f` 或 `--force` 參數來強制接管該任務：
+> ```bash
+> python cli.py -r 123e4567-e89b-12d3-a456-426614174000 -f
+> ```
 
 > [!NOTE]
 > 系統會自動從資料庫抓出該任務原先設定的 `start_url`、`target_domains` 等資訊，並從狀態為 `pending` 的佇列接續處理。
 
 ---
 
-## 4. 查詢進度報表與結果匯出
+## 4. 任務生命週期管理 (暫停、重設、刪除)
+
+我們提供了命令式的生命週期管理指令，讓您即使在前台沒有運行爬蟲的情況下，依然能控制任務狀態與清理資料庫：
+
+### 暫停執行中的任務
+若您需要從外部終端機主動讓執行中的爬蟲暫停：
+```bash
+python cli.py --pause <JOB_ID>
+```
+> **💡 協同暫停機制：** 前台運行的爬蟲程序每爬取一個網頁前，都會自動確認資料庫中的任務狀態。一旦偵測到狀態被改為 `paused`，它便會優雅地處理完當前請求後自動退出。
+
+### 重設任務 (重新爬取)
+若想在不變更任務 Job ID 的前提下，將任務退回初始狀態並清除所有已抓取的外連：
+```bash
+python cli.py --reset <JOB_ID>
+```
+這會清除該 Job 在資料庫中的所有外連記錄與佇列，並將佇列狀態歸零，回到僅剩 `start_url` 處於 `pending` 的狀態。
+
+### 刪除任務 (清理資料)
+若測試完畢或任務已過期，為了防堵 SQLite 資料庫檔案無限制膨脹，您可以將任務徹底刪除：
+```bash
+python cli.py --delete <JOB_ID>
+```
+此操作會利用資料庫的級聯刪除機制 (Cascade)，將該 Job 的所有 `crawl_queue` 佇列與 `external_links` 結果一次清理乾淨。
+
+---
+
+## 5. 查詢進度報表與結果匯出
 
 我們提供了進度檢視與資料匯出功能，讓您可以隨時掌握爬蟲狀況與下載最終成果：
 
 ### 列出所有任務
 ```bash
-python cli.py -l
+python cli.py --list-jobs
+
+# (選填) 僅列出特定使用者的任務
+python cli.py --list-jobs --user-id "user-alpha-123"
 ```
 此指令會印出歷史建立過的所有任務，包含狀態 (如 `completed`, `paused`, `running`) 以及它們的起始網址。
 
@@ -126,12 +218,27 @@ python cli.py --report <JOB_ID>
 ```
 這會為您計算出目前**已完成、等待中、失敗的網址數量**，以及已經找到的**外部連結總數**。
 
-### 匯出結果為 CSV
+### 匯出結果 (CSV / JSON 與聚合去重)
 如果您希望把找到的外部目標連結整理下來：
 ```bash
-# 預設會匯出到 reports/<JOB_ID>.csv
+# 預設會匯出為 CSV，路徑為 report/<JOB_ID>.csv
 python cli.py --export <JOB_ID>
 
-# 您也可以加上 -o 自訂路徑
-python cli.py --export <JOB_ID> -o ./my_result.csv
+# 您也可以加上 --output 自訂路徑
+python cli.py --export <JOB_ID> --output ./my_result.csv
+
+# 僅匯出「DNS 解析失敗」的無效外連連結
+python cli.py --export <JOB_ID> --filter dead --output ./dead_links.csv
+
+# 匯出所有損毀外連 (包含 DNS 解析失敗，以及 HTTP 狀態碼 >= 400 比如 404/500)
+python cli.py --export <JOB_ID> --filter broken
+
+# 僅匯出「非白名單內網域」的外連（資安稽核用）
+python cli.py --export <JOB_ID> --filter unapproved
+
+# 匯出為 JSON 格式 (預設會輸出到 report/<JOB_ID>.json)
+python cli.py --export <JOB_ID> --json
+
+# 聚合去重導出 (同個外連在不同頁面出現時會被合併，並附帶引用的出現次數與來源頁面清單)
+python cli.py --export <JOB_ID> --group
 ```

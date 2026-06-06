@@ -1,0 +1,13 @@
+start_url: "http://localhost:8000/index.html"
+target_domains:
+  - "localhost"
+internal_domains:
+  - "localhost"
+crawler:
+  delay: 3.0
+  timeout: 30
+  retries: 0
+  max_depth: 1
+  max_pages: 3
+  approved_domains:
+    - "www.google.com"

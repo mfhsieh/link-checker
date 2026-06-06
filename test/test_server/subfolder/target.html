@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Redirect Target</title>
+</head>
+<body>
+    <h1>Redirect Target Page</h1>
+    <p>If you see this page, HTTP redirect follow succeeded.</p>
+    
+    <h2>Base URL Verification Link</h2>
+    <ul>
+        <!-- If redirect base correction fails, the crawler will look for /relative-link.html (404)
+             If it succeeds, it will look for /subfolder/relative-link.html (200) -->
+        <li><a href="relative-link.html">Relative Link</a></li>
+    </ul>
+</body>
+</html>
