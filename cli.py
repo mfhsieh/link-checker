@@ -172,14 +172,14 @@ def merge_and_validate_crawler_config(config: dict[str, Any], global_config: dic
         })
 
     # 聯集合併全域與個別的 ignore_extensions
-    global_ignore_extensions: list[str] = global_crawler_config.get('ignore_extensions', [])
-    local_ignore_extensions: list[str] = crawler_config.get('ignore_extensions', [])
+    global_ignore_extensions: list[str] = global_crawler_config.get('ignore_extensions') or []
+    local_ignore_extensions: list[str] = crawler_config.get('ignore_extensions') or []
     if global_ignore_extensions or local_ignore_extensions:
         crawler_config['ignore_extensions'] = list(set(global_ignore_extensions + local_ignore_extensions))
 
     # 聯集合併全域與個別的 ignore_regexes
-    global_ignore_regexes: list[str] = global_crawler_config.get('ignore_regexes', [])
-    local_ignore_regexes: list[str] = crawler_config.get('ignore_regexes', [])
+    global_ignore_regexes: list[str] = global_crawler_config.get('ignore_regexes') or []
+    local_ignore_regexes: list[str] = crawler_config.get('ignore_regexes') or []
     if global_ignore_regexes or local_ignore_regexes:
         crawler_config['ignore_regexes'] = list(set(global_ignore_regexes + local_ignore_regexes))
 
@@ -188,24 +188,24 @@ def merge_and_validate_crawler_config(config: dict[str, Any], global_config: dic
         crawler_config['user_agent'] = global_crawler_config.get('user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
 
     # 聯集合併全域與個別的 approved_domains
-    global_approved_domains: list[str] = global_crawler_config.get('approved_domains', [])
-    local_approved_domains: list[str] = crawler_config.get('approved_domains', [])
+    global_approved_domains: list[str] = global_crawler_config.get('approved_domains') or []
+    local_approved_domains: list[str] = crawler_config.get('approved_domains') or []
     if global_approved_domains or local_approved_domains:
         crawler_config['approved_domains'] = list(set(global_approved_domains + local_approved_domains))
     else:
         crawler_config['approved_domains'] = []
 
     # 聯集合併全域與個別的 ssl_exempt_domains
-    global_ssl_exempt: list[str] = global_crawler_config.get('ssl_exempt_domains', [])
-    local_ssl_exempt: list[str] = crawler_config.get('ssl_exempt_domains', [])
+    global_ssl_exempt: list[str] = global_crawler_config.get('ssl_exempt_domains') or []
+    local_ssl_exempt: list[str] = crawler_config.get('ssl_exempt_domains') or []
     if global_ssl_exempt or local_ssl_exempt:
         crawler_config['ssl_exempt_domains'] = list(set(global_ssl_exempt + local_ssl_exempt))
     else:
         crawler_config['ssl_exempt_domains'] = []
 
     # 合併全域與個別的 domain_delays
-    global_domain_delays: dict = global_crawler_config.get('domain_delays', {})
-    local_domain_delays: dict = crawler_config.get('domain_delays', {})
+    global_domain_delays: dict = global_crawler_config.get('domain_delays') or {}
+    local_domain_delays: dict = crawler_config.get('domain_delays') or {}
     crawler_config['domain_delays'] = {**global_domain_delays, **local_domain_delays}
 
     # 合併資源與機密配置

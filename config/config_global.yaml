@@ -167,11 +167,11 @@ crawler:
   # 注意：可透過環境變數 CRAWLER_PROXY_URL 優先覆寫
   proxy_url: null
 
-
   # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證，降低資安風險)
   # 支援子網域匹配 (例如設定 "example.com" 亦可匹配 "sub.example.com")
   # 注意：可透過環境變數 CRAWLER_SSL_EXEMPT_DOMAINS 進行增補
-  ssl_exempt_domains: []
+  ssl_exempt_domains:
+    # - "example.com"
 
   # 網域特定請求延遲時間對照表 (單位：秒)
   # 當爬取特定網域時，將以其設定的時間覆寫預設的 delay 時間，避免過度存取造成對方伺服器負載過大

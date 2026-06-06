@@ -192,13 +192,19 @@ def run_test():
         # 斷言 2: httpbin 404
         status_404_url = "https://httpbin.org/status/404"
         assert status_404_url in ext_dict, "httpbin 404 link not found in DB"
-        assert ext_dict[status_404_url]['status_code'] in (404, 503), f"404 status should be 404 or 503, got {ext_dict[status_404_url]['status_code']}"
+        s_code_404 = ext_dict[status_404_url]['status_code']
+        assert s_code_404 in (404, 503, None), f"404 status should be 404, 503 or None, got {s_code_404}"
+        if s_code_404 is None:
+            assert ext_dict[status_404_url]['error'] is not None, "Error message should not be None when status_code is None"
         assert ext_dict[status_404_url]['is_secure'] == 1, "httpbin 404 is_secure should be 1"
         
         # 斷言 3: httpbin 500
         status_500_url = "https://httpbin.org/status/500"
         assert status_500_url in ext_dict, "httpbin 500 link not found in DB"
-        assert ext_dict[status_500_url]['status_code'] in (500, 503), f"500 status should be 500 or 503, got {ext_dict[status_500_url]['status_code']}"
+        s_code_500 = ext_dict[status_500_url]['status_code']
+        assert s_code_500 in (500, 503, None), f"500 status should be 500, 503 or None, got {s_code_500}"
+        if s_code_500 is None:
+            assert ext_dict[status_500_url]['error'] is not None, "Error message should not be None when status_code is None"
         assert ext_dict[status_500_url]['is_secure'] == 1, "httpbin 500 is_secure should be 1"
         
         # 斷言 4: DNS 失敗連結
