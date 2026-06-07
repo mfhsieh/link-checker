@@ -99,6 +99,7 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
 
     # 開發模式：僅輸出至 console，不實際發送
     if settings.SMTP_CONSOLE_MODE:
+        login_url = f"{settings.BASE_URL}/?action=invite"
         logger.info(
             "[SMTP Console Mode] 邀請郵件（未實際寄送）:\n"
             "  收件者: %s\n  Subject: %s\n  登入連結: %s\n  邀請碼: %s",

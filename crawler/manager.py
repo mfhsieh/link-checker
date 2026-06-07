@@ -122,6 +122,7 @@ class JobManager:
                 cursor.execute("PRAGMA journal_mode=WAL")
                 cursor.execute("PRAGMA synchronous=NORMAL")
                 cursor.execute("PRAGMA cache_size=10000")
+                cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
 
         Base.metadata.create_all(self.engine)
@@ -315,7 +316,10 @@ class JobManager:
             Job | None: 若找到對應的任務物件則回傳，否則回傳 None。
         """
         with self.SessionLocal() as session:
-            return session.query(Job).filter(Job.id == job_id).first()
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if job:
+                session.expunge(job)
+            return job
 
     # pylint: disable=too-many-locals, too-many-branches, too-many-statements, too-many-nested-blocks
     def run_job(

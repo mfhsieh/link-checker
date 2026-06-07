@@ -21,11 +21,13 @@ import io
 import json
 import logging
 import os
+import tempfile
 import zipfile
 from typing import Any
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session as DBSession
 
@@ -383,14 +385,14 @@ async def export_results(
             status_filter=query_args.status_filter,
             exclude=query_args.exclude,
             group_by=query_args.group_by,
-            page=1,
-            page_size=999999,
         )
-        results = job_service.get_job_results(db, query_obj)
+        # 僅用來驗證權限與是否存在，避免 stream 時才拋例外
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job or job.user_id != current_user.id:
+            raise ValueError(f"找不到任務 ID: {job_id}")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
-    items = results["items"]
     filename = f"job_{job_id}_results"
     if query_args.status_filter:
         filename += f"_{query_args.status_filter}"
@@ -398,48 +400,62 @@ async def export_results(
         filename += f"_by_{query_args.group_by}"
 
     if query_args.fmt == "json":
-        content = json.dumps(items, ensure_ascii=False, indent=2)
-        return Response(
-            content=content,
+        def json_generator():
+            yield "[\n"
+            first = True
+            for item in job_service.stream_job_results(db, query_obj):
+                if not first:
+                    yield ",\n"
+                yield json.dumps(item, ensure_ascii=False, indent=2)
+                first = False
+            yield "\n]"
+        return StreamingResponse(
+            json_generator(),
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="{filename}.json"'},
         )
 
     # CSV 格式
-    output = io.StringIO()
-    if items:
-        if query_args.group_by == "domain":
-            csv_items = []
-            for item in items:
+    def csv_generator():
+        yield "\ufeff"  # BOM for Excel
+        first = True
+        for item in job_service.stream_job_results(db, query_obj):
+            output = io.StringIO()
+            if first:
+                if query_args.group_by == "domain":
+                    writer = csv.DictWriter(output, fieldnames=["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"])
+                elif query_args.group_by == "source":
+                    writer = csv.DictWriter(output, fieldnames=["Source URL", "External Link Count", "Target URLs"])
+                else:
+                    writer = csv.DictWriter(output, fieldnames=list(item.keys()))
+                writer.writeheader()
+                first = False
+
+            if query_args.group_by == "domain":
                 urls_str = "\n".join(item["unique_urls"])
-                csv_items.append({
+                writer = csv.DictWriter(output, fieldnames=["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"])
+                writer.writerow({
                     "Domain": item["domain"],
                     "Occurrence Count": item["occurrence_count"],
                     "Unique URLs Count": item["unique_urls_count"],
                     "Unique URLs": urls_str
                 })
-            writer = csv.DictWriter(output, fieldnames=["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"])
-            writer.writeheader()
-            writer.writerows(csv_items)
-        elif query_args.group_by == "source":
-            csv_items = []
-            for item in items:
+            elif query_args.group_by == "source":
                 targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]])
-                csv_items.append({
+                writer = csv.DictWriter(output, fieldnames=["Source URL", "External Link Count", "Target URLs"])
+                writer.writerow({
                     "Source URL": item["source_url"],
                     "External Link Count": item["occurrence_count"],
                     "Target URLs": targets_str
                 })
-            writer = csv.DictWriter(output, fieldnames=["Source URL", "External Link Count", "Target URLs"])
-            writer.writeheader()
-            writer.writerows(csv_items)
-        else:
-            writer = csv.DictWriter(output, fieldnames=list(items[0].keys()))
-            writer.writeheader()
-            writer.writerows(items)
+            else:
+                writer = csv.DictWriter(output, fieldnames=list(item.keys()))
+                writer.writerow(item)
+            
+            yield output.getvalue()
 
-    return Response(
-        content=output.getvalue(),
+    return StreamingResponse(
+        csv_generator(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
     )
@@ -447,6 +463,7 @@ async def export_results(
 @router.get("/{job_id}/export/full")
 async def export_full_report(
     job_id: str,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> Response:
@@ -454,40 +471,51 @@ async def export_full_report(
     匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。
     """
     try:
-        internal_items = job_service.get_internal_results(db, job_id, current_user.id)
-        
-        query_obj = job_service.JobResultQuery(
-            job_id=job_id,
-            user_id=current_user.id,
-            status_filter=None,
-            group_by="none",
-            page=1,
-            page_size=999999,
-        )
-        external_results = job_service.get_job_results(db, query_obj)
-        external_items = external_results["items"]
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job or job.user_id != current_user.id:
+            raise ValueError(f"找不到任務 ID: {job_id}")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        if internal_items:
-            cq_io = io.StringIO()
-            writer = csv.DictWriter(cq_io, fieldnames=list(internal_items[0].keys()))
-            writer.writeheader()
-            writer.writerows(internal_items)
-            zf.writestr(f"job_{job_id}_crawl_records.csv", cq_io.getvalue().encode("utf-8-sig"))
+    fd, temp_path = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+
+    def cleanup():
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+    background_tasks.add_task(cleanup)
+
+    with zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        internal_iterator = job_service.stream_internal_results(db, job_id, current_user.id)
+        try:
+            first_internal = next(internal_iterator)
+            with zf.open(f"job_{job_id}_crawl_records.csv", "w") as f:
+                with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
+                    writer = csv.DictWriter(text_file, fieldnames=list(first_internal.keys()))
+                    writer.writeheader()
+                    writer.writerow(first_internal)
+                    for item in internal_iterator:
+                        writer.writerow(item)
+        except StopIteration:
+            pass
         
-        if external_items:
-            el_io = io.StringIO()
-            writer = csv.DictWriter(el_io, fieldnames=list(external_items[0].keys()))
-            writer.writeheader()
-            writer.writerows(external_items)
-            zf.writestr(f"job_{job_id}_external_links.csv", el_io.getvalue().encode("utf-8-sig"))
+        query_obj = job_service.JobResultQuery(job_id=job_id, user_id=current_user.id, group_by="none")
+        external_iterator = job_service.stream_job_results(db, query_obj)
+        try:
+            first_external = next(external_iterator)
+            with zf.open(f"job_{job_id}_external_links.csv", "w") as f:
+                with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
+                    writer = csv.DictWriter(text_file, fieldnames=list(first_external.keys()))
+                    writer.writeheader()
+                    writer.writerow(first_external)
+                    for item in external_iterator:
+                        writer.writerow(item)
+        except StopIteration:
+            pass
 
     filename = f"job_{job_id}_full_report.zip"
-    return Response(
-        content=zip_buffer.getvalue(),
+    return FileResponse(
+        temp_path,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        filename=filename,
     )

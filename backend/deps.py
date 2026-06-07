@@ -11,6 +11,8 @@ FastAPI 共用依賴注入模組。
 """
 
 import logging
+import secrets
+import threading
 from typing import Generator
 
 from fastapi import Depends, HTTPException, Request, status
@@ -43,14 +45,17 @@ def get_auth_db() -> Generator[DBSession, None, None]:
 # ── Crawler DB 依賴（透過 JobManager）──────────────────────────────────────────
 
 _JOB_MANAGER: JobManager | None = None
+_JOB_MANAGER_LOCK = threading.Lock()
 
 
 def get_job_manager() -> JobManager:
     """提供全域單一實例的 JobManager。"""
     global _JOB_MANAGER  # pylint: disable=global-statement
     if _JOB_MANAGER is None:
-        settings = get_settings()
-        _JOB_MANAGER = JobManager(db_url=settings.CRAWLER_DB_URL)
+        with _JOB_MANAGER_LOCK:
+            if _JOB_MANAGER is None:
+                settings = get_settings()
+                _JOB_MANAGER = JobManager(db_url=settings.CRAWLER_DB_URL)
     return _JOB_MANAGER
 
 
@@ -209,7 +214,7 @@ def require_csrf(request: Request) -> None:
             detail="CSRF Token 驗證失敗：Token 缺失。",
         )
 
-    if csrf_cookie != csrf_header:
+    if not secrets.compare_digest(csrf_cookie, csrf_header):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="CSRF Token 驗證失敗：Token 不一致。",

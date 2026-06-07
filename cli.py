@@ -657,6 +657,15 @@ def _handle_resume_or_create(
     Raises:
         SystemExit: 當讀取設定失敗、驗證不通過或啟動爬蟲失敗時，終止程式並回傳錯誤碼 1。
     """
+    if args.resume is not None:
+        logging.info("正在恢復執行任務 %s...", args.resume)
+        if args.config:
+            logging.warning(
+                "--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。"
+            )
+        manager.run_job(job_id=args.resume, force=args.force)
+        return
+
     config: dict[str, Any] = {}
     if args.config:
         config_path = args.config
@@ -675,15 +684,6 @@ def _handle_resume_or_create(
             sys.exit(1)
 
     crawler_config = merge_and_validate_crawler_config(config, global_config)
-
-    if args.resume is not None:
-        logging.info("正在恢復執行任務 %s...", args.resume)
-        if args.config:
-            logging.warning(
-                "--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。"
-            )
-        manager.run_job(job_id=args.resume, force=args.force)
-        return
 
     try:
         start_url: str | None = config.get("start_url")

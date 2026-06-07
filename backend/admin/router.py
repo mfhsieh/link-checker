@@ -14,7 +14,7 @@ from typing import Any
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth import service as auth_service
@@ -103,6 +103,47 @@ class UpdateUserRequest(BaseModel):
 class SendTestEmailRequest(BaseModel):
     """寄送測試郵件的請求結構。"""
     to_email: EmailStr
+
+
+class CrawlerConfigUpdate(BaseModel):
+    """Crawler 區塊配置更新請求結構。"""
+    model_config = {"extra": "forbid"}
+
+    timeout: int | None = Field(None, ge=1)
+    delay: float | None = Field(None, ge=0.0)
+    retries: int | None = Field(None, ge=0)
+    max_depth: int | None = Field(None, ge=1)
+    max_pages: int | None = Field(None, ge=1)
+    user_agent: str | None = None
+    proxy_url: str | None = None
+    ssl_exempt_domains: list[str] | None = None
+    domain_delays: dict[str, float] | None = None
+    ignore_extensions: list[str] | None = None
+    ignore_regexes: list[str] | None = None
+    mime_type_filter: dict[str, Any] | None = None
+    min_timeout: int | None = Field(None, ge=1)
+    max_timeout: int | None = Field(None, ge=1)
+    min_delay: float | None = Field(None, ge=0.0)
+    max_delay: float | None = Field(None, ge=0.0)
+    min_retries: int | None = Field(None, ge=0)
+    max_retries: int | None = Field(None, ge=0)
+
+    @field_validator("mime_type_filter")
+    @classmethod
+    def validate_mime_type_filter(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """驗證 mime_type_filter 的內部結構。"""
+        if v is not None:
+            if not isinstance(v.get("enabled"), bool):
+                raise ValueError("mime_type_filter.enabled 必須為布林值 (bool)")
+            if not isinstance(v.get("allowed_types"), list):
+                raise ValueError("mime_type_filter.allowed_types 必須為字串陣列 (list)")
+        return v
+
+
+class UpdateConfigRequest(BaseModel):
+    """全域配置更新的請求結構。"""
+    model_config = {"extra": "forbid"}
+    crawler: CrawlerConfigUpdate
 
 
 # ── 使用者管理 ─────────────────────────────────────────────────────────────────
@@ -419,7 +460,7 @@ async def get_config(
 
 @router.patch("/config", status_code=status.HTTP_200_OK)
 async def update_config(
-    body: dict[str, Any],
+    body: UpdateConfigRequest,
     request: Request,
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
@@ -428,12 +469,12 @@ async def update_config(
     """
     修改全域配置（僅允許修改 crawler 區塊下的安全欄位）。
 
-    採用白名單機制：只允許修改 crawler.* 區塊中預先核准的欄位，
+    採用 Pydantic 模型驗證：只允許修改 crawler.* 區塊中預先核准的欄位與型別，
     禁止修改 db_url、logging（含 log_file 路徑）等系統級設定，
-    防範 Path Traversal 等攻擊。
+    防範 Path Traversal 等攻擊與無效數值。
 
     Args:
-        body (dict[str, Any]): 包含欲修改設定值的 Dict。
+        body (UpdateConfigRequest): 包含欲修改設定值的結構。
         request (Request): FastAPI Request。
         auth_db (DBSession): Auth 資料庫 Session。
         _admin (User): 管理員使用者依賴，確保具備管理員權限。
@@ -443,38 +484,14 @@ async def update_config(
         dict[str, str]: 成功訊息。
 
     Raises:
-        HTTPException 400: 若請求格式不正確。
+        HTTPException 422: 若請求格式、數值不正確。
         HTTPException 500: 若寫入設定檔時發生 I/O 錯誤。
     """
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
 
-    # 安全白名單：只允許修改 crawler 區塊下的已知安全欄位
-    ALLOWED_CRAWLER_KEYS = {
-        "timeout", "delay", "retries", "max_depth", "max_pages",
-        "user_agent", "proxy_url", "ssl_exempt_domains", "domain_delays",
-        "ignore_extensions", "ignore_regexes", "mime_type_filter",
-        "min_timeout", "max_timeout", "min_delay", "max_delay",
-        "min_retries", "max_retries",
-    }
-
-    # 強制只允許修改 crawler 區塊
-    crawler_updates = body.get("crawler", {})
-    if not isinstance(crawler_updates, dict):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="請求內容必須包含 'crawler' 區塊。",
-        )
-
-    # 過濾不在白名單內的欄位
-    rejected_keys = [k for k in crawler_updates if k not in ALLOWED_CRAWLER_KEYS]
-    if rejected_keys:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"以下欄位不允許透過 API 修改：{', '.join(rejected_keys)}",
-        )
-
-    # 僅更新 crawler 區塊
+    # 僅提取有更新的 crawler 欄位 (exclude_unset=True)
+    crawler_updates = body.crawler.model_dump(exclude_unset=True)
     safe_body = {"crawler": crawler_updates}
 
     try:

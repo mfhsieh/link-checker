@@ -6,6 +6,7 @@
 """
 
 import logging
+import os
 import re
 from typing import Any
 from urllib.parse import urlparse, ParseResult
@@ -15,14 +16,11 @@ from crawler.utils import normalize_url, get_domain, is_in_domain_list, resolve_
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-SOCIAL_DOMAINS: tuple[str, ...] = (
-    "facebook.com",
-    "fb.com",
-    "youtube.com",
-    "instagram.com",
-    "twitter.com",
-    "linkedin.com",
+_default_social_domains = "facebook.com,fb.com,youtube.com,instagram.com,twitter.com,linkedin.com"
+SOCIAL_DOMAINS: tuple[str, ...] = tuple(
+    d.strip() for d in os.environ.get("CRAWLER_SOCIAL_DOMAINS", _default_social_domains).split(",") if d.strip()
 )
+MAX_CONTENT_LENGTH: int = int(os.environ.get("CRAWLER_MAX_CONTENT_LENGTH", 10 * 1024 * 1024))
 
 
 # pylint: disable=too-many-instance-attributes
@@ -164,9 +162,19 @@ class CrawlerCore:
                     return None, response.status_code, "skip", str(response.url), True
 
             # 若檢查通過，讀取所有資料
-            response.read()
+            # 改用分塊讀取，並限制最大記憶體用量
+            content_bytes = bytearray()
+            for chunk in response.iter_bytes(chunk_size=8192):
+                content_bytes.extend(chunk)
+                if len(content_bytes) > MAX_CONTENT_LENGTH:
+                    logger.warning("網址 %s 內容超過 %d bytes，已提早截斷保護記憶體", url, MAX_CONTENT_LENGTH)
+                    break
+
+            charset = response.charset_encoding or "utf-8"
+            text = content_bytes.decode(charset, errors="replace")
+
             return (
-                response.text,
+                text,
                 response.status_code,
                 "completed",
                 str(response.url),

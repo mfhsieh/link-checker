@@ -35,6 +35,14 @@ logger = logging.getLogger(__name__)
 _running_processes: dict[str, subprocess.Popen] = {}
 
 
+def _cleanup_finished_processes() -> None:
+    """清理 _running_processes 中已結束的子程序，釋放資源防止洩漏。"""
+    for jid in list(_running_processes.keys()):
+        proc = _running_processes.get(jid)
+        if proc is not None and proc.poll() is not None:
+            _running_processes.pop(jid, None)
+
+
 @dataclass
 class JobCreateConfig:
     """建立任務的設定封裝。"""
@@ -100,19 +108,25 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     if job.status not in ("pending", "paused"):
         raise ValueError(f"任務目前狀態為 {job.status}，無法啟動。")
 
-    if job_id in _running_processes and _running_processes[job_id].poll() is None:
+    _cleanup_finished_processes()
+    if job_id in _running_processes:
         raise ValueError("任務已在執行中。")
 
     # 取得專案根目錄的 cli.py 路徑
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     cli_path = os.path.join(project_root, "cli.py")
 
+    log_dir = os.path.join(project_root, "log")
+    os.makedirs(log_dir, exist_ok=True)
+    stderr_path = os.path.join(log_dir, "crawler_stderr.log")
+
     try:
+        err_file = open(stderr_path, "a", encoding="utf-8")  # pylint: disable=consider-using-with
         proc = subprocess.Popen(  # pylint: disable=consider-using-with
             [sys.executable, cli_path, "--resume", job_id],
             cwd=project_root,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=err_file,
             close_fds=True,
         )
         _running_processes[job_id] = proc
@@ -162,6 +176,8 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
     Returns:
         dict: 任務詳情與進度。
     """
+    _cleanup_finished_processes()
+
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
@@ -206,10 +222,7 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
         "config": config_snapshot,
         "progress": report["queue"],
         "external_link_count": report["external_links"],
-        "is_running": (
-            job_id in _running_processes
-            and _running_processes[job_id].poll() is None
-        ),
+        "is_running": job_id in _running_processes,
         "ui_poll_interval": int(os.environ.get("UI_POLL_INTERVAL", 10000)),
     }
 
@@ -226,6 +239,8 @@ def list_jobs(manager: JobManager, user_id: str, status: str | None = None) -> l
     Returns:
         list[dict]: 任務摘要清單。
     """
+    _cleanup_finished_processes()
+
     return manager.get_all_jobs(user_id=user_id, status=status)
 
 
@@ -381,15 +396,19 @@ def get_job_results(
         # insecure：非 HTTPS (HTTP 明文傳輸)
         query = query.filter(ExternalLink.is_secure.is_(False))
 
-    links = query.order_by(ExternalLink.created_at).all()
-
     if query_args.group_by == "target":
+        links = query.order_by(ExternalLink.created_at).all()
         items_list = _group_by_target(links)
     elif query_args.group_by == "source":
+        links = query.order_by(ExternalLink.created_at).all()
         items_list = _group_by_source(links)
     elif query_args.group_by == "domain":
+        links = query.order_by(ExternalLink.created_at).all()
         items_list = _group_by_domain(links)
     else:
+        total = query.count()
+        offset = (query_args.page - 1) * query_args.page_size
+        links = query.order_by(ExternalLink.created_at).offset(offset).limit(query_args.page_size).all()
         items_list = [
             {
                 "id": lnk.id,
@@ -403,12 +422,19 @@ def get_job_results(
             }
             for lnk in links
         ]
+        total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
+        return {
+            "items": items_list,
+            "total": total,
+            "page": query_args.page,
+            "page_size": query_args.page_size,
+            "total_pages": total_pages,
+        }
 
     total = len(items_list)
     offset = (query_args.page - 1) * query_args.page_size
     items = items_list[offset: offset + query_args.page_size]
 
-    # 計算總頁數
     total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
 
     return {
@@ -452,13 +478,116 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, A
         "insecure_count": insecure,
     }
 
-def get_internal_results(db: DBSession, job_id: str, user_id: str) -> list[dict[str, Any]]:
-    """取得任務的內部佇列爬取結果 (爬取紀錄)。"""
+def stream_job_results(db: DBSession, query_args: JobResultQuery):
+    """查詢任務的外連結果，並以 yield 串流回傳以節省記憶體。"""
+    job = db.query(Job).filter(Job.id == query_args.job_id).first()
+    if not job or job.user_id != query_args.user_id:
+        raise ValueError("無權限存取此任務。")
+
+    query = db.query(ExternalLink).filter(ExternalLink.job_id == query_args.job_id)
+
+    if query_args.status_filter == "dead":
+        query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
+    elif query_args.status_filter == "broken":
+        query = query.filter(ExternalLink.http_status_code >= 400)
+    elif query_args.status_filter == "insecure":
+        query = query.filter(ExternalLink.is_secure.is_(False))
+        
+    if query_args.exclude:
+        excludes = [e.strip() for e in query_args.exclude.split(",") if e.strip()]
+        for exc in excludes:
+            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
+
+    # 使用 yield_per 每次只載入 2000 筆，避免 OOM
+    cursor = query.order_by(ExternalLink.created_at).yield_per(2000)
+
+    if query_args.group_by == "none":
+        for lnk in cursor:
+            yield {
+                "source_url": lnk.source_url,
+                "target_url": lnk.target_url,
+                "ip_address": lnk.ip_address,
+                "is_secure": lnk.is_secure,
+                "http_status_code": lnk.http_status_code,
+                "error_message": lnk.error_message,
+                "created_at": lnk.created_at.isoformat(),
+            }
+    elif query_args.group_by == "target":
+        agg = defaultdict(lambda: {
+            "target_url": "",
+            "ip_address": None,
+            "is_secure": True,
+            "http_status_code": None,
+            "error_message": None,
+            "occurrence_count": 0,
+            "source_urls": set(),
+        })
+        for lnk in cursor:
+            d = agg[lnk.target_url]
+            d["target_url"] = lnk.target_url
+            d["occurrence_count"] += 1
+            d["source_urls"].add(lnk.source_url)
+            d["is_secure"] = lnk.is_secure
+            if not d["ip_address"] and lnk.ip_address:
+                d["ip_address"] = lnk.ip_address
+            if d["http_status_code"] is None and lnk.http_status_code is not None:
+                d["http_status_code"] = lnk.http_status_code
+            if not d["error_message"] and lnk.error_message:
+                d["error_message"] = lnk.error_message
+        for v in agg.values():
+            yield {
+                "target_url": v["target_url"],
+                "ip_address": v["ip_address"],
+                "is_secure": v["is_secure"],
+                "http_status_code": v["http_status_code"],
+                "error_message": v["error_message"],
+                "occurrence_count": v["occurrence_count"],
+                "source_urls": sorted(list(v["source_urls"])),
+            }
+    elif query_args.group_by == "domain":
+        agg = defaultdict(lambda: {"domain": "", "occurrence_count": 0, "unique_urls": set()})
+        for lnk in cursor:
+            dom = get_domain(lnk.target_url) or "unknown"
+            d = agg[dom]
+            d["domain"] = dom
+            d["occurrence_count"] += 1
+            d["unique_urls"].add(lnk.target_url)
+        
+        result = []
+        for v in agg.values():
+            result.append({
+                "domain": v["domain"],
+                "occurrence_count": v["occurrence_count"],
+                "unique_urls_count": len(v["unique_urls"]),
+                "unique_urls": sorted(list(v["unique_urls"]))
+            })
+        result.sort(key=lambda x: x["occurrence_count"], reverse=True)
+        for item in result:
+            yield item
+    elif query_args.group_by == "source":
+        agg = defaultdict(lambda: {"source_url": "", "occurrence_count": 0, "targets": []})
+        for lnk in cursor:
+            d = agg[lnk.source_url]
+            d["source_url"] = lnk.source_url
+            d["occurrence_count"] += 1
+            status_str = str(lnk.http_status_code) if lnk.http_status_code is not None else ("DNS Failed" if not lnk.ip_address else "Error")
+            d["targets"].append({
+                "url": lnk.target_url,
+                "status": status_str,
+                "is_secure": lnk.is_secure,
+                "error_message": lnk.error_message
+            })
+        for v in agg.values():
+            yield v
+
+def stream_internal_results(db: DBSession, job_id: str, user_id: str):
+    """查詢任務的內部佇列結果，並以 yield 串流回傳。"""
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
     if job.user_id != user_id:
         raise ValueError("無權限存取此任務。")
 
-    queue = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).all()
-    return [format_crawl_queue_item(q) for q in queue]
+    cursor = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).yield_per(2000)
+    for q in cursor:
+        yield format_crawl_queue_item(q)

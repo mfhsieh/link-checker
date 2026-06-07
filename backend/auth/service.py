@@ -217,6 +217,12 @@ def authenticate_with_invitation(
         db.commit()
         raise ValueError("邀請連結已過期，請聯繫管理員重新寄送邀請。")
 
+    # 清除該帳號先前可能遺留的首次登入 Session，避免產生多個有效 first-login session
+    db.query(Session).filter(
+        Session.user_id == user.id,
+        Session.is_first_login.is_(True)
+    ).delete()
+
     # 建立首次登入 Session（is_first_login=True，需強制設密）
     session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=True)
     _log_event(db, "first_login_attempt", user_id=user.id, ip_address=ip)
