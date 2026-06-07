@@ -166,6 +166,21 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
+    # [安全防護 1] 防止停用管理員
+    if body.status == "suspended" and user.role == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="無法直接停用管理員帳號。請先將其降權為一般使用者。",
+        )
+
+    # [安全防護 2] 防止將停用/已過期的帳號設為管理員
+    future_status = body.status if body.status else user.status
+    if body.role == "admin" and future_status in ("suspended", "expired"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="無法將停用或已過期的帳號設為管理員。",
+        )
+
     changes = {}
     if body.status and body.status != user.status:
         changes["status"] = {"before": user.status, "after": body.status}
@@ -235,6 +250,13 @@ async def delete_user(
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
+
+    # [安全防護 3] 防止刪除管理員
+    if user.role == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="無法直接刪除管理員帳號。請先將其降權為一般使用者。",
+        )
 
     # 記錄刪除帳號的操作日誌
     log_detail = {
@@ -436,8 +458,8 @@ async def update_config(
     # 安全白名單：只允許修改 crawler 區塊下的已知安全欄位
     ALLOWED_CRAWLER_KEYS = {
         "timeout", "delay", "retries", "max_depth", "max_pages",
-        "user_agent", "proxy_url", "ssl_exempt_domains", "approved_domains",
-        "domain_delays", "ignore_extensions", "mime_type_filter",
+        "user_agent", "proxy_url", "ssl_exempt_domains", "domain_delays",
+        "ignore_extensions", "ignore_regexes", "mime_type_filter",
         "min_timeout", "max_timeout", "min_delay", "max_delay",
         "min_retries", "max_retries",
     }

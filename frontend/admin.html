@@ -140,15 +140,134 @@
             <p class="page-subtitle">全域爬蟲參數設定（config_global.yaml）</p>
           </div>
         </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">目前配置（JSON 格式）</span></div>
-          <div class="form-group" style="margin-bottom:1rem">
-            <textarea class="form-textarea" id="config-editor" rows="24" spellcheck="false"
-              style="font-family:monospace; font-size:0.875rem; line-height:1.4"></textarea>
+        <form id="config-form">
+          <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; align-items: start;">
+            <!-- 左欄：數值與字串設定 -->
+            <div style="flex: 1 1 400px; display:flex; flex-direction:column; gap: 1.5rem;">
+              <div class="card">
+                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                    class="card-title">預設爬蟲行為</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-timeout">預設逾時 (秒)</label>
+                    <input class="form-input" type="number" id="cfg-timeout" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-delay">預設延遲 (秒)</label>
+                    <input class="form-input" type="number" step="0.1" id="cfg-delay" required />
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-retries">預設重試次數</label>
+                    <input class="form-input" type="number" id="cfg-retries" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-max-depth">最大深度</label>
+                    <input class="form-input" type="number" id="cfg-max-depth" placeholder="無限制" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-max-pages">最大頁數</label>
+                    <input class="form-input" type="number" id="cfg-max-pages" placeholder="無限制" />
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom:1rem">
+                  <label class="form-label" for="cfg-user-agent">User-Agent</label>
+                  <input class="form-input" type="text" id="cfg-user-agent" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="cfg-proxy-url">Proxy URL</label>
+                  <input class="form-input" type="text" id="cfg-proxy-url" placeholder="http://..." />
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                    class="card-title">安全上下限限制</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-min-timeout">最小逾時 (秒)</label>
+                    <input class="form-input" type="number" id="cfg-min-timeout" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-max-timeout">最大逾時 (秒)</label>
+                    <input class="form-input" type="number" id="cfg-max-timeout" required />
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-min-delay">最小延遲 (秒)</label>
+                    <input class="form-input" type="number" step="0.1" id="cfg-min-delay" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-max-delay">最大延遲 (秒)</label>
+                    <input class="form-input" type="number" step="0.1" id="cfg-max-delay" required />
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-min-retries">最小重試次數</label>
+                    <input class="form-input" type="number" id="cfg-min-retries" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-max-retries">最大重試次數</label>
+                    <input class="form-input" type="number" id="cfg-max-retries" required />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右欄：過濾與清單 -->
+            <div style="flex: 1 1 400px; display:flex; flex-direction:column; gap: 1.5rem;">
+              <div class="card">
+                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                    class="card-title">過濾與網域規則</span></div>
+
+                <div class="form-group" style="margin-bottom:1rem">
+                  <label class="form-label" for="cfg-ssl-exempt">自簽憑證豁免網域 (ssl_exempt_domains)</label>
+                  <textarea class="form-textarea" id="cfg-ssl-exempt" rows="2"
+                    placeholder="example.com&#10;每行一個"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:1rem">
+                  <label class="form-label" for="cfg-ignore-exts">略過副檔名 (ignore_extensions)</label>
+                  <textarea class="form-textarea" id="cfg-ignore-exts" rows="2" placeholder=".pdf&#10;每行一個"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:1rem">
+                  <label class="form-label" for="cfg-ignore-regexes">排除的路徑規則 (ignore_regexes)</label>
+                  <textarea class="form-textarea" id="cfg-ignore-regexes" rows="2"
+                    placeholder="^https://...&#10;每行一個"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:1rem">
+                  <label class="form-label" for="cfg-domain-delays">網域特定延遲 (domain_delays)</label>
+                  <textarea class="form-textarea" id="cfg-domain-delays" rows="2"
+                    placeholder="example.com: 5.0&#10;每行一個 (網域: 秒數)"></textarea>
+                </div>
+
+                <div style="padding-top:1rem; border-top:1px solid var(--surface-border-subtle)">
+                  <div class="form-group" style="margin-bottom:0.5rem">
+                    <label
+                      style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
+                      <input type="checkbox" id="cfg-mime-enabled" /> 啟用 MIME 類型過濾
+                    </label>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-mime-types">允許的 MIME 類型</label>
+                    <textarea class="form-textarea" id="cfg-mime-types" rows="2"
+                      placeholder="text/html&#10;每行一個"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 儲存操作區 -->
+              <div class="card" style="background:var(--surface-raised)">
+                <div id="config-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" id="save-config-btn"
+                  style="width:100%">儲存配置</button>
+              </div>
+            </div>
           </div>
-          <div id="config-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:0.75rem"></div>
-          <button class="btn btn-primary" id="save-config-btn">儲存配置</button>
-        </div>
+        </form>
       </div>
 
       <!-- 郵件測試 -->
@@ -316,12 +435,12 @@
                   <td class="text-sm text-muted">${u.last_login_at ? new Date(u.last_login_at).toLocaleString('zh-TW') : '-'}</td>
                   <td>
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                      ${u.id !== user.id && u.role === 'user' ? `<button class="btn btn-sm btn-secondary" onclick="changeUserRole('${u.id}', '${escapeHtml(u.email)}', 'admin')">設為管理員</button>` : ''}
+                      ${u.id !== user.id && u.role === 'user' && u.status !== 'suspended' ? `<button class="btn btn-sm btn-secondary" onclick="changeUserRole('${u.id}', '${escapeHtml(u.email)}', 'admin')">設為管理員</button>` : ''}
                       ${u.id !== user.id && u.role === 'admin' ? `<button class="btn btn-sm btn-danger" onclick="changeUserRole('${u.id}', '${escapeHtml(u.email)}', 'user')">取消管理員</button>` : ''}
-                      ${u.status !== 'suspended' && u.id !== user.id ? `<button class="btn btn-sm btn-danger" onclick="suspendUser('${u.id}')">停用</button>` : ''}
+                      ${u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger" onclick="suspendUser('${u.id}')">停用</button>` : ''}
                       ${u.status === 'suspended' ? `<button class="btn btn-sm btn-secondary" onclick="activateUser('${u.id}', '${escapeHtml(u.email)}')">啟用</button>` : ''}
                       ${['pending', 'expired'].includes(u.status) ? `<button class="btn btn-sm btn-secondary" onclick="resendInvite('${u.id}', '${escapeHtml(u.email)}')">重寄邀請</button>` : ''}
-                      ${u.id !== user.id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}', '${escapeHtml(u.email)}')">刪除</button>` : ''}
+                      ${u.id !== user.id && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}', '${escapeHtml(u.email)}')">刪除</button>` : ''}
                     </div>
                   </td>
                 </tr>
@@ -436,29 +555,109 @@
 
     async function loadConfig() {
       try {
-        const config = await api.get('/api/admin/config');
-        document.getElementById('config-editor').value = JSON.stringify(config, null, 2);
+        const fullConfig = await api.get('/api/admin/config');
+        const c = fullConfig.crawler || {};
+
+        document.getElementById('cfg-timeout').value = c.timeout ?? '';
+        document.getElementById('cfg-delay').value = c.delay ?? '';
+        document.getElementById('cfg-retries').value = c.retries ?? '';
+        document.getElementById('cfg-max-depth').value = c.max_depth ?? '';
+        document.getElementById('cfg-max-pages').value = c.max_pages ?? '';
+        document.getElementById('cfg-user-agent').value = c.user_agent ?? '';
+        document.getElementById('cfg-proxy-url').value = c.proxy_url ?? '';
+
+        document.getElementById('cfg-min-timeout').value = c.min_timeout ?? '';
+        document.getElementById('cfg-max-timeout').value = c.max_timeout ?? '';
+        document.getElementById('cfg-min-delay').value = c.min_delay ?? '';
+        document.getElementById('cfg-max-delay').value = c.max_delay ?? '';
+        document.getElementById('cfg-min-retries').value = c.min_retries ?? '';
+        document.getElementById('cfg-max-retries').value = c.max_retries ?? '';
+
+        document.getElementById('cfg-ssl-exempt').value = (c.ssl_exempt_domains || []).join('\n');
+        document.getElementById('cfg-ignore-exts').value = (c.ignore_extensions || []).join('\n');
+        document.getElementById('cfg-ignore-regexes').value = (c.ignore_regexes || []).join('\n');
+
+        const dd = c.domain_delays || {};
+        const ddLines = Object.entries(dd).map(([k, v]) => `${k}: ${v}`);
+        document.getElementById('cfg-domain-delays').value = ddLines.join('\n');
+
+        const mime = c.mime_type_filter || { enabled: true, allowed_types: [] };
+        document.getElementById('cfg-mime-enabled').checked = mime.enabled;
+        document.getElementById('cfg-mime-types').value = (mime.allowed_types || []).join('\n');
       } catch (err) { toast.error('載入配置失敗：' + err.message); }
     }
 
-    document.getElementById('save-config-btn')?.addEventListener('click', async () => {
+    document.getElementById('config-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
       const errorEl = document.getElementById('config-error');
       errorEl.textContent = '';
-      let parsed;
       try {
-        parsed = JSON.parse(document.getElementById('config-editor').value);
-      } catch (_) {
-        errorEl.textContent = 'JSON 格式錯誤，請檢查語法。';
-        return;
+        const getInt = (id) => { const v = document.getElementById(id).value; return v === '' ? null : parseInt(v, 10); };
+        const getFloat = (id) => { const v = document.getElementById(id).value; return v === '' ? null : parseFloat(v); };
+        const getStr = (id) => document.getElementById(id).value.trim() || null;
+        const getList = (id) => document.getElementById(id).value.split('\n').map(s => s.trim()).filter(Boolean);
+
+        const ddLines = getList('cfg-domain-delays');
+        const domain_delays = {};
+        for (const line of ddLines) {
+          const parts = line.split(':');
+          if (parts.length !== 2) throw new Error('網域特定延遲格式錯誤，必須為 "網域: 延遲秒數"');
+          const domain = parts[0].trim();
+          const delay = parseFloat(parts[1].trim());
+          if (isNaN(delay)) throw new Error(`網域特定延遲秒數無效: ${parts[1]}`);
+          domain_delays[domain] = delay;
+        }
+
+        const crawlerConfig = {
+          timeout: getInt('cfg-timeout'),
+          delay: getFloat('cfg-delay'),
+          retries: getInt('cfg-retries'),
+          max_depth: getInt('cfg-max-depth'),
+          max_pages: getInt('cfg-max-pages'),
+          user_agent: getStr('cfg-user-agent'),
+          proxy_url: getStr('cfg-proxy-url'),
+
+          min_timeout: getInt('cfg-min-timeout'),
+          max_timeout: getInt('cfg-max-timeout'),
+          min_delay: getFloat('cfg-min-delay'),
+          max_delay: getFloat('cfg-max-delay'),
+          min_retries: getInt('cfg-min-retries'),
+          max_retries: getInt('cfg-max-retries'),
+
+          ssl_exempt_domains: getList('cfg-ssl-exempt'),
+          ignore_extensions: getList('cfg-ignore-exts'),
+          ignore_regexes: getList('cfg-ignore-regexes'),
+          domain_delays: domain_delays,
+
+          mime_type_filter: {
+            enabled: document.getElementById('cfg-mime-enabled').checked,
+            allowed_types: getList('cfg-mime-types')
+          }
+        };
+
+        const payload = { crawler: crawlerConfig };
+
+        const confirmed = await showConfirm('⚠️ 儲存全域配置', '確定要覆寫全域系統配置嗎？這將影響所有後續建立的爬蟲任務與安全限制。', '確定儲存', true);
+        if (!confirmed) return;
+
+        const btn = document.getElementById('save-config-btn');
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        try {
+          await api.patch('/api/admin/config', payload);
+          toast.success('配置已儲存。');
+
+          btn.classList.remove('loading');
+          btn.disabled = false;
+        } catch (err) {
+          errorEl.textContent = err.message;
+          btn.classList.remove('loading');
+          btn.disabled = false;
+        }
+      } catch (err) {
+        errorEl.textContent = err.message;
       }
-
-      const confirmed = await showConfirm('⚠️ 儲存全域配置', '確定要覆寫全域系統配置嗎？這將影響所有後續建立的爬蟲任務與安全限制。', '確定儲存', true);
-      if (!confirmed) return;
-
-      try {
-        await api.patch('/api/admin/config', parsed);
-        toast.success('配置已儲存。');
-      } catch (err) { toast.error(err.message); }
     });
 
     // ── SMTP ─────────────────────────────────────────────────
