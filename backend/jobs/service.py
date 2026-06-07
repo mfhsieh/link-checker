@@ -51,7 +51,7 @@ class JobResultQuery:
     user_id: str
     status_filter: str | None = None
     search: str | None = None
-    group: bool = False
+    group_by: str = "none"
     page: int = 1
     page_size: int = 50
 
@@ -264,8 +264,8 @@ def reset_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     return result
 
 
-def _group_results(links: list[ExternalLink]) -> list[dict[str, Any]]:
-    """將結果去重聚合。"""
+def _group_by_target(links: list[ExternalLink]) -> list[dict[str, Any]]:
+    """依外部目標連結去重聚合。"""
     agg: dict[str, dict[str, Any]] = defaultdict(lambda: {
         "target_url": "",
         "ip_address": None,
@@ -290,6 +290,31 @@ def _group_results(links: list[ExternalLink]) -> list[dict[str, Any]]:
 
     return [
         {**v, "source_urls": sorted(list(v["source_urls"]))}
+        for v in agg.values()
+    ]
+
+def _group_by_source(links: list[ExternalLink]) -> list[dict[str, Any]]:
+    """依自家網頁(Source URL)聚合，產出修補視角報表。"""
+    agg: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        "source_url": "",
+        "occurrence_count": 0,
+        "targets": [],
+    })
+    for lnk in links:
+        d = agg[lnk.source_url]
+        d["source_url"] = lnk.source_url
+        d["occurrence_count"] += 1
+        
+        status_str = str(lnk.http_status_code) if lnk.http_status_code is not None else ("DNS Failed" if not lnk.ip_address else "Error")
+        d["targets"].append({
+            "url": lnk.target_url,
+            "status": status_str,
+            "is_secure": lnk.is_secure,
+            "error_message": lnk.error_message
+        })
+        
+    return [
+        {**v}
         for v in agg.values()
     ]
 
@@ -326,8 +351,10 @@ def get_job_results(
 
     links = query.order_by(ExternalLink.created_at).all()
 
-    if query_args.group:
-        items_list = _group_results(links)
+    if query_args.group_by == "target":
+        items_list = _group_by_target(links)
+    elif query_args.group_by == "source":
+        items_list = _group_by_source(links)
     else:
         items_list = [
             {

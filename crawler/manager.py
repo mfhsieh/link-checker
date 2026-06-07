@@ -802,7 +802,8 @@ class JobManager:
             job_id (str): 欲匯出結果的任務 ID。
             output_path (str): 匯出檔案的目的地路徑。
             status_filter (str | None): (選填) 'dead', 'broken' 或 'insecure' 的過濾條件。
-            export_group (bool): 是否啟用去重與聚合導出。
+            export_group (bool): (已棄用) 向下相容，請改用 group_by="target"。
+            group_by (str): 聚合模式 ("none", "target", "source")。
 
         Returns:
             bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
@@ -836,8 +837,11 @@ class JobManager:
             is_json = output_path.lower().endswith(".json")
 
             try:
-                if export_group:
-                    # 聚合去重 (按 target_url 聚合)
+                if export_group and group_by == "none":
+                    group_by = "target"
+
+                if group_by == "target":
+                    # 依外部目標去重聚合
                     agg_data = defaultdict(
                         lambda: {
                             "ip": "",
@@ -910,7 +914,40 @@ class JobManager:
                                         ", ".join(sorted(list(d["sources"]))),
                                     ]
                                 )
-                else:
+                elif group_by == "source":
+                    # 依自家網頁 (修補視角) 聚合
+                    agg_source = defaultdict(lambda: {"count": 0, "targets": []})
+                    for link in links:
+                        d = agg_source[link.source_url]
+                        d["count"] += 1
+                        status_str = str(link.http_status_code) if link.http_status_code is not None else ("DNS Failed" if not link.ip_address else "Error")
+                        d["targets"].append({
+                            "url": link.target_url,
+                            "status": status_str,
+                        })
+                    
+                    if is_json:
+                        json_data = []
+                        for src, d in agg_source.items():
+                            json_data.append({
+                                "source_url": src,
+                                "occurrence_count": d["count"],
+                                "targets": d["targets"]
+                            })
+                        with open(output_path, "w", encoding="utf-8") as f:
+                            json.dump(json_data, f, ensure_ascii=False, indent=2)
+                    else:
+                        with open(output_path, "w", newline="", encoding="utf-8") as f:
+                            writer = csv.writer(f)
+                            writer.writerow(["Source URL", "Occurrence Count", "Target URLs"])
+                            for src, d in agg_source.items():
+                                targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in d["targets"]])
+                                writer.writerow([
+                                    src,
+                                    d["count"],
+                                    targets_str
+                                ])
+                elif group_by == "none":
                     # 一般平鋪導出 (不聚合)
                     if is_json:
                         json_data = []

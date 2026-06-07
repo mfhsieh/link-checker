@@ -284,7 +284,14 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument(
         "--group",
         action="store_true",
-        help="(選填) 搭配 --export 使用，按外部目標連結進行去重與聚合導出",
+        help="(已棄用) 搭配 --export 使用，請改用 --group-by target",
+    )
+    parser.add_argument(
+        "--group-by",
+        type=str,
+        choices=["none", "target", "source"],
+        default="none",
+        help="(選填) 搭配 --export，指定聚合模式 (target:依外連, source:依來源頁面)",
     )
     parser.add_argument(
         "--json",
@@ -558,9 +565,10 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     """
     ext = ".json" if args.json else ".csv"
     output_path = args.output if args.output else f"report/{args.export}{ext}"
+    group_by = "target" if args.group else args.group_by
     logging.info("準備將任務 %s 匯出至 %s...", args.export, output_path)
     success = manager.export_job_results(
-        args.export, output_path, status_filter=args.filter, export_group=args.group
+        args.export, output_path, status_filter=args.filter, group_by=group_by
     )
     if success:
         logging.info("匯出成功！")

@@ -16,7 +16,7 @@ let _currentJobId = null;
 let _currentJobConfig = null;
 let _currentFilter = null;
 let _currentSearch = '';
-let _currentGroup = false;
+let _currentGroupBy = 'none';
 let _currentPage = 1;
 let _eventsBound = false;
 let _pollInterval = 5000;
@@ -66,15 +66,15 @@ export async function initJobDetailPage(jobId) {
   _currentJobId = jobId;
   _currentFilter = null;
   _currentSearch = '';
-  _currentGroup = false;
+  _currentGroupBy = 'none';
   _currentPage = 1;
 
   // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
   document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
   const searchInput = document.getElementById('results-search');
   if (searchInput) searchInput.value = '';
-  const groupToggle = document.getElementById('results-group-toggle');
-  if (groupToggle) groupToggle.checked = false;
+  const groupSelect = document.getElementById('results-group-select');
+  if (groupSelect) groupSelect.value = 'none';
 
   if (!_eventsBound) {
     bindControlButtons();
@@ -287,7 +287,7 @@ async function loadResultsPage(jobId) {
     const params = {
       filter: _currentFilter || undefined,
       search: _currentSearch || undefined,
-      group: _currentGroup ? 'true' : 'false',
+      group_by: _currentGroupBy,
       page: _currentPage,
       page_size: 50,
     };
@@ -331,10 +331,17 @@ function renderResultsTable(res, container) {
     return;
   }
 
-  const isGrouped = _currentGroup;
-  const headers = isGrouped
-    ? ['目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '來源數', '錯誤訊息']
-    : ['來源頁面', '目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '錯誤訊息'];
+  const isGroupTarget = _currentGroupBy === 'target';
+  const isGroupSource = _currentGroupBy === 'source';
+  let headers;
+
+  if (isGroupTarget) {
+    headers = ['目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '來源數', '錯誤訊息'];
+  } else if (isGroupSource) {
+    headers = ['來源頁面', '外連數量', '詳細連結清單'];
+  } else {
+    headers = ['來源頁面', '目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '錯誤訊息'];
+  }
 
   const wrapper = document.createElement('div');
   wrapper.className = 'table-wrapper';
@@ -354,13 +361,53 @@ function renderResultsTable(res, container) {
 
   const tbody = document.createElement('tbody');
   items.forEach(item => {
+    if (isGroupSource) {
+      const tr = document.createElement('tr');
+
+      const tdSource = document.createElement('td');
+      tdSource.className = 'truncate';
+      tdSource.style.maxWidth = '300px';
+      tdSource.title = item.source_url;
+      tdSource.innerHTML = `<a href="${escapeHtml(item.source_url)}" target="_blank" class="text-link">${escapeHtml(item.source_url)}</a>`;
+      tr.appendChild(tdSource);
+
+      const tdCount = document.createElement('td');
+      tdCount.innerHTML = `<span class="badge badge-danger">${item.occurrence_count}</span>`;
+      tr.appendChild(tdCount);
+
+      const tdTargets = document.createElement('td');
+      const ul = document.createElement('ul');
+      ul.style.margin = '0';
+      ul.style.paddingLeft = '0';
+      ul.style.listStyle = 'none';
+      ul.style.fontSize = '0.8125rem';
+      item.targets.forEach(t => {
+        const li = document.createElement('li');
+        li.style.marginBottom = '0.375rem';
+
+        let badgeClass = 'badge-pending';
+        if (t.status.includes('404') || t.status.includes('500') || t.status === 'Error' || t.status === 'DNS Failed') badgeClass = 'badge-danger';
+
+        const badge = `<span class="badge ${badgeClass}" style="padding:0.125rem 0.375rem; font-size:0.7rem; margin-right:0.5rem; display:inline-block; min-width:3.5rem; text-align:center">${escapeHtml(t.status)}</span>`;
+        const secBadge = t.is_secure ? '' : `<span class="text-danger" style="margin-right:0.25rem" title="非 HTTPS">🔓</span>`;
+
+        li.innerHTML = `${badge}${secBadge}<span class="truncate" style="display:inline-block; max-width:400px; vertical-align:bottom" title="${escapeHtml(t.url)}">${escapeHtml(t.url)}</span>`;
+        ul.appendChild(li);
+      });
+      tdTargets.appendChild(ul);
+      tr.appendChild(tdTargets);
+
+      tbody.appendChild(tr);
+      return;
+    }
+
     const isSecure = item.is_secure;
     const status = item.http_status_code;
     const statusClass = !status ? 'text-muted' : (status >= 400 ? 'text-danger' : 'text-success');
 
     const tr = document.createElement('tr');
 
-    if (!isGrouped) {
+    if (!isGroupTarget) {
       const tdSource = document.createElement('td');
       tdSource.className = 'truncate text-xs text-muted';
       tdSource.style.maxWidth = '200px';
@@ -393,7 +440,7 @@ function renderResultsTable(res, container) {
     tdStatus.textContent = status ?? '-';
     tr.appendChild(tdStatus);
 
-    if (isGrouped) {
+    if (isGroupTarget) {
       const tdOcc = document.createElement('td');
       tdOcc.textContent = item.occurrence_count ?? '-';
       tr.appendChild(tdOcc);
@@ -401,7 +448,7 @@ function renderResultsTable(res, container) {
 
     const tdError = document.createElement('td');
     tdError.className = 'text-xs text-muted truncate';
-    tdError.style.maxWidth = isGrouped ? '180px' : '160px';
+    tdError.style.maxWidth = isGroupTarget ? '180px' : '160px';
     tdError.textContent = item.error_message || '-';
     tr.appendChild(tdError);
 
@@ -501,23 +548,23 @@ function bindResultsControls() {
     });
   }
 
-  const groupToggle = document.getElementById('results-group-toggle');
-  if (groupToggle) {
-    groupToggle.addEventListener('change', async () => {
-      _currentGroup = groupToggle.checked;
+  const groupSelect = document.getElementById('results-group-select');
+  if (groupSelect) {
+    groupSelect.addEventListener('change', async () => {
+      _currentGroupBy = groupSelect.value;
       _currentPage = 1;
       await loadResultsPage(_currentJobId);
     });
   }
 
   bindBtn('btn-export-csv', async () => {
-    const params = new URLSearchParams({ fmt: 'csv', group: _currentGroup });
+    const params = new URLSearchParams({ fmt: 'csv', group_by: _currentGroupBy });
     if (_currentFilter) params.set('filter', _currentFilter);
     await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
   });
 
   bindBtn('btn-export-json', async () => {
-    const params = new URLSearchParams({ fmt: 'json', group: _currentGroup });
+    const params = new URLSearchParams({ fmt: 'json', group_by: _currentGroupBy });
     if (_currentFilter) params.set('filter', _currentFilter);
     await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
   });
@@ -548,4 +595,10 @@ function bindBtn(id, handler) {
       btn.disabled = false;
     }
   });
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s || '');
+  return d.innerHTML;
 }

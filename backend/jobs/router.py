@@ -278,14 +278,14 @@ class ResultsQueryArgs:
             None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
         search: str | None = Query(None),
-        group: bool = Query(False),
+        group_by: str = Query("none", pattern="^(none|target|source)$"),
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
     ) -> None:
         """初始化結果查詢參數。"""
         self.status_filter = status_filter
         self.search = search
-        self.group = group
+        self.group_by = group_by
         self.page = page
         self.page_size = page_size
 
@@ -304,7 +304,7 @@ async def get_results(
             user_id=current_user.id,
             status_filter=query_args.status_filter,
             search=query_args.search,
-            group=query_args.group,
+            group_by=query_args.group_by,
             page=query_args.page,
             page_size=query_args.page_size,
         )
@@ -334,12 +334,12 @@ class ExportQueryArgs:
         status_filter: str | None = Query(
             None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
-        group: bool = Query(False),
+        group_by: str = Query("none", pattern="^(none|target|source)$"),
         fmt: str = Query("csv", pattern="^(csv|json)$"),
     ) -> None:
         """初始化匯出查詢參數。"""
         self.status_filter = status_filter
-        self.group = group
+        self.group_by = group_by
         self.fmt = fmt
 
 
@@ -355,7 +355,7 @@ async def export_results(
 
     查詢參數：
     - filter: dead / broken / insecure
-    - group: 是否去重聚合
+    - group_by: 聚合模式 (none / target / source)
     - fmt: csv 或 json（預設 csv）
 
     Args:
@@ -375,7 +375,7 @@ async def export_results(
             job_id=job_id,
             user_id=current_user.id,
             status_filter=query_args.status_filter,
-            group=query_args.group,
+            group_by=query_args.group_by,
             page=1,
             page_size=999999,
         )
@@ -387,8 +387,8 @@ async def export_results(
     filename = f"job_{job_id}_results"
     if query_args.status_filter:
         filename += f"_{query_args.status_filter}"
-    if query_args.group:
-        filename += "_grouped"
+    if query_args.group_by != "none":
+        filename += f"_by_{query_args.group_by}"
 
     if query_args.fmt == "json":
         content = json.dumps(items, ensure_ascii=False, indent=2)
@@ -401,10 +401,22 @@ async def export_results(
     # CSV 格式
     output = io.StringIO()
     if items:
-        writer = csv.DictWriter(output, fieldnames=list(items[0].keys()))
-        writer.writeheader()
-        for item in items:
-            writer.writerow(item)
+        if query_args.group_by == "source":
+            csv_items = []
+            for item in items:
+                targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]])
+                csv_items.append({
+                    "Source URL": item["source_url"],
+                    "External Link Count": item["occurrence_count"],
+                    "Target URLs": targets_str
+                })
+            writer = csv.DictWriter(output, fieldnames=["Source URL", "External Link Count", "Target URLs"])
+            writer.writeheader()
+            writer.writerows(csv_items)
+        else:
+            writer = csv.DictWriter(output, fieldnames=list(items[0].keys()))
+            writer.writeheader()
+            writer.writerows(items)
 
     return Response(
         content=output.getvalue(),
