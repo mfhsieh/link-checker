@@ -204,6 +204,7 @@ def _is_help_needed(args: argparse.Namespace) -> bool:
         args.list_jobs,
         args.report,
         args.export,
+        args.export_internal,
         args.pause,
         args.delete,
         args.reset,
@@ -274,6 +275,12 @@ def parse_args() -> argparse.Namespace | None:
         type=str,
         metavar="FILE_PATH",
         help="(選填) 指定匯出檔案的路徑與名稱，預設為 report/<JOB_ID>.csv (或 .json)",
+    )
+    parser.add_argument(
+        "--export-internal",
+        type=str,
+        metavar="JOB_ID",
+        help="將指定任務 ID 的爬取紀錄匯出",
     )
     parser.add_argument(
         "--filter",
@@ -575,6 +582,17 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     else:
         sys.exit(1)
 
+def _handle_export_internal(manager: JobManager, args: argparse.Namespace) -> None:
+    """處理匯出內部健康度報表的指令。"""
+    ext = ".json" if args.json else ".csv"
+    output_path = args.output if args.output else f"report/{args.export_internal}_internal{ext}"
+    logging.info("準備將任務 %s 的內部報表匯出至 %s...", args.export_internal, output_path)
+    success = manager.export_internal_results(args.export_internal, output_path)
+    if success:
+        logging.info("匯出成功！")
+    else:
+        sys.exit(1)
+
 
 def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> bool:
     """
@@ -594,6 +612,8 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
         _handle_report(manager, args)
     elif args.export:
         _handle_export(manager, args)
+    elif args.export_internal:
+        _handle_export_internal(manager, args)
     elif args.pause:
         logging.info("準備暫停任務 %s...", args.pause)
         if not manager.pause_job(args.pause):

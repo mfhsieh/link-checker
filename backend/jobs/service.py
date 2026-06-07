@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session as DBSession
 
-from crawler.manager import JobManager
+from crawler.manager import JobManager, format_crawl_queue_item
 from crawler.models import CrawlQueue, ExternalLink, Job
 from crawler.utils import (
     get_domain,
@@ -445,3 +445,14 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, A
         "http_error_count": http_errors,
         "insecure_count": insecure,
     }
+
+def get_internal_results(db: DBSession, job_id: str, user_id: str) -> list[dict[str, Any]]:
+    """取得任務的內部佇列爬取結果 (爬取紀錄)。"""
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise ValueError(f"找不到任務 ID: {job_id}")
+    if job.user_id != user_id:
+        raise ValueError("無權限存取此任務。")
+
+    queue = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).all()
+    return [format_crawl_queue_item(q) for q in queue]

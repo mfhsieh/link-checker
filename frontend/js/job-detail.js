@@ -199,6 +199,10 @@ function bindControlButtons() {
     window.location.hash = '#/jobs';
   });
 
+  bindBtn('btn-export-internal', async () => {
+    await download(`/api/jobs/${_currentJobId}/internal-results/export?fmt=csv`);
+  });
+
   const btnViewConfig = document.getElementById('btn-view-job-config');
   const modalConfig = document.getElementById('job-config-modal');
   if (btnViewConfig && modalConfig) {

@@ -514,7 +514,28 @@ def run_test() -> None:
         assert all(item.get("is_secure") is False for item in insecure_data), "All insecure links should have is_secure=False"
         os.remove(insecure_file)
 
-        print("Verification Passed: Export filters.")
+        # 測試 --export-internal
+        print("Testing Export CLI with Crawl Records...")
+        internal_file = "tmp_internal.json"
+        if os.path.exists(internal_file):
+            os.remove(internal_file)
+        export_internal_cmd = [
+            sys.executable,
+            "cli.py",
+            "--export-internal",
+            job_id,
+            "--json",
+            "--output",
+            internal_file,
+        ]
+        res_internal = subprocess.run(export_internal_cmd, capture_output=True, text=True)
+        assert res_internal.returncode == 0, "Export internal results failed"
+        with open(internal_file, "r") as f:
+            internal_data = json.load(f)
+        assert len(internal_data) >= 6, f"Expected multiple internal queue items, got {len(internal_data)}"
+        os.remove(internal_file)
+
+        print("Verification Passed: Export filters and internal report.")
 
         # =====================================================================
         # 6.6. 驗證任務生命週期管理指令 (--pause, --resume, --reset, --delete)

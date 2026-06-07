@@ -150,9 +150,12 @@
 
           <!-- 爬取進度 -->
           <div class="card">
-            <div class="card-header">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
               <span class="card-title">爬取進度</span>
-              <span class="text-sm" id="job-progress-text">0%</span>
+              <div style="display:flex; gap:0.75rem; align-items:center;">
+                <span class="text-sm font-mono text-muted" id="job-progress-text">0%</span>
+                <button class="btn btn-secondary btn-sm" id="btn-export-internal" title="匯出爬取紀錄 (CSV)">⬇ 爬取紀錄</button>
+              </div>
             </div>
             <div class="progress-bar" style="margin-bottom:1.25rem">
               <div class="progress-fill" id="job-progress-fill" style="width:0%"></div>

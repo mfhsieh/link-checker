@@ -436,3 +436,43 @@ async def export_results(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
     )
+
+@router.get("/{job_id}/internal-results/export")
+async def export_internal_results(
+    job_id: str,
+    fmt: str = Query("csv", pattern="^(csv|json)$"),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_crawler_db),
+) -> Response:
+    """
+    匯出爬取紀錄 (CSV 或 JSON)。
+
+    查詢參數：
+    - fmt: csv 或 json（預設 csv）
+    """
+    try:
+        items = job_service.get_internal_results(db, job_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+    filename = f"job_{job_id}_crawl_records"
+
+    if fmt == "json":
+        content = json.dumps(items, ensure_ascii=False, indent=2)
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}.json"'},
+        )
+
+    output = io.StringIO()
+    if items:
+        writer = csv.DictWriter(output, fieldnames=list(items[0].keys()))
+        writer.writeheader()
+        writer.writerows(items)
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+    )

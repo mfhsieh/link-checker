@@ -72,6 +72,19 @@ def _get_domain_delay(
     return matched_delays[0][1]
 
 
+def format_crawl_queue_item(q: CrawlQueue) -> dict[str, Any]:
+    """格式化 CrawlQueue 項目為字典供報表使用。"""
+    return {
+        "URL": q.url,
+        "Source URL": q.source_url if q.source_url else "",
+        "Status": q.status,
+        "Depth": q.depth,
+        "Retry Count": q.retry_count,
+        "HTTP Status Code": q.status_code if q.status_code is not None else "",
+        "Error Message": q.error_message if q.error_message else "",
+        "Created At": q.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -1046,6 +1059,40 @@ class JobManager:
                 return True
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("匯出檔案時發生錯誤: %s", e)
+                return False
+
+    def export_internal_results(self, job_id: str, output_path: str) -> bool:
+        """
+        匯出爬取紀錄 (Crawl Queue) 至 CSV 或 JSON。
+        """
+        with self.SessionLocal() as session:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if not job:
+                logger.error("找不到指定的任務 ID: %s", job_id)
+                return False
+            
+            items = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).all()
+            
+            output_dir = os.path.dirname(output_path)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+            
+            is_json = output_path.lower().endswith(".json")
+            try:
+                if is_json:
+                    json_data = [format_crawl_queue_item(q) for q in items]
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        json.dump(json_data, f, ensure_ascii=False, indent=2)
+                else:
+                    with open(output_path, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f)
+                        writer.writerow(["URL", "Source URL", "Status", "Depth", "Retry Count", "HTTP Status Code", "Error Message", "Created At"])
+                        for q in items:
+                            d = format_crawl_queue_item(q)
+                            writer.writerow([d["URL"], d["Source URL"], d["Status"], d["Depth"], d["Retry Count"], d["HTTP Status Code"], d["Error Message"], d["Created At"]])
+                return True
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error("匯出爬取紀錄時發生錯誤: %s", e)
                 return False
 
     def pause_job(self, job_id: str) -> bool:

@@ -24,6 +24,7 @@
 | `--export` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
 | `--output` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，自訂輸出路徑。 | `report/<JOB_ID>.csv` (或 `.json`) |
 | `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容。支援 `dead`、`broken`、`insecure`。 | 無 |
+| `--export-internal`| *(無)*| 字串 | 指定任務 ID，匯出該任務的爬取紀錄 (Crawl Queue)。 | 無 |
 | `--group` | *(無)* | 旗標 | (已棄用) 等同於 `--group-by target`。 | 無 |
 | `--group-by`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，聚合模式：`target` (依外連)、`source` (依來源頁面)、`domain` (依網域)。 | `none` |
 | `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及 `--export` 的 JSON 檔案導出。 | 無 |
@@ -304,6 +305,9 @@ python cli.py --export <JOB_ID> --group-by source
 
 # 依外部網域統計導出 (檢視對外部服務的依賴分佈與次數)
 python cli.py --export <JOB_ID> --group-by domain
+
+# 匯出自家網站的爬取紀錄
+python cli.py --export-internal <JOB_ID>
 ```
 
 
