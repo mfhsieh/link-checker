@@ -21,6 +21,7 @@ import io
 import json
 import logging
 import os
+import zipfile
 from typing import Any
 
 import yaml
@@ -437,42 +438,50 @@ async def export_results(
         headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
     )
 
-@router.get("/{job_id}/internal-results/export")
-async def export_internal_results(
+@router.get("/{job_id}/export/full")
+async def export_full_report(
     job_id: str,
-    fmt: str = Query("csv", pattern="^(csv|json)$"),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> Response:
     """
-    匯出爬取紀錄 (CSV 或 JSON)。
-
-    查詢參數：
-    - fmt: csv 或 json（預設 csv）
+    匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。
     """
     try:
-        items = job_service.get_internal_results(db, job_id, current_user.id)
+        internal_items = job_service.get_internal_results(db, job_id, current_user.id)
+        
+        query_obj = job_service.JobResultQuery(
+            job_id=job_id,
+            user_id=current_user.id,
+            status_filter=None,
+            group_by="none",
+            page=1,
+            page_size=999999,
+        )
+        external_results = job_service.get_job_results(db, query_obj)
+        external_items = external_results["items"]
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
-    filename = f"job_{job_id}_crawl_records"
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        if internal_items:
+            cq_io = io.StringIO()
+            writer = csv.DictWriter(cq_io, fieldnames=list(internal_items[0].keys()))
+            writer.writeheader()
+            writer.writerows(internal_items)
+            zf.writestr(f"job_{job_id}_crawl_records.csv", cq_io.getvalue().encode("utf-8-sig"))
+        
+        if external_items:
+            el_io = io.StringIO()
+            writer = csv.DictWriter(el_io, fieldnames=list(external_items[0].keys()))
+            writer.writeheader()
+            writer.writerows(external_items)
+            zf.writestr(f"job_{job_id}_external_links.csv", el_io.getvalue().encode("utf-8-sig"))
 
-    if fmt == "json":
-        content = json.dumps(items, ensure_ascii=False, indent=2)
-        return Response(
-            content=content,
-            media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="{filename}.json"'},
-        )
-
-    output = io.StringIO()
-    if items:
-        writer = csv.DictWriter(output, fieldnames=list(items[0].keys()))
-        writer.writeheader()
-        writer.writerows(items)
-
+    filename = f"job_{job_id}_full_report.zip"
     return Response(
-        content=output.getvalue(),
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

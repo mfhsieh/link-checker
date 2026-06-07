@@ -199,8 +199,8 @@ function bindControlButtons() {
     window.location.hash = '#/jobs';
   });
 
-  bindBtn('btn-export-internal', async () => {
-    await download(`/api/jobs/${_currentJobId}/internal-results/export?fmt=csv`);
+  bindBtn('btn-export-full', async () => {
+    await download(`/api/jobs/${_currentJobId}/export/full`);
   });
 
   const btnViewConfig = document.getElementById('btn-view-job-config');

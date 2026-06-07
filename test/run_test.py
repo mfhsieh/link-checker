@@ -9,6 +9,7 @@ import socket
 import sqlite3
 import subprocess
 import sys
+import zipfile
 import time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -514,26 +515,28 @@ def run_test() -> None:
         assert all(item.get("is_secure") is False for item in insecure_data), "All insecure links should have is_secure=False"
         os.remove(insecure_file)
 
-        # 測試 --export-internal
-        print("Testing Export CLI with Crawl Records...")
-        internal_file = "tmp_internal.json"
-        if os.path.exists(internal_file):
-            os.remove(internal_file)
-        export_internal_cmd = [
+        # 測試 --export-full
+        print("Testing Export CLI with Full Report (ZIP)...")
+        full_zip_file = "tmp_full_report.zip"
+        if os.path.exists(full_zip_file):
+            os.remove(full_zip_file)
+        export_full_cmd = [
             sys.executable,
             "cli.py",
-            "--export-internal",
+            "--export-full",
             job_id,
-            "--json",
             "--output",
-            internal_file,
+            full_zip_file,
         ]
-        res_internal = subprocess.run(export_internal_cmd, capture_output=True, text=True)
-        assert res_internal.returncode == 0, "Export internal results failed"
-        with open(internal_file, "r") as f:
-            internal_data = json.load(f)
-        assert len(internal_data) >= 6, f"Expected multiple internal queue items, got {len(internal_data)}"
-        os.remove(internal_file)
+        res_full = subprocess.run(export_full_cmd, capture_output=True, text=True)
+        assert res_full.returncode == 0, "Export full report failed"
+        
+        with zipfile.ZipFile(full_zip_file, "r") as zf:
+            namelist = zf.namelist()
+            assert any("crawl_records.csv" in n for n in namelist), "crawl_records.csv missing in ZIP"
+            assert any("external_links.csv" in n for n in namelist), "external_links.csv missing in ZIP"
+            
+        os.remove(full_zip_file)
 
         print("Verification Passed: Export filters and internal report.")
 

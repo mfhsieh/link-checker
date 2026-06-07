@@ -6,11 +6,13 @@
 """
 
 import csv
+import io
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
 import os
+import zipfile
 import time
 from typing import Any
 
@@ -1061,9 +1063,9 @@ class JobManager:
                 logger.error("匯出檔案時發生錯誤: %s", e)
                 return False
 
-    def export_internal_results(self, job_id: str, output_path: str) -> bool:
+    def export_full_report(self, job_id: str, output_path: str) -> bool:
         """
-        匯出爬取紀錄 (Crawl Queue) 至 CSV 或 JSON。
+        匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。
         """
         with self.SessionLocal() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -1071,28 +1073,38 @@ class JobManager:
                 logger.error("找不到指定的任務 ID: %s", job_id)
                 return False
             
-            items = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).all()
+            q_items = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).all()
+            e_items = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).order_by(ExternalLink.created_at).all()
             
             output_dir = os.path.dirname(output_path)
             if output_dir and not os.path.exists(output_dir):
                 os.makedirs(output_dir, exist_ok=True)
             
-            is_json = output_path.lower().endswith(".json")
             try:
-                if is_json:
-                    json_data = [format_crawl_queue_item(q) for q in items]
-                    with open(output_path, "w", encoding="utf-8") as f:
-                        json.dump(json_data, f, ensure_ascii=False, indent=2)
-                else:
-                    with open(output_path, "w", newline="", encoding="utf-8") as f:
-                        writer = csv.writer(f)
-                        writer.writerow(["URL", "Source URL", "Status", "Depth", "Retry Count", "HTTP Status Code", "Error Message", "Created At"])
-                        for q in items:
+                with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                    if q_items:
+                        cq_io = io.StringIO()
+                        cq_writer = csv.writer(cq_io)
+                        cq_writer.writerow(["URL", "Source URL", "Status", "Depth", "Retry Count", "HTTP Status Code", "Error Message", "Created At"])
+                        for q in q_items:
                             d = format_crawl_queue_item(q)
-                            writer.writerow([d["URL"], d["Source URL"], d["Status"], d["Depth"], d["Retry Count"], d["HTTP Status Code"], d["Error Message"], d["Created At"]])
+                            cq_writer.writerow([d["URL"], d["Source URL"], d["Status"], d["Depth"], d["Retry Count"], d["HTTP Status Code"], d["Error Message"], d["Created At"]])
+                        zf.writestr(f"job_{job_id}_crawl_records.csv", cq_io.getvalue().encode("utf-8-sig"))
+                        
+                    if e_items:
+                        el_io = io.StringIO()
+                        el_writer = csv.writer(el_io)
+                        el_writer.writerow(["Source URL", "Target URL", "IP Address", "Is Secure", "HTTP Status Code", "Error Message", "Found At"])
+                        for link in e_items:
+                            el_writer.writerow([
+                                link.source_url, link.target_url, link.ip_address if link.ip_address else "",
+                                link.is_secure, link.http_status_code if link.http_status_code is not None else "",
+                                link.error_message if link.error_message else "", link.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                            ])
+                        zf.writestr(f"job_{job_id}_external_links.csv", el_io.getvalue().encode("utf-8-sig"))
                 return True
             except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error("匯出爬取紀錄時發生錯誤: %s", e)
+                logger.error("匯出完整報表時發生錯誤: %s", e)
                 return False
 
     def pause_job(self, job_id: str) -> bool:
