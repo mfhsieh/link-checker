@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,305 +10,823 @@
   <link rel="stylesheet" href="/static/css/components.css" />
   <link rel="stylesheet" href="/static/css/layout.css" />
 </head>
+
 <body>
 
-<div class="app-shell" id="app-shell">
+  <div class="app-shell" id="app-shell">
 
-  <!-- ── Top Bar ──────────────────────────────────────────── -->
-  <header class="topbar">
-    <a class="topbar-brand" href="/app.html" id="topbar-brand">
-      <div class="topbar-logo" aria-hidden="true">EL</div>
-      <span class="topbar-title">外部連結檢查系統</span>
-    </a>
-    <div class="topbar-actions">
-      <div class="topbar-user" id="topbar-user" role="button" tabindex="0" title="帳號選單">
-        <div class="topbar-avatar" id="topbar-avatar">-</div>
-        <div class="topbar-user-info">
-          <span class="topbar-user-name" id="topbar-email">載入中...</span>
-          <span class="topbar-user-role" id="topbar-role"></span>
-        </div>
-      </div>
-      <button class="btn btn-ghost btn-sm" id="logout-btn">登出</button>
-    </div>
-  </header>
-
-  <!-- ── Sidebar ────────────────────────────────────────── -->
-  <nav class="sidebar" aria-label="主導覽">
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">任務管理</div>
-      <ul class="sidebar-nav">
-        <li>
-          <a class="sidebar-item" id="nav-jobs" href="#/jobs" data-view="jobs">
-            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-            </svg>
-            所有任務
-          </a>
-        </li>
-      </ul>
-    </div>
-
-    <div class="sidebar-divider"></div>
-
-    <!-- 後台管理（僅 admin 可見）-->
-    <div class="sidebar-section" id="admin-nav-section" style="display:none">
-      <div class="sidebar-section-title">後台管理</div>
-      <ul class="sidebar-nav">
-        <li>
-          <a class="sidebar-item" id="nav-admin-users" href="/admin.html" data-view="admin-users">
-            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-            </svg>
-            使用者管理
-          </a>
-        </li>
-        <li>
-          <a class="sidebar-item" id="nav-admin-config" href="/admin.html#/admin/config" data-view="admin-config">
-            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            系統配置
-          </a>
-        </li>
-      </ul>
-    </div>
-  </nav>
-
-  <!-- ── Main Content ────────────────────────────────────── -->
-  <main class="main-content" id="main-content">
-
-    <!-- ── 任務列表視圖 ────────────────────────────────────── -->
-    <div id="view-jobs">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">我的任務</h1>
-          <p class="page-subtitle">管理外部連結掃描任務</p>
-        </div>
-        <button class="btn btn-primary" id="create-job-btn">
-          <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px">
-            <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-          </svg>
-          新增任務
-        </button>
-      </div>
-      <div id="jobs-list-container"></div>
-    </div>
-
-    <!-- ── 任務詳情視圖 ────────────────────────────────────── -->
-    <div id="view-job-detail" style="display:none">
-
-      <!-- 麵包屑 + 操作 -->
-      <div class="page-header">
-        <div>
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
-            <button class="btn btn-ghost btn-sm" id="btn-back-jobs" style="padding:0.25rem 0.5rem">
-              ← 返回列表
-            </button>
-          </div>
-          <h1 class="page-title" id="job-title">任務詳情</h1>
-          <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.5rem">
-            <span id="job-status" class="badge badge-pending">等待中</span>
-            <span class="text-xs font-mono text-muted" id="job-id-display"></span>
+    <!-- ── Top Bar ──────────────────────────────────────────── -->
+    <header class="topbar">
+      <a class="topbar-brand" href="/app.html" id="topbar-brand">
+        <div class="topbar-logo" aria-hidden="true">EL</div>
+        <span class="topbar-title">外部連結檢查系統</span>
+      </a>
+      <div class="topbar-actions">
+        <div class="topbar-user" id="topbar-user" role="button" tabindex="0" title="帳號選單">
+          <div class="topbar-avatar" id="topbar-avatar">-</div>
+          <div class="topbar-user-info">
+            <span class="topbar-user-name" id="topbar-email">載入中...</span>
+            <span class="topbar-user-role" id="topbar-role"></span>
           </div>
         </div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none">▶ 啟動</button>
-          <button class="btn btn-secondary btn-sm" id="btn-pause-job" style="display:none">⏸ 暫停</button>
-          <button class="btn btn-secondary btn-sm" id="btn-reset-job" style="display:none">↺ 重置</button>
-          <button class="btn btn-danger btn-sm" id="btn-delete-job">🗑 刪除</button>
-        </div>
+        <button class="btn btn-ghost btn-sm" id="change-pwd-btn">修改密碼</button>
+        <button class="btn btn-ghost btn-sm" id="logout-btn">登出</button>
+      </div>
+    </header>
+
+    <!-- ── Sidebar ────────────────────────────────────────── -->
+    <nav class="sidebar" aria-label="主導覽">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">任務管理</div>
+        <ul class="sidebar-nav">
+          <li>
+            <a class="sidebar-item" id="nav-jobs" href="#/jobs" data-view="jobs">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              所有任務
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-new-job" href="#/new" data-view="new">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              新增任務
+            </a>
+          </li>
+        </ul>
       </div>
 
-      <!-- 任務資訊卡片 -->
-      <div class="grid-2" style="margin-bottom:2rem">
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">任務資訊</span>
+      <div class="sidebar-divider"></div>
+
+      <!-- 後台管理（僅 admin 可見）-->
+      <div class="sidebar-section" id="admin-nav-section" style="display:none">
+        <!-- 將由 JS 動態渲染，避免非管理員暴露資訊 -->
+      </div>
+    </nav>
+
+    <!-- ── Main Content ────────────────────────────────────── -->
+    <main class="main-content" id="main-content">
+
+      <!-- ── 任務列表視圖 ────────────────────────────────────── -->
+      <div id="view-jobs">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">我的任務</h1>
+            <p class="page-subtitle">管理外部連結掃描任務</p>
           </div>
-          <div style="display:flex;flex-direction:column;gap:0.75rem">
-            <div>
-              <div class="text-xs text-muted">起始 URL</div>
-              <div class="font-mono text-sm truncate" id="job-start-url" style="max-width:100%"></div>
+        </div>
+        <div id="jobs-list-container"></div>
+      </div>
+
+      <!-- ── 任務詳情視圖 ────────────────────────────────────── -->
+      <div id="view-job-detail" style="display:none">
+
+        <!-- 麵包屑 + 操作 -->
+        <div class="page-header">
+          <div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+              <button class="btn btn-ghost btn-sm" id="btn-back-jobs" style="padding:0.25rem 0.5rem">
+                ← 返回列表
+              </button>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+            <h1 class="page-title" id="job-title">任務詳情</h1>
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.5rem">
+              <span id="job-status" class="badge badge-pending">等待中</span>
+              <span class="text-xs font-mono text-muted" id="job-id-display"></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none">▶ 啟動</button>
+            <button class="btn btn-secondary btn-sm" id="btn-pause-job" style="display:none">⏸ 暫停</button>
+            <button class="btn btn-secondary btn-sm" id="btn-reset-job" style="display:none">↺ 重置</button>
+            <button class="btn btn-danger btn-sm" id="btn-delete-job">🗑 刪除</button>
+          </div>
+        </div>
+
+        <!-- 任務資訊卡片 -->
+        <div class="grid-2" style="margin-bottom:2rem">
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="card-title">任務資訊</span>
+              <button class="btn btn-ghost btn-sm" id="btn-view-job-config" style="padding:0.25rem 0.5rem">檢視設定</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:0.75rem">
               <div>
-                <div class="text-xs text-muted">建立時間</div>
-                <div class="text-sm" id="job-created-at"></div>
+                <div class="text-xs text-muted">起始 URL</div>
+                <div class="font-mono text-sm truncate" id="job-start-url" style="max-width:100%"></div>
               </div>
-              <div>
-                <div class="text-xs text-muted">最後更新</div>
-                <div class="text-sm" id="job-updated-at"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                <div>
+                  <div class="text-xs text-muted">建立時間</div>
+                  <div class="text-sm" id="job-created-at"></div>
+                </div>
+                <div>
+                  <div class="text-xs text-muted">最後更新</div>
+                  <div class="text-sm" id="job-updated-at"></div>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- 爬取進度 -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">爬取進度</span>
+              <span class="text-sm" id="job-progress-text">0%</span>
+            </div>
+            <div class="progress-bar" style="margin-bottom:1.25rem">
+              <div class="progress-fill" id="job-progress-fill" style="width:0%"></div>
+            </div>
+            <div class="grid-stats" style="grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:0">
+              <div class="stat-card" style="padding:0.75rem">
+                <div class="stat-label">總計</div>
+                <div class="stat-value text-xl" id="stat-total">0</div>
+              </div>
+              <div class="stat-card" style="padding:0.75rem">
+                <div class="stat-label text-success">完成</div>
+                <div class="stat-value text-xl text-success" id="stat-completed">0</div>
+              </div>
+              <div class="stat-card" style="padding:0.75rem">
+                <div class="stat-label">等待中</div>
+                <div class="stat-value text-xl" id="stat-pending">0</div>
+              </div>
+              <div class="stat-card" style="padding:0.75rem">
+                <div class="stat-label text-danger">失敗</div>
+                <div class="stat-value text-xl text-danger" id="stat-failed">0</div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- 爬取進度 -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">爬取進度</span>
-            <span class="text-sm" id="job-progress-text">0%</span>
+        <!-- 外連結果摘要 -->
+        <div class="grid-stats" style="margin-bottom:1.5rem">
+          <div class="stat-card">
+            <div class="stat-label">外部連結總數</div>
+            <div class="stat-value" id="summary-total">0</div>
           </div>
-          <div class="progress-bar" style="margin-bottom:1.25rem">
-            <div class="progress-fill" id="job-progress-fill" style="width:0%"></div>
+          <div class="stat-card">
+            <div class="stat-label text-danger">DNS 解析失敗</div>
+            <div class="stat-value text-danger" id="summary-dns-failed">0</div>
           </div>
-          <div class="grid-stats" style="grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:0">
-            <div class="stat-card" style="padding:0.75rem">
-              <div class="stat-label">總計</div>
-              <div class="stat-value text-xl" id="stat-total">0</div>
+          <div class="stat-card">
+            <div class="stat-label text-danger">HTTP 錯誤</div>
+            <div class="stat-value text-danger" id="summary-http-error">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label text-warning">非 HTTPS</div>
+            <div class="stat-value text-warning" id="summary-insecure">0</div>
+          </div>
+        </div>
+
+        <!-- 外連結果 -->
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="card-header" style="padding:1.25rem 1.5rem">
+            <span class="card-title">外部連結結果</span>
+            <div style="display:flex;gap:0.75rem">
+              <button class="btn btn-secondary btn-sm" id="btn-export-csv">⬇ CSV</button>
+              <button class="btn btn-secondary btn-sm" id="btn-export-json">⬇ JSON</button>
             </div>
-            <div class="stat-card" style="padding:0.75rem">
-              <div class="stat-label text-success">完成</div>
-              <div class="stat-value text-xl text-success" id="stat-completed">0</div>
+          </div>
+
+          <!-- 篩選列 -->
+          <div class="filter-bar" style="padding:0 1.5rem 1rem">
+            <div class="search-bar">
+              <svg class="search-bar-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                  d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                  clip-rule="evenodd" />
+              </svg>
+              <input class="form-input" type="search" id="results-search" placeholder="搜尋 URL..."
+                style="padding-left:2.25rem" />
             </div>
-            <div class="stat-card" style="padding:0.75rem">
-              <div class="stat-label">等待中</div>
-              <div class="stat-value text-xl" id="stat-pending">0</div>
-            </div>
-            <div class="stat-card" style="padding:0.75rem">
-              <div class="stat-label text-danger">失敗</div>
-              <div class="stat-value text-xl text-danger" id="stat-failed">0</div>
+            <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
+            <button class="filter-chip" data-filter="broken">⚠ HTTP 錯誤</button>
+            <button class="filter-chip" data-filter="unapproved">🔍 未核准</button>
+            <label
+              style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-secondary);cursor:pointer;white-space:nowrap">
+              <input type="checkbox" id="results-group-toggle" /> 去重聚合
+            </label>
+          </div>
+
+          <div id="results-container" style="padding:0 0 1rem">
+            <div class="empty-state">
+              <div class="empty-state-desc">載入中...</div>
             </div>
           </div>
         </div>
+
       </div>
 
-      <!-- 外連結果摘要 -->
-      <div class="grid-stats" style="margin-bottom:1.5rem">
-        <div class="stat-card">
-          <div class="stat-label">外部連結總數</div>
-          <div class="stat-value" id="summary-total">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label text-danger">DNS 解析失敗</div>
-          <div class="stat-value text-danger" id="summary-dns-failed">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label text-danger">HTTP 錯誤</div>
-          <div class="stat-value text-danger" id="summary-http-error">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label text-warning">非 HTTPS</div>
-          <div class="stat-value text-warning" id="summary-insecure">0</div>
-        </div>
-      </div>
-
-      <!-- 外連結果 -->
-      <div class="card" style="padding:0;overflow:hidden">
-        <div class="card-header" style="padding:1.25rem 1.5rem">
-          <span class="card-title">外部連結結果</span>
-          <div style="display:flex;gap:0.75rem">
-            <button class="btn btn-secondary btn-sm" id="btn-export-csv">⬇ CSV</button>
-            <button class="btn btn-secondary btn-sm" id="btn-export-json">⬇ JSON</button>
+      <!-- ── 新增任務視圖 ────────────────────────────────────── -->
+      <div id="view-create-job" style="display:none">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">新增任務</h1>
+            <p class="page-subtitle">建立並設定新的外部連結掃描任務，您可以展開完整設定或使用系統預設值。</p>
           </div>
         </div>
+        <form id="create-job-form">
+          <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; align-items: start;">
 
-        <!-- 篩選列 -->
-        <div class="filter-bar" style="padding:0 1.5rem 1rem">
-          <div class="search-bar">
-            <svg class="search-bar-icon" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
-            </svg>
-            <input class="form-input" type="search" id="results-search" placeholder="搜尋 URL..." style="padding-left:2.25rem" />
+            <!-- 左側主要設定區塊 -->
+            <div style="flex: 2 1 450px; display:flex; flex-direction:column; gap: 1.5rem;">
+
+              <!-- 1. 基本設定 -->
+              <div class="card">
+                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                    class="card-title">基本設定</span></div>
+                <div class="form-group" style="margin-bottom:1.5rem">
+                  <label class="form-label" for="job-url">起始網址 (Start URL) <span class="required">*</span></label>
+                  <input class="form-input" type="url" id="job-url" required placeholder="https://example.com" />
+                  <div class="form-hint">爬蟲開始巡覽的第一個網頁網址，請包含 http:// 或 https:// 前綴。</div>
+                </div>
+                <div class="form-group" style="margin-bottom:1.5rem">
+                  <label class="form-label" for="job-target-domains">目標網域 (Target Domains) <span
+                      class="required">*</span></label>
+                  <textarea class="form-textarea" id="job-target-domains" rows="2" required
+                    placeholder="example.com&#10;www.example.com"></textarea>
+                  <div class="form-hint">限制爬蟲僅深入探索這些網域的內部連結，每行一個。</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="job-internal-domains">內部網域 (Internal Domains)</label>
+                  <textarea class="form-textarea" id="job-internal-domains" rows="2"
+                    placeholder="sub.example.com"></textarea>
+                  <div class="form-hint">屬於這些網域的連結將被視為內部連結，不會作為「外部連結」結果輸出。每行一個。</div>
+                </div>
+              </div>
+
+              <!-- 2. 進階過濾與網路 -->
+              <div class="card">
+                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                    class="card-title">進階過濾與網路</span></div>
+                <div class="grid-2" style="margin-bottom:1.5rem">
+                  <div class="form-group">
+                    <label class="form-label" for="job-ignore-exts">忽略的副檔名</label>
+                    <textarea class="form-textarea" id="job-ignore-exts" rows="3" placeholder="載入中..."></textarea>
+                    <div class="form-hint" id="hint-ignore-exts">每行一個。您輸入的項目將與系統全域設定合併生效。</div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="job-ignore-regexes">忽略的路徑規則 (Regex)</label>
+                    <textarea class="form-textarea" id="job-ignore-regexes" rows="3" placeholder="載入中..."></textarea>
+                    <div class="form-hint" id="hint-ignore-regexes">每行一個。您輸入的項目將與系統全域設定合併生效。</div>
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom:1.5rem">
+                  <label class="form-label" for="job-approved-domains">信任的外部網域白名單 (Approved Domains)</label>
+                  <textarea class="form-textarea" id="job-approved-domains" rows="3" placeholder="載入中..."></textarea>
+                  <div class="form-hint" id="hint-approved-domains">每行一個。您輸入的項目將與系統全域設定合併生效。</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="job-proxy-url">代理伺服器 (Proxy URL)</label>
+                  <input class="form-input" type="url" id="job-proxy-url" placeholder="http://user:pass@proxy:8080" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 右側次要設定與送出區塊 -->
+            <div style="flex: 1 1 300px; display:flex; flex-direction:column; gap: 1.5rem;">
+
+              <!-- 3. 資源與限制 -->
+              <div class="card">
+                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                    class="card-title">資源與限制</span></div>
+                <div class="form-group" style="margin-bottom:1.25rem">
+                  <label class="form-label" for="job-max-depth">最大爬取深度</label>
+                  <input class="form-input" type="number" id="job-max-depth" min="1" placeholder="留空不限制" />
+                  <div class="form-hint">從起始網頁開始的點擊層數。</div>
+                </div>
+                <div class="form-group" style="margin-bottom:1.25rem">
+                  <label class="form-label" for="job-max-pages">最大抓取頁數</label>
+                  <input class="form-input" type="number" id="job-max-pages" min="1" placeholder="留空不限制" />
+                </div>
+                <div class="form-group" style="margin-bottom:1.25rem">
+                  <label class="form-label" for="job-delay">請求延遲 (秒)</label>
+                  <input class="form-input" type="number" id="job-delay" step="0.1" placeholder="載入中..." />
+                </div>
+                <div class="form-group" style="margin-bottom:1.25rem">
+                  <label class="form-label" for="job-timeout">連線逾時 (秒)</label>
+                  <input class="form-input" type="number" id="job-timeout" placeholder="載入中..." />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="job-retries">失敗重試次數</label>
+                  <input class="form-input" type="number" id="job-retries" placeholder="載入中..." />
+                </div>
+              </div>
+
+              <!-- 4. 提交區塊 -->
+              <div class="card" style="background:var(--surface-raised)">
+                <div id="create-job-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
+                </div>
+                <div style="display:flex; gap:0.75rem; flex-direction: column;">
+                  <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-job"
+                    style="width:100%">建立任務並開始</button>
+                  <a class="btn btn-ghost" href="#/jobs"
+                    style="width:100%;text-align:center;justify-content:center;">取消並返回列表</a>
+                </div>
+              </div>
+
+            </div>
+
           </div>
-          <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
-          <button class="filter-chip" data-filter="broken">⚠ HTTP 錯誤</button>
-          <button class="filter-chip" data-filter="unapproved">🔍 未核准</button>
-          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-secondary);cursor:pointer;white-space:nowrap">
-            <input type="checkbox" id="results-group-toggle" /> 去重聚合
-          </label>
-        </div>
-
-        <div id="results-container" style="padding:0 0 1rem">
-          <div class="empty-state"><div class="empty-state-desc">載入中...</div></div>
-        </div>
+        </form>
       </div>
 
+    </main>
+  </div>
+
+  <!-- ── 任務完整設定檢視 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="job-config-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:600px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0">任務設定參數 (唯讀)</h2>
+        <button id="job-config-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div class="form-group" style="margin-bottom:1.5rem;">
+        <div id="job-config-display-container" style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem;"></div>
+      </div>
+      <div style="display:flex; justify-content:flex-end;">
+        <button type="button" class="btn btn-primary" id="job-config-ok">確定</button>
+      </div>
     </div>
+  </div>
 
-  </main>
-</div>
+  <!-- ── 預設清單檢視 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="default-list-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:500px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="default-list-title">預設清單</h2>
+        <button id="default-list-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div class="form-group" style="margin-bottom:1.5rem;">
+        <textarea class="form-textarea" id="default-list-display" rows="12" readonly
+          style="font-family:monospace; font-size:0.875rem; line-height:1.4; background:var(--surface-raised); color:var(--text-primary); cursor:default;"></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end;">
+        <button type="button" class="btn btn-primary" id="default-list-ok">確定</button>
+      </div>
+    </div>
+  </div>
 
-<div class="toast-container"></div>
+  <!-- ── 變更密碼 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="change-pwd-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0">修改密碼</h2>
+        <button id="change-pwd-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <form id="change-pwd-form">
+        <div style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+          <div class="form-group">
+            <label class="form-label" for="current-password">現有密碼 <span class="required">*</span></label>
+            <input class="form-input" type="password" id="current-password" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-password-change">新密碼 <span class="required">*</span></label>
+            <input class="form-input" type="password" id="new-password-change" required />
+            <div style="margin-top:0.5rem">
+              <div class="progress-bar">
+                <div class="progress-fill" id="pwd-strength-bar" style="width:0%;transition:width 0.3s,background 0.3s">
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:0.25rem">
+                <span class="form-hint">密碼強度</span>
+                <span class="text-xs font-medium" id="pwd-strength-label" style="transition:color 0.3s"></span>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="confirm-password-change">確認新密碼 <span class="required">*</span></label>
+            <input class="form-input" type="password" id="confirm-password-change" required />
+          </div>
+          <div
+            style="font-size:0.8125rem;color:var(--text-muted);background:var(--surface-overlay);padding:0.875rem;border-radius:0.5rem">
+            <div style="font-weight:600;color:var(--text-secondary);margin-bottom:0.375rem">密碼安全要求</div>
+            <ul style="list-style:disc;padding-left:1.25rem;display:flex;flex-direction:column;gap:0.25rem;margin:0">
+              <li>長度至少 12 個字元</li>
+              <li>需包含大寫、小寫、數字、特殊符號中的至少 3 類</li>
+              <li>不得包含電子郵件帳號名稱（@ 之前的字串）</li>
+            </ul>
+          </div>
+          <div id="change-pwd-error" style="color:var(--color-danger-400);font-size:0.875rem"></div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+          <button type="button" class="btn btn-ghost" id="change-pwd-cancel">取消</button>
+          <button type="submit" class="btn btn-primary" id="change-pwd-submit">儲存修改</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-<script type="module">
-  import * as api from '/static/js/api.js';
-  import { toast } from '/static/js/toast.js';
-  import { logout, getCurrentUser } from '/static/js/auth.js';
-  import { renderJobList, initCreateJobModal } from '/static/js/jobs.js';
-  import { initJobDetailPage, destroyJobDetailPage } from '/static/js/job-detail.js';
+  <!-- ── 共用確認 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="confirm-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
+        <button id="confirm-modal-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
+        id="confirm-modal-message"></div>
+      <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+        <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
+      </div>
+    </div>
+  </div>
 
-  // ── 初始化使用者資訊 ──────────────────────────────────────
-  async function initUser() {
-    const user = await getCurrentUser();
-    if (!user) { window.location.replace('/'); return; }
+  <div class="toast-container"></div>
 
-    const emailEl = document.getElementById('topbar-email');
-    const roleEl = document.getElementById('topbar-role');
-    const avatarEl = document.getElementById('topbar-avatar');
-    const adminSection = document.getElementById('admin-nav-section');
+  <script type="module">
+    import * as api from '/static/js/api.js';
+    import { toast } from '/static/js/toast.js';
+    import { logout, getCurrentUser, initPasswordStrength } from '/static/js/auth.js';
+    import { renderJobList } from '/static/js/jobs.js';
+    import { initJobDetailPage, destroyJobDetailPage } from '/static/js/job-detail.js';
 
-    if (emailEl) emailEl.textContent = user.email;
-    if (roleEl) roleEl.textContent = user.role === 'admin' ? '管理員' : '使用者';
-    if (avatarEl) avatarEl.textContent = user.email.charAt(0).toUpperCase();
-    if (adminSection && user.role === 'admin') adminSection.style.display = '';
-  }
+    // ── 共用確認 Modal 邏輯 ───────────────────────────────────
+    function showConfirm(title, message, confirmText = '確定', isDanger = false) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const titleEl = document.getElementById('confirm-modal-title');
+        const messageEl = document.getElementById('confirm-modal-message');
+        const submitBtn = document.getElementById('confirm-modal-submit');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        const closeBtn = document.getElementById('confirm-modal-close');
 
-  // ── Hash-based SPA Router ─────────────────────────────────
-  const viewJobs = document.getElementById('view-jobs');
-  const viewDetail = document.getElementById('view-job-detail');
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        submitBtn.textContent = confirmText;
+        submitBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
 
-  async function loadJobsList() {
-    try {
-      const jobs = await api.get('/api/jobs');
-      renderJobList(jobs, document.getElementById('jobs-list-container'));
-      initCreateJobModal((newJobId) => {
-        window.location.hash = `#/jobs/${newJobId}`;
+        const cleanup = () => {
+          submitBtn.removeEventListener('click', onConfirm);
+          cancelBtn.removeEventListener('click', onCancel);
+          closeBtn.removeEventListener('click', onCancel);
+          modal.style.display = 'none';
+        };
+
+        const onConfirm = () => { cleanup(); resolve(true); };
+        const onCancel = () => { cleanup(); resolve(false); };
+
+        submitBtn.addEventListener('click', onConfirm);
+        cancelBtn.addEventListener('click', onCancel);
+        closeBtn.addEventListener('click', onCancel);
+
+        modal.style.display = 'flex';
       });
-    } catch (err) {
-      toast.error('無法載入任務列表：' + err.message);
     }
-  }
 
-  let _currentView = null;
+    // ── 初始化使用者資訊 ──────────────────────────────────────
+    async function initUser() {
+      const user = await getCurrentUser();
+      if (!user) { window.location.replace('/'); return; }
 
-  async function route() {
-    const hash = window.location.hash || '#/jobs';
-    const jobMatch = hash.match(/^#\/jobs\/([^/]+)$/);
+      const emailEl = document.getElementById('topbar-email');
+      const roleEl = document.getElementById('topbar-role');
+      const avatarEl = document.getElementById('topbar-avatar');
+      const adminSection = document.getElementById('admin-nav-section');
 
-    if (jobMatch) {
-      const jobId = jobMatch[1];
-      if (_currentView !== 'detail') {
-        viewJobs.style.display = 'none';
-        viewDetail.style.display = '';
-        _currentView = 'detail';
+      if (emailEl) emailEl.textContent = user.email;
+      if (roleEl) roleEl.textContent = user.role === 'admin' ? '管理員' : '使用者';
+      if (avatarEl) avatarEl.textContent = user.email.charAt(0).toUpperCase();
+
+      if (adminSection && user.role === 'admin') {
+        adminSection.innerHTML = `
+          <div class="sidebar-section-title">後台管理</div>
+          <ul class="sidebar-nav">
+            <li>
+              <a class="sidebar-item" href="/admin.html">
+                <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                進入後台
+              </a>
+            </li>
+          </ul>
+        `;
+        adminSection.style.display = '';
       }
-      document.getElementById('job-id-display').textContent = jobId;
-      destroyJobDetailPage();
-      await initJobDetailPage(jobId);
-    } else {
-      if (_currentView !== 'list') {
-        viewDetail.style.display = 'none';
+    }
+
+    // ── Hash-based SPA Router ─────────────────────────────────
+    const viewJobs = document.getElementById('view-jobs');
+    const viewDetail = document.getElementById('view-job-detail');
+    const viewCreate = document.getElementById('view-create-job');
+    const navJobs = document.getElementById('nav-jobs');
+    const navNewJob = document.getElementById('nav-new-job');
+
+    async function loadJobsList() {
+      try {
+        const jobs = await api.get('/api/jobs');
+        renderJobList(jobs, document.getElementById('jobs-list-container'));
+      } catch (err) {
+        toast.error('無法載入任務列表：' + err.message);
+      }
+    }
+
+    // ── 預設清單 Modal 邏輯 ───────────────────────────────────
+    const defaultListModal = document.getElementById('default-list-modal');
+    function showDefaultListModal(title, content) {
+      if (!defaultListModal) return;
+      document.getElementById('default-list-title').textContent = title;
+      document.getElementById('default-list-display').value = content;
+      defaultListModal.style.display = 'flex';
+    }
+    document.getElementById('default-list-close')?.addEventListener('click', () => defaultListModal.style.display = 'none');
+    document.getElementById('default-list-ok')?.addEventListener('click', () => defaultListModal.style.display = 'none');
+
+    let _isDefaultsLoaded = false;
+    async function loadJobDefaults() {
+      if (_isDefaultsLoaded) return;
+      try {
+        // 加上時間戳記強迫瀏覽器不使用快取
+        const config = await api.get('/api/jobs/default-config?_t=' + Date.now());
+        if (!config) return;
+
+        const setField = (id, val, min, max) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (val !== undefined && val !== null) {
+            el.value = Array.isArray(val) ? val.join('\n') : val;
+            el.defaultValue = el.value;
+          } else {
+            el.value = '';
+            el.defaultValue = '';
+          }
+          if (min !== undefined && min !== null) el.min = min;
+          if (max !== undefined && max !== null) el.max = max;
+          if (min !== undefined && max !== null) {
+            el.placeholder = `${min} ~ ${max}`;
+          }
+        };
+
+        const extEl = document.getElementById('job-ignore-exts');
+        if (extEl) extEl.placeholder = '.pdf\n.zip';
+        const extHint = document.getElementById('hint-ignore-exts');
+        if (extHint && config.ignore_extensions?.length) {
+          extHint.innerHTML = `每行一個。您輸入的項目將與系統全域設定 <button type="button" id="btn-view-exts" title="檢視預設副檔名" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併生效。`;
+          document.getElementById('btn-view-exts').addEventListener('click', () => {
+            showDefaultListModal('預設攔截副檔名 (唯讀)', config.ignore_extensions.join('\n'));
+          });
+        }
+
+        const regexEl = document.getElementById('job-ignore-regexes');
+        if (regexEl) regexEl.placeholder = '^https://example\\.com/logout';
+        const regexHint = document.getElementById('hint-ignore-regexes');
+        if (regexHint && config.ignore_regexes?.length) {
+          regexHint.innerHTML = `每行一個。您輸入的項目將與系統全域設定 <button type="button" id="btn-view-regexes" title="檢視預設路徑規則" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併生效。`;
+          document.getElementById('btn-view-regexes').addEventListener('click', () => {
+            showDefaultListModal('預設攔截路徑規則 (唯讀)', config.ignore_regexes.join('\n'));
+          });
+        }
+
+        const approvedDomainsEl = document.getElementById('job-approved-domains');
+        if (approvedDomainsEl) approvedDomainsEl.placeholder = 'www.google.com';
+        const approvedDomainsHint = document.getElementById('hint-approved-domains');
+        if (approvedDomainsHint && config.approved_domains?.length) {
+          approvedDomainsHint.innerHTML = `每行一個。您輸入的項目將與系統全域設定 <button type="button" id="btn-view-approved-domains" title="檢視預設信任網域白名單" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併生效。`;
+          document.getElementById('btn-view-approved-domains').addEventListener('click', () => {
+            showDefaultListModal('預設信任網域白名單 (唯讀)', config.approved_domains.join('\n'));
+          });
+        }
+
+        setField('job-delay', config.delay, config.min_delay, config.max_delay);
+        setField('job-timeout', config.timeout, config.min_timeout, config.max_timeout);
+        setField('job-retries', config.retries, config.min_retries, config.max_retries);
+        setField('job-proxy-url', config.proxy_url);
+
+        _isDefaultsLoaded = true;
+      } catch (err) {
+        console.error('無法載入全域預設配置:', err);
+      }
+    }
+
+    let _currentView = null;
+
+    async function route() {
+      const hash = window.location.hash || '#/jobs';
+      const jobMatch = hash.match(/^#\/jobs\/([^/]+)$/);
+
+      viewJobs.style.display = 'none';
+      viewDetail.style.display = 'none';
+      if (viewCreate) viewCreate.style.display = 'none';
+      if (navJobs) navJobs.classList.remove('active');
+      if (navNewJob) navNewJob.classList.remove('active');
+
+      if (hash === '#/new') {
+        if (viewCreate) viewCreate.style.display = '';
+        if (navNewJob) navNewJob.classList.add('active');
+        _currentView = 'new';
+        destroyJobDetailPage();
+        await loadJobDefaults();
+      } else if (jobMatch) {
+        const jobId = jobMatch[1];
+        viewDetail.style.display = '';
+        document.getElementById('job-id-display').textContent = jobId;
+        _currentView = 'detail';
+        destroyJobDetailPage();
+        await initJobDetailPage(jobId);
+      } else {
         viewJobs.style.display = '';
+        if (navJobs) navJobs.classList.add('active');
         _currentView = 'list';
         destroyJobDetailPage();
+        await loadJobsList();
       }
-      await loadJobsList();
     }
-  }
 
-  // 登出
-  document.getElementById('logout-btn').addEventListener('click', logout);
+    // 登出
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const confirmed = await showConfirm('登出', '確定要登出系統嗎？', '登出');
+      if (confirmed) logout();
+    });
 
-  // 初始化
-  await initUser();
-  await route();
-  window.addEventListener('hashchange', route);
-</script>
+    // 初始化
+    await initUser();
+    await route();
+    window.addEventListener('hashchange', route);
+
+    // ── 密碼修改 ──────────────────────────────────────────────
+    const changePwdModal = document.getElementById('change-pwd-modal');
+    const changePwdBtn = document.getElementById('change-pwd-btn');
+    const changePwdClose = document.getElementById('change-pwd-close');
+    const changePwdCancel = document.getElementById('change-pwd-cancel');
+    const changePwdForm = document.getElementById('change-pwd-form');
+    const pwdStrengthBar = document.getElementById('pwd-strength-bar');
+    const pwdStrengthLabel = document.getElementById('pwd-strength-label');
+    const newPwdInput = document.getElementById('new-password-change');
+
+    if (newPwdInput && pwdStrengthBar && pwdStrengthLabel) {
+      initPasswordStrength(newPwdInput, pwdStrengthBar, pwdStrengthLabel);
+    }
+
+    function openChangePwdModal() {
+      changePwdModal.style.display = 'flex';
+      changePwdForm.reset();
+      document.getElementById('change-pwd-error').textContent = '';
+      if (pwdStrengthBar) {
+        pwdStrengthBar.style.width = '0%';
+        pwdStrengthBar.style.background = '';
+      }
+      if (pwdStrengthLabel) {
+        pwdStrengthLabel.textContent = '';
+      }
+    }
+
+    function closeChangePwdModal() {
+      changePwdModal.style.display = 'none';
+    }
+
+    changePwdBtn.addEventListener('click', openChangePwdModal);
+    changePwdClose.addEventListener('click', closeChangePwdModal);
+    changePwdCancel.addEventListener('click', closeChangePwdModal);
+
+    changePwdForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPwd = document.getElementById('current-password').value;
+      const newPwd = newPwdInput.value;
+      const confirmPwd = document.getElementById('confirm-password-change').value;
+      const errorEl = document.getElementById('change-pwd-error');
+      const submitBtn = document.getElementById('change-pwd-submit');
+
+      errorEl.textContent = '';
+
+      if (newPwd !== confirmPwd) {
+        errorEl.textContent = '新密碼與確認密碼不一致。';
+        return;
+      }
+
+      if (currentPwd === newPwd) {
+        errorEl.textContent = '新密碼不得與現有密碼相同。';
+        return;
+      }
+
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+
+      try {
+        await api.patch('/api/auth/password', {
+          current_password: currentPwd,
+          new_password: newPwd
+        });
+        toast.success('密碼已成功修改。');
+        closeChangePwdModal();
+      } catch (err) {
+        errorEl.textContent = err.message || '修改密碼失敗。';
+      } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+      }
+    });
+
+    // ── 建立任務邏輯 ───────────────────────────────────────────
+    const createJobForm = document.getElementById('create-job-form');
+    if (createJobForm) {
+      const jobUrlInput = document.getElementById('job-url');
+      const targetDomainsInput = document.getElementById('job-target-domains');
+      const internalDomainsInput = document.getElementById('job-internal-domains');
+
+      // 自動填寫網域防呆：當網址輸入完畢時，自動提取 hostname 填入目標網域與內部網域
+      if (jobUrlInput && targetDomainsInput) {
+        jobUrlInput.addEventListener('blur', () => {
+          if (jobUrlInput.value.trim()) {
+            try {
+              const url = new URL(jobUrlInput.value.trim());
+              if (!targetDomainsInput.value.trim()) {
+                targetDomainsInput.value = url.hostname;
+              }
+              if (internalDomainsInput && !internalDomainsInput.value.trim()) {
+                internalDomainsInput.value = url.hostname;
+              }
+            } catch (e) { }
+          }
+        });
+      }
+
+      createJobForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('btn-submit-job');
+        const errorEl = document.getElementById('create-job-error');
+        errorEl.textContent = '';
+
+        const startUrl = jobUrlInput.value.trim();
+        const targetDomainsRaw = targetDomainsInput.value;
+        const internalDomainsRaw = document.getElementById('job-internal-domains').value;
+        const ignoreExtsRaw = document.getElementById('job-ignore-exts').value;
+        const ignoreRegexesRaw = document.getElementById('job-ignore-regexes').value;
+        const approvedDomainsRaw = document.getElementById('job-approved-domains') ? document.getElementById('job-approved-domains').value : '';
+
+        if (!targetDomainsRaw.trim()) {
+          errorEl.textContent = '請填寫至少一個目標網域。';
+          return;
+        }
+
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+
+        try {
+          const body = {
+            start_url: startUrl,
+            target_domains: targetDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean),
+            internal_domains: internalDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean)
+          };
+
+          const depth = document.getElementById('job-max-depth').value;
+          if (depth) body.max_depth = parseInt(depth, 10);
+
+          const pages = document.getElementById('job-max-pages').value;
+          if (pages) body.max_pages = parseInt(pages, 10);
+
+          const delay = document.getElementById('job-delay').value;
+          if (delay) body.delay = parseFloat(delay);
+
+          const timeout = document.getElementById('job-timeout').value;
+          if (timeout) body.timeout = parseFloat(timeout);
+
+          const retries = document.getElementById('job-retries').value;
+          if (retries) body.retries = parseInt(retries, 10);
+
+          const proxyUrl = document.getElementById('job-proxy-url').value.trim();
+          if (proxyUrl) body.proxy_url = proxyUrl;
+
+          const ignoreExts = ignoreExtsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+          if (ignoreExts.length) body.ignore_extensions = ignoreExts;
+
+          const ignoreRegexes = ignoreRegexesRaw.split('\n').map(s => s.trim()).filter(Boolean);
+          if (ignoreRegexes.length) body.ignore_regexes = ignoreRegexes;
+
+          const approvedDomains = approvedDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+          if (approvedDomains.length) body.approved_domains = approvedDomains;
+
+          const res = await api.post('/api/jobs', body);
+          toast.success('任務已建立成功！');
+          window.location.hash = `#/jobs/${res.job_id}`;
+          createJobForm.reset();
+        } catch (err) {
+          errorEl.textContent = err.message || '建立任務失敗。';
+        } finally {
+          submitBtn.classList.remove('loading');
+          submitBtn.disabled = false;
+        }
+      });
+    }
+  </script>
 
 </body>
+
 </html>

@@ -5,12 +5,15 @@
 使用者管理、任務監控、全域配置、SMTP 測試、操作日誌查閱。
 """
 
+import copy
+import json
 import logging
 import os
+from datetime import datetime
 from typing import Any
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session as DBSession
 
@@ -32,6 +35,35 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
+
+# ── 常數定義 ───────────────────────────────────────────────────────────────────
+
+DEFAULT_GLOBAL_CONFIG = {
+    "crawler": {
+        "timeout": 30,
+        "delay": 3.0,
+        "retries": 3,
+        "max_depth": None,
+        "max_pages": None,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "proxy_url": None,
+        "ssl_exempt_domains": [],
+        "approved_domains": [],
+        "domain_delays": {},
+        "ignore_extensions": ["pdf", "zip", "jpg", "png", "gif", "mp4", "mp3", "doc", "docx", "xls", "xlsx", "csv"],
+        "ignore_regexes": [],
+        "mime_type_filter": {
+            "enabled": True,
+            "allowed_types": ["text/html", "application/xhtml+xml"]
+        },
+        "min_timeout": 5,
+        "max_timeout": 120,
+        "min_delay": 0.5,
+        "max_delay": 10.0,
+        "min_retries": 0,
+        "max_retries": 5,
+    }
+}
 
 # ── Request Schema ─────────────────────────────────────────────────────────────
 
@@ -77,11 +109,15 @@ class SendTestEmailRequest(BaseModel):
 
 @router.get("/users", status_code=status.HTTP_200_OK)
 async def list_users(
+    status_filter: str | None = Query(None, alias="status", description="依帳號狀態篩選"),
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
 ) -> list[dict[str, Any]]:
     """列出所有使用者帳號。"""
-    users = auth_db.query(User).order_by(User.created_at.desc()).all()
+    query = auth_db.query(User)
+    if status_filter:
+        query = query.filter(User.status == status_filter)
+    users = query.order_by(User.created_at.desc()).all()
     return [
         {
             "id": u.id,
@@ -114,6 +150,7 @@ async def create_user(
 async def update_user(
     user_id: str,
     body: UpdateUserRequest,
+    request: Request,
     auth_db: DBSession = Depends(get_auth_db),
     current_admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
@@ -129,15 +166,32 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
-    if body.status:
+    changes = {}
+    if body.status and body.status != user.status:
+        changes["status"] = {"before": user.status, "after": body.status}
         user.status = body.status
         if body.status == "suspended":
             # 停用帳號 → 清除所有 Session
             count = auth_service.invalidate_all_user_sessions(auth_db, user_id)
             logger.info("帳號 %s 已停用，清除 %d 個 Session", user.email, count)
 
-    if body.role:
+    if body.role and body.role != user.role:
+        changes["role"] = {"before": user.role, "after": body.role}
         user.role = body.role
+
+    if changes:
+        log_detail = {
+            "target_user_id": user_id,
+            "target_email": user.email,
+            "changes": changes,
+        }
+        auth_log = AuthLog(
+            user_id=current_admin.id,
+            event_type="user_status_changed",
+            ip_address=request.client.host if request.client else None,
+            detail=json.dumps(log_detail, ensure_ascii=False),
+        )
+        auth_db.add(auth_log)
 
     auth_db.commit()
     return {"message": f"帳號 {user.email} 已更新。"}
@@ -146,6 +200,7 @@ async def update_user(
 @router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
 async def delete_user(
     user_id: str,
+    request: Request,
     auth_db: DBSession = Depends(get_auth_db),
     crawler_db: DBSession = Depends(get_crawler_db),
     current_admin: User = Depends(require_admin),
@@ -158,6 +213,7 @@ async def delete_user(
 
     Args:
         user_id (str): 被刪除使用者的 UUID。
+        request (Request): FastAPI Request。
         auth_db (DBSession): Auth 資料庫 Session。
         crawler_db (DBSession): Crawler 資料庫 Session。
         current_admin (User): 當前操作的管理員使用者物件。
@@ -179,6 +235,19 @@ async def delete_user(
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
+
+    # 記錄刪除帳號的操作日誌
+    log_detail = {
+        "deleted_user_id": user_id,
+        "deleted_email": user.email,
+    }
+    auth_log = AuthLog(
+        user_id=current_admin.id,
+        event_type="user_deleted",
+        ip_address=request.client.host if request.client else None,
+        detail=json.dumps(log_detail, ensure_ascii=False),
+    )
+    auth_db.add(auth_log)
 
     # 1. 先刪 Crawler DB 中該 user_id 的所有任務（cascade 刪除隊列與外連）
     crawler_jobs = crawler_db.query(Job).filter(Job.user_id == user_id).all()
@@ -225,17 +294,21 @@ async def resend_invite(
 
 @router.get("/jobs", status_code=status.HTTP_200_OK)
 async def list_all_jobs(
+    user_id: str | None = Query(None, description="依使用者 ID 篩選"),
+    status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
     manager: JobManager = Depends(get_job_manager),
     _admin: User = Depends(require_admin),
 ) -> list[dict[str, Any]]:
     """列出所有使用者的任務（Admin 全視圖）。"""
-    return manager.get_all_jobs()  # 不傳 user_id 取全部
+    return manager.get_all_jobs(user_id=user_id, status=status_filter)
 
 
 @router.post("/jobs/{job_id}/takeover", status_code=status.HTTP_200_OK)
 async def takeover_job(
     job_id: str,
+    request: Request,
     manager: JobManager = Depends(get_job_manager),
+    auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
@@ -248,6 +321,28 @@ async def takeover_job(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"任務狀態為 {job.status}，只有 running 狀態的任務才能被強制接管。",
         )
+
+    # 記錄任務強制接管的操作日誌
+    log_detail = {
+        "job_id": job_id,
+        "action": "takeover",
+        "before_status": job.status,
+    }
+    auth_log = AuthLog(
+        user_id=_admin.id,
+        event_type="job_force_action",
+        ip_address=request.client.host if request.client else None,
+        detail=json.dumps(log_detail, ensure_ascii=False),
+    )
+    auth_log = AuthLog(
+        user_id=_admin.id,
+        event_type="job_force_action",
+        ip_address=request.client.host if request.client else None,
+        detail=json.dumps(log_detail, ensure_ascii=False),
+    )
+    auth_db.add(auth_log)
+    auth_db.commit()
+
     manager.pause_job(job_id)
     return {"message": f"任務 {job_id} 已強制接管並設為 paused。"}
 
@@ -255,11 +350,30 @@ async def takeover_job(
 @router.delete("/jobs/{job_id}", status_code=status.HTTP_200_OK)
 async def admin_delete_job(
     job_id: str,
+    request: Request,
     manager: JobManager = Depends(get_job_manager),
+    auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
     """強制刪除任意任務（Admin 用）。"""
+    if not manager.get_job(job_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
+
+    # 記錄任務強制刪除的操作日誌
+    log_detail = {
+        "job_id": job_id,
+        "action": "delete",
+    }
+    auth_log = AuthLog(
+        user_id=_admin.id,
+        event_type="job_force_action",
+        ip_address=request.client.host if request.client else None,
+        detail=json.dumps(log_detail, ensure_ascii=False),
+    )
+    auth_db.add(auth_log)
+    auth_db.commit()
+
     if not manager.delete_job(job_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
     return {"message": f"任務 {job_id} 已刪除。"}
@@ -275,10 +389,11 @@ async def get_config(
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
     if not os.path.exists(config_path):
-        return {}
+        return DEFAULT_GLOBAL_CONFIG
     try:
         with open(config_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+            data = yaml.safe_load(f)
+            return data if data else DEFAULT_GLOBAL_CONFIG
     except Exception as e:  # pylint: disable=broad-exception-caught
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -289,6 +404,8 @@ async def get_config(
 @router.patch("/config", status_code=status.HTTP_200_OK)
 async def update_config(
     body: dict[str, Any],
+    request: Request,
+    auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
@@ -301,6 +418,8 @@ async def update_config(
 
     Args:
         body (dict[str, Any]): 包含欲修改設定值的 Dict。
+        request (Request): FastAPI Request。
+        auth_db (DBSession): Auth 資料庫 Session。
         _admin (User): 管理員使用者依賴，確保具備管理員權限。
         _csrf (None): CSRF 防禦依賴。
 
@@ -350,12 +469,28 @@ async def update_config(
 
         # 深度合併 crawler 區塊（不覆蓋其他頂層欄位）
         existing_crawler = existing.get("crawler", {})
+        existing_crawler_before = copy.deepcopy(existing_crawler)
         existing_crawler.update(safe_body["crawler"])
         existing["crawler"] = existing_crawler
 
         os.makedirs(os.path.dirname(config_path) or ".", exist_ok=True)
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump(existing, f, allow_unicode=True, default_flow_style=False)
+
+        # 記錄全域配置修改日誌
+        log_detail = {
+            "action": "update_global_config",
+            "before": existing_crawler_before,
+            "after": existing["crawler"],
+        }
+        auth_log = AuthLog(
+            user_id=_admin.id,
+            event_type="config_change",
+            ip_address=request.client.host if request.client else None,
+            detail=json.dumps(log_detail, ensure_ascii=False),
+        )
+        auth_db.add(auth_log)
+        auth_db.commit()
 
         return {"message": "全域配置已更新。"}
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -408,18 +543,48 @@ async def test_smtp(
 async def get_logs(
     event_type: str | None = Query(None),
     user_id: str | None = Query(None),
+    start_date: str | None = Query(None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"),
+    end_date: str | None = Query(None, description="結束日期 (YYYY-MM-DD 或 ISO 格式)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
 ) -> dict[str, Any]:
-    """查閱系統操作日誌（支援事件類型與使用者 ID 篩選）。"""
+    """查閱系統操作日誌（支援事件類型、使用者 ID 及時間範圍篩選）。"""
     query = auth_db.query(AuthLog).order_by(AuthLog.created_at.desc())
 
     if event_type:
         query = query.filter(AuthLog.event_type == event_type)
     if user_id:
         query = query.filter(AuthLog.user_id == user_id)
+
+    if start_date:
+        try:
+            if "T" in start_date:
+                start_dt = datetime.fromisoformat(start_date)
+            else:
+                start_dt = datetime.strptime(start_date.strip(), "%Y-%m-%d")
+            query = query.filter(AuthLog.created_at >= start_dt)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"start_date 格式不正確，需為 YYYY-MM-DD 或 ISO 格式。錯誤: {e}",
+            ) from e
+
+    if end_date:
+        try:
+            if "T" in end_date:
+                end_dt = datetime.fromisoformat(end_date)
+            else:
+                end_dt = datetime.strptime(end_date.strip(), "%Y-%m-%d").replace(
+                    hour=23, minute=59, second=59, microsecond=999999
+                )
+            query = query.filter(AuthLog.created_at <= end_dt)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"end_date 格式不正確，需為 YYYY-MM-DD 或 ISO 格式。錯誤: {e}",
+            ) from e
 
     total = query.count()
     offset = (page - 1) * page_size

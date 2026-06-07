@@ -19,8 +19,9 @@ class Settings:
     應用程式設定類別。
 
     所有設定值皆從環境變數讀取，若環境變數不存在則使用預設值。
-    機密項目（SECRET_KEY、SMTP_PASSWORD）在生產環境中必須透過環境變數提供。
+    機密項目（如 SMTP_PASSWORD）在生產環境中必須透過環境變數提供。
     """
+
     # pylint: disable=too-few-public-methods
 
     # ── 應用程式基本設定 ────────────────────────────────────────────────────────
@@ -31,21 +32,23 @@ class Settings:
     AUTH_DB_URL: str = os.environ.get("AUTH_DB_URL", "sqlite:///db/auth.db")
     CRAWLER_DB_URL: str = os.environ.get("CRAWLER_DB_URL", "sqlite:///db/crawler.db")
 
-    # ── Session / 安全金鑰設定 ─────────────────────────────────────────────────
-    # 生產環境必須透過環境變數設定強隨機金鑰，開發環境自動生成臨時金鑰
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", secrets.token_hex(32))
+    # ── Session 安全設定 ───────────────────────────────────────────────────────
     SESSION_COOKIE_NAME: str = os.environ.get("SESSION_COOKIE_NAME", "session_token")
     # Session 有效期（秒），預設 8 小時
     SESSION_EXPIRE_SECONDS: int = int(os.environ.get("SESSION_EXPIRE_SECONDS", "28800"))
     # Session 最大絕對有效期（秒），預設 7 天
-    SESSION_MAX_AGE_SECONDS: int = int(os.environ.get("SESSION_MAX_AGE_SECONDS", "604800"))
+    SESSION_MAX_AGE_SECONDS: int = int(
+        os.environ.get("SESSION_MAX_AGE_SECONDS", "604800")
+    )
     # CSRF Token 標頭名稱
     CSRF_TOKEN_HEADER: str = "X-CSRF-Token"
     CSRF_COOKIE_NAME: str = "csrf_token"
 
     # ── 邀請制設定 ─────────────────────────────────────────────────────────────
     # 邀請連結有效期（秒），預設 72 小時
-    INVITATION_EXPIRE_SECONDS: int = int(os.environ.get("INVITATION_EXPIRE_SECONDS", "259200"))
+    INVITATION_EXPIRE_SECONDS: int = int(
+        os.environ.get("INVITATION_EXPIRE_SECONDS", "259200")
+    )
     # 後台可訪問的基礎 URL（用於生成邀請連結）
     BASE_URL: str = os.environ.get("BASE_URL", "http://localhost:8000")
 
@@ -64,10 +67,14 @@ class Settings:
     SMTP_FROM_EMAIL: str = os.environ.get("SMTP_FROM_EMAIL", "noreply@example.com")
     SMTP_USE_TLS: bool = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
     # 開發環境下啟用 console 模擬（不真實發送）
-    SMTP_CONSOLE_MODE: bool = os.environ.get("SMTP_CONSOLE_MODE", "false").lower() == "true"
+    SMTP_CONSOLE_MODE: bool = (
+        os.environ.get("SMTP_CONSOLE_MODE", "false").lower() == "true"
+    )
 
     # ── 全域爬蟲設定檔路徑 ─────────────────────────────────────────────────────
-    GLOBAL_CONFIG_PATH: str = os.environ.get("GLOBAL_CONFIG_PATH", "config/config_global.yaml")
+    GLOBAL_CONFIG_PATH: str = os.environ.get(
+        "GLOBAL_CONFIG_PATH", "config/config_global.yaml"
+    )
 
 
 @lru_cache(maxsize=1)

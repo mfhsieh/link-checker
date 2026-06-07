@@ -16,6 +16,7 @@
 
 | 方法 | 路徑 | 說明 | 權限 |
 |------|------|------|------|
+| `GET` | `/api/jobs/default-config` | 取得任務預設之全域配置與上下限參數 | 已登入 |
 | `GET` | `/api/jobs` | 列出當前使用者的所有任務 | 已登入 |
 | `POST` | `/api/jobs` | 建立新任務 | 已登入 |
 | `GET` | `/api/jobs/{job_id}` | 取得任務詳情（含進度） | 已登入（僅限自身任務） |
@@ -47,7 +48,6 @@
 | `DELETE` | `/api/admin/jobs/{job_id}` | 強制刪除任意任務 | Admin |
 | `GET` | `/api/admin/config` | 取得全域配置 | Admin |
 | `PATCH` | `/api/admin/config` | 修改全域配置 | Admin |
-| `GET` | `/api/admin/smtp` | 取得 SMTP 配置（密碼遮罩） | Admin |
-| `PATCH` | `/api/admin/smtp` | 修改 SMTP 配置 | Admin |
-| `POST` | `/api/admin/smtp/test` | 寄送測試郵件 | Admin |
-| `GET` | `/api/admin/logs` | 查閱系統操作日誌（支援篩選） | Admin |
+| GET | /api/admin/smtp | 取得 SMTP 配置狀態（唯讀，從環境變數讀取，密碼遮罩） | Admin |
+| POST | /api/admin/smtp/test | 寄送測試郵件 | Admin |
+| GET | /api/admin/logs | 查閱系統操作日誌（支援時間範圍、事件類型與使用者篩選，支援分頁） | Admin |

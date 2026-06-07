@@ -11,7 +11,6 @@ import logging
 import smtplib
 import ssl
 from email.message import EmailMessage
-from urllib.parse import quote_plus
 
 from backend.config import get_settings
 
@@ -37,16 +36,15 @@ def _build_invitation_email(
         EmailMessage: 組建完成的郵件物件。
     """
     settings = get_settings()
-    login_url = (
-        f"{settings.BASE_URL}/?email={quote_plus(to_email)}&token={invitation_token}"
-    )
+    login_url = f"{settings.BASE_URL}/?action=invite"
 
     plain_text = (
         f"您好，\n\n"
-        f"您已被邀請使用「{settings.APP_NAME}」系統。\n\n"
-        f"請點擊以下連結完成首次登入並設定您的密碼：\n"
-        f"{login_url}\n\n"
-        f"此連結有效期為 {expires_hours} 小時，逾期後將失效。\n"
+        f"您已被邀請使用「{settings.APP_NAME}」。\n\n"
+        f"請前往以下網址，並輸入您的電子郵件及邀請碼以完成首次登入與密碼設定：\n"
+        f"系統網址：{login_url}\n"
+        f"邀請碼：{invitation_token}\n\n"
+        f"此邀請碼有效期為 {expires_hours} 小時，逾期後將失效。\n"
         f"若您未曾申請此邀請，請忽略此封郵件。\n\n"
         f"此為系統自動發送的郵件，請勿回覆。"
     )
@@ -56,20 +54,18 @@ def _build_invitation_email(
 <html lang="zh-TW">
 <head><meta charset="UTF-8"></head>
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-  <h2 style="color:#1a1a2e">{settings.APP_NAME} 系統邀請</h2>
+  <h2 style="color:#1a1a2e">{settings.APP_NAME} 邀請</h2>
   <p>您好，</p>
-  <p>您已被邀請使用「<strong>{settings.APP_NAME}</strong>」系統。</p>
-  <p>請點擊下方按鈕完成首次登入並設定您的密碼：</p>
-  <p style="margin:24px 0">
-    <a href="{login_url}"
-       style="background:#2563eb;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold">
-      立即登入並設定密碼
-    </a>
-  </p>
+  <p>您已被邀請使用「<strong>{settings.APP_NAME}</strong>」。</p>
+  <p>請前往下方網址，並輸入您的電子郵件及專屬邀請碼以完成首次登入與密碼設定：</p>
+  <div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:24px 0;">
+    <p style="margin:0 0 8px 0;font-size:0.875rem;color:#666;">系統網址</p>
+    <p style="margin:0 0 16px 0;"><a href="{login_url}" style="color:#2563eb;text-decoration:none;">{login_url}</a></p>
+    <p style="margin:0 0 8px 0;font-size:0.875rem;color:#666;">邀請碼</p>
+    <p style="margin:0;font-size:1.25rem;font-weight:bold;letter-spacing:1px;color:#1a1a2e;">{invitation_token}</p>
+  </div>
   <p style="color:#666;font-size:0.875rem">
-    此連結有效期為 <strong>{expires_hours} 小時</strong>，逾期後將失效。<br>
-    若無法點擊按鈕，請複製以下連結至瀏覽器：<br>
-    <code style="word-break:break-all">{login_url}</code>
+    此邀請碼有效期為 <strong>{expires_hours} 小時</strong>，逾期後將失效。
   </p>
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
   <p style="color:#999;font-size:0.75rem">此為系統自動發送的郵件，請勿回覆。</p>
@@ -77,7 +73,7 @@ def _build_invitation_email(
 </html>"""
 
     msg = EmailMessage()
-    msg["Subject"] = f"【{settings.APP_NAME}】系統邀請通知"
+    msg["Subject"] = f"【{settings.APP_NAME}】邀請通知"
     msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
     msg["To"] = to_email
     msg.set_content(plain_text)
@@ -105,11 +101,10 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
     if settings.SMTP_CONSOLE_MODE:
         logger.info(
             "[SMTP Console Mode] 邀請郵件（未實際寄送）:\n"
-            "  收件者: %s\n  Subject: %s\n  登入連結: %s/?email=%s&token=%s",
+            "  收件者: %s\n  Subject: %s\n  登入連結: %s\n  邀請碼: %s",
             to_email,
             msg["Subject"],
-            settings.BASE_URL,
-            quote_plus(to_email),
+            login_url,
             invitation_token,
         )
         return True
@@ -125,7 +120,9 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
                     smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 smtp.send_message(msg)
         else:
-            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as smtp:
+            with smtplib.SMTP_SSL(
+                settings.SMTP_HOST, settings.SMTP_PORT, context=context
+            ) as smtp:
                 if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
                     smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 smtp.send_message(msg)
@@ -172,7 +169,9 @@ def send_test_email(to_email: str) -> bool:
                     smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 smtp.send_message(msg)
         else:
-            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as smtp:
+            with smtplib.SMTP_SSL(
+                settings.SMTP_HOST, settings.SMTP_PORT, context=context
+            ) as smtp:
                 if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
                     smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 smtp.send_message(msg)
@@ -232,7 +231,9 @@ def send_notification_email(
                     smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 smtp.send_message(msg)
         else:
-            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as smtp:
+            with smtplib.SMTP_SSL(
+                settings.SMTP_HOST, settings.SMTP_PORT, context=context
+            ) as smtp:
                 if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
                     smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
                 smtp.send_message(msg)
@@ -242,4 +243,3 @@ def send_notification_email(
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("寄送通知郵件至 %s 時發生錯誤: %s", to_email, e)
         return False
-

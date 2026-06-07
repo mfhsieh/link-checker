@@ -68,6 +68,7 @@ export async function initLoginPage() {
   const params = new URLSearchParams(window.location.search);
   const prefilledEmail = params.get('email') || '';
   const inviteToken = params.get('token') || '';
+  const action = params.get('action') || '';
 
   const emailInput = document.getElementById('login-email');
   const passwordInput = document.getElementById('login-password');
@@ -80,15 +81,16 @@ export async function initLoginPage() {
 
   if (!loginForm) return;
 
-  // 首次登入模式（有邀請 token）
-  if (inviteToken) {
+  const isInviteMode = action === 'invite' || inviteToken;
+
+  // 首次登入模式
+  if (isInviteMode) {
     emailInput.value = prefilledEmail;
-    emailInput.readOnly = true;
     tokenInput.value = inviteToken;
     passwordGroup.style.display = 'none';
     tokenGroup.style.display = 'block';
 
-    document.getElementById('login-mode-label').textContent = '首次登入 — 請驗證您的邀請連結';
+    document.getElementById('login-mode-label').textContent = '首次登入 — 請輸入電子郵件與邀請碼';
     loginBtn.textContent = '驗證邀請並繼續';
   }
 
@@ -99,8 +101,13 @@ export async function initLoginPage() {
     const email = emailInput.value.trim();
     const body = { email };
 
-    if (inviteToken) {
-      body.token = tokenInput.value;
+    if (isInviteMode) {
+      const tokenVal = tokenInput.value.trim();
+      if (!tokenVal) {
+        errorEl.textContent = '請輸入邀請碼。';
+        return;
+      }
+      body.token = tokenVal;
     } else {
       body.password = passwordInput.value;
     }

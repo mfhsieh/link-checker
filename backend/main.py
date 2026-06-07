@@ -11,9 +11,10 @@ import os
 from typing import Callable, Awaitable
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.auth.router import router as auth_router
 from backend.jobs.router import router as jobs_router
@@ -111,6 +112,11 @@ if os.path.isdir(_frontend_dir):
         """提供登入與首頁介面"""
         return FileResponse(os.path.join(_frontend_dir, "index.html"))
 
+    @app.get("/index.html", include_in_schema=False)
+    async def redirect_index() -> RedirectResponse:
+        """將 /index.html 重導向至根路徑"""
+        return RedirectResponse(url="/")
+
 
 # ── 全域例外處理 ───────────────────────────────────────────────────────────────
 @app.exception_handler(Exception)
@@ -120,6 +126,18 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     return JSONResponse(
         status_code=500,
         content={"detail": "伺服器發生內部錯誤，請稍後再試。"},
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
+    """處理 HTTP 例外。若是前端一般頁面 404 找不到，自動導向首頁；API 或靜態檔案錯誤則保留 JSON 回應。"""
+    if exc.status_code == 404 and not request.url.path.startswith(("/api/", "/static/")):
+        return RedirectResponse(url="/")
+    
+    # 其他 HTTP 錯誤（包含 API 404）則照常回傳 JSON
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
     )
 
 

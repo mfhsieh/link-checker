@@ -20,7 +20,11 @@ from typing import Any
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import AuthLog, Invitation, Session, User
-from backend.auth.password import hash_password, validate_password_strength, verify_password
+from backend.auth.password import (
+    hash_password,
+    validate_password_strength,
+    verify_password,
+)
 from backend.config import get_settings
 from backend.email_sender import send_invitation_email
 
@@ -62,6 +66,7 @@ def _log_event(
 
 # ── 邀請管理 ───────────────────────────────────────────────────────────────────
 
+
 def create_invitation(db: DBSession, email: str) -> dict[str, Any]:
     """
     建立新使用者帳號並寄送邀請郵件。
@@ -83,7 +88,9 @@ def create_invitation(db: DBSession, email: str) -> dict[str, Any]:
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
         if existing_user.status in ("active", "suspended"):
-            raise ValueError(f"帳號 {email} 已存在（狀態：{existing_user.status}），無法重複邀請。")
+            raise ValueError(
+                f"帳號 {email} 已存在（狀態：{existing_user.status}），無法重複邀請。"
+            )
         # pending / expired → 重新邀請，沿用既有帳號
         user = existing_user
         user.status = "pending"
@@ -124,6 +131,7 @@ def create_invitation(db: DBSession, email: str) -> dict[str, Any]:
 
 # ── 登入驗證 ───────────────────────────────────────────────────────────────────
 
+
 def _is_account_locked(user: User) -> bool:
     """判斷帳號是否目前被鎖定。"""
     if user.locked_until and user.locked_until > _utc_now():
@@ -136,13 +144,22 @@ def _increment_failed_login(db: DBSession, user: User, ip: str | None) -> None:
     settings = get_settings()
     user.failed_login_count = (user.failed_login_count or 0) + 1
     if user.failed_login_count >= settings.LOGIN_MAX_ATTEMPTS:
-        user.locked_until = _utc_now() + timedelta(seconds=settings.LOGIN_LOCKOUT_SECONDS)
+        user.locked_until = _utc_now() + timedelta(
+            seconds=settings.LOGIN_LOCKOUT_SECONDS
+        )
         logger.warning(
             "帳號 %s 因連續登入失敗 %d 次，已鎖定至 %s",
-            user.email, user.failed_login_count, user.locked_until
+            user.email,
+            user.failed_login_count,
+            user.locked_until,
         )
-        _log_event(db, "account_locked", user_id=user.id, ip_address=ip,
-                   detail=f"連續失敗 {user.failed_login_count} 次")
+        _log_event(
+            db,
+            "account_locked",
+            user_id=user.id,
+            ip_address=ip,
+            detail=f"連續失敗 {user.failed_login_count} 次",
+        )
     db.commit()
 
 
@@ -207,7 +224,12 @@ def authenticate_with_invitation(
     return {
         "session_token": session_token,
         "is_first_login": True,
-        "user": {"id": user.id, "email": user.email, "role": user.role, "status": user.status},
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "status": user.status,
+        },
     }
 
 
@@ -236,16 +258,26 @@ def authenticate_with_password(
     """
     user = db.query(User).filter(User.email == email).first()
     if not user or not user.password_hash:
-        _log_event(db, "login_failed", ip_address=ip, detail=f"帳號不存在或尚未設密: {email}")
+        _log_event(
+            db, "login_failed", ip_address=ip, detail=f"帳號不存在或尚未設密: {email}"
+        )
         raise ValueError("電子郵件或密碼錯誤。")
 
     if user.status == "pending":
         # pending 帳號應透過邀請連結完成首次設密，不允許直接密碼登入
-        _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號尚未完成設密")
+        _log_event(
+            db,
+            "login_failed",
+            user_id=user.id,
+            ip_address=ip,
+            detail="帳號尚未完成設密",
+        )
         raise ValueError("此帳號尚未完成首次設定，請使用邀請郵件中的連結進行登入。")
 
     if user.status == "suspended":
-        _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已停用")
+        _log_event(
+            db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已停用"
+        )
         raise ValueError("此帳號已被停用，請聯繫管理員。")
 
     if _is_account_locked(user):
@@ -254,7 +286,9 @@ def authenticate_with_password(
 
     if not verify_password(password, user.password_hash):
         _increment_failed_login(db, user, ip)
-        _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="密碼錯誤")
+        _log_event(
+            db, "login_failed", user_id=user.id, ip_address=ip, detail="密碼錯誤"
+        )
         raise ValueError("電子郵件或密碼錯誤。")
 
     # 登入成功
@@ -262,17 +296,25 @@ def authenticate_with_password(
     user.last_login_at = _utc_now()
     db.commit()
 
-    session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=False)
+    session_token, _ = _create_session(
+        db, user.id, ip, user_agent, is_first_login=False
+    )
     _log_event(db, "login_success", user_id=user.id, ip_address=ip)
 
     return {
         "session_token": session_token,
         "is_first_login": False,
-        "user": {"id": user.id, "email": user.email, "role": user.role, "status": user.status},
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "status": user.status,
+        },
     }
 
 
 # ── Session 管理 ───────────────────────────────────────────────────────────────
+
 
 def _create_session(
     db: DBSession,
@@ -373,6 +415,7 @@ def invalidate_all_user_sessions(db: DBSession, user_id: str) -> int:
 
 # ── 密碼管理 ───────────────────────────────────────────────────────────────────
 
+
 def set_first_password(
     db: DBSession,
     session: Session,
@@ -398,6 +441,9 @@ def set_first_password(
     user = db.query(User).filter(User.id == session.user_id).first()
     if not user:
         raise ValueError("使用者不存在。")
+
+    if user.password_hash and verify_password(new_password, user.password_hash):
+        raise ValueError("新密碼不得與初始密碼相同。")
 
     errors = validate_password_strength(new_password, user.email)
     if errors:
@@ -444,6 +490,9 @@ def change_password(
 
     if not verify_password(current_password, user.password_hash):
         raise ValueError("現有密碼錯誤。")
+
+    if current_password == new_password:
+        raise ValueError("新密碼不得與現有密碼相同。")
 
     errors = validate_password_strength(new_password, user.email)
     if errors:

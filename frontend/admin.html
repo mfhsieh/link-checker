@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,177 +10,299 @@
   <link rel="stylesheet" href="/static/css/components.css" />
   <link rel="stylesheet" href="/static/css/layout.css" />
 </head>
+
 <body>
 
-<div class="app-shell" id="app-shell">
+  <div class="app-shell" id="app-shell">
 
-  <!-- ── Top Bar ──────────────────────────────────────────── -->
-  <header class="topbar">
-    <a class="topbar-brand" href="/app.html">
-      <div class="topbar-logo" aria-hidden="true">EL</div>
-      <span class="topbar-title">外部連結檢查系統</span>
-      <span style="margin-left:0.5rem;font-size:0.75rem;color:var(--text-muted);border:1px solid var(--surface-border);border-radius:9999px;padding:0.125rem 0.5rem">後台</span>
-    </a>
-    <div class="topbar-actions">
-      <a class="btn btn-ghost btn-sm" href="/app.html">← 回前台</a>
-      <button class="btn btn-ghost btn-sm" id="logout-btn">登出</button>
-    </div>
-  </header>
+    <!-- ── Top Bar ──────────────────────────────────────────── -->
+    <header class="topbar">
+      <a class="topbar-brand" href="/app.html">
+        <div class="topbar-logo" aria-hidden="true">EL</div>
+        <span class="topbar-title">外部連結檢查系統</span>
+        <span
+          style="margin-left:0.5rem;font-size:0.75rem;color:var(--text-muted);border:1px solid var(--surface-border);border-radius:9999px;padding:0.125rem 0.5rem">後台</span>
+      </a>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" id="logout-btn">登出</button>
+      </div>
+    </header>
 
-  <!-- ── Sidebar ────────────────────────────────────────── -->
-  <nav class="sidebar" aria-label="後台導覽">
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">後台管理</div>
-      <ul class="sidebar-nav">
-        <li>
-          <a class="sidebar-item active" id="nav-users" href="#/admin/users">
-            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+    <!-- ── Sidebar ────────────────────────────────────────── -->
+    <nav class="sidebar" aria-label="後台導覽">
+      <div class="sidebar-section" id="admin-sidebar-section">
+        <div class="sidebar-section-title">後台管理</div>
+        <ul class="sidebar-nav">
+          <li>
+            <a class="sidebar-item active" id="nav-users" href="#/admin/users">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+              </svg>
+              使用者管理
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-jobs" href="#/admin/jobs">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12M3 6.75h.008v.008H3V6.75zm0 5.25h.008v.008H3V12zm0 5.25h.008v.008H3v-.008z" />
+              </svg>
+              任務監控
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-config" href="#/admin/config">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              系統配置
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-smtp" href="#/admin/smtp">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+              郵件測試
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-logs" href="#/admin/logs">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+              操作日誌
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">任務管理</div>
+        <ul class="sidebar-nav">
+          <li>
+            <a class="sidebar-item" href="/app.html">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+              </svg>
+              回到前台
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- ── Main Content ────────────────────────────────────── -->
+    <main class="main-content" id="main-content">
+
+      <!-- 使用者管理 -->
+      <div id="view-users">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">使用者管理</h1>
+            <p class="page-subtitle">管理系統帳號與邀請</p>
+          </div>
+          <button class="btn btn-primary" id="invite-user-btn">
+            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px">
+              <path
+                d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
             </svg>
-            使用者管理
-          </a>
-        </li>
-        <li>
-          <a class="sidebar-item" id="nav-config" href="#/admin/config">
-            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            系統配置
-          </a>
-        </li>
-        <li>
-          <a class="sidebar-item" id="nav-smtp" href="#/admin/smtp">
-            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-            </svg>
-            SMTP 設定
-          </a>
-        </li>
-        <li>
-          <a class="sidebar-item" id="nav-logs" href="#/admin/logs">
-            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-            </svg>
-            操作日誌
-          </a>
-        </li>
-      </ul>
+            邀請新使用者
+          </button>
+        </div>
+        <div id="users-table-container"></div>
+      </div>
+
+      <!-- 任務監控 -->
+      <div id="view-jobs" style="display:none">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">任務監控</h1>
+            <p class="page-subtitle">監控與強制管理系統內的所有爬蟲任務</p>
+          </div>
+        </div>
+        <div id="jobs-table-container"></div>
+      </div>
+
+      <!-- 系統配置 -->
+      <div id="view-config" style="display:none">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">系統配置</h1>
+            <p class="page-subtitle">全域爬蟲參數設定（config_global.yaml）</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">目前配置（JSON 格式）</span></div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <textarea class="form-textarea" id="config-editor" rows="24" spellcheck="false"
+              style="font-family:monospace; font-size:0.875rem; line-height:1.4"></textarea>
+          </div>
+          <div id="config-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:0.75rem"></div>
+          <button class="btn btn-primary" id="save-config-btn">儲存配置</button>
+        </div>
+      </div>
+
+      <!-- 郵件測試 -->
+      <div id="view-smtp" style="display:none">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">郵件測試</h1>
+            <p class="page-subtitle">目前 SMTP 設定（從環境變數讀取，唯讀）</p>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:1.5rem">
+          <div id="smtp-info-container">
+            <div class="skeleton" style="height:120px;border-radius:0.5rem"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">測試 SMTP 寄送</span></div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label class="form-label" for="smtp-test-email">測試收件者</label>
+            <input class="form-input" type="email" id="smtp-test-email" placeholder="admin@example.com"
+              style="max-width:360px" />
+          </div>
+          <button class="btn btn-primary" id="smtp-test-btn">寄送測試郵件</button>
+        </div>
+      </div>
+
+      <!-- 操作日誌 -->
+      <div id="view-logs" style="display:none">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">操作日誌</h1>
+            <p class="page-subtitle">身分驗證與系統操作事件紀錄</p>
+          </div>
+        </div>
+        <div id="logs-container"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── 邀請新使用者 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="invite-user-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0">邀請新使用者</h2>
+        <button id="invite-user-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <form id="invite-user-form">
+        <div style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+          <div class="form-group">
+            <label class="form-label" for="invite-email">受邀者的電子郵件 <span class="required">*</span></label>
+            <input class="form-input" type="email" id="invite-email" required placeholder="user@example.com" />
+          </div>
+          <div id="invite-user-error" style="color:var(--color-danger-400);font-size:0.875rem"></div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+          <button type="button" class="btn btn-ghost" id="invite-user-cancel">取消</button>
+          <button type="submit" class="btn btn-primary" id="invite-user-submit">送出邀請</button>
+        </div>
+      </form>
     </div>
-  </nav>
+  </div>
 
-  <!-- ── Main Content ────────────────────────────────────── -->
-  <main class="main-content" id="main-content">
-
-    <!-- 使用者管理 -->
-    <div id="view-users">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">使用者管理</h1>
-          <p class="page-subtitle">管理系統帳號與邀請</p>
-        </div>
-        <button class="btn btn-primary" id="invite-user-btn">
-          <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px">
-            <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-          </svg>
-          邀請新使用者
-        </button>
+  <!-- ── 共用確認 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="confirm-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
+        <button id="confirm-modal-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
       </div>
-      <div id="users-table-container"></div>
-    </div>
-
-    <!-- 系統配置 -->
-    <div id="view-config" style="display:none">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">系統配置</h1>
-          <p class="page-subtitle">全域爬蟲參數設定（config_global.yaml）</p>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">目前配置（JSON 格式）</span></div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <textarea class="form-textarea" id="config-editor" rows="16" spellcheck="false"></textarea>
-        </div>
-        <div id="config-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:0.75rem"></div>
-        <button class="btn btn-primary" id="save-config-btn">儲存配置</button>
+      <div style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
+        id="confirm-modal-message"></div>
+      <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+        <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
       </div>
     </div>
+  </div>
 
-    <!-- SMTP 設定 -->
-    <div id="view-smtp" style="display:none">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">SMTP 郵件設定</h1>
-          <p class="page-subtitle">目前 SMTP 設定（從環境變數讀取，唯讀）</p>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:1.5rem">
-        <div id="smtp-info-container">
-          <div class="skeleton" style="height:120px;border-radius:0.5rem"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">測試 SMTP 寄送</span></div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label class="form-label" for="smtp-test-email">測試收件者</label>
-          <input class="form-input" type="email" id="smtp-test-email" placeholder="admin@example.com" style="max-width:360px" />
-        </div>
-        <button class="btn btn-primary" id="smtp-test-btn">寄送測試郵件</button>
-      </div>
-    </div>
+  <div class="toast-container"></div>
 
-    <!-- 操作日誌 -->
-    <div id="view-logs" style="display:none">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">操作日誌</h1>
-          <p class="page-subtitle">身分驗證與系統操作事件紀錄</p>
-        </div>
-      </div>
-      <div id="logs-container"></div>
-    </div>
+  <script type="module">
+    import * as api from '/static/js/api.js';
+    import { toast } from '/static/js/toast.js';
+    import { logout, getCurrentUser } from '/static/js/auth.js';
 
-  </main>
-</div>
+    // ── 權限驗證 ──────────────────────────────────────────────
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'admin') {
+      window.location.replace('/app.html');
+      throw new Error('Non-admin access');
+    }
 
-<div class="toast-container"></div>
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const confirmed = await showConfirm('登出', '確定要登出系統嗎？', '登出');
+      if (confirmed) logout();
+    });
 
-<script type="module">
-  import * as api from '/static/js/api.js';
-  import { toast } from '/static/js/toast.js';
-  import { logout, getCurrentUser } from '/static/js/auth.js';
+    // ── 共用確認 Modal 邏輯 ───────────────────────────────────
+    function showConfirm(title, message, confirmText = '確定', isDanger = false) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const titleEl = document.getElementById('confirm-modal-title');
+        const messageEl = document.getElementById('confirm-modal-message');
+        const submitBtn = document.getElementById('confirm-modal-submit');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        const closeBtn = document.getElementById('confirm-modal-close');
 
-  // ── 權限驗證 ──────────────────────────────────────────────
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'admin') {
-    window.location.replace('/app.html');
-    throw new Error('Non-admin access');
-  }
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        submitBtn.textContent = confirmText;
+        submitBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
 
-  document.getElementById('logout-btn').addEventListener('click', logout);
+        const cleanup = () => {
+          submitBtn.removeEventListener('click', onConfirm);
+          cancelBtn.removeEventListener('click', onCancel);
+          closeBtn.removeEventListener('click', onCancel);
+          modal.style.display = 'none';
+        };
 
-  // ── 使用者管理 ────────────────────────────────────────────
+        const onConfirm = () => { cleanup(); resolve(true); };
+        const onCancel = () => { cleanup(); resolve(false); };
 
-  function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = String(s || '');
-    return d.innerHTML;
-  }
+        submitBtn.addEventListener('click', onConfirm);
+        cancelBtn.addEventListener('click', onCancel);
+        closeBtn.addEventListener('click', onCancel);
 
-  async function loadUsers() {
-    const container = document.getElementById('users-table-container');
-    try {
-      const users = await api.get('/api/admin/users');
-      if (!users || users.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-state-title">尚無使用者</div></div>';
-        return;
-      }
-      container.innerHTML = `
+        modal.style.display = 'flex';
+      });
+    }
+
+    // ── 使用者管理 ────────────────────────────────────────────
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = String(s || '');
+      return d.innerHTML;
+    }
+
+    async function loadUsers() {
+      const container = document.getElementById('users-table-container');
+      try {
+        const users = await api.get('/api/admin/users');
+        if (!users || users.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-title">尚無使用者</div></div>';
+          return;
+        }
+        container.innerHTML = `
         <div class="table-wrapper">
           <table class="table">
             <thead><tr><th>電子郵件</th><th>角色</th><th>狀態</th><th>建立時間</th><th>最後登入</th><th>操作</th></tr></thead>
@@ -188,14 +311,16 @@
                 <tr>
                   <td>${escapeHtml(u.email)}</td>
                   <td><span class="badge badge-${u.role === 'admin' ? 'admin' : 'pending'}">${u.role === 'admin' ? '管理員' : '使用者'}</span></td>
-                  <td><span class="badge badge-${u.status}">${{pending:'待設密',active:'正常',suspended:'已停用',expired:'已過期'}[u.status]||u.status}</span></td>
+                  <td><span class="badge badge-${u.status}">${{ pending: '待設密', active: '正常', suspended: '已停用', expired: '已過期' }[u.status] || u.status}</span></td>
                   <td class="text-sm text-muted">${u.created_at ? new Date(u.created_at).toLocaleString('zh-TW') : '-'}</td>
                   <td class="text-sm text-muted">${u.last_login_at ? new Date(u.last_login_at).toLocaleString('zh-TW') : '-'}</td>
                   <td>
-                    <div style="display:flex;gap:0.5rem">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                      ${u.id !== user.id && u.role === 'user' ? `<button class="btn btn-sm btn-secondary" onclick="changeUserRole('${u.id}', '${escapeHtml(u.email)}', 'admin')">設為管理員</button>` : ''}
+                      ${u.id !== user.id && u.role === 'admin' ? `<button class="btn btn-sm btn-danger" onclick="changeUserRole('${u.id}', '${escapeHtml(u.email)}', 'user')">取消管理員</button>` : ''}
                       ${u.status !== 'suspended' && u.id !== user.id ? `<button class="btn btn-sm btn-danger" onclick="suspendUser('${u.id}')">停用</button>` : ''}
-                      ${u.status === 'suspended' ? `<button class="btn btn-sm btn-secondary" onclick="activateUser('${u.id}')">啟用</button>` : ''}
-                      ${['pending','expired'].includes(u.status) ? `<button class="btn btn-sm btn-secondary" onclick="resendInvite('${u.id}')">重寄邀請</button>` : ''}
+                      ${u.status === 'suspended' ? `<button class="btn btn-sm btn-secondary" onclick="activateUser('${u.id}', '${escapeHtml(u.email)}')">啟用</button>` : ''}
+                      ${['pending', 'expired'].includes(u.status) ? `<button class="btn btn-sm btn-secondary" onclick="resendInvite('${u.id}', '${escapeHtml(u.email)}')">重寄邀請</button>` : ''}
                       ${u.id !== user.id ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}', '${escapeHtml(u.email)}')">刪除</button>` : ''}
                     </div>
                   </td>
@@ -205,94 +330,151 @@
           </table>
         </div>
       `;
-    } catch (err) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-state-desc text-danger">${escapeHtml(err.message)}</div></div>`;
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-desc text-danger">${escapeHtml(err.message)}</div></div>`;
+      }
     }
-  }
 
-  window.suspendUser = async (userId) => {
-    if (!confirm('確定要停用此帳號？該使用者的所有 Session 將立即失效。')) return;
-    try {
-      await api.patch(`/api/admin/users/${userId}`, { status: 'suspended' });
-      toast.success('帳號已停用。');
-      await loadUsers();
-    } catch (err) { toast.error(err.message); }
-  };
+    window.suspendUser = async (userId) => {
+      const confirmed = await showConfirm('⚠️ 停用帳號', '確定要停用此帳號？該使用者的所有 Session 將立即失效。', '停用', true);
+      if (!confirmed) return;
+      try {
+        await api.patch(`/api/admin/users/${userId}`, { status: 'suspended' });
+        toast.success('帳號已停用。');
+        await loadUsers();
+      } catch (err) { toast.error(err.message); }
+    };
 
-  window.activateUser = async (userId) => {
-    try {
-      await api.patch(`/api/admin/users/${userId}`, { status: 'active' });
-      toast.success('帳號已重新啟用。');
-      await loadUsers();
-    } catch (err) { toast.error(err.message); }
-  };
+    window.activateUser = async (userId, email) => {
+      const confirmed = await showConfirm('⚠️ 啟用帳號', `確定要重新啟用帳號 ${email}？啟用後該使用者將可正常登入。`, '啟用', true);
+      if (!confirmed) return;
+      try {
+        await api.patch(`/api/admin/users/${userId}`, { status: 'active' });
+        toast.success('帳號已重新啟用。');
+        await loadUsers();
+      } catch (err) { toast.error(err.message); }
+    };
 
-  window.resendInvite = async (userId) => {
-    try {
-      await api.post(`/api/admin/users/${userId}/resend-invite`);
-      toast.success('邀請已重新寄送。');
-    } catch (err) { toast.error(err.message); }
-  };
+    window.changeUserRole = async (userId, email, newRole) => {
+      const isPromote = newRole === 'admin';
+      const roleName = isPromote ? '管理員' : '一般使用者';
+      const title = isPromote ? '⚠️ 設為管理員' : '⚠️ 取消管理員';
+      const msg = isPromote
+        ? `確定要將帳號 ${email} 提權為「管理員」？這將允許其存取所有後台系統設定與操作。`
+        : `確定要將帳號 ${email} 降權為「一般使用者」？其將立即失去後台存取權限。`;
 
-  window.deleteUser = async (userId, email) => {
-    if (!confirm(`確定要刪除帳號 ${email}？此操作將一併刪除其所有任務資料，且無法復原。`)) return;
-    try {
-      await api.del(`/api/admin/users/${userId}`);
-      toast.success('帳號已刪除。');
-      await loadUsers();
-    } catch (err) { toast.error(err.message); }
-  };
+      const confirmed = await showConfirm(title, msg, '確定變更', true);
+      if (!confirmed) return;
+      try {
+        await api.patch(`/api/admin/users/${userId}`, { role: newRole });
+        toast.success(`帳號角色已變更為${roleName}。`);
+        await loadUsers();
+      } catch (err) { toast.error(err.message); }
+    };
 
-  // 邀請新使用者
-  document.getElementById('invite-user-btn').addEventListener('click', () => {
-    const email = prompt('請輸入受邀者的電子郵件地址：');
-    if (!email) return;
-    api.post('/api/admin/users', { email: email.trim().toLowerCase() })
-      .then(() => { toast.success(`邀請已寄送至 ${email}。`); loadUsers(); })
-      .catch(err => toast.error(err.message));
-  });
+    window.resendInvite = async (userId, email) => {
+      const confirmed = await showConfirm('重新寄送邀請', `確定要重新寄送邀請信至 ${email}？原本未使用的邀請碼將會立即失效。`, '重新寄送');
+      if (!confirmed) return;
+      try {
+        await api.post(`/api/admin/users/${userId}/resend-invite`);
+        toast.success('邀請已重新寄送。');
+      } catch (err) { toast.error(err.message); }
+    };
 
-  // ── 系統配置 ─────────────────────────────────────────────
+    window.deleteUser = async (userId, email) => {
+      const confirmed = await showConfirm('🚨 刪除帳號', `確定要刪除帳號 ${email}？此操作將一併刪除其所有任務資料，且無法復原。`, '永久刪除', true);
+      if (!confirmed) return;
+      try {
+        await api.del(`/api/admin/users/${userId}`);
+        toast.success('帳號已刪除。');
+        await loadUsers();
+      } catch (err) { toast.error(err.message); }
+    };
 
-  async function loadConfig() {
-    try {
-      const config = await api.get('/api/admin/config');
-      document.getElementById('config-editor').value = JSON.stringify(config, null, 2);
-    } catch (err) { toast.error('載入配置失敗：' + err.message); }
-  }
+    // 邀請新使用者
+    const inviteModal = document.getElementById('invite-user-modal');
+    const inviteForm = document.getElementById('invite-user-form');
+    const inviteError = document.getElementById('invite-user-error');
+    const inviteSubmitBtn = document.getElementById('invite-user-submit');
 
-  document.getElementById('save-config-btn')?.addEventListener('click', async () => {
-    const errorEl = document.getElementById('config-error');
-    errorEl.textContent = '';
-    let parsed;
-    try {
-      parsed = JSON.parse(document.getElementById('config-editor').value);
-    } catch (_) {
-      errorEl.textContent = 'JSON 格式錯誤，請檢查語法。';
-      return;
+    function closeInviteModal() {
+      inviteModal.style.display = 'none';
+      inviteForm.reset();
+      inviteError.textContent = '';
     }
-    try {
-      await api.patch('/api/admin/config', parsed);
-      toast.success('配置已儲存。');
-    } catch (err) { toast.error(err.message); }
-  });
 
-  // ── SMTP ─────────────────────────────────────────────────
+    document.getElementById('invite-user-btn').addEventListener('click', () => {
+      inviteModal.style.display = 'flex';
+      setTimeout(() => document.getElementById('invite-email').focus(), 50);
+    });
+    document.getElementById('invite-user-close').addEventListener('click', closeInviteModal);
+    document.getElementById('invite-user-cancel').addEventListener('click', closeInviteModal);
 
-  async function loadSmtp() {
-    try {
-      const smtp = await api.get('/api/admin/smtp');
-      const container = document.getElementById('smtp-info-container');
-      container.innerHTML = `
+    inviteForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('invite-email').value.trim().toLowerCase();
+      if (!email) return;
+
+      inviteError.textContent = '';
+      inviteSubmitBtn.classList.add('loading');
+      inviteSubmitBtn.disabled = true;
+
+      try {
+        await api.post('/api/admin/users', { email });
+        toast.success(`邀請已寄送至 ${email}。`);
+        closeInviteModal();
+        await loadUsers();
+      } catch (err) {
+        inviteError.textContent = err.message || '邀請失敗。';
+      } finally {
+        inviteSubmitBtn.classList.remove('loading');
+        inviteSubmitBtn.disabled = false;
+      }
+    });
+
+    // ── 系統配置 ─────────────────────────────────────────────
+
+    async function loadConfig() {
+      try {
+        const config = await api.get('/api/admin/config');
+        document.getElementById('config-editor').value = JSON.stringify(config, null, 2);
+      } catch (err) { toast.error('載入配置失敗：' + err.message); }
+    }
+
+    document.getElementById('save-config-btn')?.addEventListener('click', async () => {
+      const errorEl = document.getElementById('config-error');
+      errorEl.textContent = '';
+      let parsed;
+      try {
+        parsed = JSON.parse(document.getElementById('config-editor').value);
+      } catch (_) {
+        errorEl.textContent = 'JSON 格式錯誤，請檢查語法。';
+        return;
+      }
+
+      const confirmed = await showConfirm('⚠️ 儲存全域配置', '確定要覆寫全域系統配置嗎？這將影響所有後續建立的爬蟲任務與安全限制。', '確定儲存', true);
+      if (!confirmed) return;
+
+      try {
+        await api.patch('/api/admin/config', parsed);
+        toast.success('配置已儲存。');
+      } catch (err) { toast.error(err.message); }
+    });
+
+    // ── SMTP ─────────────────────────────────────────────────
+
+    async function loadSmtp() {
+      try {
+        const smtp = await api.get('/api/admin/smtp');
+        const container = document.getElementById('smtp-info-container');
+        container.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
           ${[
             ['Host', smtp.host], ['Port', smtp.port],
-            ['Username', smtp.username || '(未設定)'],
-            ['Password', smtp.password],
-            ['From Name', smtp.from_name], ['From Email', smtp.from_email],
             ['TLS', smtp.use_tls ? '✓ 啟用' : '✗ 停用'],
-            ['Console Mode', smtp.console_mode ? '✓ 啟用（不實際寄送）' : '✗ 停用'],
-          ].map(([k,v]) => `
+            ['Username', smtp.username || '(未設定)'],
+            ['From Name', smtp.from_name], ['From Email', smtp.from_email]
+          ].map(([k, v]) => `
             <div>
               <div class="text-xs text-muted">${escapeHtml(k)}</div>
               <div class="text-sm font-mono">${escapeHtml(String(v))}</div>
@@ -303,33 +485,33 @@
           💡 ${escapeHtml(smtp.note)}
         </div>
       `;
-    } catch (err) { toast.error('載入 SMTP 設定失敗。'); }
-  }
+      } catch (err) { toast.error('載入 SMTP 設定失敗。'); }
+    }
 
-  document.getElementById('smtp-test-btn')?.addEventListener('click', async () => {
-    const email = document.getElementById('smtp-test-email').value.trim();
-    if (!email) { toast.warning('請填寫測試收件者 Email。'); return; }
-    try {
-      await api.post('/api/admin/smtp/test', { to_email: email });
-      toast.success('測試郵件已寄送成功！');
-    } catch (err) { toast.error(err.message); }
-  });
+    document.getElementById('smtp-test-btn')?.addEventListener('click', async () => {
+      const email = document.getElementById('smtp-test-email').value.trim();
+      if (!email) { toast.warning('請填寫測試收件者 Email。'); return; }
+      try {
+        await api.post('/api/admin/smtp/test', { to_email: email });
+        toast.success('測試郵件已寄送成功！');
+      } catch (err) { toast.error(err.message); }
+    });
 
-  // ── 操作日誌 ─────────────────────────────────────────────
+    // ── 操作日誌 ─────────────────────────────────────────────
 
-  let _logPage = 1;
+    let _logPage = 1;
 
-  async function loadLogs(page = 1) {
-    _logPage = page;
-    const container = document.getElementById('logs-container');
-    try {
-      const res = await api.get('/api/admin/logs', { page, page_size: 50 });
-      const items = res.items || [];
-      if (!items.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-state-title">無日誌記錄</div></div>';
-        return;
-      }
-      container.innerHTML = `
+    async function loadLogs(page = 1) {
+      _logPage = page;
+      const container = document.getElementById('logs-container');
+      try {
+        const res = await api.get('/api/admin/logs', { page, page_size: 50 });
+        const items = res.items || [];
+        if (!items.length) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-title">無日誌記錄</div></div>';
+          return;
+        }
+        container.innerHTML = `
         <div class="table-wrapper">
           <table class="table">
             <thead><tr><th>時間</th><th>事件類型</th><th>使用者 ID</th><th>IP</th><th>詳情</th></tr></thead>
@@ -347,43 +529,131 @@
           </table>
         </div>
       `;
-    } catch (err) { toast.error('載入日誌失敗：' + err.message); }
-  }
+      } catch (err) { toast.error('載入日誌失敗：' + err.message); }
+    }
 
-  // ── Hash Router ───────────────────────────────────────────
+    // ── 任務監控 ─────────────────────────────────────────────
 
-  const views = {
-    'users': 'view-users',
-    'config': 'view-config',
-    'smtp': 'view-smtp',
-    'logs': 'view-logs',
-  };
-  const navItems = { 'users': 'nav-users', 'config': 'nav-config', 'smtp': 'nav-smtp', 'logs': 'nav-logs' };
-  const loaders = {
-    'users': loadUsers,
-    'config': loadConfig,
-    'smtp': loadSmtp,
-    'logs': () => loadLogs(1),
-  };
+    async function loadAllJobs() {
+      const container = document.getElementById('jobs-table-container');
+      try {
+        const jobs = await api.get('/api/admin/jobs');
+        if (!jobs || jobs.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-title">目前無任何任務</div></div>';
+          return;
+        }
+        container.innerHTML = `
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>任務 ID / 擁有者</th>
+                <th>起始網址</th>
+                <th>狀態</th>
+                <th>建立時間</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${jobs.map(j => `
+                <tr>
+                  <td>
+                    <div style="font-weight:500;font-size:0.875rem">${escapeHtml(j.id)}</div>
+                    <div class="text-xs text-muted" style="margin-top:0.25rem">擁有者 ID: ${escapeHtml(j.user_id || '匿名')}</div>
+                  </td>
+                  <td>
+                    ${j.user_id === user.id ? `<a href="/app.html#/jobs/${j.id}" class="text-link" style="word-break:break-all" title="查看任務詳情">${escapeHtml(j.start_url)}</a>` : `<div style="word-break:break-all">${escapeHtml(j.start_url)}</div>`}
+                  </td>
+                  <td>
+                    <span class="badge badge-${j.status}">
+                      ${{ pending: '等待中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' }[j.status] || j.status}
+                    </span>
+                  </td>
+                  <td class="text-sm text-muted">${escapeHtml(j.created_at || '-')}</td>
+                  <td>
+                    <div style="display:flex;gap:0.5rem">
+                      ${j.status === 'running' ? `<button class="btn btn-sm btn-secondary" onclick="takeoverJob('${j.id}')">強制接管 (暫停)</button>` : ''}
+                      <button class="btn btn-sm btn-danger" onclick="deleteJob('${j.id}')">刪除</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-desc text-danger">${escapeHtml(err.message)}</div></div>`;
+      }
+    }
 
-  async function adminRoute() {
-    const hash = window.location.hash || '#/admin/users';
-    const match = hash.match(/^#\/admin\/(\w+)/);
-    const view = match ? match[1] : 'users';
+    window.takeoverJob = async (jobId) => {
+      const confirmed = await showConfirm('⚠️ 強制接管任務', '確定要強制接管該任務？任務將被強制暫停。', '強制接管', true);
+      if (!confirmed) return;
+      try {
+        await api.post(`/api/admin/jobs/${jobId}/takeover`);
+        toast.success('已強制接管任務，任務已暫停。');
+        await loadAllJobs();
+      } catch (err) {
+        toast.error(err.message);
+      }
+    };
 
-    Object.entries(views).forEach(([k, v]) => {
-      document.getElementById(v).style.display = k === view ? '' : 'none';
-    });
-    Object.entries(navItems).forEach(([k, v]) => {
-      document.getElementById(v)?.classList.toggle('active', k === view);
-    });
+    window.deleteJob = async (jobId) => {
+      const confirmed = await showConfirm('🚨 強制刪除任務', '確定要強制刪除該任務？此操作將清除所有關聯之佇列與外連資料，且無法復原。', '永久刪除', true);
+      if (!confirmed) return;
+      try {
+        await api.del(`/api/admin/jobs/${jobId}`);
+        toast.success('任務已強制刪除。');
+        await loadAllJobs();
+      } catch (err) {
+        toast.error(err.message);
+      }
+    };
 
-    if (loaders[view]) await loaders[view]();
-  }
+    // ── Hash Router ───────────────────────────────────────────
 
-  window.addEventListener('hashchange', adminRoute);
-  await adminRoute();
-</script>
+    const views = {
+      'users': 'view-users',
+      'jobs': 'view-jobs',
+      'config': 'view-config',
+      'smtp': 'view-smtp',
+      'logs': 'view-logs',
+    };
+    const navItems = {
+      'users': 'nav-users',
+      'jobs': 'nav-jobs',
+      'config': 'nav-config',
+      'smtp': 'nav-smtp',
+      'logs': 'nav-logs',
+    };
+    const loaders = {
+      'users': loadUsers,
+      'jobs': loadAllJobs,
+      'config': loadConfig,
+      'smtp': loadSmtp,
+      'logs': () => loadLogs(1),
+    };
+
+    async function adminRoute() {
+      const hash = window.location.hash || '#/admin/users';
+      const match = hash.match(/^#\/admin\/(\w+)/);
+      const view = match ? match[1] : 'users';
+
+      Object.entries(views).forEach(([k, v]) => {
+        document.getElementById(v).style.display = k === view ? '' : 'none';
+      });
+      Object.entries(navItems).forEach(([k, v]) => {
+        document.getElementById(v)?.classList.toggle('active', k === view);
+      });
+
+      if (loaders[view]) await loaders[view]();
+    }
+
+    window.addEventListener('hashchange', adminRoute);
+    await adminRoute();
+  </script>
 
 </body>
+
 </html>

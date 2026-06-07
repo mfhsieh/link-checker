@@ -2,30 +2,34 @@
 任務管理 API 路由。
 
 實作 §13.2 與 §13.3 定義的端點：
-- GET    /api/jobs            — 列出當前使用者的任務
-- POST   /api/jobs            — 建立新任務
-- GET    /api/jobs/{id}       — 取得任務詳情
-- POST   /api/jobs/{id}/start  — 啟動任務
-- POST   /api/jobs/{id}/pause  — 暫停任務
-- POST   /api/jobs/{id}/resume — 恢復任務
-- POST   /api/jobs/{id}/reset  — 重置任務
-- DELETE /api/jobs/{id}       — 刪除任務
-- GET    /api/jobs/{id}/results          — 外連結果列表
-- GET    /api/jobs/{id}/results/summary  — 統計摘要
-- GET    /api/jobs/{id}/results/export   — 匯出 CSV / JSON
+- GET    /api/jobs/default-config         — 取得建立任務時的預設配置
+- GET    /api/jobs                        — 列出當前使用者的任務
+- POST   /api/jobs                        — 建立新任務
+- GET    /api/jobs/{id}                   — 取得任務詳情
+- POST   /api/jobs/{id}/start             — 啟動任務
+- POST   /api/jobs/{id}/pause             — 暫停任務
+- POST   /api/jobs/{id}/resume            — 恢復任務
+- POST   /api/jobs/{id}/reset             — 重置任務
+- DELETE /api/jobs/{id}                   — 刪除任務
+- GET    /api/jobs/{id}/results           — 外連結果列表
+- GET    /api/jobs/{id}/results/summary   — 統計摘要
+- GET    /api/jobs/{id}/results/export    — 匯出 CSV / JSON
 """
 
 import csv
 import io
 import json
 import logging
+import os
 from typing import Any
 
+import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
+from backend.config import get_settings
 from backend.deps import get_crawler_db, get_current_user, get_job_manager, require_csrf
 from backend.jobs import service as job_service
 from crawler.manager import JobManager
@@ -42,11 +46,15 @@ class CreateJobRequest(BaseModel):
     start_url: str
     target_domains: list[str]
     internal_domains: list[str] = []
+    ignore_extensions: list[str] = []
     ignore_regexes: list[str] = []
+    approved_domains: list[str] = []
     max_depth: int | None = None
     max_pages: int | None = None
     delay: float | None = None
     timeout: int | None = None
+    retries: int | None = None
+    proxy_url: str | None = None
 
     @field_validator("start_url")
     @classmethod
@@ -68,13 +76,46 @@ class CreateJobRequest(BaseModel):
 
 # ── 端點實作 ────────────────────────────────────────────────────────────────────
 
+@router.get("/default-config", status_code=status.HTTP_200_OK)
+async def get_default_config(
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """取得任務預設的全域配置，供前端建立任務時填入預設值與限制。"""
+    # pylint: disable=import-outside-toplevel
+    from backend.admin.router import DEFAULT_GLOBAL_CONFIG
+
+    settings = get_settings()
+    config_path = settings.GLOBAL_CONFIG_PATH
+    crawler_config = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
+
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if data and "crawler" in data:
+                    crawler_config = data["crawler"]
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.warning("讀取全域設定檔失敗: %s", e)
+
+    # 僅提取前端有使用到的欄位，過濾掉不需要暴露的敏感或內部配置
+    allowed_keys = {
+        "ignore_extensions", "ignore_regexes", "approved_domains",
+        "delay", "min_delay", "max_delay",
+        "timeout", "min_timeout", "max_timeout",
+        "retries", "min_retries", "max_retries",
+        "proxy_url"
+    }
+
+    return {k: v for k, v in crawler_config.items() if k in allowed_keys}
+
 @router.get("", status_code=status.HTTP_200_OK)
 async def list_jobs(
+    status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
 ) -> list[dict[str, Any]]:
     """列出當前使用者的所有任務。"""
-    return job_service.list_jobs(manager, current_user.id)
+    return job_service.list_jobs(manager, current_user.id, status=status_filter)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -85,25 +126,46 @@ async def create_job(
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, Any]:
     """建立新的爬蟲任務。"""
-    # 組建 crawler_config（從全域設定合併）
-    crawler_config: dict[str, Any] = {}
-    if body.ignore_regexes:
-        crawler_config["ignore_regexes"] = body.ignore_regexes
-    if body.max_depth is not None:
-        crawler_config["max_depth"] = body.max_depth
-    if body.max_pages is not None:
-        crawler_config["max_pages"] = body.max_pages
-    if body.delay is not None:
-        crawler_config["delay"] = body.delay
-    if body.timeout is not None:
-        crawler_config["timeout"] = body.timeout
+    
+    # 安全白名單：只允許前端設定特定的 crawler_config 欄位
+    allowed_crawler_keys = {
+        "ignore_extensions", "ignore_regexes", "approved_domains",
+        "max_depth", "max_pages", "delay", "timeout",
+        "retries", "proxy_url"
+    }
+
+    # 透過白名單動態過濾並組建 crawler_config
+    body_dict = body.model_dump()
+    user_crawler_config: dict[str, Any] = {}
+    for key in allowed_crawler_keys:
+        val = body_dict.get(key)
+        # 過濾掉 None 與空字串/空陣列，避免覆蓋掉全域預設設定
+        if val is not None and val != [] and val != "":
+            user_crawler_config[key] = val
+
+    # 根據規格書 §4：將全域設定與個別任務設定合併，產生「最終執行配置快照」
+    # pylint: disable=import-outside-toplevel
+    from cli import merge_and_validate_crawler_config
+
+    settings = get_settings()
+    global_config = {}
+    if os.path.exists(settings.GLOBAL_CONFIG_PATH):
+        try:
+            with open(settings.GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
+                global_config = yaml.safe_load(f) or {}
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.warning("建立快照時讀取全域設定檔失敗: %s", e)
+
+    final_crawler_config = merge_and_validate_crawler_config(
+        {"crawler": user_crawler_config}, global_config
+    )
 
     try:
         config_obj = job_service.JobCreateConfig(
             start_url=body.start_url,
             target_domains=body.target_domains,
             internal_domains=body.internal_domains,
-            crawler_config=crawler_config,
+            crawler_config=final_crawler_config,
         )
         job_id = job_service.create_job(manager, current_user.id, config_obj)
     except Exception as e:  # pylint: disable=broad-exception-caught

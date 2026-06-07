@@ -13,18 +13,53 @@ const STATUS_LABELS = {
 
 let _pollTimer = null;
 let _currentJobId = null;
+let _currentJobConfig = null;
 let _currentFilter = null;
 let _currentSearch = '';
 let _currentGroup = false;
 let _currentPage = 1;
+let _eventsBound = false;
+let _pollInterval = 5000;
 
 function startPolling(jobId) {
-  stopPolling();
-  _pollTimer = setInterval(() => refreshJobDetail(jobId), 3000);
+  if (_pollTimer) return;
+  _pollTimer = setInterval(() => refreshJobDetail(jobId), _pollInterval);
 }
 
 function stopPolling() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+}
+
+function showConfirm(title, message, confirmText = '確定', isDanger = false) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    const titleEl = document.getElementById('confirm-modal-title');
+    const messageEl = document.getElementById('confirm-modal-message');
+    const submitBtn = document.getElementById('confirm-modal-submit');
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+    const closeBtn = document.getElementById('confirm-modal-close');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    submitBtn.textContent = confirmText;
+    submitBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+
+    const cleanup = () => {
+      submitBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      closeBtn.removeEventListener('click', onCancel);
+      modal.style.display = 'none';
+    };
+
+    const onConfirm = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
+
+    submitBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    closeBtn.addEventListener('click', onCancel);
+
+    modal.style.display = 'flex';
+  });
 }
 
 export async function initJobDetailPage(jobId) {
@@ -34,10 +69,21 @@ export async function initJobDetailPage(jobId) {
   _currentGroup = false;
   _currentPage = 1;
 
+  // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
+  document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
+  const searchInput = document.getElementById('results-search');
+  if (searchInput) searchInput.value = '';
+  const groupToggle = document.getElementById('results-group-toggle');
+  if (groupToggle) groupToggle.checked = false;
+
+  if (!_eventsBound) {
+    bindControlButtons();
+    bindResultsControls();
+    _eventsBound = true;
+  }
+
   await refreshJobDetail(jobId);
   await loadResults(jobId);
-  bindControlButtons(jobId);
-  bindResultsControls(jobId);
 }
 
 export function destroyJobDetailPage() {
@@ -47,9 +93,17 @@ export function destroyJobDetailPage() {
 async function refreshJobDetail(jobId) {
   try {
     const job = await api.get(`/api/jobs/${jobId}`);
+
+    // 動態更新輪詢間隔 (如果環境變數有變化)
+    if (job.ui_poll_interval && _pollInterval !== job.ui_poll_interval) {
+      _pollInterval = job.ui_poll_interval;
+      if (_pollTimer) stopPolling(); // 先停止，讓下方邏輯用新間隔重啟
+    }
+
     renderJobInfo(job);
 
-    if (job.status === 'running') {
+    const isActuallyRunning = job.status === 'running' || job.is_running;
+    if (isActuallyRunning) {
       startPolling(jobId);
     } else {
       stopPolling();
@@ -62,10 +116,19 @@ async function refreshJobDetail(jobId) {
 function renderJobInfo(job) {
   const el = (id) => document.getElementById(id);
 
+  const isPausing = job.status === 'paused' && job.is_running;
+  const isActuallyRunning = job.status === 'running' || job.is_running;
+
+  _currentJobConfig = job.config;
+
   const statusEl = el('job-status');
   if (statusEl) {
-    statusEl.className = `badge badge-${job.status}`;
-    statusEl.textContent = STATUS_LABELS[job.status] || job.status;
+    let displayStatus = job.status;
+    if (isPausing) displayStatus = 'paused';
+    else if (isActuallyRunning) displayStatus = 'running';
+
+    statusEl.className = `badge badge-${displayStatus}`;
+    statusEl.textContent = isPausing ? '暫停中...' : (STATUS_LABELS[displayStatus] || displayStatus);
   }
 
   setTextContent('job-start-url', job.start_url);
@@ -88,9 +151,9 @@ function renderJobInfo(job) {
   setTextContent('stat-pending', progress.pending || 0);
   setTextContent('stat-failed', progress.failed || 0);
 
-  const canStart = ['pending', 'paused'].includes(job.status);
-  const canPause = job.status === 'running';
-  const canReset = ['completed', 'error', 'paused'].includes(job.status);
+  const canStart = ['pending', 'paused'].includes(job.status) && !job.is_running;
+  const canPause = isActuallyRunning && !isPausing;
+  const canReset = ['completed', 'error', 'paused'].includes(job.status) && !job.is_running;
 
   toggleDisplay('btn-start-job', canStart);
   toggleDisplay('btn-resume-job', false);
@@ -98,30 +161,36 @@ function renderJobInfo(job) {
   toggleDisplay('btn-reset-job', canReset);
 }
 
-function bindControlButtons(jobId) {
+function bindControlButtons() {
   bindBtn('btn-start-job', async () => {
-    await api.post(`/api/jobs/${jobId}/start`);
+    const confirmed = await showConfirm('啟動任務', '確定要開始執行此爬蟲任務嗎？', '啟動');
+    if (!confirmed) return;
+    await api.post(`/api/jobs/${_currentJobId}/start`);
     toast.success('任務已啟動！');
-    await refreshJobDetail(jobId);
+    await refreshJobDetail(_currentJobId);
   });
 
   bindBtn('btn-pause-job', async () => {
-    await api.post(`/api/jobs/${jobId}/pause`);
+    const confirmed = await showConfirm('暫停任務', '確定要暫停此爬蟲任務嗎？任務將在完成當前頁面後停止。', '暫停');
+    if (!confirmed) return;
+    await api.post(`/api/jobs/${_currentJobId}/pause`);
     toast.info('暫停指令已送出，任務將在完成當前頁面後停止。');
-    await refreshJobDetail(jobId);
+    await refreshJobDetail(_currentJobId);
   });
 
   bindBtn('btn-reset-job', async () => {
-    if (!confirm('確定要重置任務嗎？這將清除所有外連結果並重新開始。')) return;
-    await api.post(`/api/jobs/${jobId}/reset`);
+    const confirmed = await showConfirm('⚠️ 重置任務', '確定要重置任務嗎？這將清除所有外連結果並重新開始。', '重置', true);
+    if (!confirmed) return;
+    await api.post(`/api/jobs/${_currentJobId}/reset`);
     toast.success('任務已重置。');
-    await refreshJobDetail(jobId);
-    await loadResults(jobId);
+    await refreshJobDetail(_currentJobId);
+    await loadResults(_currentJobId);
   });
 
   bindBtn('btn-delete-job', async () => {
-    if (!confirm('確定要刪除此任務嗎？此操作無法復原。')) return;
-    await api.del(`/api/jobs/${jobId}`);
+    const confirmed = await showConfirm('🚨 刪除任務', '確定要刪除此任務嗎？此操作無法復原。', '永久刪除', true);
+    if (!confirmed) return;
+    await api.del(`/api/jobs/${_currentJobId}`);
     toast.success('任務已刪除。');
     window.location.hash = '#/jobs';
   });
@@ -129,6 +198,67 @@ function bindControlButtons(jobId) {
   bindBtn('btn-back-jobs', () => {
     window.location.hash = '#/jobs';
   });
+
+  const btnViewConfig = document.getElementById('btn-view-job-config');
+  const modalConfig = document.getElementById('job-config-modal');
+  if (btnViewConfig && modalConfig) {
+    btnViewConfig.addEventListener('click', () => {
+      const container = document.getElementById('job-config-display-container');
+      if (container) {
+        if (!_currentJobConfig) {
+          container.innerHTML = '<div class="text-muted" style="text-align:center;padding:2rem">無設定資料</div>';
+        } else {
+          const c = _currentJobConfig;
+          const esc = (s) => {
+            const d = document.createElement('div');
+            d.textContent = String(s || '');
+            return d.innerHTML;
+          };
+          const formatList = (list) => {
+            if (!Array.isArray(list) || list.length === 0) return '<span class="text-muted">-</span>';
+            return list.map(item => `<span style="display:inline-block; background:var(--surface-overlay); border:1px solid var(--surface-border); border-radius:4px; padding:2px 6px; margin:2px 2px 2px 0; font-size:0.75rem;">${esc(item)}</span>`).join('');
+          };
+
+          container.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:1.5rem;">
+              <div>
+                <div style="font-weight:600; border-bottom:1px solid var(--surface-border); padding-bottom:0.5rem; margin-bottom:0.75rem;">🌐 網域設定</div>
+                <div style="display:grid; grid-template-columns: 110px 1fr; gap:0.75rem 0.5rem; font-size:0.875rem;">
+                  <div class="text-muted">目標網域</div><div>${formatList(c.target_domains)}</div>
+                  <div class="text-muted">內部網域</div><div>${formatList(c.internal_domains)}</div>
+                </div>
+              </div>
+              <div>
+                <div style="font-weight:600; border-bottom:1px solid var(--surface-border); padding-bottom:0.5rem; margin-bottom:0.75rem;">⚙️ 資源與限制</div>
+                <div style="display:grid; grid-template-columns: 110px 1fr; gap:0.75rem 0.5rem; font-size:0.875rem;">
+                  <div class="text-muted">最大爬取深度</div><div>${c.max_depth === null ? '不限制' : esc(c.max_depth)}</div>
+                  <div class="text-muted">最大抓取頁數</div><div>${c.max_pages === null ? '不限制' : esc(c.max_pages)}</div>
+                  <div class="text-muted">請求延遲</div><div>${c.delay ?? '-'} 秒</div>
+                  <div class="text-muted">連線逾時</div><div>${c.timeout ?? '-'} 秒</div>
+                  <div class="text-muted">失敗重試</div><div>${c.retries ?? '-'} 次</div>
+                  ${c.proxy_url !== undefined ? `<div class="text-muted">代理伺服器</div><div class="font-mono text-xs" style="word-break:break-all">${esc(c.proxy_url) || '-'}</div>` : ''}
+                </div>
+              </div>
+              <div>
+                <div style="font-weight:600; border-bottom:1px solid var(--surface-border); padding-bottom:0.5rem; margin-bottom:0.75rem;">🛡️ 過濾與排除</div>
+                <div style="display:grid; grid-template-columns: 110px 1fr; gap:0.75rem 0.5rem; font-size:0.875rem;">
+                  <div class="text-muted">忽略路徑規則</div><div>${formatList(c.ignore_regexes)}</div>
+                  <div class="text-muted">信任網域白名單</div><div>${formatList(c.approved_domains)}</div>
+                  <div class="text-muted">忽略副檔名</div>
+                  <div style="max-height:160px; overflow-y:auto; padding-right:4px;">
+                    ${formatList(c.ignore_extensions)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }
+      modalConfig.style.display = 'flex';
+    });
+    document.getElementById('job-config-close')?.addEventListener('click', () => modalConfig.style.display = 'none');
+    document.getElementById('job-config-ok')?.addEventListener('click', () => modalConfig.style.display = 'none');
+  }
 }
 
 async function loadResults(jobId) {
@@ -230,7 +360,7 @@ function renderResultsTable(res, container) {
     const statusClass = !status ? 'text-muted' : (status >= 400 ? 'text-danger' : 'text-success');
 
     const tr = document.createElement('tr');
-    
+
     if (!isGrouped) {
       const tdSource = document.createElement('td');
       tdSource.className = 'truncate text-xs text-muted';
@@ -346,7 +476,7 @@ function renderPagination(res, jobId) {
   paginationEl.appendChild(paginationDiv);
 }
 
-function bindResultsControls(jobId) {
+function bindResultsControls() {
   document.querySelectorAll('.filter-chip[data-filter]').forEach(chip => {
     chip.addEventListener('click', async () => {
       const filter = chip.dataset.filter || null;
@@ -355,7 +485,7 @@ function bindResultsControls(jobId) {
       document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
         c.classList.toggle('active', c.dataset.filter === _currentFilter);
       });
-      await loadResultsPage(jobId);
+      await loadResultsPage(_currentJobId);
     });
   });
 
@@ -367,7 +497,7 @@ function bindResultsControls(jobId) {
       debounceTimer = setTimeout(async () => {
         _currentSearch = searchInput.value.trim();
         _currentPage = 1;
-        await loadResultsPage(jobId);
+        await loadResultsPage(_currentJobId);
       }, 400);
     });
   }
@@ -377,20 +507,20 @@ function bindResultsControls(jobId) {
     groupToggle.addEventListener('change', async () => {
       _currentGroup = groupToggle.checked;
       _currentPage = 1;
-      await loadResultsPage(jobId);
+      await loadResultsPage(_currentJobId);
     });
   }
 
   bindBtn('btn-export-csv', async () => {
     const params = new URLSearchParams({ fmt: 'csv', group: _currentGroup });
     if (_currentFilter) params.set('filter', _currentFilter);
-    await download(`/api/jobs/${jobId}/results/export?${params}`);
+    await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
   });
 
   bindBtn('btn-export-json', async () => {
     const params = new URLSearchParams({ fmt: 'json', group: _currentGroup });
     if (_currentFilter) params.set('filter', _currentFilter);
-    await download(`/api/jobs/${jobId}/results/export?${params}`);
+    await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
   });
 }
 

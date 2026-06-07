@@ -19,6 +19,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session as DBSession
 
@@ -172,16 +173,33 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
     if not report:
         raise ValueError("無法取得任務報告。")
 
-    config_snapshot = None
+    # 組合一份只包含「使用者需要知道的」安全設定快照
+    config_snapshot = {
+        "target_domains": job.target_domains.split(",") if job.target_domains else [],
+        "internal_domains": job.internal_domains.split(",") if job.internal_domains else [],
+    }
     if job.config_json:
         try:
-            config_snapshot = json.loads(job.config_json)
+            raw_config = json.loads(job.config_json)
+            allowed_keys = {
+                "max_depth", "max_pages", "delay", "timeout",
+                "retries", "ignore_extensions", "ignore_regexes", "approved_domains"
+            }
+            for k in allowed_keys:
+                if k in raw_config:
+                    config_snapshot[k] = raw_config[k]
+            
+            if raw_config.get("proxy_url"):
+                parsed = urlparse(raw_config["proxy_url"])
+                if parsed.password:
+                    config_snapshot["proxy_url"] = raw_config["proxy_url"].replace(parsed.password, "***")
+                else:
+                    config_snapshot["proxy_url"] = raw_config["proxy_url"]
         except json.JSONDecodeError:
             pass
 
     return {
         "id": job.id,
-        "user_id": job.user_id,
         "start_url": job.start_url,
         "status": job.status,
         "created_at": job.created_at.isoformat(),
@@ -193,21 +211,23 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
             job_id in _running_processes
             and _running_processes[job_id].poll() is None
         ),
+        "ui_poll_interval": int(os.environ.get("UI_POLL_INTERVAL", 10000)),
     }
 
 
-def list_jobs(manager: JobManager, user_id: str) -> list[dict[str, Any]]:
+def list_jobs(manager: JobManager, user_id: str, status: str | None = None) -> list[dict[str, Any]]:
     """
     列出指定使用者的所有任務。
 
     Args:
         manager (JobManager): JobManager 實例。
         user_id (str): 使用者 ID。
+        status (str | None): 過濾狀態。
 
     Returns:
         list[dict]: 任務摘要清單。
     """
-    return manager.get_all_jobs(user_id=user_id)
+    return manager.get_all_jobs(user_id=user_id, status=status)
 
 
 def delete_job(manager: JobManager, job_id: str, user_id: str) -> bool:

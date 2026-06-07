@@ -8,7 +8,7 @@
 
 from datetime import datetime, timezone
 import uuid
-from sqlalchemy import String, Text, ForeignKey, DateTime, Index
+from sqlalchemy import String, Text, ForeignKey, DateTime, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 # pylint: disable=too-few-public-methods
@@ -117,6 +117,7 @@ class ExternalLink(Base):
     __tablename__ = "external_links"
     __table_args__ = (
         Index("ix_external_links_job_src_tgt", "job_id", "source_url", "target_url"),
+        UniqueConstraint("job_id", "source_url", "target_url", name="uq_external_links_job_src_tgt"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

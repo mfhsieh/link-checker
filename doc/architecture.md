@@ -53,7 +53,7 @@ ext-link-checker/
 * **資料庫實體分離**：
   系統維護兩個獨立的資料庫：`crawler.db` (爬蟲業務資料) 與 `auth.db` (帳號與身分驗證資料)，兩者不共用連線池與 Schema，確保業務邏輯邊界清晰。針對高頻寫入的 `crawler.db`，啟用了 SQLite 的 **WAL (Write-Ahead Logging)** 與 **NORMAL** 同步模式以防 I/O 阻塞。
 * **後端 Web API Server**：
-  採用 **FastAPI** 作為後端框架，提供非同步、高效能的 RESTful API，並實作基於 HttpOnly Cookie 的安全 Session 管理與邀請制帳號機制。
+  採用 **FastAPI** 作為後端框架，提供非同步、高效能的 RESTful API，並實作基於 HttpOnly Cookie 的安全 Session 管理與邀請制帳號機制。內建例外攔截器以支援 SPA 前端路由的無縫重導向 (404 Fallback)。
 * **前端 Web UI**：
   堅持採用**輕量原生技術棧 (Vanilla JS + ESM / Vanilla CSS)**，不引入 React、Vue 等框架與打包工具，大幅降低供應鏈風險與長期維護成本。
 * **網路連線與網頁解析**：
@@ -69,6 +69,5 @@ ext-link-checker/
 * [系統需求規格書 (Requirements)](requirements.md)
 * [命令列 (CLI) 操作指南](cli_usage.md)
 * [API 路由清單](api_routes.md)
-* [Crawler DB Schema](db_schema_crawler.md)
-* [Auth DB Schema](db_schema_auth.md)
+* [資料庫 Schema 說明 (db_schema.md)](db_schema.md)
 * [待辦清單與後續優化計畫](todo.md)

@@ -130,9 +130,9 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | `Integer` | **Primary Key**, `Auto-Increment` | 日誌的主鍵。 |
 | `user_id` | `String(36)` | **Foreign Key**, `Nullable` | 關聯的使用者 ID（部分事件可能無法確定使用者）。 |
-| `event_type` | `String(50)` | `NOT NULL` | 事件類型：`login_success`, `login_failed`, `logout`, `locked`, `password_set`, `password_changed`, `invitation_sent` 等。 |
+| `event_type` | `String(50)` | `NOT NULL` | 事件類型：`login_success`, `login_failed`, `logout`, `locked`, `password_set`, `password_changed`, `invitation_sent`, `user_status_changed`, `user_deleted`, `job_force_action`, `config_change` 等。 |
 | `ip_address` | `String(45)` | `Nullable` | 事件發生時的客戶端來源 IP 位址。 |
-| `detail` | `Text` | `Nullable` | 附加描述資訊（如登入失敗原因或細節）。 |
+| `detail` | `Text` | `Nullable` | 附加描述資訊（如登入失敗原因，或在敏感操作時以 JSON 格式記錄變更前後差異細節）。 |
 | `created_at` | `DateTime` | `Default: 當下 UTC 時間` | 事件發生的 UTC 時間戳記。 |
 
 ##### 索引資訊 (Indexes)
@@ -204,7 +204,7 @@ erDiagram
 | `start_url` | `String(2048)` | `NOT NULL` | 該任務開始進行爬取的起點網址。 |
 | `target_domains` | `Text` | `NOT NULL` | 允許爬蟲深入抓取的網域清單，以逗號 (`,`) 分隔。 |
 | `internal_domains` | `Text` | `NOT NULL` | 視為內部系統的網域清單，以逗號 (`,`) 分隔。 |
-| `config_json` | `Text` | `Nullable` | 任務建立當下，已與全域設定合併之最終爬蟲參數快照 (JSON 格式)。 |
+| `config_json` | `Text` | `Nullable` | 任務建立當下，已與全域設定合併之最終爬蟲參數快照 (JSON 格式)。註：為落實最小權限，後端 API 提取此快照時會主動進行機密遮蔽 (如 Proxy 密碼)。 |
 | `status` | `String(50)` | `Default: 'pending'` | 任務狀態，包含：`pending` (等待中), `running` (執行中), `paused` (已暫停), `completed` (已完成), `error` (發生嚴重例外)。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 任務建立的 UTC 時間戳記。 |
 | `updated_at` | `DateTime` | `Default: 當下時間` | 任務最後狀態被更新的 UTC 時間戳記。 |
@@ -256,5 +256,6 @@ erDiagram
 | `error_message` | `Text` | `Nullable` | 存活檢查失敗時的具體連線異常描述（如 ConnectionTimeout）。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 系統成功解析並紀錄該筆外部連結的時間。 |
 
-##### 索引資訊 (Indexes)
-* **`ix_external_links_job_src_tgt`**: `(job_id, source_url, target_url)`。用於防止在同一任務中重複記錄相同的來源母頁面與目標外部網址。
+##### 索引與唯一約束資訊 (Indexes & Constraints)
+* **`ix_external_links_job_src_tgt`** (複合索引): `(job_id, source_url, target_url)`。
+* **`uq_external_links_job_src_tgt`** (唯一約束): `(job_id, source_url, target_url)`。用於從資料庫層面防止在同一任務中重複記錄相同的來源母頁面與目標外部網址。

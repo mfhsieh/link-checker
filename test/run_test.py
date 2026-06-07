@@ -244,7 +244,7 @@ def run_test() -> None:
             }
 
         print(f"Found {len(ext_dict)} external links in DB.")
-        assert len(ext_dict) == 9, f"Expected 9 external links, got {len(ext_dict)}"
+        assert len(ext_dict) == 10, f"Expected 10 external links, got {len(ext_dict)}"
 
         # 斷言 1: Google (應為 200, 且有 IP, is_secure 應為 1)
         google_url = "https://www.google.com"
@@ -313,6 +313,16 @@ def run_test() -> None:
         assert (
             ext_dict[neverssl_url]["is_secure"] == 0
         ), f"neverssl.com is_secure should be 0 (False), got {ext_dict[neverssl_url]['is_secure']}"
+
+        # 斷言 6: mock-social-media (應為 HTTP, is_secure 應為 0, 因為 HEAD 返回 501 且非社群網域故不降級，狀態碼應為 501)
+        social_url = "http://127.0.0.1:8000/mock-social-media"
+        assert social_url in ext_dict, "Mock social media link not found in DB"
+        assert (
+            ext_dict[social_url]["is_secure"] == 0
+        ), "Mock social media is_secure should be 0"
+        assert (
+            ext_dict[social_url]["status_code"] == 501
+        ), f"Mock social media status_code should be 501, got {ext_dict[social_url]['status_code']}"
 
         # 新增外部資源類型斷言 (CSS Link)
         fonts_url = "https://fonts.googleapis.com/css?family=Roboto"
@@ -502,10 +512,10 @@ def run_test() -> None:
         assert res_unapproved.returncode == 0, "Export with --filter unapproved failed"
         with open(unapproved_file, "r") as f:
             unapproved_data = json.load(f)
-        # 預期不屬於白名單的外連有 9 個 (因為 config_global.yaml 的白名單已被註解)
+        # 預期不屬於白名單的外連有 10 個 (因為 config_global.yaml 的白名單已被註解)
         assert (
-            len(unapproved_data) == 9
-        ), f"Expected 9 unapproved links, got {len(unapproved_data)}"
+            len(unapproved_data) == 10
+        ), f"Expected 10 unapproved links, got {len(unapproved_data)}"
         os.remove(unapproved_file)
         print("Verification Passed: Export filters.")
 
@@ -517,8 +527,8 @@ def run_test() -> None:
         # A. 測試 --pause 非 running 任務 (此時狀態是 completed，應該不能暫停)
         pause_cmd = [sys.executable, "cli.py", "--pause", job_id]
         res_pause_fail = subprocess.run(pause_cmd, capture_output=True, text=True)
-        # 雖然不能暫停，但 CLI 程序應該仍是 exit 0，只是會顯示警告且狀態不變
-        assert res_pause_fail.returncode == 0, "Pause CLI should exit with 0"
+        # 因為不能暫停，所以 CLI 程序應 exit 1 回報操作未成功
+        assert res_pause_fail.returncode == 1, "Pause CLI should exit with 1"
 
         conn_check = sqlite3.connect(DB_PATH)
         cur_check = conn_check.cursor()

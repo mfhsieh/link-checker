@@ -6,11 +6,11 @@ import * as api from './api.js';
 import { toast } from './toast.js';
 
 const STATUS_LABELS = {
-  pending:   '等待中',
-  running:   '執行中',
-  paused:    '已暫停',
+  pending: '等待中',
+  running: '執行中',
+  paused: '已暫停',
   completed: '已完成',
-  error:     '錯誤',
+  error: '錯誤',
 };
 
 export function renderJobList(jobs, container) {
@@ -18,47 +18,47 @@ export function renderJobList(jobs, container) {
   if (!jobs || jobs.length === 0) {
     const emptyState = document.createElement('div');
     emptyState.className = 'empty-state';
-    
+
     const svgDoc = new DOMParser().parseFromString(
-        '<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>',
-        'image/svg+xml'
+      '<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>',
+      'image/svg+xml'
     );
     emptyState.appendChild(svgDoc.documentElement);
-    
+
     const title = document.createElement('div');
     title.className = 'empty-state-title';
     title.textContent = '尚無任務';
     emptyState.appendChild(title);
-    
+
     const desc = document.createElement('div');
     desc.className = 'empty-state-desc';
     desc.textContent = '點擊右上角「新增任務」開始建立您的第一個外連掃描任務';
     emptyState.appendChild(desc);
-    
+
     container.appendChild(emptyState);
     return;
   }
 
   const wrapper = document.createElement('div');
   wrapper.className = 'table-wrapper';
-  
+
   const table = document.createElement('table');
   table.className = 'table';
   table.id = 'jobs-table';
-  
+
   const thead = document.createElement('thead');
   const trHead = document.createElement('tr');
   ['任務 ID', '起始 URL', '狀態', '建立時間', '操作'].forEach(text => {
-      const th = document.createElement('th');
-      th.textContent = text;
-      trHead.appendChild(th);
+    const th = document.createElement('th');
+    th.textContent = text;
+    trHead.appendChild(th);
   });
   thead.appendChild(trHead);
   table.appendChild(thead);
-  
+
   const tbody = document.createElement('tbody');
   jobs.forEach(job => {
-      tbody.appendChild(renderJobRow(job));
+    tbody.appendChild(renderJobRow(job));
   });
   table.appendChild(tbody);
   wrapper.appendChild(table);
@@ -141,7 +141,7 @@ function openCreateJobModal() {
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.id = 'create-job-modal';
-  
+
   const modalHTML = `
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-header">
@@ -166,6 +166,10 @@ function openCreateJobModal() {
             <label class="form-label" for="cj-ignore-regexes">排除的正則表達式 <span class="form-hint">（每行一個，符合的 URL 將不會被爬取與探測）</span></label>
             <textarea class="form-textarea" id="cj-ignore-regexes" placeholder="^https://example\\.com/download/.*&#10;（選填）" rows="2"></textarea>
           </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label class="form-label" for="cj-approved-domains">信任的外部網域白名單 <span class="form-hint">（每行一個）</span></label>
+            <textarea class="form-textarea" id="cj-approved-domains" placeholder="www.google.com&#10;（選填）" rows="2"></textarea>
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div class="form-group">
               <label class="form-label" for="cj-max-depth">最大爬取深度</label>
@@ -187,7 +191,7 @@ function openCreateJobModal() {
   `;
   const doc = new DOMParser().parseFromString(modalHTML, 'text/html');
   while (doc.body.firstChild) {
-      backdrop.appendChild(doc.body.firstChild);
+    backdrop.appendChild(doc.body.firstChild);
   }
 
   document.body.appendChild(backdrop);
@@ -204,6 +208,7 @@ function openCreateJobModal() {
     const targetDomainsRaw = document.getElementById('cj-target-domains').value;
     const internalDomainsRaw = document.getElementById('cj-internal-domains').value;
     const ignoreRegexesRaw = document.getElementById('cj-ignore-regexes').value;
+    const approvedDomainsRaw = document.getElementById('cj-approved-domains').value;
     const maxDepth = document.getElementById('cj-max-depth').value;
     const maxPages = document.getElementById('cj-max-pages').value;
     const errorEl = document.getElementById('create-job-error');
@@ -216,8 +221,9 @@ function openCreateJobModal() {
     const targetDomains = targetDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
     const internalDomains = internalDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
     const ignoreRegexes = ignoreRegexesRaw.split('\n').map(s => s.trim()).filter(Boolean);
+    const approvedDomains = approvedDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
 
-    const body = { start_url: startUrl, target_domains: targetDomains, internal_domains: internalDomains, ignore_regexes: ignoreRegexes };
+    const body = { start_url: startUrl, target_domains: targetDomains, internal_domains: internalDomains, ignore_regexes: ignoreRegexes, approved_domains: approvedDomains };
     if (maxDepth) body.max_depth = parseInt(maxDepth);
     if (maxPages) body.max_pages = parseInt(maxPages);
 

@@ -442,12 +442,13 @@ class JobManager:
                         self._send_job_status_notification(job_id, "completed")
                         break
 
-                    # 從佇列中取得下一個等待處理的網址
+                    # 從佇列中取得下一個等待處理的網址，依據 ID 排序以保障 FIFO 的 BFS 順序
                     queue_item: CrawlQueue | None = (
                         session.query(CrawlQueue)
                         .filter(
                             CrawlQueue.job_id == job_id, CrawlQueue.status == "pending"
                         )
+                        .order_by(CrawlQueue.id)
                         .first()
                     )
 
@@ -469,7 +470,10 @@ class JobManager:
                         status: str
                         request_sent: bool
 
-                        # 若設定了最大爬取深度，且目前項目的深度已超過該限制，則略過不再往下爬行
+                        # 若設定了最大爬取深度，且目前項目的深度已超過該限制，則略過不再往下爬行。
+                        # 註：當 queue_item.depth == max_depth 時，此條件不成立，網頁仍會被爬取並探測外連；
+                        # 但其內連深度為 depth + 1，會因後續 next_depth <= max_depth 判斷而被拒絕加入佇列，
+                        # 從而完美實現「達到最大深度時仍解析外連但不加入內部佇列」的要求。
                         if max_depth is not None and queue_item.depth > max_depth:
                             # 即使略過爬行，仍須在佇列標記為已略過
                             queue_item.status = "skip"
@@ -514,9 +518,24 @@ class JobManager:
                                     session.add(new_item)
                         session.commit()
 
-                        # 處理外部連結：如果是目標外部連結，則進行探測並記錄
+                        # 處理外部連結：如果是目標外部連結，則進行探測並記錄。
+                        # 先對本次頁面發現的外連進行去重，避免同一頁內重複處理相同的外部連結。
+                        unique_external_links = list(set(external_target_links))
                         links_needing_http_check = []
-                        for link in external_target_links:
+                        for link in unique_external_links:
+                            # 檢查資料庫中是否已存在相同的 (job_id, source_url, target_url) 紀錄
+                            exists = (
+                                session.query(ExternalLink)
+                                .filter(
+                                    ExternalLink.job_id == job_id,
+                                    ExternalLink.source_url == current_url,
+                                    ExternalLink.target_url == link,
+                                )
+                                .first()
+                            )
+                            if exists:
+                                continue
+
                             # 如果之前已經探測過且有快取，則直接複用快取結果寫入資料庫
                             if link in checked_links_cache:
                                 cached_ip, cached_code, cached_err = (
@@ -557,17 +576,28 @@ class JobManager:
                             for link, ip, status_code, err_msg in results:
                                 # 寫入快取供後續網頁共享
                                 checked_links_cache[link] = (ip, status_code, err_msg)
-                                is_sec = link.startswith("https://")
-                                new_ext = ExternalLink(
-                                    job_id=job_id,
-                                    source_url=current_url,
-                                    target_url=link,
-                                    ip_address=ip,
-                                    is_secure=is_sec,
-                                    http_status_code=status_code,
-                                    error_message=err_msg,
+                                # 再次防禦性檢查以防並行環境下重複寫入
+                                exists = (
+                                    session.query(ExternalLink)
+                                    .filter(
+                                        ExternalLink.job_id == job_id,
+                                        ExternalLink.source_url == current_url,
+                                        ExternalLink.target_url == link,
+                                    )
+                                    .first()
                                 )
-                                session.add(new_ext)
+                                if not exists:
+                                    is_sec = link.startswith("https://")
+                                    new_ext = ExternalLink(
+                                        job_id=job_id,
+                                        source_url=current_url,
+                                        target_url=link,
+                                        ip_address=ip,
+                                        is_secure=is_sec,
+                                        http_status_code=status_code,
+                                        error_message=err_msg,
+                                    )
+                                    session.add(new_ext)
 
                         queue_item.status = status
                         session.commit()
@@ -668,12 +698,13 @@ class JobManager:
             finally:
                 crawler.close()
 
-    def get_all_jobs(self, user_id: str | None = None) -> list[dict[str, Any]]:
+    def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
         """
         取得所有任務的列表與基本資訊。可透過 user_id 進行過濾。
 
         Args:
             user_id (str | None): (選填) 若提供，則僅回傳該擁有者的任務。
+            status (str | None): (選填) 依據任務狀態進行過濾。
 
         Returns:
             list[dict[str, Any]]: 包含任務基本資訊的字典陣列。
@@ -682,6 +713,8 @@ class JobManager:
             query = session.query(Job)
             if user_id:
                 query = query.filter(Job.user_id == user_id)
+            if status:
+                query = query.filter(Job.status == status)
             jobs = query.order_by(Job.created_at.desc()).all()
             return [
                 {

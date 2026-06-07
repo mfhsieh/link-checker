@@ -155,7 +155,15 @@ def create_admin(email: str) -> None:
 
     session_local = get_auth_session_local()
     with session_local() as db:
+        # 依據 §12.2 規定：確認 Auth DB 尚未存在任何 Admin 帳號
+        admin_count = db.query(User).filter(User.role == "admin").count()
         existing = db.query(User).filter(User.email == email).first()
+
+        # 如果系統已經有管理員，且要建立的不是原本那位，則強制阻擋
+        if admin_count > 0 and (not existing or existing.role != "admin"):
+            print("錯誤：系統中已存在管理員帳號。依據安全規範，後續管理員請透過後台網頁介面邀請，禁止使用 CLI 重複建立。")
+            sys.exit(1)
+
         random_password = generate_random_password()
         if existing:
             print(
@@ -221,7 +229,7 @@ def parse_args() -> argparse.Namespace | None:
         "-g",
         "--global-config",
         type=str,
-        default="config/config_global.yaml",
+        default=os.environ.get("GLOBAL_CONFIG_PATH", "config/config_global.yaml"),
         help="全域 YAML 設定檔的路徑",
     )
     parser.add_argument("-c", "--config", type=str, help="YAML 設定檔的路徑")
@@ -439,9 +447,9 @@ def merge_and_validate_crawler_config(
     allowed_crawler_keys: set[str] = {
         "timeout",
         "delay",
-        "ignore_extensions",
         "retries",
         "mime_type_filter",
+        "ignore_extensions",
         "ignore_regexes",
         "user_agent",
         "approved_domains",
@@ -691,11 +699,15 @@ def main() -> None:
     if not args:
         return
 
+    global_config_path = args.global_config
+    if not global_config_path.startswith(("config/", "./config/", "/")):
+        global_config_path = os.path.join("config", global_config_path)
+
     global_config: dict[str, Any] = {}
     try:
-        global_config = load_config(args.global_config, allowed_directory="config")
+        global_config = load_config(global_config_path, allowed_directory="config")
     except FileNotFoundError:
-        logging.warning("找不到全域設定檔: %s，將使用預設全域設定", args.global_config)
+        logging.warning("找不到全域設定檔: %s，將使用預設全域設定", global_config_path)
     except PermissionError as pe:
         logging.error("安全驗證失敗：%s", pe)
         sys.exit(1)

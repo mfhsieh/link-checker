@@ -8,7 +8,8 @@ types-PyYAML==6.0.12.20260518
 # ── Web 後端依賴 ───────────────────────────────────────────────────────────────
 fastapi==0.115.12
 uvicorn[standard]==0.34.3
-bcrypt
+bcrypt==4.3.0
 python-multipart==0.0.20
 email-validator==2.2.0
-itsdangerous==2.2.0python-dotenv
+itsdangerous==2.2.0
+python-dotenv==1.0.1
