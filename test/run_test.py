@@ -422,7 +422,7 @@ def run_test() -> None:
         conn.close()
 
         # =====================================================================
-        # 6.5. 驗證 --filter 導出篩選器 (dead, broken, unapproved)
+        # 6.5. 驗證 --filter 導出篩選器 (dead, broken)
         # =====================================================================
         print("\nRunning Verification: Export filters (--filter)...")
 
@@ -491,32 +491,6 @@ def run_test() -> None:
         ), f"Expected 6 broken links (excluding neverssl.com), got {len(filtered_broken)}: {[x['target_url'] for x in filtered_broken]}"
         os.remove(broken_file)
 
-        # 測試 --filter unapproved
-        unapproved_file = "tmp_unapproved.json"
-        if os.path.exists(unapproved_file):
-            os.remove(unapproved_file)
-        export_unapproved_cmd = [
-            sys.executable,
-            "cli.py",
-            "--export",
-            job_id,
-            "--json",
-            "--filter",
-            "unapproved",
-            "--output",
-            unapproved_file,
-        ]
-        res_unapproved = subprocess.run(
-            export_unapproved_cmd, capture_output=True, text=True
-        )
-        assert res_unapproved.returncode == 0, "Export with --filter unapproved failed"
-        with open(unapproved_file, "r") as f:
-            unapproved_data = json.load(f)
-        # 預期不屬於白名單的外連有 10 個 (因為 config_global.yaml 的白名單已被註解)
-        assert (
-            len(unapproved_data) == 10
-        ), f"Expected 10 unapproved links, got {len(unapproved_data)}"
-        os.remove(unapproved_file)
         print("Verification Passed: Export filters.")
 
         # =====================================================================

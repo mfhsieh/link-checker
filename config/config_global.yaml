@@ -79,11 +79,6 @@ crawler:
   ssl_exempt_domains:
     # - "example.com"
 
-  # 信任的外部網域白名單 (Domain Whitelist)
-  # 若在導出時加上 --filter unapproved，則僅導出不屬於此白名單的所有外部網域網址
-  approved_domains:
-    # - "www.google.com"
-
   # 網域特定請求延遲時間對照表 (單位：秒)
   # 當爬取特定網域時，將以其設定的時間覆寫預設的 delay 時間，避免過度存取造成對方伺服器負載過大
   # 系統使用最長匹配優先原則 (例如 "sub.example.com" 優先於 "example.com")

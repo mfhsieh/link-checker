@@ -27,8 +27,6 @@ from crawler.manager import JobManager
 from crawler.models import CrawlQueue, ExternalLink, Job
 from crawler.utils import (
     get_domain,
-    is_in_domain_list,
-    get_approved_domains_from_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -183,7 +181,7 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
             raw_config = json.loads(job.config_json)
             allowed_keys = {
                 "max_depth", "max_pages", "delay", "timeout",
-                "retries", "ignore_extensions", "ignore_regexes", "approved_domains"
+                    "retries", "ignore_extensions", "ignore_regexes"
             }
             for k in allowed_keys:
                 if k in raw_config:
@@ -296,17 +294,6 @@ def _group_results(links: list[ExternalLink]) -> list[dict[str, Any]]:
     ]
 
 
-def _filter_unapproved_links(links: list[ExternalLink], job: Job) -> list[ExternalLink]:
-    """過濾出未核准的外部連結。"""
-    approved_domains = get_approved_domains_from_config(job.config_json)
-    filtered = []
-    for lnk in links:
-        domain = get_domain(lnk.target_url) or ""
-        if not is_in_domain_list(domain, approved_domains):
-            filtered.append(lnk)
-    return filtered
-
-
 def get_job_results(
     db: DBSession,
     query_args: JobResultQuery,
@@ -335,16 +322,6 @@ def get_job_results(
         query = query.filter(ExternalLink.http_status_code >= 400)
 
     links = query.order_by(ExternalLink.created_at).all()
-
-    if query_args.status_filter == "unapproved":
-        # 注意：unapproved 篩選需在 Python 層全量載入後過濾（無法下推至 SQL）
-        # 當外連數量龐大時（> 10000 筆）效能可能較差
-        if len(links) > 10000:
-            logger.warning(
-                "任務 %s 的 unapproved 篩選需載入 %d 筆外連記錄，可能較緩慢。",
-                query_args.job_id, len(links)
-            )
-        links = _filter_unapproved_links(links, job)
 
     if query_args.group:
         items_list = _group_results(links)

@@ -24,7 +24,6 @@ from crawler.utils import (
     resolve_ip,
     get_domain,
     is_in_domain_list,
-    get_approved_domains_from_config,
 )
 
 try:
@@ -802,7 +801,7 @@ class JobManager:
         Args:
             job_id (str): 欲匯出結果的任務 ID。
             output_path (str): 匯出檔案的目的地路徑。
-            status_filter (str | None): (選填) 'dead', 'broken' 或 'unapproved' 的過濾條件。
+            status_filter (str | None): (選填) 'dead' 或 'broken' 的過濾條件。
             export_group (bool): 是否啟用去重與聚合導出。
 
         Returns:
@@ -827,16 +826,6 @@ class JobManager:
                 query = query.filter(ExternalLink.http_status_code >= 400)
 
             links = query.order_by(ExternalLink.created_at).all()
-
-            if status_filter == "unapproved":
-                approved_domains = get_approved_domains_from_config(job.config_json)
-
-                filtered_links = []
-                for link in links:
-                    domain = get_domain(link.target_url)
-                    if not domain or not is_in_domain_list(domain, approved_domains):
-                        filtered_links.append(link)
-                links = filtered_links
 
             output_dir = os.path.dirname(output_path)
             if output_dir and not os.path.exists(output_dir):

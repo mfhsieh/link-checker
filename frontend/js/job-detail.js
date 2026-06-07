@@ -243,7 +243,6 @@ function bindControlButtons() {
                 <div style="font-weight:600; border-bottom:1px solid var(--surface-border); padding-bottom:0.5rem; margin-bottom:0.75rem;">🛡️ 過濾與排除</div>
                 <div style="display:grid; grid-template-columns: 110px 1fr; gap:0.75rem 0.5rem; font-size:0.875rem;">
                   <div class="text-muted">忽略路徑規則</div><div>${formatList(c.ignore_regexes)}</div>
-                  <div class="text-muted">信任網域白名單</div><div>${formatList(c.approved_domains)}</div>
                   <div class="text-muted">忽略副檔名</div>
                   <div style="max-height:160px; overflow-y:auto; padding-right:4px;">
                     ${formatList(c.ignore_extensions)}

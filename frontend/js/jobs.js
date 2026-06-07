@@ -166,10 +166,6 @@ function openCreateJobModal() {
             <label class="form-label" for="cj-ignore-regexes">排除的正則表達式 <span class="form-hint">（每行一個，符合的 URL 將不會被爬取與探測）</span></label>
             <textarea class="form-textarea" id="cj-ignore-regexes" placeholder="^https://example\\.com/download/.*&#10;（選填）" rows="2"></textarea>
           </div>
-          <div class="form-group" style="margin-bottom:1rem">
-            <label class="form-label" for="cj-approved-domains">信任的外部網域白名單 <span class="form-hint">（每行一個）</span></label>
-            <textarea class="form-textarea" id="cj-approved-domains" placeholder="www.google.com&#10;（選填）" rows="2"></textarea>
-          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
             <div class="form-group">
               <label class="form-label" for="cj-max-depth">最大爬取深度</label>
@@ -208,7 +204,6 @@ function openCreateJobModal() {
     const targetDomainsRaw = document.getElementById('cj-target-domains').value;
     const internalDomainsRaw = document.getElementById('cj-internal-domains').value;
     const ignoreRegexesRaw = document.getElementById('cj-ignore-regexes').value;
-    const approvedDomainsRaw = document.getElementById('cj-approved-domains').value;
     const maxDepth = document.getElementById('cj-max-depth').value;
     const maxPages = document.getElementById('cj-max-pages').value;
     const errorEl = document.getElementById('create-job-error');
@@ -221,9 +216,8 @@ function openCreateJobModal() {
     const targetDomains = targetDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
     const internalDomains = internalDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
     const ignoreRegexes = ignoreRegexesRaw.split('\n').map(s => s.trim()).filter(Boolean);
-    const approvedDomains = approvedDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
 
-    const body = { start_url: startUrl, target_domains: targetDomains, internal_domains: internalDomains, ignore_regexes: ignoreRegexes, approved_domains: approvedDomains };
+    const body = { start_url: startUrl, target_domains: targetDomains, internal_domains: internalDomains, ignore_regexes: ignoreRegexes };
     if (maxDepth) body.max_depth = parseInt(maxDepth);
     if (maxPages) body.max_pages = parseInt(maxPages);
 

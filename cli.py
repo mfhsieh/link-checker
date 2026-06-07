@@ -278,8 +278,8 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument(
         "--filter",
         type=str,
-        choices=["dead", "broken", "unapproved"],
-        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken, unapproved)",
+        choices=["dead", "broken"],
+        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken)",
     )
     parser.add_argument(
         "--group",
@@ -369,7 +369,6 @@ def _merge_crawler_lists(
     list_keys = [
         "ignore_extensions",
         "ignore_regexes",
-        "approved_domains",
         "ssl_exempt_domains",
     ]
     for key in list_keys:
@@ -383,7 +382,7 @@ def _merge_crawler_lists(
 
         if g_list or l_list:
             crawler_config[key] = list(set(g_list + l_list))
-        elif key in ["approved_domains", "ssl_exempt_domains"]:
+        elif key in ["ssl_exempt_domains"]:
             crawler_config[key] = []
 
     global_domain_delays: dict = global_crawler_config.get("domain_delays") or {}
@@ -452,7 +451,6 @@ def merge_and_validate_crawler_config(
         "ignore_extensions",
         "ignore_regexes",
         "user_agent",
-        "approved_domains",
         "ssl_exempt_domains",
         "domain_delays",
         "max_depth",

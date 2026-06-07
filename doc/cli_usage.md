@@ -23,7 +23,7 @@
 | `--report` | *(無)* | 字串 | 指定任務 ID，顯示該任務的詳細進度與統計報表。 | 無 |
 | `--export` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
 | `--output` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，自訂輸出路徑。 | `report/<JOB_ID>.csv` (或 `.json`) |
-| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容。支援 `dead`、`broken`、`unapproved`。 | 無 |
+| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容。支援 `dead`、`broken`。 | 無 |
 | `--group` | *(無)* | 旗標 | (選填) 搭配 `--export` 使用，將相同外部連結在不同頁面出現時去重聚合。 | 無 |
 | `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及 `--export` 的 JSON 檔案導出。 | 無 |
 | `--serve` | *(無)* | 旗標 | 啟動 Web 後端伺服器 (FastAPI / Uvicorn)。 | 無 |
@@ -36,7 +36,6 @@
 > * `--filter` 篩選條件說明：
 >   * `dead`：特指 **「DNS 解析失敗 (IP 位址為空) 的無效外部連結」**（例如網域已過期）。
 >   * `broken`：特指 **「HTTP 狀態碼為異常 (>= 400) 或連線失敗的超連結與資源」**。
->   * `unapproved`：特指 **「不在 approved_domains 白名單中的外部網域超連結與資源」**。
 > * 爬蟲執行過程中的日誌會依據全域設定，同時輸出至畫面並備份至 `log/crawler.log`。
 
 ---
@@ -86,10 +85,6 @@ crawler:
   # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證)
   ssl_exempt_domains:
     # - "example.com"
-
-  # 信任的外部網域白名單 (Domain Whitelist)
-  approved_domains:
-    # - "www.google.com"
 
   # 網域特定請求延遲時間對照表 (單位：秒，支援最長匹配優先原則)
   domain_delays:
@@ -172,10 +167,6 @@ crawler:
   # 額外要略過解析的副檔名 (會與全域設定檔中的清單聯集)
   ignore_extensions:
     - ".custom_ext"
-
-  # 信任的外部網域白名單 (選填，會與全域設定檔聯集)
-  approved_domains:
-    - "partner-service.com"
 ```
 
 > [!WARNING]
@@ -296,9 +287,6 @@ python cli.py --export <JOB_ID> --filter dead --output ./dead_links.csv
 
 # 匯出所有損毀外連 (包含 DNS 解析失敗，以及 HTTP 狀態碼 >= 400 比如 404/500)
 python cli.py --export <JOB_ID> --filter broken
-
-# 僅匯出「非白名單內網域」的外連（資安稽核用）
-python cli.py --export <JOB_ID> --filter unapproved
 
 # 匯出為 JSON 格式 (預設會輸出到 report/<JOB_ID>.json)
 python cli.py --export <JOB_ID> --json

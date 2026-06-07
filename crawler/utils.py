@@ -109,12 +109,3 @@ def normalize_url(url: str, base_url: str) -> str:
         str: 完整的絕對網址字串。
     """
     return urllib.parse.urljoin(base_url, url)
-
-def get_approved_domains_from_config(config_json: str | None) -> list[str]:
-    """從 config_json 解析 approved_domains。"""
-    if config_json:
-        try:
-            return json.loads(config_json).get("approved_domains", [])
-        except json.JSONDecodeError:
-            pass
-    return []

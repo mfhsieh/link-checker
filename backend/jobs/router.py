@@ -48,7 +48,6 @@ class CreateJobRequest(BaseModel):
     internal_domains: list[str] = []
     ignore_extensions: list[str] = []
     ignore_regexes: list[str] = []
-    approved_domains: list[str] = []
     max_depth: int | None = None
     max_pages: int | None = None
     delay: float | None = None
@@ -99,7 +98,7 @@ async def get_default_config(
 
     # 僅提取前端有使用到的欄位，過濾掉不需要暴露的敏感或內部配置
     allowed_keys = {
-        "ignore_extensions", "ignore_regexes", "approved_domains",
+        "ignore_extensions", "ignore_regexes",
         "delay", "min_delay", "max_delay",
         "timeout", "min_timeout", "max_timeout",
         "retries", "min_retries", "max_retries",
@@ -129,7 +128,7 @@ async def create_job(
     
     # 安全白名單：只允許前端設定特定的 crawler_config 欄位
     allowed_crawler_keys = {
-        "ignore_extensions", "ignore_regexes", "approved_domains",
+        "ignore_extensions", "ignore_regexes",
         "max_depth", "max_pages", "delay", "timeout",
         "retries", "proxy_url"
     }
@@ -276,7 +275,7 @@ class ResultsQueryArgs:
     def __init__(
         self,
         status_filter: str | None = Query(
-            None, alias="filter", pattern="^(dead|broken|unapproved)$"
+            None, alias="filter", pattern="^(dead|broken)$"
         ),
         search: str | None = Query(None),
         group: bool = Query(False),
@@ -333,7 +332,7 @@ class ExportQueryArgs:
     def __init__(
         self,
         status_filter: str | None = Query(
-            None, alias="filter", pattern="^(dead|broken|unapproved)$"
+            None, alias="filter", pattern="^(dead|broken)$"
         ),
         group: bool = Query(False),
         fmt: str = Query("csv", pattern="^(csv|json)$"),
@@ -355,7 +354,7 @@ async def export_results(
     匯出外連結果（CSV 或 JSON 格式下載）。
 
     查詢參數：
-    - filter: dead / broken / unapproved
+    - filter: dead / broken
     - group: 是否去重聚合
     - fmt: csv 或 json（預設 csv）
 

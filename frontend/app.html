@@ -204,7 +204,6 @@
             </div>
             <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
             <button class="filter-chip" data-filter="broken">⚠ HTTP 錯誤</button>
-            <button class="filter-chip" data-filter="unapproved">🔍 未核准</button>
             <label
               style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-secondary);cursor:pointer;white-space:nowrap">
               <input type="checkbox" id="results-group-toggle" /> 去重聚合
@@ -273,11 +272,6 @@
                     <textarea class="form-textarea" id="job-ignore-regexes" rows="3" placeholder="載入中..."></textarea>
                     <div class="form-hint" id="hint-ignore-regexes">每行一個。您輸入的項目將與系統全域設定合併生效。</div>
                   </div>
-                </div>
-                <div class="form-group" style="margin-bottom:1.5rem">
-                  <label class="form-label" for="job-approved-domains">信任的外部網域白名單 (Approved Domains)</label>
-                  <textarea class="form-textarea" id="job-approved-domains" rows="3" placeholder="載入中..."></textarea>
-                  <div class="form-hint" id="hint-approved-domains">每行一個。您輸入的項目將與系統全域設定合併生效。</div>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="job-proxy-url">代理伺服器 (Proxy URL)</label>
@@ -595,16 +589,6 @@
           });
         }
 
-        const approvedDomainsEl = document.getElementById('job-approved-domains');
-        if (approvedDomainsEl) approvedDomainsEl.placeholder = 'www.google.com';
-        const approvedDomainsHint = document.getElementById('hint-approved-domains');
-        if (approvedDomainsHint && config.approved_domains?.length) {
-          approvedDomainsHint.innerHTML = `每行一個。您輸入的項目將與系統全域設定 <button type="button" id="btn-view-approved-domains" title="檢視預設信任網域白名單" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併生效。`;
-          document.getElementById('btn-view-approved-domains').addEventListener('click', () => {
-            showDefaultListModal('預設信任網域白名單 (唯讀)', config.approved_domains.join('\n'));
-          });
-        }
-
         setField('job-delay', config.delay, config.min_delay, config.max_delay);
         setField('job-timeout', config.timeout, config.min_timeout, config.max_timeout);
         setField('job-retries', config.retries, config.min_retries, config.max_retries);
@@ -769,7 +753,6 @@
         const internalDomainsRaw = document.getElementById('job-internal-domains').value;
         const ignoreExtsRaw = document.getElementById('job-ignore-exts').value;
         const ignoreRegexesRaw = document.getElementById('job-ignore-regexes').value;
-        const approvedDomainsRaw = document.getElementById('job-approved-domains') ? document.getElementById('job-approved-domains').value : '';
 
         if (!targetDomainsRaw.trim()) {
           errorEl.textContent = '請填寫至少一個目標網域。';
@@ -809,9 +792,6 @@
 
           const ignoreRegexes = ignoreRegexesRaw.split('\n').map(s => s.trim()).filter(Boolean);
           if (ignoreRegexes.length) body.ignore_regexes = ignoreRegexes;
-
-          const approvedDomains = approvedDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
-          if (approvedDomains.length) body.approved_domains = approvedDomains;
 
           const res = await api.post('/api/jobs', body);
           toast.success('任務已建立成功！');
