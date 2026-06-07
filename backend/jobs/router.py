@@ -84,7 +84,7 @@ async def get_default_config(
 ) -> dict[str, Any]:
     """取得任務預設的全域配置，供前端建立任務時填入預設值與限制。"""
     # pylint: disable=import-outside-toplevel
-    from backend.admin.router import DEFAULT_GLOBAL_CONFIG
+    from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
@@ -147,7 +147,7 @@ async def create_job(
 
     # 根據規格書 §4：將全域設定與個別任務設定合併，產生「最終執行配置快照」
     # pylint: disable=import-outside-toplevel
-    from cli import merge_and_validate_crawler_config
+    from crawler.config_utils import merge_and_validate_crawler_config
 
     settings = get_settings()
     global_config = {}

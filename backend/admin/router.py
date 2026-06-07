@@ -27,6 +27,7 @@ from backend.deps import (
     require_admin,
     require_csrf,
 )
+from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 from backend.email_sender import send_test_email
 from crawler.manager import JobManager
 from crawler.models import Job
@@ -35,35 +36,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-
-# ── 常數定義 ───────────────────────────────────────────────────────────────────
-
-DEFAULT_GLOBAL_CONFIG = {
-    "crawler": {
-        "timeout": 30,
-        "delay": 3.0,
-        "retries": 3,
-        "max_depth": None,
-        "max_pages": None,
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "proxy_url": None,
-        "ssl_exempt_domains": [],
-        "approved_domains": [],
-        "domain_delays": {},
-        "ignore_extensions": ["pdf", "zip", "jpg", "png", "gif", "mp4", "mp3", "doc", "docx", "xls", "xlsx", "csv"],
-        "ignore_regexes": [],
-        "mime_type_filter": {
-            "enabled": True,
-            "allowed_types": ["text/html", "application/xhtml+xml"]
-        },
-        "min_timeout": 5,
-        "max_timeout": 120,
-        "min_delay": 0.5,
-        "max_delay": 10.0,
-        "min_retries": 0,
-        "max_retries": 5,
-    }
-}
 
 # ── Request Schema ─────────────────────────────────────────────────────────────
 

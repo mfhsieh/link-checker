@@ -82,6 +82,27 @@ def _build_invitation_email(
     return msg
 
 
+def _send_email(msg: EmailMessage) -> None:
+    """執行實際的 SMTP 發送邏輯。"""
+    settings = get_settings()
+    context = ssl.create_default_context()
+    if settings.SMTP_USE_TLS:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
+            smtp.ehlo()
+            smtp.starttls(context=context)
+            smtp.ehlo()
+            if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+                smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            smtp.send_message(msg)
+    else:
+        with smtplib.SMTP_SSL(
+            settings.SMTP_HOST, settings.SMTP_PORT, context=context
+        ) as smtp:
+            if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
+                smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            smtp.send_message(msg)
+
+
 def send_invitation_email(to_email: str, invitation_token: str) -> bool:
     """
     發送邀請郵件給指定的使用者。
@@ -111,22 +132,7 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
         return True
 
     try:
-        context = ssl.create_default_context()
-        if settings.SMTP_USE_TLS:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
-                smtp.ehlo()
-                smtp.starttls(context=context)
-                smtp.ehlo()
-                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP_SSL(
-                settings.SMTP_HOST, settings.SMTP_PORT, context=context
-            ) as smtp:
-                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-                smtp.send_message(msg)
+        _send_email(msg)
 
         logger.info("邀請郵件已成功寄送至 %s", to_email)
         return True
@@ -160,22 +166,7 @@ def send_test_email(to_email: str) -> bool:
         return True
 
     try:
-        context = ssl.create_default_context()
-        if settings.SMTP_USE_TLS:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
-                smtp.ehlo()
-                smtp.starttls(context=context)
-                smtp.ehlo()
-                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP_SSL(
-                settings.SMTP_HOST, settings.SMTP_PORT, context=context
-            ) as smtp:
-                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-                smtp.send_message(msg)
+        _send_email(msg)
 
         logger.info("SMTP 測試郵件已成功寄送至 %s", to_email)
         return True
@@ -222,22 +213,7 @@ def send_notification_email(
         return True
 
     try:
-        context = ssl.create_default_context()
-        if settings.SMTP_USE_TLS:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as smtp:
-                smtp.ehlo()
-                smtp.starttls(context=context)
-                smtp.ehlo()
-                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP_SSL(
-                settings.SMTP_HOST, settings.SMTP_PORT, context=context
-            ) as smtp:
-                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-                smtp.send_message(msg)
+        _send_email(msg)
 
         logger.info("通知郵件已成功寄送至 %s", to_email)
         return True
