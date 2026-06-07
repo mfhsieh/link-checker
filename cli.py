@@ -204,7 +204,7 @@ def _is_help_needed(args: argparse.Namespace) -> bool:
         args.list_jobs,
         args.report,
         args.export,
-        args.export_internal,
+        args.export_full,
         args.pause,
         args.delete,
         args.reset,
