@@ -515,6 +515,28 @@ def run_test() -> None:
         assert all(item.get("is_secure") is False for item in insecure_data), "All insecure links should have is_secure=False"
         os.remove(insecure_file)
 
+        # 測試 --exclude
+        exclude_file = "tmp_exclude.json"
+        if os.path.exists(exclude_file):
+            os.remove(exclude_file)
+        export_exclude_cmd = [
+            sys.executable,
+            "cli.py",
+            "--export",
+            job_id,
+            "--json",
+            "--exclude",
+            "google.com",
+            "--output",
+            exclude_file,
+        ]
+        res_exclude = subprocess.run(export_exclude_cmd, capture_output=True, text=True)
+        assert res_exclude.returncode == 0, "Export with --exclude failed"
+        with open(exclude_file, "r") as f:
+            exclude_data = json.load(f)
+        assert not any("google.com" in item.get("target_url") for item in exclude_data), "Excluded domain should not be in export"
+        os.remove(exclude_file)
+
         # 測試 --export-full
         print("Testing Export CLI with Full Report (ZIP)...")
         full_zip_file = "tmp_full_report.zip"

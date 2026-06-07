@@ -279,6 +279,7 @@ class ResultsQueryArgs:
             None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
         search: str | None = Query(None),
+        exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
@@ -286,6 +287,7 @@ class ResultsQueryArgs:
         """初始化結果查詢參數。"""
         self.status_filter = status_filter
         self.search = search
+        self.exclude = exclude
         self.group_by = group_by
         self.page = page
         self.page_size = page_size
@@ -305,6 +307,7 @@ async def get_results(
             user_id=current_user.id,
             status_filter=query_args.status_filter,
             search=query_args.search,
+            exclude=query_args.exclude,
             group_by=query_args.group_by,
             page=query_args.page,
             page_size=query_args.page_size,
@@ -335,11 +338,13 @@ class ExportQueryArgs:
         status_filter: str | None = Query(
             None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
+        exclude: str | None = Query(None),
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         fmt: str = Query("csv", pattern="^(csv|json)$"),
     ) -> None:
         """初始化匯出查詢參數。"""
         self.status_filter = status_filter
+        self.exclude = exclude
         self.group_by = group_by
         self.fmt = fmt
 
@@ -376,6 +381,7 @@ async def export_results(
             job_id=job_id,
             user_id=current_user.id,
             status_filter=query_args.status_filter,
+            exclude=query_args.exclude,
             group_by=query_args.group_by,
             page=1,
             page_size=999999,

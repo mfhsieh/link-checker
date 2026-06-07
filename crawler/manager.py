@@ -810,6 +810,7 @@ class JobManager:
         status_filter: str | None = None,
         export_group: bool = False,
         group_by: str = "none",
+        exclude: str | None = None,
     ) -> bool:
         """
         將指定任務收集到的外部連結匯出為 CSV 或 JSON 格式。
@@ -820,6 +821,7 @@ class JobManager:
             status_filter (str | None): (選填) 'dead', 'broken' 或 'insecure' 的過濾條件。
             export_group (bool): (已棄用) 向下相容，請改用 group_by="target"。
             group_by (str): 聚合模式 ("none", "target", "source", "domain")。
+            exclude (str | None): (選填) 排除指定的目標網域，多個以逗號分隔。
 
         Returns:
             bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
@@ -843,6 +845,11 @@ class JobManager:
                 query = query.filter(ExternalLink.http_status_code >= 400)
             elif status_filter == "insecure":
                 query = query.filter(ExternalLink.is_secure.is_(False))
+                
+            if exclude:
+                excludes = [e.strip() for e in exclude.split(",") if e.strip()]
+                for exc in excludes:
+                    query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
 
             links = query.order_by(ExternalLink.created_at).all()
 

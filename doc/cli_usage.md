@@ -24,6 +24,7 @@
 | `--export` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
 | `--output` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，自訂輸出路徑。 | `report/<JOB_ID>.csv` (或 `.json`) |
 | `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容。支援 `dead`、`broken`、`insecure`。 | 無 |
+| `--exclude`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，排除指定的目標網域（多個以逗號分隔）。 | 無 |
 | `--export-full` | *(無)*| 字串 | 指定任務 ID，匯出該任務的完整報表 (ZIP 壓縮檔，含爬取紀錄與外連清單)。 | 無 |
 | `--group` | *(無)* | 旗標 | (已棄用) 等同於 `--group-by target`。 | 無 |
 | `--group-by`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，聚合模式：`target` (依外連)、`source` (依來源頁面)、`domain` (依網域)。 | `none` |
@@ -308,6 +309,9 @@ python cli.py --export <JOB_ID> --group-by domain
 
 # 匯出完整報表大禮包 (自動打包為 ZIP 檔)
 python cli.py --export-full <JOB_ID>
+
+# 匯出結果並排除特定網域 (例如不想看社群網站的外連)
+python cli.py --export <JOB_ID> --exclude "facebook.com,youtube.com,twitter.com"
 ```
 
 

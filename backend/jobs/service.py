@@ -51,6 +51,7 @@ class JobResultQuery:
     user_id: str
     status_filter: str | None = None
     search: str | None = None
+    exclude: str | None = None
     group_by: str = "none"
     page: int = 1
     page_size: int = 50
@@ -364,6 +365,11 @@ def get_job_results(
             ExternalLink.target_url.like(search_pattern)
             | ExternalLink.source_url.like(search_pattern)
         )
+        
+    if query_args.exclude:
+        excludes = [e.strip() for e in query_args.exclude.split(",") if e.strip()]
+        for exc in excludes:
+            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
 
     if query_args.status_filter == "dead":
         # dead：DNS 解析失敗（IP 位址為空）

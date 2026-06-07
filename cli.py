@@ -289,6 +289,11 @@ def parse_args() -> argparse.Namespace | None:
         help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken, insecure)",
     )
     parser.add_argument(
+        "--exclude",
+        type=str,
+        help="(選填) 搭配 --export 使用，排除指定的目標網域（多個以逗號分隔，例如: facebook.com,youtube.com）",
+    )
+    parser.add_argument(
         "--group",
         action="store_true",
         help="(已棄用) 搭配 --export 使用，請改用 --group-by target",
@@ -575,7 +580,7 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     group_by = "target" if args.group else args.group_by
     logging.info("準備將任務 %s 匯出至 %s...", args.export, output_path)
     success = manager.export_job_results(
-        args.export, output_path, status_filter=args.filter, group_by=group_by
+        args.export, output_path, status_filter=args.filter, group_by=group_by, exclude=args.exclude
     )
     if success:
         logging.info("匯出成功！")

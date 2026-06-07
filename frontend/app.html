@@ -212,28 +212,49 @@
           </div>
 
           <!-- 篩選列 -->
-          <div class="filter-bar" style="padding:0 1.5rem 1rem">
-            <div class="search-bar">
-              <svg class="search-bar-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd"
-                  d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-                  clip-rule="evenodd" />
-              </svg>
-              <input class="form-input" type="search" id="results-search" placeholder="搜尋 URL..."
-                style="padding-left:2.25rem" />
+          <div class="filter-bar"
+            style="padding:0 1.5rem 1rem; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
+
+            <!-- 左側：搜尋與排除 -->
+            <div style="display:flex; gap:0.5rem; align-items:center; flex:1; min-width:280px; max-width:400px;">
+              <div class="search-bar" style="flex:1;">
+                <svg class="search-bar-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd"
+                    d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                    clip-rule="evenodd" />
+                </svg>
+                <input class="form-input" type="search" id="results-search" placeholder="搜尋 URL..."
+                  style="padding-left:2.25rem" />
+              </div>
+              <button class="btn btn-secondary btn-icon" id="btn-open-exclude-modal" title="設定排除網域"
+                style="flex-shrink:0;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M13.875 18.825A10.05 10.05 0 0112 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3 3l18 18M9.878 9.878a3 3 0 004.244 4.244m-2.122-2.122l-2.122-2.122z" />
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M15.362 15.362A10.066 10.066 0 0021.963 12c-1.39-4.17-5.325-7.178-9.963-7.178-1.503 0-2.923.33-4.204.92" />
+                </svg>
+              </button>
             </div>
-            <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
-            <button class="filter-chip" data-filter="broken">⚠ HTTP 錯誤</button>
-            <button class="filter-chip" data-filter="insecure">🔓 非 HTTPS</button>
-            <div style="display:flex;align-items:center;gap:0.5rem;margin-left:auto">
-              <label for="results-group-select" class="text-sm text-muted" style="white-space:nowrap">檢視模式:</label>
-              <select id="results-group-select" class="form-input"
-                style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
-                <option value="none">平鋪列表 (預設)</option>
-                <option value="target">依外連目標聚合 (去重)</option>
-                <option value="source">依自家網頁聚合 (修補視角)</option>
-                <option value="domain">依外部網域統計 (資安盤點)</option>
-              </select>
+
+            <!-- 右側：過濾與檢視模式 -->
+            <div
+              style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem; justify-content:flex-end; flex:2; min-width:300px;">
+              <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
+              <button class="filter-chip" data-filter="broken">⚠ HTTP 錯誤</button>
+              <button class="filter-chip" data-filter="insecure">🔓 非 HTTPS</button>
+              <div style="display:flex;align-items:center;gap:0.5rem;margin-left:0.5rem;">
+                <label for="results-group-select" class="text-sm text-muted" style="white-space:nowrap">檢視模式:</label>
+                <select id="results-group-select" class="form-input"
+                  style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
+                  <option value="none">平鋪列表 (預設)</option>
+                  <option value="target">依外連目標聚合 (去重)</option>
+                  <option value="source">依自家網頁聚合 (修補視角)</option>
+                  <option value="domain">依外部網域統計 (資安盤點)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -611,6 +632,29 @@
       <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
         <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
         <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 排除網域 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="exclude-domains-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0">排除指定網域</h2>
+        <button id="exclude-domains-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div class="form-group" style="margin-bottom:1.5rem;">
+        <label class="form-label" for="exclude-domains-textarea">網域清單 (每行一個)</label>
+        <textarea class="form-textarea" id="exclude-domains-textarea" rows="6"
+          placeholder="facebook.com&#10;youtube.com"></textarea>
+        <div class="form-hint" style="margin-top:0.5rem">這些網域將從結果列表中隱藏，並自動儲存在您的瀏覽器中。</div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+        <button type="button" class="btn btn-ghost" id="exclude-domains-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="exclude-domains-submit">確定儲存</button>
       </div>
     </div>
   </div>

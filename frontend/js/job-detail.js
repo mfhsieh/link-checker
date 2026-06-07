@@ -16,6 +16,7 @@ let _currentJobId = null;
 let _currentJobConfig = null;
 let _currentFilter = null;
 let _currentSearch = '';
+let _currentExclude = '';
 let _currentGroupBy = 'none';
 let _currentPage = 1;
 let _eventsBound = false;
@@ -66,6 +67,10 @@ export async function initJobDetailPage(jobId) {
   _currentJobId = jobId;
   _currentFilter = null;
   _currentSearch = '';
+
+  // 初始化時載入儲存在 localStorage 的排除清單
+  _currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
+
   _currentGroupBy = 'none';
   _currentPage = 1;
 
@@ -75,6 +80,14 @@ export async function initJobDetailPage(jobId) {
   if (searchInput) searchInput.value = '';
   const groupSelect = document.getElementById('results-group-select');
   if (groupSelect) groupSelect.value = 'none';
+
+  // 依照是否有排除設定來改變按鈕的視覺呈現
+  const btnOpenExclude = document.getElementById('btn-open-exclude-modal');
+  if (btnOpenExclude) {
+    btnOpenExclude.style.color = _currentExclude ? 'var(--color-brand-500)' : '';
+    btnOpenExclude.style.borderColor = _currentExclude ? 'var(--color-brand-500)' : '';
+    btnOpenExclude.style.background = _currentExclude ? 'hsla(221, 83%, 53%, 0.1)' : '';
+  }
 
   if (!_eventsBound) {
     bindControlButtons();
@@ -291,6 +304,7 @@ async function loadResultsPage(jobId) {
     const params = {
       filter: _currentFilter || undefined,
       search: _currentSearch || undefined,
+      exclude: _currentExclude || undefined,
       group_by: _currentGroupBy,
       page: _currentPage,
       page_size: 50,
@@ -605,6 +619,41 @@ function bindResultsControls() {
     });
   }
 
+  // ── 綁定排除網域 Modal 邏輯 ──────────────────────────────────────────
+  const btnOpenExclude = document.getElementById('btn-open-exclude-modal');
+  const excludeModal = document.getElementById('exclude-domains-modal');
+  const excludeTextarea = document.getElementById('exclude-domains-textarea');
+  const excludeSubmit = document.getElementById('exclude-domains-submit');
+  const excludeClose = document.getElementById('exclude-domains-close');
+  const excludeCancel = document.getElementById('exclude-domains-cancel');
+
+  if (btnOpenExclude && excludeModal) {
+    const closeExcludeModal = () => { excludeModal.style.display = 'none'; };
+
+    btnOpenExclude.addEventListener('click', () => {
+      excludeTextarea.value = _currentExclude.split(',').filter(Boolean).join('\n');
+      excludeModal.style.display = 'flex';
+      setTimeout(() => excludeTextarea.focus(), 50);
+    });
+
+    excludeClose.addEventListener('click', closeExcludeModal);
+    excludeCancel.addEventListener('click', closeExcludeModal);
+
+    excludeSubmit.addEventListener('click', async () => {
+      const lines = excludeTextarea.value.split('\n').map(s => s.trim()).filter(Boolean);
+      _currentExclude = lines.join(',');
+      localStorage.setItem('ext-link-checker-exclude-domains', _currentExclude);
+
+      btnOpenExclude.style.color = _currentExclude ? 'var(--color-brand-500)' : '';
+      btnOpenExclude.style.borderColor = _currentExclude ? 'var(--color-brand-500)' : '';
+      btnOpenExclude.style.background = _currentExclude ? 'hsla(221, 83%, 53%, 0.1)' : '';
+
+      closeExcludeModal();
+      _currentPage = 1;
+      await loadResultsPage(_currentJobId);
+    });
+  }
+
   const groupSelect = document.getElementById('results-group-select');
   if (groupSelect) {
     groupSelect.addEventListener('change', async () => {
@@ -617,12 +666,14 @@ function bindResultsControls() {
   bindBtn('btn-export-csv', async () => {
     const params = new URLSearchParams({ fmt: 'csv', group_by: _currentGroupBy });
     if (_currentFilter) params.set('filter', _currentFilter);
+    if (_currentExclude) params.set('exclude', _currentExclude);
     await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
   });
 
   bindBtn('btn-export-json', async () => {
     const params = new URLSearchParams({ fmt: 'json', group_by: _currentGroupBy });
     if (_currentFilter) params.set('filter', _currentFilter);
+    if (_currentExclude) params.set('exclude', _currentExclude);
     await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
   });
 }
