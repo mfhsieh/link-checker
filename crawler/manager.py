@@ -794,6 +794,7 @@ class JobManager:
         output_path: str,
         status_filter: str | None = None,
         export_group: bool = False,
+        group_by: str = "none",
     ) -> bool:
         """
         將指定任務收集到的外部連結匯出為 CSV 或 JSON 格式。
@@ -803,7 +804,7 @@ class JobManager:
             output_path (str): 匯出檔案的目的地路徑。
             status_filter (str | None): (選填) 'dead', 'broken' 或 'insecure' 的過濾條件。
             export_group (bool): (已棄用) 向下相容，請改用 group_by="target"。
-            group_by (str): 聚合模式 ("none", "target", "source")。
+            group_by (str): 聚合模式 ("none", "target", "source", "domain")。
 
         Returns:
             bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
@@ -946,6 +947,41 @@ class JobManager:
                                     src,
                                     d["count"],
                                     targets_str
+                                ])
+                elif group_by == "domain":
+                    # 依外部網域聚合 (資安盤點)
+                    agg_domain: dict[str, dict[str, Any]] = defaultdict(lambda: {"count": 0, "urls": set()})
+                    for link in links:
+                        dom = get_domain(link.target_url) or "unknown"
+                        d = agg_domain[dom]
+                        d["count"] += 1
+                        d["urls"].add(link.target_url)
+                    
+                    # 依出現次數排序
+                    sorted_domains = sorted(agg_domain.items(), key=lambda x: x[1]["count"], reverse=True)
+                    
+                    if is_json:
+                        json_data = []
+                        for dom, d in sorted_domains:
+                            json_data.append({
+                                "domain": dom,
+                                "occurrence_count": d["count"],
+                                "unique_urls_count": len(d["urls"]),
+                                "unique_urls": sorted(list(d["urls"]))
+                            })
+                        with open(output_path, "w", encoding="utf-8") as f:
+                            json.dump(json_data, f, ensure_ascii=False, indent=2)
+                    else:
+                        with open(output_path, "w", newline="", encoding="utf-8") as f:
+                            writer = csv.writer(f)
+                            writer.writerow(["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"])
+                            for dom, d in sorted_domains:
+                                urls_str = "\n".join(sorted(list(d["urls"])))
+                                writer.writerow([
+                                    dom,
+                                    d["count"],
+                                    len(d["urls"]),
+                                    urls_str
                                 ])
                 elif group_by == "none":
                     # 一般平鋪導出 (不聚合)

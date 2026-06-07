@@ -333,12 +333,15 @@ function renderResultsTable(res, container) {
 
   const isGroupTarget = _currentGroupBy === 'target';
   const isGroupSource = _currentGroupBy === 'source';
+  const isGroupDomain = _currentGroupBy === 'domain';
   let headers;
 
   if (isGroupTarget) {
     headers = ['目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '來源數', '錯誤訊息'];
   } else if (isGroupSource) {
     headers = ['來源頁面', '外連數量', '詳細連結清單'];
+  } else if (isGroupDomain) {
+    headers = ['外部網域', '總出現次數', '不重複網址數', '包含網址清單'];
   } else {
     headers = ['來源頁面', '目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '錯誤訊息'];
   }
@@ -361,6 +364,51 @@ function renderResultsTable(res, container) {
 
   const tbody = document.createElement('tbody');
   items.forEach(item => {
+    if (isGroupDomain) {
+      const tr = document.createElement('tr');
+
+      const tdDomain = document.createElement('td');
+      tdDomain.className = 'font-mono font-medium';
+      tdDomain.textContent = item.domain;
+      tr.appendChild(tdDomain);
+
+      const tdOcc = document.createElement('td');
+      tdOcc.style.fontWeight = '600';
+      tdOcc.style.fontFeatureSettings = '"tnum"';
+      tdOcc.textContent = item.occurrence_count;
+      tr.appendChild(tdOcc);
+
+      const tdUnique = document.createElement('td');
+      tdUnique.textContent = item.unique_urls_count;
+      tr.appendChild(tdUnique);
+
+      const tdUrls = document.createElement('td');
+      const divUrls = document.createElement('div');
+      divUrls.style.maxHeight = '150px';
+      divUrls.style.overflowY = 'auto';
+      divUrls.style.paddingRight = '4px';
+      const ul = document.createElement('ul');
+      ul.style.margin = '0';
+      ul.style.paddingLeft = '0';
+      ul.style.listStyle = 'none';
+      ul.style.fontSize = '0.8125rem';
+      item.unique_urls.forEach(u => {
+        const li = document.createElement('li');
+        li.className = 'truncate';
+        li.style.maxWidth = '360px';
+        li.style.marginBottom = '0.25rem';
+        li.title = u;
+        li.textContent = u;
+        ul.appendChild(li);
+      });
+      divUrls.appendChild(ul);
+      tdUrls.appendChild(divUrls);
+      tr.appendChild(tdUrls);
+
+      tbody.appendChild(tr);
+      return;
+    }
+
     if (isGroupSource) {
       const tr = document.createElement('tr');
 
@@ -376,6 +424,10 @@ function renderResultsTable(res, container) {
       tr.appendChild(tdCount);
 
       const tdTargets = document.createElement('td');
+      const divTargets = document.createElement('div');
+      divTargets.style.maxHeight = '150px';
+      divTargets.style.overflowY = 'auto';
+      divTargets.style.paddingRight = '4px';
       const ul = document.createElement('ul');
       ul.style.margin = '0';
       ul.style.paddingLeft = '0';
@@ -394,7 +446,8 @@ function renderResultsTable(res, container) {
         li.innerHTML = `${badge}${secBadge}<span class="truncate" style="display:inline-block; max-width:400px; vertical-align:bottom" title="${escapeHtml(t.url)}">${escapeHtml(t.url)}</span>`;
         ul.appendChild(li);
       });
-      tdTargets.appendChild(ul);
+      divTargets.appendChild(ul);
+      tdTargets.appendChild(divTargets);
       tr.appendChild(tdTargets);
 
       tbody.appendChild(tr);

@@ -293,6 +293,32 @@ def _group_by_target(links: list[ExternalLink]) -> list[dict[str, Any]]:
         for v in agg.values()
     ]
 
+def _group_by_domain(links: list[ExternalLink]) -> list[dict[str, Any]]:
+    """依外部目標網域聚合，產出網域分佈統計報表。"""
+    agg: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        "domain": "",
+        "occurrence_count": 0,
+        "unique_urls": set(),
+    })
+    for lnk in links:
+        dom = get_domain(lnk.target_url) or "unknown"
+        d = agg[dom]
+        d["domain"] = dom
+        d["occurrence_count"] += 1
+        d["unique_urls"].add(lnk.target_url)
+        
+    result = []
+    for v in agg.values():
+        result.append({
+            "domain": v["domain"],
+            "occurrence_count": v["occurrence_count"],
+            "unique_urls_count": len(v["unique_urls"]),
+            "unique_urls": sorted(list(v["unique_urls"]))
+        })
+    # 依出現次數降冪排序
+    result.sort(key=lambda x: x["occurrence_count"], reverse=True)
+    return result
+
 def _group_by_source(links: list[ExternalLink]) -> list[dict[str, Any]]:
     """依自家網頁(Source URL)聚合，產出修補視角報表。"""
     agg: dict[str, dict[str, Any]] = defaultdict(lambda: {
@@ -355,6 +381,8 @@ def get_job_results(
         items_list = _group_by_target(links)
     elif query_args.group_by == "source":
         items_list = _group_by_source(links)
+    elif query_args.group_by == "domain":
+        items_list = _group_by_domain(links)
     else:
         items_list = [
             {

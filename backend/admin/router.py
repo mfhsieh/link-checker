@@ -356,12 +356,6 @@ async def takeover_job(
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
     )
-    auth_log = AuthLog(
-        user_id=_admin.id,
-        event_type="job_force_action",
-        ip_address=request.client.host if request.client else None,
-        detail=json.dumps(log_detail, ensure_ascii=False),
-    )
     auth_db.add(auth_log)
     auth_db.commit()
 

@@ -289,9 +289,9 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument(
         "--group-by",
         type=str,
-        choices=["none", "target", "source"],
+        choices=["none", "target", "source", "domain"],
         default="none",
-        help="(選填) 搭配 --export，指定聚合模式 (target:依外連, source:依來源頁面)",
+        help="(選填) 搭配 --export，指定聚合模式 (target:依外連, source:依來源頁面, domain:依網域)",
     )
     parser.add_argument(
         "--json",

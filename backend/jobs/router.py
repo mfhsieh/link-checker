@@ -278,7 +278,7 @@ class ResultsQueryArgs:
             None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
         search: str | None = Query(None),
-        group_by: str = Query("none", pattern="^(none|target|source)$"),
+        group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
     ) -> None:
@@ -334,7 +334,7 @@ class ExportQueryArgs:
         status_filter: str | None = Query(
             None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
-        group_by: str = Query("none", pattern="^(none|target|source)$"),
+        group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         fmt: str = Query("csv", pattern="^(csv|json)$"),
     ) -> None:
         """初始化匯出查詢參數。"""
@@ -355,7 +355,7 @@ async def export_results(
 
     查詢參數：
     - filter: dead / broken / insecure
-    - group_by: 聚合模式 (none / target / source)
+    - group_by: 聚合模式 (none / target / source / domain)
     - fmt: csv 或 json（預設 csv）
 
     Args:
@@ -401,7 +401,20 @@ async def export_results(
     # CSV 格式
     output = io.StringIO()
     if items:
-        if query_args.group_by == "source":
+        if query_args.group_by == "domain":
+            csv_items = []
+            for item in items:
+                urls_str = "\n".join(item["unique_urls"])
+                csv_items.append({
+                    "Domain": item["domain"],
+                    "Occurrence Count": item["occurrence_count"],
+                    "Unique URLs Count": item["unique_urls_count"],
+                    "Unique URLs": urls_str
+                })
+            writer = csv.DictWriter(output, fieldnames=["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"])
+            writer.writeheader()
+            writer.writerows(csv_items)
+        elif query_args.group_by == "source":
             csv_items = []
             for item in items:
                 targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]])
