@@ -275,7 +275,7 @@ class ResultsQueryArgs:
     def __init__(
         self,
         status_filter: str | None = Query(
-            None, alias="filter", pattern="^(dead|broken)$"
+            None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
         search: str | None = Query(None),
         group: bool = Query(False),
@@ -332,7 +332,7 @@ class ExportQueryArgs:
     def __init__(
         self,
         status_filter: str | None = Query(
-            None, alias="filter", pattern="^(dead|broken)$"
+            None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
         group: bool = Query(False),
         fmt: str = Query("csv", pattern="^(csv|json)$"),
@@ -354,7 +354,7 @@ async def export_results(
     匯出外連結果（CSV 或 JSON 格式下載）。
 
     查詢參數：
-    - filter: dead / broken
+    - filter: dead / broken / insecure
     - group: 是否去重聚合
     - fmt: csv 或 json（預設 csv）
 

@@ -422,7 +422,7 @@ def run_test() -> None:
         conn.close()
 
         # =====================================================================
-        # 6.5. 驗證 --filter 導出篩選器 (dead, broken)
+        # 6.5. 驗證 --filter 導出篩選器 (dead, broken, insecure)
         # =====================================================================
         print("\nRunning Verification: Export filters (--filter)...")
 
@@ -490,6 +490,29 @@ def run_test() -> None:
             len(filtered_broken) == 6
         ), f"Expected 6 broken links (excluding neverssl.com), got {len(filtered_broken)}: {[x['target_url'] for x in filtered_broken]}"
         os.remove(broken_file)
+
+        # 測試 --filter insecure
+        insecure_file = "tmp_insecure.json"
+        if os.path.exists(insecure_file):
+            os.remove(insecure_file)
+        export_insecure_cmd = [
+            sys.executable,
+            "cli.py",
+            "--export",
+            job_id,
+            "--json",
+            "--filter",
+            "insecure",
+            "--output",
+            insecure_file,
+        ]
+        res_insecure = subprocess.run(export_insecure_cmd, capture_output=True, text=True)
+        assert res_insecure.returncode == 0, "Export with --filter insecure failed"
+        with open(insecure_file, "r") as f:
+            insecure_data = json.load(f)
+        assert len(insecure_data) >= 2, f"Expected at least 2 insecure links, got {len(insecure_data)}"
+        assert all(item.get("is_secure") is False for item in insecure_data), "All insecure links should have is_secure=False"
+        os.remove(insecure_file)
 
         print("Verification Passed: Export filters.")
 

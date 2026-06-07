@@ -278,8 +278,8 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument(
         "--filter",
         type=str,
-        choices=["dead", "broken"],
-        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken)",
+        choices=["dead", "broken", "insecure"],
+        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken, insecure)",
     )
     parser.add_argument(
         "--group",

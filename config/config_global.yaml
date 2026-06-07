@@ -1,170 +1,97 @@
-# 全域資料庫連線字串
-db_url: "sqlite:///db/crawler.db"
-
-# 全域 Logging 設定
-logging:
-  # 輸出到畫面的日誌層級 (可選：DEBUG, INFO, WARNING, ERROR, CRITICAL)
-  console_level: "INFO"
-  # 儲存到檔案的日誌層級 (可選：DEBUG, INFO, WARNING, ERROR, CRITICAL)
-  file_level: "DEBUG"
-  # 日誌儲存的目錄與檔名
-  log_file: "log/crawler.log"
-
-# 爬蟲引擎的全域限制與預設值
 crawler:
-  # HTTP 請求連線逾時時間的「最小值」限制 (單位：秒)
-  # 個別任務設定檔若低於此值，將被強制套用此值，避免因超時設定過短而頻繁失敗
-  min_timeout: 15
-
-  # HTTP 請求連線逾時時間的「最大值」限制 (單位：秒)
-  # 個別任務設定檔若高於此值，將被強制套用此值，避免單一請求佔用過長等待時間
-  max_timeout: 120
-
-  # 每次發送請求前延遲時間的「最小值」限制 (單位：秒)
-  # 個別任務設定檔若低於此值，將被強制套用此值，避免過度頻繁請求對目標網站造成攻擊
-  min_delay: 1
-
-  # 每次發送請求前延遲時間的「最大值」限制 (單位：秒)
-  # 個別任務設定檔若高於此值，將被強制套用此值，確保爬蟲任務不會因過度延遲而效率低落
-  max_delay: 10.0
-
-  # 失敗連結的「最小」重試次數限制
-  # 個別任務設定檔若低於此值，將被強制套用此值
-  min_retries: 0
-
-  # 失敗連結的「最大」重試次數限制
-  # 個別任務設定檔若高於此值，將被強制套用此值，避免無止盡的重試
-  max_retries: 5
-
-  # 預設的 HTTP 請求標頭 User-Agent
-  # 用於模擬瀏覽器行為以防範目標網站直接封鎖預設爬蟲標頭
-  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-
-  # 依據 HTTP Header 中的 MIME 類型來決定是否下載完整內容
-  # 若個別任務的設定檔中未覆寫，將自動套用此全域預設值
-  mime_type_filter:
-    enabled: true
-    allowed_types:
-      - "text/html"
-      - "application/xhtml+xml"
-
-  # 代理伺服器 URL (例如 "http://user:password@proxy.example.com:8080")
-  # 預設為 null。當設定時，所有 HTTP 請求都會透過此代理伺服器發送
-  # 注意：可透過環境變數 CRAWLER_PROXY_URL 優先覆寫
-  proxy_url: null
-
-  # 最大探索深度限制 (從起始網頁開始的點擊次數)
-  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
-  max_depth: null
-
-  # 最大抓取實質網頁頁面數量上限
-  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
-  max_pages: null
-
-  # 預設的 HTTP 請求連線逾時時間 (單位：秒)
-  # 若個別任務的 config.yaml 未設定 timeout，將自動套用此全域預設值
-  timeout: 30
-
-  # 預設的每次發送請求前延遲時間 (單位：秒)
-  # 若個別任務的 config.yaml 未設定 delay，將自動套用此全域預設值
-  delay: 3.0
-
-  # 預設的失敗連結重試次數
-  # 若個別任務未設定 retries，將自動套用此全域預設值
-  retries: 3
-
-  # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證，降低資安風險)
-  # 支援子網域匹配 (例如設定 "example.com" 亦可匹配 "sub.example.com")
-  # 注意：可透過環境變數 CRAWLER_SSL_EXEMPT_DOMAINS 進行增補
-  ssl_exempt_domains:
-    # - "example.com"
-
-  # 網域特定請求延遲時間對照表 (單位：秒)
-  # 當爬取特定網域時，將以其設定的時間覆寫預設的 delay 時間，避免過度存取造成對方伺服器負載過大
-  # 系統使用最長匹配優先原則 (例如 "sub.example.com" 優先於 "example.com")
-  domain_delays:
-    # example.com: 5.0
-
-  # 全域排除的路徑規則 (Regular Expression)
-  # 符合這些正則表達式的 URL 將會被直接忽略，不進行爬取與探測
-  ignore_regexes:
-    # - "^https://example\\.com/logout"
-
-  # 預設略過且不進行 HTML 抓取解析的副檔名清單
-  # 這些副檔名的連結會與個別任務設定檔中的清單進行聯集合併，以節省系統頻寬與處理資源
+  delay: 3
+  domain_delays: {}
   ignore_extensions:
-    # 文件
-    - ".pdf"
-    - ".doc"
-    - ".docx"
-    - ".xls"
-    - ".xlsx"
-    - ".ppt"
-    - ".pptx"
-    - ".odt"
-    - ".ods"
-    - ".odp"
-    - ".csv"
-    - ".txt"
-    - ".rtf"
-    - ".epub"
-    - ".mobi"
-    # 圖片
-    - ".jpg"
-    - ".jpeg"
-    - ".png"
-    - ".gif"
-    - ".svg"
-    - ".webp"
-    - ".bmp"
-    - ".ico"
-    - ".tif"
-    - ".tiff"
-    - ".psd"
-    - ".ai"
-    - ".eps"
-    # 影音
-    - ".mp4"
-    - ".mp3"
-    - ".avi"
-    - ".mov"
-    - ".wmv"
-    - ".flv"
-    - ".mkv"
-    - ".webm"
-    - ".ogg"
-    - ".wav"
-    - ".m4a"
-    - ".aac"
-    # 壓縮檔與映像檔
-    - ".zip"
-    - ".rar"
-    - ".tar"
-    - ".gz"
-    - ".7z"
-    - ".bz2"
-    - ".xz"
-    - ".iso"
-    - ".dmg"
-    - ".pkg"
-    - ".deb"
-    - ".rpm"
-    # 靜態資源與二進位檔
-    - ".css"
-    - ".js"
-    - ".json"
-    - ".xml"
-    - ".exe"
-    - ".apk"
-    - ".bin"
-    # 字型
-    - ".woff"
-    - ".woff2"
-    - ".ttf"
-    - ".eot"
-    - ".otf"
-    # 程式庫與編譯檔
-    - ".dll"
-    - ".so"
-    - ".class"
-    - ".jar"
+  - .pdf
+  - .doc
+  - .docx
+  - .xls
+  - .xlsx
+  - .ppt
+  - .pptx
+  - .odt
+  - .ods
+  - .odp
+  - .csv
+  - .txt
+  - .rtf
+  - .epub
+  - .mobi
+  - .jpg
+  - .jpeg
+  - .png
+  - .gif
+  - .svg
+  - .webp
+  - .bmp
+  - .ico
+  - .tif
+  - .tiff
+  - .psd
+  - .ai
+  - .eps
+  - .mp4
+  - .mp3
+  - .avi
+  - .mov
+  - .wmv
+  - .flv
+  - .mkv
+  - .webm
+  - .ogg
+  - .wav
+  - .m4a
+  - .aac
+  - .zip
+  - .rar
+  - .tar
+  - .gz
+  - .7z
+  - .bz2
+  - .xz
+  - .iso
+  - .dmg
+  - .pkg
+  - .deb
+  - .rpm
+  - .css
+  - .js
+  - .json
+  - .xml
+  - .exe
+  - .apk
+  - .bin
+  - .woff
+  - .woff2
+  - .ttf
+  - .eot
+  - .otf
+  - .dll
+  - .so
+  - .class
+  - .jar
+  ignore_regexes: []
+  max_delay: 10
+  max_depth: null
+  max_pages: null
+  max_retries: 5
+  max_timeout: 120
+  mime_type_filter:
+    allowed_types:
+    - text/html
+    - application/xhtml+xml
+    enabled: true
+  min_delay: 1
+  min_retries: 0
+  min_timeout: 15
+  proxy_url: null
+  retries: 3
+  ssl_exempt_domains: []
+  timeout: 30
+  user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+    like Gecko) Chrome/120.0.0.0 Safari/537.36
+db_url: sqlite:///db/crawler.db
+logging:
+  console_level: INFO
+  file_level: DEBUG
+  log_file: log/crawler.log

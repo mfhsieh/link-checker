@@ -801,7 +801,7 @@ class JobManager:
         Args:
             job_id (str): 欲匯出結果的任務 ID。
             output_path (str): 匯出檔案的目的地路徑。
-            status_filter (str | None): (選填) 'dead' 或 'broken' 的過濾條件。
+            status_filter (str | None): (選填) 'dead', 'broken' 或 'insecure' 的過濾條件。
             export_group (bool): 是否啟用去重與聚合導出。
 
         Returns:
@@ -824,6 +824,8 @@ class JobManager:
             # broken: 有 HTTP 回應但狀態碼 >= 400（不含 NULL，NULL 屬於連線錯誤/尚未探測）
             elif status_filter == "broken":
                 query = query.filter(ExternalLink.http_status_code >= 400)
+            elif status_filter == "insecure":
+                query = query.filter(ExternalLink.is_secure.is_(False))
 
             links = query.order_by(ExternalLink.created_at).all()
 

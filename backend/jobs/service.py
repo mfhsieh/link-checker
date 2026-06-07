@@ -320,6 +320,9 @@ def get_job_results(
     elif query_args.status_filter == "broken":
         # broken：有 HTTP 回應但狀態碼 >= 400（不含 NULL，NULL 屬於連線錯誤/尚未探測）
         query = query.filter(ExternalLink.http_status_code >= 400)
+    elif query_args.status_filter == "insecure":
+        # insecure：非 HTTPS (HTTP 明文傳輸)
+        query = query.filter(ExternalLink.is_secure.is_(False))
 
     links = query.order_by(ExternalLink.created_at).all()
 

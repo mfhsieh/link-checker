@@ -221,6 +221,7 @@
             </div>
             <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
             <button class="filter-chip" data-filter="broken">⚠ HTTP 錯誤</button>
+            <button class="filter-chip" data-filter="insecure">🔓 非 HTTPS</button>
             <label
               style="display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--text-secondary);cursor:pointer;white-space:nowrap">
               <input type="checkbox" id="results-group-toggle" /> 去重聚合
@@ -474,6 +475,12 @@
             <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 為什麼任務執行了很久都沒結束？</h4>
             <p style="margin-top:0; margin-bottom:1.25rem;">
               為了不讓爬蟲把您的網站伺服器塞爆，系統預設在每次點擊之間都會有「請求延遲」（例如 3 秒）。如果您的網站有幾千頁，加總起來就會需要幾個小時才能掃描完。建議可以利用「最大抓取頁數」來限制掃描規模。
+            </p>
+            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 為什麼有些正常的外部連結（例如
+              Facebook）會顯示為 HTTP 錯誤？</h4>
+            <p style="margin-top:0; margin-bottom:1.25rem;">
+              許多大型網站（如 Facebook 等社群平台）設有嚴格的防爬蟲機制。當系統自動檢查這些連結時，可能會被對方阻擋並回傳 HTTP 錯誤（例如 403
+              禁止存取）。雖然系統會嘗試繞過防護，但仍可能會出現大量的錯誤回報，這屬於正常現象。
             </p>
             <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務卡在「執行中」或是發生未知的錯誤怎麼辦？</h4>
             <p style="margin-top:0; margin-bottom:0;">

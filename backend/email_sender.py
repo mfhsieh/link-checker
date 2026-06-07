@@ -150,7 +150,7 @@ def send_test_email(to_email: str) -> bool:
     msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
     msg["To"] = to_email
     msg.set_content(
-        f"這是一封由「{settings.APP_NAME}」系統發送的 SMTP 測試郵件。\n"
+        f"這是一封由「{settings.APP_NAME}」發送的 SMTP 測試郵件。\n"
         f"若您收到此郵件，代表 SMTP 設定已正確運作。"
     )
 
