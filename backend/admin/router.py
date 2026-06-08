@@ -39,10 +39,8 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 # ── Request Schema ─────────────────────────────────────────────────────────────
 
-
 class CreateUserRequest(BaseModel):
     """建立使用者的請求結構。"""
-
     email: EmailStr
 
     @field_validator("email")
@@ -54,9 +52,8 @@ class CreateUserRequest(BaseModel):
 
 class UpdateUserRequest(BaseModel):
     """更新使用者的請求結構。"""
-
-    status: str | None = None  # active / suspended
-    role: str | None = None  # user / admin
+    status: str | None = None   # active / suspended
+    role: str | None = None     # user / admin
 
     @field_validator("status")
     @classmethod
@@ -77,13 +74,11 @@ class UpdateUserRequest(BaseModel):
 
 class SendTestEmailRequest(BaseModel):
     """寄送測試郵件的請求結構。"""
-
     to_email: EmailStr
 
 
 class CrawlerConfigUpdate(BaseModel):
     """Crawler 區塊配置更新請求結構。"""
-
     model_config = {"extra": "forbid"}
 
     timeout: int | None = Field(None, ge=1)
@@ -107,9 +102,7 @@ class CrawlerConfigUpdate(BaseModel):
 
     @field_validator("mime_type_filter")
     @classmethod
-    def validate_mime_type_filter(
-        cls, v: dict[str, Any] | None
-    ) -> dict[str, Any] | None:
+    def validate_mime_type_filter(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         """驗證 mime_type_filter 的內部結構。"""
         if v is not None:
             if not isinstance(v.get("enabled"), bool):
@@ -121,19 +114,15 @@ class CrawlerConfigUpdate(BaseModel):
 
 class UpdateConfigRequest(BaseModel):
     """全域配置更新的請求結構。"""
-
     model_config = {"extra": "forbid"}
     crawler: CrawlerConfigUpdate
 
 
 # ── 使用者管理 ─────────────────────────────────────────────────────────────────
 
-
 @router.get("/users", status_code=status.HTTP_200_OK)
 async def list_users(
-    status_filter: str | None = Query(
-        None, alias="status", description="依帳號狀態篩選"
-    ),
+    status_filter: str | None = Query(None, alias="status", description="依帳號狀態篩選"),
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
 ) -> list[dict[str, Any]]:
@@ -188,9 +177,7 @@ async def update_user(
 
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
     # [安全防護 1] 防止停用管理員
     if body.status == "suspended" and user.role == "admin":
@@ -275,9 +262,7 @@ async def delete_user(
 
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
     # [安全防護 3] 防止刪除管理員
     if user.role == "admin":
@@ -298,6 +283,11 @@ async def delete_user(
         detail=json.dumps(log_detail, ensure_ascii=False),
     )
     auth_db.add(auth_log)
+
+    # [已知限制] 跨資料庫操作缺乏分散式事務 (Two-Phase Commit) 保護。
+    # 若步驟 1 成功但步驟 2 發生例外，將導致 Crawler DB 資料已刪除，
+    # 但 Auth DB 中使用者帳號仍存在的不一致狀態。
+    # 考量 SQLite commit 失敗機率極低，且任務資料遺失不影響帳號運作，故先以此已知限制記錄。
 
     # 1. 先刪 Crawler DB 中該 user_id 的所有任務（cascade 刪除隊列與外連）
     crawler_jobs = crawler_db.query(Job).filter(Job.user_id == user_id).all()
@@ -325,9 +315,7 @@ async def resend_invite(
     """重新寄送邀請郵件（重置邀請 token）。"""
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
     if user.status not in ("pending", "expired"):
         raise HTTPException(
@@ -339,20 +327,15 @@ async def resend_invite(
         auth_service.create_invitation(auth_db, user.email)
         return {"message": f"邀請已重新寄送至 {user.email}。"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 # ── 任務監控（Admin 視圖）─────────────────────────────────────────────────────
 
-
 @router.get("/jobs", status_code=status.HTTP_200_OK)
 async def list_all_jobs(
     user_id: str | None = Query(None, description="依使用者 ID 篩選"),
-    status_filter: str | None = Query(
-        None, alias="status", description="依任務狀態篩選"
-    ),
+    status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
     manager: JobManager = Depends(get_job_manager),
     _admin: User = Depends(require_admin),
 ) -> list[dict[str, Any]]:
@@ -372,9 +355,7 @@ async def takeover_job(
     """強制接管卡死任務（重置 running 狀態為 paused）。"""
     job = manager.get_job(job_id)
     if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
     if job.status != "running":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -411,9 +392,7 @@ async def admin_delete_job(
 ) -> dict[str, str]:
     """強制刪除任意任務（Admin 用）。"""
     if not manager.get_job(job_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
 
     # 記錄任務強制刪除的操作日誌
     log_detail = {
@@ -430,14 +409,11 @@ async def admin_delete_job(
     auth_db.commit()
 
     if not manager.delete_job(job_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
     return {"message": f"任務 {job_id} 已刪除。"}
 
 
 # ── 全域配置管理 ───────────────────────────────────────────────────────────────
-
 
 @router.get("/config", status_code=status.HTTP_200_OK)
 async def get_config(
@@ -536,7 +512,6 @@ async def update_config(
 
 # ── SMTP 配置（唯讀狀態）─────────────────────────────────────────────────────
 
-
 @router.get("/smtp", status_code=status.HTTP_200_OK)
 async def get_smtp_config(
     _admin: User = Depends(require_admin),
@@ -574,14 +549,11 @@ async def test_smtp(
 
 # ── 操作日誌查閱 ───────────────────────────────────────────────────────────────
 
-
 @router.get("/logs", status_code=status.HTTP_200_OK)
 async def get_logs(
     event_type: str | None = Query(None),
     user_id: str | None = Query(None),
-    start_date: str | None = Query(
-        None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"
-    ),
+    start_date: str | None = Query(None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"),
     end_date: str | None = Query(None, description="結束日期 (YYYY-MM-DD 或 ISO 格式)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),

@@ -9,7 +9,7 @@ import logging
 import os
 import re
 from typing import Any
-from urllib.parse import urlparse, ParseResult
+from urllib.parse import urlparse, ParseResult, urljoin
 import httpx
 from bs4 import BeautifulSoup
 from crawler.utils import normalize_url, get_domain, is_in_domain_list, resolve_ip, is_safe_ip
@@ -83,13 +83,13 @@ class CrawlerCore:
         self.proxy_url: str | None = proxy_url
         self.client: httpx.Client = httpx.Client(
             timeout=self.timeout,
-            follow_redirects=True,
+            follow_redirects=False,
             headers={"User-Agent": self.user_agent},
             proxy=self.proxy_url,
         )
         self.exempt_client: httpx.Client = httpx.Client(
             timeout=self.timeout,
-            follow_redirects=True,
+            follow_redirects=False,
             headers={"User-Agent": self.user_agent},
             verify=False,  # 自簽憑證豁免
             proxy=self.proxy_url,
@@ -124,62 +124,80 @@ class CrawlerCore:
             tuple[str | None, int | None, str, str, bool]: 回傳 (HTML字串, HTTP狀態碼, 狀態字串, 最終網址, 是否發送請求)。
                 狀態字串為 'completed' 或 'skip'。
         """
-        # 略過符合 Regex 規則的連結以節省請求
-        if any(pattern.search(url) for pattern in self.ignore_regex_compiled):
-            logger.debug("網址 %s 符合忽略之 Regex 規則，略過爬取", url)
-            return None, None, "skip", url, False
+        max_redirects = 5
+        current_url = url
+        request_sent = False
 
-        # 略過指定的非 HTML 副檔名以節省頻寬與時間
-        parsed_path = urlparse(url).path.lower()
-        if any(parsed_path.endswith(ext) for ext in self.ignore_extensions):
-            return None, None, "skip", url, False
+        for _ in range(max_redirects):
+            # 略過符合 Regex 規則的連結以節省請求
+            if any(pattern.search(current_url) for pattern in self.ignore_regex_compiled):
+                logger.debug("網址 %s 符合忽略之 Regex 規則，略過爬取", current_url)
+                return None, None, "skip", current_url, request_sent
 
-        client = self._get_client(url)
+            # 略過指定的非 HTML 副檔名以節省頻寬與時間
+            parsed_path = urlparse(current_url).path.lower()
+            if any(parsed_path.endswith(ext) for ext in self.ignore_extensions):
+                return None, None, "skip", current_url, request_sent
 
-        # SSRF 防禦：解析 IP 並確保為安全的外部 IP
-        domain = get_domain(url)
-        if domain:
-            ip = resolve_ip(domain)
-            if ip and not is_safe_ip(ip):
-                logger.warning("網址 %s 的 IP (%s) 被判定為不安全，已攔截潛在的 SSRF 攻擊！", url, ip)
-                return None, None, "skip", url, False
+            client = self._get_client(current_url)
 
-        with client.stream("GET", url) as response:
-            response.raise_for_status()
+            # SSRF 防禦：解析 IP 並確保為安全的外部 IP
+            domain = get_domain(current_url)
+            if domain:
+                ip = resolve_ip(domain)
+                if ip and not is_safe_ip(ip):
+                    logger.warning("網址 %s 的 IP (%s) 被判定為不安全，已攔截潛在的 SSRF 攻擊！", current_url, ip)
+                    return None, None, "skip", current_url, request_sent
 
-            # 檢查 HTTP 回應的 Content-Type
-            content_type: str = response.headers.get("Content-Type", "").lower()
+            with client.stream("GET", current_url) as response:
+                request_sent = True
 
-            if self.mime_type_filter.get("enabled", True):
-                allowed_types: list[str] = self.mime_type_filter.get(
-                    "allowed_types", ["text/html"]
+                # 處理重導向
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get("Location")
+                    if not location:
+                        return None, response.status_code, "skip", current_url, request_sent
+                    current_url = urljoin(current_url, location)
+                    continue
+
+                response.raise_for_status()
+
+                # 檢查 HTTP 回應的 Content-Type
+                content_type: str = response.headers.get("Content-Type", "").lower()
+
+                if self.mime_type_filter.get("enabled", True):
+                    allowed_types: list[str] = self.mime_type_filter.get(
+                        "allowed_types", ["text/html"]
+                    )
+                    # 若 content_type 不包含任何一個 allowed_type，則提早中斷並回傳 None
+                    if not any(
+                        allowed.lower() in content_type for allowed in allowed_types
+                    ):
+                        logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
+                        return None, response.status_code, "skip", current_url, request_sent
+
+                # 若檢查通過，讀取所有資料
+                # 改用分塊讀取，並限制最大記憶體用量
+                content_bytes = bytearray()
+                for chunk in response.iter_bytes(chunk_size=8192):
+                    content_bytes.extend(chunk)
+                    if len(content_bytes) > MAX_CONTENT_LENGTH:
+                        logger.warning("網址 %s 內容超過 %d bytes，已提早截斷保護記憶體", current_url, MAX_CONTENT_LENGTH)
+                        break
+
+                charset = response.charset_encoding or "utf-8"
+                text = content_bytes.decode(charset, errors="replace")
+
+                return (
+                    text,
+                    response.status_code,
+                    "completed",
+                    current_url,
+                    request_sent,
                 )
-                # 若 content_type 不包含任何一個 allowed_type，則提早中斷並回傳 None
-                if not any(
-                    allowed.lower() in content_type for allowed in allowed_types
-                ):
-                    logger.debug("網址 %s 略過，不符 MIME 類型: %s", url, content_type)
-                    return None, response.status_code, "skip", str(response.url), True
-
-            # 若檢查通過，讀取所有資料
-            # 改用分塊讀取，並限制最大記憶體用量
-            content_bytes = bytearray()
-            for chunk in response.iter_bytes(chunk_size=8192):
-                content_bytes.extend(chunk)
-                if len(content_bytes) > MAX_CONTENT_LENGTH:
-                    logger.warning("網址 %s 內容超過 %d bytes，已提早截斷保護記憶體", url, MAX_CONTENT_LENGTH)
-                    break
-
-            charset = response.charset_encoding or "utf-8"
-            text = content_bytes.decode(charset, errors="replace")
-
-            return (
-                text,
-                response.status_code,
-                "completed",
-                str(response.url),
-                True,
-            )
+                
+        logger.warning("網址 %s 超過最大重導向次數", url)
+        return None, None, "skip", current_url, request_sent
 
     def extract_links(self, html: str, base_url: str) -> list[str]:
         """
@@ -297,32 +315,58 @@ class CrawlerCore:
         Returns:
             tuple[int | None, str | None]: 回傳 (HTTP 狀態碼, 錯誤訊息)。
         """
-        try:
-            client = self._get_client(url)
-            # 優先使用 HEAD 請求以節省流量與時間，逾時時間設為較短的 10 秒
-            response = client.request("HEAD", url, timeout=10.0, follow_redirects=True)
+        max_redirects = 5
+        current_url = url
+        
+        for _ in range(max_redirects):
+            try:
+                tgt_dom = get_domain(current_url)
+                if tgt_dom:
+                    ip = resolve_ip(tgt_dom)
+                    if ip and not is_safe_ip(ip):
+                        return None, f"SSRF 防禦攔截：目標 IP ({ip}) 不安全"
 
-            # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
-            domain = get_domain(url)
-            # 使用精確的子網域比對（防止 notfacebook.com 被誤判為社群網域）
-            is_social_media = domain and is_in_domain_list(domain.lower(), list(SOCIAL_DOMAINS))
+                client = self._get_client(current_url)
+                # 優先使用 HEAD 請求以節省流量與時間，逾時時間設為較短的 10 秒
+                response = client.request("HEAD", current_url, timeout=10.0)
 
-            if response.status_code in (400, 403, 405) or (
-                response.status_code >= 400 and is_social_media
-            ):
-                # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案
-                headers = {"Range": "bytes=0-1023"}
-                with client.stream(
-                    "GET", url, headers=headers, timeout=10.0, follow_redirects=True
-                ) as resp:
-                    return resp.status_code, None
-            return response.status_code, None
-        except httpx.HTTPStatusError as e:
-            return e.response.status_code, str(e)
-        except httpx.RequestError as e:
-            return None, str(e)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            return None, str(e)
+                # 處理重導向
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get("Location")
+                    if location:
+                        current_url = urljoin(current_url, location)
+                        continue
+                    return response.status_code, None
+
+                # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
+                domain = get_domain(current_url)
+                # 使用精確的子網域比對（防止 notfacebook.com 被誤判為社群網域）
+                is_social_media = domain and is_in_domain_list(domain.lower(), list(SOCIAL_DOMAINS))
+
+                if response.status_code in (400, 403, 405) or (
+                    response.status_code >= 400 and is_social_media
+                ):
+                    # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案
+                    headers = {"Range": "bytes=0-1023"}
+                    with client.stream(
+                        "GET", current_url, headers=headers, timeout=10.0
+                    ) as resp:
+                        if resp.status_code in (301, 302, 303, 307, 308):
+                            location = resp.headers.get("Location")
+                            if location:
+                                current_url = urljoin(current_url, location)
+                                continue
+                            return resp.status_code, None
+                        return resp.status_code, None
+                return response.status_code, None
+            except httpx.HTTPStatusError as e:
+                return e.response.status_code, str(e)
+            except httpx.RequestError as e:
+                return None, str(e)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                return None, str(e)
+                
+        return None, "超過最大重導向次數限制"
 
     def close(self) -> None:
         """

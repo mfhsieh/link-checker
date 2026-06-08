@@ -8,6 +8,7 @@
 import argparse
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import re
 import sys
@@ -99,8 +100,10 @@ def setup_logging(global_config: dict[str, Any]) -> None:
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    # 設定 File Handler
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    # 設定 File Handler (加入 Log Rotation 機制，單一檔案最大 10MB，保留 5 份)
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+    )
     file_handler.setLevel(file_level)
     file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)

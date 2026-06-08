@@ -31,16 +31,75 @@ from crawler.utils import (
 
 logger = logging.getLogger(__name__)
 
-# 記錄正在執行中的爬蟲子程序 PID（記憶體內，程序重啟後清失）
-_running_processes: dict[str, subprocess.Popen] = {}
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PID_DIR = os.path.join(PROJECT_ROOT, "log", "pids")
+
+
+def _get_pid_file(job_id: str) -> str:
+    """取得任務專屬的 PID 檔案路徑。"""
+    return os.path.join(PID_DIR, f"{job_id}.pid")
+
+
+def _write_pid(job_id: str, pid: int) -> None:
+    """將子進程 PID 寫入檔案。"""
+    os.makedirs(PID_DIR, exist_ok=True)
+    with open(_get_pid_file(job_id), "w", encoding="utf-8") as f:
+        f.write(str(pid))
+
+
+def _read_pid(job_id: str) -> int | None:
+    """讀取 PID 檔案中的 PID。"""
+    pid_file = _get_pid_file(job_id)
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file, "r", encoding="utf-8") as f:
+                return int(f.read().strip())
+        except ValueError:
+            pass
+    return None
+
+
+def _clear_pid(job_id: str) -> None:
+    """清除 PID 檔案。"""
+    pid_file = _get_pid_file(job_id)
+    if os.path.exists(pid_file):
+        try:
+            os.remove(pid_file)
+        except OSError:
+            pass
+
+
+def _is_process_running(pid: int) -> bool:
+    """檢查系統中是否存在該 PID 的進程。"""
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _is_job_running(job_id: str) -> bool:
+    """檢查該任務的爬蟲子進程是否仍在運行中。"""
+    pid = _read_pid(job_id)
+    if pid is None:
+        return False
+    if _is_process_running(pid):
+        return True
+    # PID 檔案存在但進程已死，順手清理
+    _clear_pid(job_id)
+    return False
 
 
 def _cleanup_finished_processes() -> None:
-    """清理 _running_processes 中已結束的子程序，釋放資源防止洩漏。"""
-    for jid in list(_running_processes.keys()):
-        proc = _running_processes.get(jid)
-        if proc is not None and proc.poll() is not None:
-            _running_processes.pop(jid, None)
+    """清理所有已結束子程序的 PID 檔案，釋放過期資源。"""
+    if not os.path.exists(PID_DIR):
+        return
+    for filename in os.listdir(PID_DIR):
+        if filename.endswith(".pid"):
+            job_id = filename[:-4]
+            _is_job_running(job_id)
 
 
 @dataclass
@@ -109,27 +168,20 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError(f"任務目前狀態為 {job.status}，無法啟動。")
 
     _cleanup_finished_processes()
-    if job_id in _running_processes:
+    if _is_job_running(job_id):
         raise ValueError("任務已在執行中。")
 
-    # 取得專案根目錄的 cli.py 路徑
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    cli_path = os.path.join(project_root, "cli.py")
-
-    log_dir = os.path.join(project_root, "log")
-    os.makedirs(log_dir, exist_ok=True)
-    stderr_path = os.path.join(log_dir, "crawler_stderr.log")
+    cli_path = os.path.join(PROJECT_ROOT, "cli.py")
 
     try:
-        err_file = open(stderr_path, "a", encoding="utf-8")  # pylint: disable=consider-using-with
         proc = subprocess.Popen(  # pylint: disable=consider-using-with
             [sys.executable, cli_path, "--resume", job_id],
-            cwd=project_root,
+            cwd=PROJECT_ROOT,
             stdout=subprocess.DEVNULL,
-            stderr=err_file,
+            stderr=subprocess.DEVNULL,
             close_fds=True,
         )
-        _running_processes[job_id] = proc
+        _write_pid(job_id, proc.pid)
         logger.info("任務 %s 已啟動（PID: %d）", job_id, proc.pid)
         return True
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -222,7 +274,7 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
         "config": config_snapshot,
         "progress": report["queue"],
         "external_link_count": report["external_links"],
-        "is_running": job_id in _running_processes,
+        "is_running": _is_job_running(job_id),
         "ui_poll_interval": int(os.environ.get("UI_POLL_INTERVAL", 10000)),
     }
 
