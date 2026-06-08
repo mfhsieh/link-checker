@@ -22,5 +22,8 @@ report/
 # 暫存檔目錄
 tmp/
 
+# 組態檔
+config/config_global.yaml
+
 # 環境變數與機密資訊
 .env
