@@ -87,6 +87,148 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, Any]:
         "Created At": q.created_at.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
+
+def _aggregate_by_target(links: list[ExternalLink]) -> tuple[list[dict[str, Any]], list[str], list[list[Any]]]:
+    """依外部目標去重聚合，產出供匯出的 JSON 與 CSV 結構。"""
+    agg_data = defaultdict(
+        lambda: {
+            "ip": "",
+            "is_secure": True,
+            "status_code": None,
+            "error": "",
+            "count": 0,
+            "sources": set(),
+        }
+    )
+    for link in links:
+        tgt = link.target_url
+        d = agg_data[tgt]
+        d["count"] += 1
+        d["sources"].add(link.source_url)
+        d["is_secure"] = link.is_secure
+        if link.ip_address and not d["ip"]:
+            d["ip"] = link.ip_address
+        if link.http_status_code is not None and d["status_code"] is None:
+            d["status_code"] = link.http_status_code
+        if link.error_message and not d["error"]:
+            d["error"] = link.error_message
+
+    json_data = []
+    csv_rows = []
+    csv_headers = [
+        "Target URL", "IP Address", "Is Secure", "HTTP Status Code",
+        "Error Message", "Occurrence Count", "Source URLs"
+    ]
+    
+    for tgt, d in agg_data.items():
+        sources_list = sorted(list(d["sources"]))
+        json_data.append({
+            "target_url": tgt,
+            "ip_address": d["ip"] if d["ip"] else None,
+            "is_secure": d["is_secure"],
+            "http_status_code": d["status_code"],
+            "error_message": d["error"] if d["error"] else None,
+            "occurrence_count": d["count"],
+            "source_urls": sources_list,
+        })
+        csv_rows.append([
+            tgt,
+            d["ip"],
+            d["is_secure"],
+            d["status_code"] if d["status_code"] is not None else "",
+            d["error"],
+            d["count"],
+            ", ".join(sources_list),
+        ])
+    return json_data, csv_headers, csv_rows
+
+
+def _aggregate_by_source(links: list[ExternalLink]) -> tuple[list[dict[str, Any]], list[str], list[list[Any]]]:
+    """依自家網頁 (修補視角) 聚合，產出供匯出的 JSON 與 CSV 結構。"""
+    agg_source = defaultdict(lambda: {"count": 0, "targets": []})
+    for link in links:
+        d = agg_source[link.source_url]
+        d["count"] += 1
+        status_str = str(link.http_status_code) if link.http_status_code is not None else ("DNS Failed" if not link.ip_address else "Error")
+        d["targets"].append({
+            "url": link.target_url,
+            "status": status_str,
+        })
+    
+    json_data = []
+    csv_rows = []
+    csv_headers = ["Source URL", "Occurrence Count", "Target URLs"]
+    for src, d in agg_source.items():
+        json_data.append({
+            "source_url": src,
+            "occurrence_count": d["count"],
+            "targets": d["targets"]
+        })
+        targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in d["targets"]])
+        csv_rows.append([src, d["count"], targets_str])
+        
+    return json_data, csv_headers, csv_rows
+
+
+def _aggregate_by_domain(links: list[ExternalLink]) -> tuple[list[dict[str, Any]], list[str], list[list[Any]]]:
+    """依外部網域聚合 (資安盤點)，產出供匯出的 JSON 與 CSV 結構。"""
+    agg_domain: dict[str, dict[str, Any]] = defaultdict(lambda: {"count": 0, "urls": set()})
+    for link in links:
+        dom = get_domain(link.target_url) or "unknown"
+        d = agg_domain[dom]
+        d["count"] += 1
+        d["urls"].add(link.target_url)
+    
+    sorted_domains = sorted(agg_domain.items(), key=lambda x: x[1]["count"], reverse=True)
+    
+    json_data = []
+    csv_rows = []
+    csv_headers = ["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"]
+    
+    for dom, d in sorted_domains:
+        urls_sorted = sorted(list(d["urls"]))
+        json_data.append({
+            "domain": dom,
+            "occurrence_count": d["count"],
+            "unique_urls_count": len(d["urls"]),
+            "unique_urls": urls_sorted
+        })
+        urls_str = "\n".join(urls_sorted)
+        csv_rows.append([dom, d["count"], len(d["urls"]), urls_str])
+        
+    return json_data, csv_headers, csv_rows
+
+
+def _format_no_grouping(links: list[ExternalLink]) -> tuple[list[dict[str, Any]], list[str], list[list[Any]]]:
+    """平鋪導出 (不聚合)，產出供匯出的 JSON 與 CSV 結構。"""
+    json_data = []
+    csv_rows = []
+    csv_headers = [
+        "Source URL", "Target URL", "IP Address", "Is Secure",
+        "HTTP Status Code", "Error Message", "Found At"
+    ]
+    for link in links:
+        json_data.append({
+            "source_url": link.source_url,
+            "target_url": link.target_url,
+            "ip_address": link.ip_address if link.ip_address else None,
+            "is_secure": link.is_secure,
+            "http_status_code": link.http_status_code,
+            "error_message": link.error_message if link.error_message else None,
+            "created_at": link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        })
+        csv_rows.append([
+            link.source_url,
+            link.target_url,
+            link.ip_address if link.ip_address else "",
+            link.is_secure,
+            link.http_status_code if link.http_status_code is not None else "",
+            link.error_message if link.error_message else "",
+            link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        ])
+        
+    return json_data, csv_headers, csv_rows
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -439,13 +581,11 @@ class JobManager:
                 while True:
                     # 協同暫停檢查：確認任務狀態是否在外部被更改
                     session.expire(job)
-                    current_job: Job | None = (
-                        session.query(Job).filter(Job.id == job_id).first()
-                    )
-                    if not current_job or current_job.status != "running":
+                    job = session.query(Job).filter(Job.id == job_id).first()
+                    if not job or job.status != "running":
                         logger.info(
                             "偵測到任務狀態變更為 %s，中斷爬取。",
-                            current_job.status if current_job else "None",
+                            job.status if job else "None",
                         )
                         break
 
@@ -698,19 +838,15 @@ class JobManager:
 
             except KeyboardInterrupt:
                 logger.info("任務 %s 已由使用者強制中斷。暫停任務中...", job_id)
-                job_check: Job | None = (
-                    session.query(Job).filter(Job.id == job_id).first()
-                )
-                if job_check and job_check.status == "running":
-                    job_check.status = "paused"
+                job = session.query(Job).filter(Job.id == job_id).first()
+                if job and job.status == "running":
+                    job.status = "paused"
                     session.commit()
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("任務 %s 發生未預期例外: %s", job_id, e)
-                job_err: Job | None = (
-                    session.query(Job).filter(Job.id == job_id).first()
-                )
-                if job_err:
-                    job_err.status = "error"
+                job = session.query(Job).filter(Job.id == job_id).first()
+                if job:
+                    job.status = "error"
                     session.commit()
                     self._send_job_status_notification(job_id, "error")
             finally:
@@ -868,207 +1004,23 @@ class JobManager:
                     group_by = "target"
 
                 if group_by == "target":
-                    # 依外部目標去重聚合
-                    agg_data = defaultdict(
-                        lambda: {
-                            "ip": "",
-                            "is_secure": True,
-                            "status_code": None,
-                            "error": "",
-                            "count": 0,
-                            "sources": set(),
-                        }
-                    )
-                    for link in links:
-                        tgt = link.target_url
-                        d = agg_data[tgt]
-                        d["count"] += 1
-                        d["sources"].add(link.source_url)
-                        d["is_secure"] = link.is_secure
-                        if link.ip_address and not d["ip"]:
-                            d["ip"] = link.ip_address
-                        if (
-                            link.http_status_code is not None
-                            and d["status_code"] is None
-                        ):
-                            d["status_code"] = link.http_status_code
-                        if link.error_message and not d["error"]:
-                            d["error"] = link.error_message
-
-                    if is_json:
-                        json_data = []
-                        for tgt, d in agg_data.items():
-                            json_data.append(
-                                {
-                                    "target_url": tgt,
-                                    "ip_address": d["ip"] if d["ip"] else None,
-                                    "is_secure": d["is_secure"],
-                                    "http_status_code": d["status_code"],
-                                    "error_message": d["error"] if d["error"] else None,
-                                    "occurrence_count": d["count"],
-                                    "source_urls": sorted(list(d["sources"])),
-                                }
-                            )
-                        with open(output_path, "w", encoding="utf-8") as f:
-                            json.dump(json_data, f, ensure_ascii=False, indent=2)
-                    else:
-                        with open(output_path, "w", newline="", encoding="utf-8") as f:
-                            writer = csv.writer(f)
-                            writer.writerow(
-                                [
-                                    "Target URL",
-                                    "IP Address",
-                                    "Is Secure",
-                                    "HTTP Status Code",
-                                    "Error Message",
-                                    "Occurrence Count",
-                                    "Source URLs",
-                                ]
-                            )
-                            for tgt, d in agg_data.items():
-                                writer.writerow(
-                                    [
-                                        tgt,
-                                        d["ip"],
-                                        d["is_secure"],
-                                        (
-                                            d["status_code"]
-                                            if d["status_code"] is not None
-                                            else ""
-                                        ),
-                                        d["error"],
-                                        d["count"],
-                                        ", ".join(sorted(list(d["sources"]))),
-                                    ]
-                                )
+                    json_data, csv_headers, csv_rows = _aggregate_by_target(links)
                 elif group_by == "source":
-                    # 依自家網頁 (修補視角) 聚合
-                    agg_source = defaultdict(lambda: {"count": 0, "targets": []})
-                    for link in links:
-                        d = agg_source[link.source_url]
-                        d["count"] += 1
-                        status_str = str(link.http_status_code) if link.http_status_code is not None else ("DNS Failed" if not link.ip_address else "Error")
-                        d["targets"].append({
-                            "url": link.target_url,
-                            "status": status_str,
-                        })
-                    
-                    if is_json:
-                        json_data = []
-                        for src, d in agg_source.items():
-                            json_data.append({
-                                "source_url": src,
-                                "occurrence_count": d["count"],
-                                "targets": d["targets"]
-                            })
-                        with open(output_path, "w", encoding="utf-8") as f:
-                            json.dump(json_data, f, ensure_ascii=False, indent=2)
-                    else:
-                        with open(output_path, "w", newline="", encoding="utf-8") as f:
-                            writer = csv.writer(f)
-                            writer.writerow(["Source URL", "Occurrence Count", "Target URLs"])
-                            for src, d in agg_source.items():
-                                targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in d["targets"]])
-                                writer.writerow([
-                                    src,
-                                    d["count"],
-                                    targets_str
-                                ])
+                    json_data, csv_headers, csv_rows = _aggregate_by_source(links)
                 elif group_by == "domain":
-                    # 依外部網域聚合 (資安盤點)
-                    agg_domain: dict[str, dict[str, Any]] = defaultdict(lambda: {"count": 0, "urls": set()})
-                    for link in links:
-                        dom = get_domain(link.target_url) or "unknown"
-                        d = agg_domain[dom]
-                        d["count"] += 1
-                        d["urls"].add(link.target_url)
-                    
-                    # 依出現次數排序
-                    sorted_domains = sorted(agg_domain.items(), key=lambda x: x[1]["count"], reverse=True)
-                    
-                    if is_json:
-                        json_data = []
-                        for dom, d in sorted_domains:
-                            json_data.append({
-                                "domain": dom,
-                                "occurrence_count": d["count"],
-                                "unique_urls_count": len(d["urls"]),
-                                "unique_urls": sorted(list(d["urls"]))
-                            })
-                        with open(output_path, "w", encoding="utf-8") as f:
-                            json.dump(json_data, f, ensure_ascii=False, indent=2)
-                    else:
-                        with open(output_path, "w", newline="", encoding="utf-8") as f:
-                            writer = csv.writer(f)
-                            writer.writerow(["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"])
-                            for dom, d in sorted_domains:
-                                urls_str = "\n".join(sorted(list(d["urls"])))
-                                writer.writerow([
-                                    dom,
-                                    d["count"],
-                                    len(d["urls"]),
-                                    urls_str
-                                ])
+                    json_data, csv_headers, csv_rows = _aggregate_by_domain(links)
                 elif group_by == "none":
-                    # 一般平鋪導出 (不聚合)
-                    if is_json:
-                        json_data = []
-                        for link in links:
-                            json_data.append(
-                                {
-                                    "source_url": link.source_url,
-                                    "target_url": link.target_url,
-                                    "ip_address": (
-                                        link.ip_address if link.ip_address else None
-                                    ),
-                                    "is_secure": link.is_secure,
-                                    "http_status_code": link.http_status_code,
-                                    "error_message": (
-                                        link.error_message
-                                        if link.error_message
-                                        else None
-                                    ),
-                                    "created_at": link.created_at.strftime(
-                                        "%Y-%m-%d %H:%M:%S"
-                                    ),
-                                }
-                            )
-                        with open(output_path, "w", encoding="utf-8") as f:
-                            json.dump(json_data, f, ensure_ascii=False, indent=2)
-                    else:
-                        with open(output_path, "w", newline="", encoding="utf-8") as f:
-                            writer = csv.writer(f)
-                            writer.writerow(
-                                [
-                                    "Source URL",
-                                    "Target URL",
-                                    "IP Address",
-                                    "Is Secure",
-                                    "HTTP Status Code",
-                                    "Error Message",
-                                    "Found At",
-                                ]
-                            )
-                            for link in links:
-                                writer.writerow(
-                                    [
-                                        link.source_url,
-                                        link.target_url,
-                                        link.ip_address if link.ip_address else "",
-                                        link.is_secure,
-                                        (
-                                            link.http_status_code
-                                            if link.http_status_code is not None
-                                            else ""
-                                        ),
-                                        (
-                                            link.error_message
-                                            if link.error_message
-                                            else ""
-                                        ),
-                                        link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                                    ]
-                                )
+                    json_data, csv_headers, csv_rows = _format_no_grouping(links)
+
+                if is_json:
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        json.dump(json_data, f, ensure_ascii=False, indent=2)
+                else:
+                    with open(output_path, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f)
+                        writer.writerow(csv_headers)
+                        writer.writerows(csv_rows)
+
                 return True
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("匯出檔案時發生錯誤: %s", e)

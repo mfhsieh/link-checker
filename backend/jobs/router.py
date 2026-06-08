@@ -35,6 +35,7 @@ from backend.auth.models import User
 from backend.config import get_settings
 from backend.deps import get_crawler_db, get_current_user, get_job_manager, require_csrf
 from backend.jobs import service as job_service
+from crawler.config_utils import DEFAULT_GLOBAL_CONFIG, merge_and_validate_crawler_config
 from crawler.manager import JobManager
 
 logger = logging.getLogger(__name__)
@@ -83,9 +84,6 @@ async def get_default_config(
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """取得任務預設的全域配置，供前端建立任務時填入預設值與限制。"""
-    # pylint: disable=import-outside-toplevel
-    from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
-
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
     crawler_config = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
@@ -146,9 +144,6 @@ async def create_job(
             user_crawler_config[key] = val
 
     # 根據規格書 §4：將全域設定與個別任務設定合併，產生「最終執行配置快照」
-    # pylint: disable=import-outside-toplevel
-    from crawler.config_utils import merge_and_validate_crawler_config
-
     settings = get_settings()
     global_config = {}
     if os.path.exists(settings.GLOBAL_CONFIG_PATH):
@@ -421,36 +416,32 @@ async def export_results(
         first = True
         for item in job_service.stream_job_results(db, query_obj):
             output = io.StringIO()
-            if first:
-                if query_args.group_by == "domain":
-                    writer = csv.DictWriter(output, fieldnames=["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"])
-                elif query_args.group_by == "source":
-                    writer = csv.DictWriter(output, fieldnames=["Source URL", "External Link Count", "Target URLs"])
-                else:
-                    writer = csv.DictWriter(output, fieldnames=list(item.keys()))
-                writer.writeheader()
-                first = False
 
             if query_args.group_by == "domain":
-                urls_str = "\n".join(item["unique_urls"])
-                writer = csv.DictWriter(output, fieldnames=["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"])
-                writer.writerow({
+                fieldnames = ["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"]
+                row_data = {
                     "Domain": item["domain"],
                     "Occurrence Count": item["occurrence_count"],
                     "Unique URLs Count": item["unique_urls_count"],
-                    "Unique URLs": urls_str
-                })
+                    "Unique URLs": "\n".join(item["unique_urls"])
+                }
             elif query_args.group_by == "source":
-                targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]])
-                writer = csv.DictWriter(output, fieldnames=["Source URL", "External Link Count", "Target URLs"])
-                writer.writerow({
+                fieldnames = ["Source URL", "External Link Count", "Target URLs"]
+                row_data = {
                     "Source URL": item["source_url"],
                     "External Link Count": item["occurrence_count"],
-                    "Target URLs": targets_str
-                })
+                    "Target URLs": "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]])
+                }
             else:
-                writer = csv.DictWriter(output, fieldnames=list(item.keys()))
-                writer.writerow(item)
+                fieldnames = list(item.keys())
+                row_data = item
+                
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            if first:
+                writer.writeheader()
+                first = False
+                
+            writer.writerow(row_data)
             
             yield output.getvalue()
 

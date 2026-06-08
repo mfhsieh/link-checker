@@ -263,6 +263,14 @@ def authenticate_with_password(
         ValueError: 帳號不存在、密碼錯誤、帳號鎖定或狀態不符。
     """
     user = db.query(User).filter(User.email == email).first()
+
+    # 確保無論帳號是否存在或狀態為何，雜湊驗證的耗時都保持一致（防禦 Timing Attack）
+    password_is_correct = False
+    if user and user.password_hash:
+        password_is_correct = verify_password(password, user.password_hash)
+    else:
+        hash_password(password)
+
     if not user or not user.password_hash:
         _log_event(
             db, "login_failed", ip_address=ip, detail=f"帳號不存在或尚未設密: {email}"
@@ -290,7 +298,7 @@ def authenticate_with_password(
         remaining = int((user.locked_until - _utc_now()).total_seconds() / 60)
         raise ValueError(f"帳號因多次登入失敗已暫時鎖定，請 {remaining} 分鐘後再試。")
 
-    if not verify_password(password, user.password_hash):
+    if not password_is_correct:
         _increment_failed_login(db, user, ip)
         _log_event(
             db, "login_failed", user_id=user.id, ip_address=ip, detail="密碼錯誤"
@@ -448,7 +456,14 @@ def set_first_password(
     if not user:
         raise ValueError("使用者不存在。")
 
-    if user.password_hash and verify_password(new_password, user.password_hash):
+    # 防禦 Timing Attack，確保無論之前是否設過密碼，執行時間都一致
+    is_same_as_initial = False
+    if user.password_hash:
+        is_same_as_initial = verify_password(new_password, user.password_hash)
+    else:
+        hash_password(new_password)
+
+    if is_same_as_initial:
         raise ValueError("新密碼不得與初始密碼相同。")
 
     errors = validate_password_strength(new_password, user.email)
@@ -491,10 +506,18 @@ def change_password(
         ValueError: 現有密碼錯誤或新密碼不符合安全標準。
     """
     user = db.query(User).filter(User.id == user_id).first()
+
+    # 防禦 Timing Attack，確保執行時間一致
+    password_is_correct = False
+    if user and user.password_hash:
+        password_is_correct = verify_password(current_password, user.password_hash)
+    else:
+        hash_password(current_password)
+
     if not user or not user.password_hash:
         raise ValueError("使用者不存在。")
 
-    if not verify_password(current_password, user.password_hash):
+    if not password_is_correct:
         raise ValueError("現有密碼錯誤。")
 
     if current_password == new_password:
