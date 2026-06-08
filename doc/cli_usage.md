@@ -22,10 +22,10 @@
 | `--reset` | *(無)* | 字串 | 重設指定任務，清除已探索外連並將狀態與佇列歸零。 | 無 |
 | `--report` | *(無)* | 字串 | 指定任務 ID，顯示該任務的詳細進度與統計報表。 | 無 |
 | `--export` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
-| `--output` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，自訂輸出路徑。 | `report/<JOB_ID>.csv` (或 `.json`) |
+| `--output` | *(無)* | 字串 | (選填) 搭配 `--export` 或 `--export-full` 使用，自訂輸出路徑。 | 依格式而定，如 `report/<JOB_ID>.csv` 或 `.zip` |
 | `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容。支援 `dead`、`broken`、`insecure`。 | 無 |
 | `--exclude`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，排除指定的目標網域（多個以逗號分隔）。 | 無 |
-| `--export-full` | *(無)*| 字串 | 指定任務 ID，匯出該任務的完整報表 (ZIP 壓縮檔，含爬取紀錄與外連清單)。 | 無 |
+| `--export-full` | *(無)*| 字串 | 指定任務 ID，匯出該任務的完整報表 (ZIP 壓縮檔，含爬取紀錄與外連清單)。亦可搭配 `--output` 自訂檔名。 | 無 |
 | `--group` | *(無)* | 旗標 | (已棄用) 等同於 `--group-by target`。 | 無 |
 | `--group-by`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，聚合模式：`target` (依外連)、`source` (依來源頁面)、`domain` (依網域)。 | `none` |
 | `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及 `--export` 的 JSON 檔案導出。 | 無 |
@@ -61,10 +61,10 @@ logging:
 # 爬蟲引擎的全域限制與預設值
 crawler:
   # 安全上下限限制（個別任務若超出此範圍將被強制修正，以防負載過大或逾時失效）
-  min_timeout: 30             # 逾時時間最小值限制 (秒)
-  max_timeout: 60             # 逾時時間最大值限制 (秒)
-  min_delay: 3.0              # 請求延遲時間最小值限制 (秒)
-  max_delay: 6.0              # 請求延遲時間最大值限制 (秒)
+  min_timeout: 15             # 逾時時間最小值限制 (秒)
+  max_timeout: 120            # 逾時時間最大值限制 (秒)
+  min_delay: 1.0              # 請求延遲時間最小值限制 (秒)
+  max_delay: 10.0             # 請求延遲時間最大值限制 (秒)
   min_retries: 0              # 錯誤重試次數最小值限制 (次)
   max_retries: 5              # 錯誤重試次數最大值限制 (次)
 
@@ -309,6 +309,9 @@ python cli.py --export <JOB_ID> --group-by domain
 
 # 匯出完整報表大禮包 (自動打包為 ZIP 檔)
 python cli.py --export-full <JOB_ID>
+
+# 匯出完整報表並自訂 ZIP 檔名
+python cli.py --export-full <JOB_ID> --output custom_report.zip
 
 # 匯出結果並排除特定網域 (例如不想看社群網站的外連)
 python cli.py --export <JOB_ID> --exclude "facebook.com,youtube.com,twitter.com"

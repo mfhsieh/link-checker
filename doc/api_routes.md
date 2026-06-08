@@ -24,6 +24,7 @@
 | `POST` | `/api/jobs/{job_id}/pause` | 暫停任務 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/resume` | 恢復任務 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/reset` | 重置任務 | 已登入（僅限自身任務） |
+| `POST` | `/api/jobs/{job_id}/retry-failed` | 局部重試任務的失敗項目 | 已登入（僅限自身任務） |
 | `DELETE` | `/api/jobs/{job_id}` | 刪除任務及所有結果 | 已登入（僅限自身任務） |
 
 ## 3. 結果查閱 API（前台）
@@ -33,6 +34,7 @@
 | `GET` | `/api/jobs/{job_id}/results` | 列出外連結果（支援篩選、分頁） | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/summary` | 取得任務統計摘要 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/export` | 匯出結果（CSV / JSON，支援篩選） | 已登入（僅限自身任務） |
+| `GET` | `/api/jobs/{job_id}/export/full` | 匯出完整報表大禮包 (ZIP 壓縮檔) | 已登入（僅限自身任務） |
 
 ## 4. 後台管理 API
 
@@ -48,6 +50,12 @@
 | `DELETE` | `/api/admin/jobs/{job_id}` | 強制刪除任意任務 | Admin |
 | `GET` | `/api/admin/config` | 取得全域配置 | Admin |
 | `PATCH` | `/api/admin/config` | 修改全域配置 | Admin |
-| GET | /api/admin/smtp | 取得 SMTP 配置狀態（唯讀，從環境變數讀取，密碼遮罩） | Admin |
-| POST | /api/admin/smtp/test | 寄送測試郵件 | Admin |
-| GET | /api/admin/logs | 查閱系統操作日誌（支援時間範圍、事件類型與使用者篩選，支援分頁） | Admin |
+| `GET` | `/api/admin/smtp` | 取得 SMTP 配置狀態（唯讀，從環境變數讀取，密碼遮罩） | Admin |
+| `POST` | `/api/admin/smtp/test` | 寄送測試郵件 | Admin |
+| `GET` | `/api/admin/logs` | 查閱系統操作日誌（支援時間範圍、事件類型與使用者篩選，支援分頁） | Admin |
+
+## 5. 系統與其他 API
+
+| 方法 | 路徑 | 說明 | 權限 |
+|------|------|------|------|
+| `GET` | `/api/health` | 服務健康檢查端點（供 CI/CD 或 Load Balancer 使用） | 公開 |

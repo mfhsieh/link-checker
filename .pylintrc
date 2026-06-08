@@ -15,3 +15,7 @@ ignore=.venv
 
 [REPORTS]
 output-format=colorized
+
+[FORMAT]
+# 限制單行最大字元數 (配合 ruff.toml 設為 120)
+max-line-length=120

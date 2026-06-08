@@ -26,9 +26,7 @@ logging.basicConfig(
 )
 
 
-def load_config(
-    config_path: str, allowed_directory: str | None = None
-) -> dict[str, object]:
+def load_config(config_path: str, allowed_directory: str | None = None) -> dict[str, object]:
     """
     從指定的 YAML 檔案讀取設定值。
 
@@ -50,9 +48,7 @@ def load_config(
         try:
             common = os.path.commonpath([abs_allowed_dir, abs_config_path])
             if common != abs_allowed_dir:
-                raise PermissionError(
-                    f"設定檔 {config_path} 必須位於指定目錄 ({allowed_directory}) 下以符合資安規範"
-                )
+                raise PermissionError(f"設定檔 {config_path} 必須位於指定目錄 ({allowed_directory}) 下以符合資安規範")
         except ValueError as exc:
             raise PermissionError("無法比對設定檔路徑與允許目錄的安全路徑。") from exc
 
@@ -91,9 +87,7 @@ def setup_logging(global_config: dict[str, object]) -> None:
     # 清除舊的 handlers
     root_logger.handlers.clear()
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     # 設定 Console Handler
     console_handler = logging.StreamHandler()
@@ -102,9 +96,7 @@ def setup_logging(global_config: dict[str, object]) -> None:
     root_logger.addHandler(console_handler)
 
     # 設定 File Handler (加入 Log Rotation 機制，單一檔案最大 10MB，保留 5 份)
-    file_handler = RotatingFileHandler(
-        log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
-    )
+    file_handler = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
     file_handler.setLevel(file_level)
     file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)
@@ -167,8 +159,7 @@ def create_admin(email: str) -> None:
         # 如果系統已經有管理員，且要建立的不是原本那位，則強制阻擋
         if admin_count > 0 and (not existing or existing.role != "admin"):
             print(
-                "錯誤：系統中已存在管理員帳號。依據安全規範，"
-                "後續管理員請透過後台網頁介面邀請，禁止使用 CLI 重複建立。"
+                "錯誤：系統中已存在管理員帳號。依據安全規範，後續管理員請透過後台網頁介面邀請，禁止使用 CLI 重複建立。"
             )
             sys.exit(1)
 
@@ -249,9 +240,7 @@ def parse_args() -> argparse.Namespace | None:
         action="store_true",
         help="(選填) 強制接管狀態卡在 running 的任務（搭配 --resume 使用）",
     )
-    parser.add_argument(
-        "--list-jobs", action="store_true", help="列出所有已建立的爬蟲任務"
-    )
+    parser.add_argument("--list-jobs", action="store_true", help="列出所有已建立的爬蟲任務")
     parser.add_argument(
         "--pause",
         type=str,
@@ -304,10 +293,7 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument(
         "--exclude",
         type=str,
-        help=(
-            "(選填) 搭配 --export 使用，排除指定的目標網域"
-            "（多個以逗號分隔，例如: facebook.com,youtube.com）"
-        ),
+        help=("(選填) 搭配 --export 使用，排除指定的目標網域（多個以逗號分隔，例如: facebook.com,youtube.com）"),
     )
     parser.add_argument(
         "--group",
@@ -319,10 +305,7 @@ def parse_args() -> argparse.Namespace | None:
         type=str,
         choices=["none", "target", "source", "domain"],
         default="none",
-        help=(
-            "(選填) 搭配 --export，指定聚合模式 "
-            "(target:依外連, source:依來源頁面, domain:依網域)"
-        ),
+        help=("(選填) 搭配 --export，指定聚合模式 (target:依外連, source:依來源頁面, domain:依網域)"),
     )
     parser.add_argument(
         "--json",
@@ -368,17 +351,11 @@ def _handle_list_jobs(manager: JobManager, args: argparse.Namespace) -> None:
         print(json.dumps(jobs, ensure_ascii=False, indent=2))
     else:
         print("\n=== 爬蟲任務列表 ===")
-        print(
-            f"{'Job ID':<38} | {'User ID':<20} | {'Status':<10} | "
-            f"{'Created At':<20} | {'Start URL'}"
-        )
+        print(f"{'Job ID':<38} | {'User ID':<20} | {'Status':<10} | {'Created At':<20} | {'Start URL'}")
         print("-" * 120)
         for j in jobs:
             uid = j.get("user_id") or "N/A"
-            print(
-                f"{j['id']:<38} | {uid:<20} | {j['status']:<10} | "
-                f"{j['created_at']:<20} | {j['start_url']}"
-            )
+            print(f"{j['id']:<38} | {uid:<20} | {j['status']:<10} | {j['created_at']:<20} | {j['start_url']}")
         print("====================\n")
 
 
@@ -451,9 +428,7 @@ def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含匯出目標等選項。
     """
-    output_path = (
-        args.output if args.output else f"report/{args.export_full}_full_report.zip"
-    )
+    output_path = args.output if args.output else f"report/{args.export_full}_full_report.zip"
     if not output_path.endswith(".zip"):
         output_path += ".zip"
     logging.info("準備將任務 %s 的完整報表匯出至 %s...", args.export_full, output_path)
@@ -503,18 +478,14 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
         logging.info("準備局部重試任務 %s 的失敗項目...", args.retry_failed)
         if not manager.retry_failed_job(args.retry_failed):
             sys.exit(1)
-        logging.info(
-            "任務的失敗項目已成功重置為 pending。您可以透過 --resume 再次啟動該任務。"
-        )
+        logging.info("任務的失敗項目已成功重置為 pending。您可以透過 --resume 再次啟動該任務。")
     else:
         handled = False
 
     return handled
 
 
-def _handle_resume_or_create(
-    manager: JobManager, args: argparse.Namespace, global_config: dict[str, object]
-) -> None:
+def _handle_resume_or_create(manager: JobManager, args: argparse.Namespace, global_config: dict[str, object]) -> None:
     """
     處理建立新任務或從中斷點恢復執行的指令。
 
@@ -531,9 +502,7 @@ def _handle_resume_or_create(
     if args.resume is not None:
         logging.info("正在恢復執行任務 %s...", args.resume)
         if args.config:
-            logging.warning(
-                "--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。"
-            )
+            logging.warning("--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。")
         manager.run_job(job_id=args.resume, force=args.force)
         return
 
@@ -636,7 +605,12 @@ def main() -> None:
             import uvicorn  # pylint: disable=import-outside-toplevel
 
             uvicorn.run(
-                "backend.main:app", host="0.0.0.0", port=8000, reload=args.reload
+                "backend.main:app",
+                host="0.0.0.0",
+                port=8000,
+                reload=args.reload,
+                proxy_headers=True,
+                forwarded_allow_ips="*",
             )
         except Exception as e:  # pylint: disable=broad-exception-caught
             logging.error("啟動 Web 伺服器失敗: %s", e)

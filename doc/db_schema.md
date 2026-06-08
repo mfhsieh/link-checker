@@ -94,7 +94,7 @@ erDiagram
 | 欄位名稱 | 型別 | 限制/預設值 | 說明 |
 | :--- | :--- | :--- | :--- |
 | `id` | `String(36)` | **Primary Key** | 邀請紀錄的主鍵，UUID v4 字串。 |
-| `user_id` | `String(36)` | **Foreign Key**, `NOT NULL` | 關聯的受邀使用者 ID (`users.id`)。 |
+| `user_id` | `String(36)` | **Logical FK**, `NOT NULL` | 關聯的受邀使用者 ID (`users.id`)。於應用層控管關聯，未設定實體外鍵約束。 |
 | `token` | `String(36)` | `UNIQUE`, `NOT NULL` | 邀請 UUID 憑證（單次使用）。 |
 | `expires_at` | `DateTime` | `NOT NULL` | 此邀請連結的有效期限。 |
 | `used_at` | `DateTime` | `Nullable` | 憑證被使用的時間（`NULL` 代表尚未使用）。 |
@@ -111,7 +111,7 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | `String(36)` | **Primary Key** | Session 的主鍵，UUID v4 字串。 |
 | `token_hash` | `String(64)` | `UNIQUE`, `NOT NULL` | Session Token 的 SHA-256 雜湊值。 |
-| `user_id` | `String(36)` | **Foreign Key**, `NOT NULL` | 關聯的使用者 ID (`users.id`)。 |
+| `user_id` | `String(36)` | **Logical FK**, `NOT NULL` | 關聯的使用者 ID (`users.id`)。於應用層控管關聯，未設定實體外鍵約束。 |
 | `is_first_login` | `Boolean` | `Default: False` | 標記是否為首次登入的暫態 Session（設密完成前為 True）。 |
 | `expires_at` | `DateTime` | `NOT NULL` | 滑動有效期（每次有效請求後重置）。 |
 | `absolute_expires_at` | `DateTime` | `NOT NULL` | 最大絕對有效期（不受滑動影響，到達後強制登出）。 |
@@ -129,7 +129,7 @@ erDiagram
 | 欄位名稱 | 型別 | 限制/預設值 | 說明 |
 | :--- | :--- | :--- | :--- |
 | `id` | `Integer` | **Primary Key**, `Auto-Increment` | 日誌的主鍵。 |
-| `user_id` | `String(36)` | **Foreign Key**, `Nullable` | 關聯的使用者 ID（部分事件可能無法確定使用者）。 |
+| `user_id` | `String(36)` | **Logical FK**, `Nullable` | 關聯的使用者 ID（部分事件可能無法確定使用者）。於應用層控管關聯，未設定實體外鍵約束。 |
 | `event_type` | `String(50)` | `NOT NULL` | 事件類型：`login_success`, `login_failed`, `logout`, `locked`, `password_set`, `password_changed`, `invitation_sent`, `user_status_changed`, `user_deleted`, `job_force_action`, `config_change` 等。 |
 | `ip_address` | `String(45)` | `Nullable` | 事件發生時的客戶端來源 IP 位址。 |
 | `detail` | `Text` | `Nullable` | 附加描述資訊（如登入失敗原因，或在敏感操作時以 JSON 格式記錄變更前後差異細節）。 |
@@ -251,7 +251,7 @@ erDiagram
 | `source_url` | `String(2048)` | `NOT NULL` | 發現此外部連結的來源網頁，也就是該連結所在的母網頁。 |
 | `target_url` | `String(2048)` | `NOT NULL` | 網頁中提取出的外部連結 `href` 本身。 |
 | `ip_address` | `String(45)` | `Nullable` | 透過 DNS 解析該 `target_url` 之網域所取得的 IPv4/IPv6 位址。若解析失敗則為 `NULL`。 |
-| `is_secure` | `Boolean` | `Default: True` | 標記此外部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若是為 `True`，否則為 `False`。 |
+| `is_secure` | `Boolean` | `Default: True` | 標記此外部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若為 HTTPS 則為 `True`，若為 HTTP 則為 `False`。 |
 | `http_status_code` | `Integer` | `Nullable` | 對外部連結進行 HTTP 存活檢查後取得的 HTTP 狀態碼。若為 `NULL` 代表未探測或連線失敗。 |
 | `error_message` | `Text` | `Nullable` | 存活檢查失敗時的具體連線異常描述（如 ConnectionTimeout）。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 系統成功解析並紀錄該筆外部連結的時間。 |

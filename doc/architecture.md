@@ -9,6 +9,7 @@ ext-link-checker/
 ├── .env                # 環境變數設定檔 (如資料庫路徑、SMTP 憑證等)
 ├── .gitignore          # git 追蹤忽略清單
 ├── .pylintrc           # Pylint 靜態程式碼分析設定檔
+├── ruff.toml           # Ruff 程式碼排版設定檔
 ├── README.md           # 專案首頁與安裝啟動說明
 ├── cli.py              # 系統核心單一入口 (CLI 操作、伺服器啟動與管理員建立)
 ├── requirements.txt    # Python 依賴套件清單
@@ -23,7 +24,7 @@ ext-link-checker/
 │   └── main.py         # FastAPI 應用程式進入點
 ├── frontend/           # 網站前台 UI (原生 Vanilla JS/CSS)
 │   ├── css/            # Vanilla CSS 樣式表
-│   ├── js/             # Vanilla JS (ESM) 邏輯模組
+│   ├── js/             # Vanilla JS (ESM) 邏輯模組 (包含 api.js, auth.js, toast.js 等)
 │   ├── index.html      # 登入與首頁
 │   ├── app.html        # 爬蟲任務管理主介面
 │   ├── admin.html      # 系統管理員後台介面
@@ -34,9 +35,13 @@ ext-link-checker/
 │   ├── core.py         # 爬蟲核心邏輯 (抓取網頁、解析 HTML、提取與過濾連結)
 │   ├── manager.py      # JOB 管理 (任務分派、資料持久化、防呆安全鎖)
 │   ├── models.py       # Crawler DB 資料庫模型
+│   ├── exporter.py     # 報表匯出引擎 (CSV/JSON/ZIP 串流導出)
+│   ├── notifier.py     # 任務狀態通知模組 (Email 發送)
 │   └── utils.py        # 工具程式 (IP 解析、網域比對邏輯)
 ├── db/                 # 存放 SQLite 本地資料庫 (crawler.db, auth.db)
 ├── doc/                # 系統架構、Schema 與需求規格說明文件
+│   ├── deploy_gcp_vm.md      # GCP 雲端部署指南
+│   └── python_coding_style.md # Python 程式風格與開發規範
 ├── job/                # 存放個別任務 YAML 設定檔的安全目錄
 ├── log/                # 存放系統日誌 (crawler.log)
 ├── report/             # 外部連結分析報告之預設匯出目錄
@@ -49,19 +54,21 @@ ext-link-checker/
 ## 核心技術選型與設計理念
 
 * **系統架構解耦 (CLI-First)**：
-  爬蟲核心 (`crawler/`) 與後台網頁系統 (`backend/`) 徹底解耦。在沒有啟動 Web 伺服器的情況下，依然能單獨透過 `cli.py` 命令列程式完整運行與管理爬蟲任務。
+  爬蟲核心 (`crawler/`) 與後台網頁系統 (`backend/`) 徹底解耦。在沒有啟動 Web 伺服器的情況下，依然能單獨透過 `cli.py` 命令列程式完整運行與管理爬蟲任務。近期更進一步將「報表匯出」與「發信通知」剝離至獨立模組 (`exporter.py`, `notifier.py`)，嚴格遵守單一職責原則 (SRP)。
 * **資料庫實體分離**：
   系統維護兩個獨立的資料庫：`crawler.db` (爬蟲業務資料) 與 `auth.db` (帳號與身分驗證資料)，兩者不共用連線池與 Schema，確保業務邏輯邊界清晰。針對高頻寫入的 `crawler.db`，啟用了 SQLite 的 **WAL (Write-Ahead Logging)** 與 **NORMAL** 同步模式以防 I/O 阻塞。
 * **後端 Web API Server**：
-  採用 **FastAPI** 作為後端框架，提供非同步、高效能的 RESTful API，並實作基於 HttpOnly Cookie 的安全 Session 管理與邀請制帳號機制。內建例外攔截器以支援 SPA 前端路由的無縫重導向 (404 Fallback)。
+  採用 **FastAPI** 作為後端框架，提供非同步、高效能的 RESTful API，並實作基於 HttpOnly Cookie 的安全 Session 管理與邀請制帳號機制。針對資料庫 I/O 等阻塞操作，嚴格規範採用同步 `def` 路由以交由底層執行緒池處理，保護主事件迴圈 (Event Loop Blocking 防禦)。
 * **前端 Web UI**：
-  堅持採用**輕量原生技術棧 (Vanilla JS + ESM / Vanilla CSS)**，不引入 React、Vue 等框架與打包工具，大幅降低供應鏈風險與長期維護成本。
+  堅持採用**輕量原生技術棧 (Vanilla JS + ESM / Vanilla CSS)**，不引入 React、Vue 等框架與打包工具，大幅降低供應鏈風險與長期維護成本。實作了具備網路波動韌性 (Resilience) 的狀態輪詢機制。
 * **網路連線與網頁解析**：
   採用 **HTTPX** 處理同步 HTTP/HTTPS 連線，並搭配 **BeautifulSoup 4** 進行 HTML 樹狀結構解析。針對外部連結的存活探測，引入 **`ThreadPoolExecutor`** 進行多執行緒並發處理，最大化診斷效能。
 * **任務狀態驅動**：
   系統具備高可靠度，所有的任務與網址佇列皆由資料庫狀態驅動 (`pending`, `running`, `paused`, `completed` 等)。攔截 `Ctrl+C` 訊號轉化為溫和暫停，支援中斷與斷點續傳。
 * **來源精準追溯與防重**：
   佇列中明確記錄 `source_url`，能追蹤每一個外連的母來源頁面。系統亦具備防止重複記錄相同來源與目標連結的資料庫索引設計。
+* **巨量資料串流匯出 (Streaming Export)**：
+  針對高達數十萬筆的外部連結報表，系統實作了基於生成器 (Generator) 與 SQLite `.yield_per()` 的串流寫入機制。能將極大容量的 CSV 邊讀邊即時寫入 ZIP 壓縮檔或 HTTP Response 中串流回傳，徹底防範 OOM (Out of Memory) 崩潰風險。
 
 ## 相關參考文件
 
@@ -70,4 +77,6 @@ ext-link-checker/
 * [命令列 (CLI) 操作指南](cli_usage.md)
 * [API 路由清單](api_routes.md)
 * [資料庫 Schema 說明 (db_schema.md)](db_schema.md)
+* [GCP 部署指南 (deploy_gcp_vm.md)](deploy_gcp_vm.md)
+* [Python 程式風格規範 (python_coding_style.md)](python_coding_style.md)
 * [待辦清單與後續優化計畫](todo.md)

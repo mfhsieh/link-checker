@@ -5,9 +5,11 @@ Auth DB 的資料庫連線設定。
 與爬蟲資料庫（Crawler DB）完全分離，不共用連線池或 Session。
 """
 
+# pylint: disable=unsubscriptable-object
+
 import os
 from sqlalchemy import Engine, create_engine, event
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 from backend.auth.models import AuthBase
 from backend.config import get_settings
@@ -37,12 +39,17 @@ def _create_auth_engine() -> Engine:
     # 允許多執行緒共用 (FastAPI / Celery)
     engine = create_engine(
         db_url,
-        connect_args={"check_same_thread": False} if db_url.startswith("sqlite") else {},
+        connect_args={"check_same_thread": False}
+        if db_url.startswith("sqlite")
+        else {},
     )
 
     if db_url.startswith("sqlite"):
+
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
+        def set_sqlite_pragma(
+            dbapi_connection: object, _connection_record: object
+        ) -> None:
             """
             設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。
 
@@ -65,7 +72,7 @@ def _create_auth_engine() -> Engine:
 
 # 模組層級的變數（單例模式）
 _ENGINE: Engine | None = None
-_SESSION_LOCAL: sessionmaker | None = None  # pylint: disable=unsubscriptable-object
+_SESSION_LOCAL: sessionmaker[Session] | None = None
 
 
 def get_auth_engine() -> Engine:
@@ -81,14 +88,16 @@ def get_auth_engine() -> Engine:
     return _ENGINE
 
 
-def get_auth_session_local() -> sessionmaker:
+def get_auth_session_local() -> sessionmaker[Session]:
     """
     取得 Auth DB SessionLocal 的單例。
 
     Returns:
-        sessionmaker: SessionLocal 工廠。
+        sessionmaker[Session]: SessionLocal 工廠。
     """
     global _SESSION_LOCAL  # pylint: disable=global-statement
     if _SESSION_LOCAL is None:
-        _SESSION_LOCAL = sessionmaker(bind=get_auth_engine(), autocommit=False, autoflush=False)
+        _SESSION_LOCAL = sessionmaker(
+            bind=get_auth_engine(), autocommit=False, autoflush=False
+        )
     return _SESSION_LOCAL

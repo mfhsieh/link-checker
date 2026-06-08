@@ -11,9 +11,7 @@
 4. **開機磁碟 (Boot Disk)**：
    - 向下捲動找到「開機磁碟」區塊，點擊 **「變更」(Change)** 按鈕。
    - **作業系統 (Operating System)**：在下拉選單中選擇 **Ubuntu**。
-   - **版本 (Version)**：選擇 **Ubuntu 24.04 LTS** 或 **Ubuntu 22.04 LTS** (LTS 代表長期支援版，穩定性較高，且內建 Python 3.10+)。
-   - **開機磁碟類型 (Boot disk type)**：建議選擇 **平衡的永久磁碟 (Balanced persistent disk)** 或 **SSD 永久磁碟 (SSD persistent disk)** 以獲得較佳的 I/O 效能，這對爬蟲頻繁讀寫資料庫非常重要。
-   - **大小 (Size)**：建議設定至少 **20 GB**（若預期爬取與匯出任務量極大，可設定 30 GB - 50 GB）。
+   - **版本 (Version)**：選擇 **Ubuntu 24.04 LTS** (LTS 代表長期支援版，穩定性較高，且內建 Python 3.12)。
    - 設定完成後，點擊底部的 **「選取」(Select)** 儲存變更。
 5. **防火牆**：
    - 勾選 **允許 HTTP 流量**。
@@ -27,7 +25,23 @@
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3 python3-venv python3-pip git nginx
+sudo apt install -y python3 python3-venv python3-pip git nginx build-essential python3-dev sqlite3
+```
+
+3. **(強烈建議) 建立 Swap 虛擬記憶體**：
+   - 若您選擇 `e2-micro` 規格 (僅 1GB RAM)，爬蟲在處理大量網頁時極易觸發 OOM (Out of Memory) 導致服務崩潰。請執行以下指令建立 2GB 的 Swap 交換空間以保障系統穩定運行：
+
+```bash
+# 建立一個 2GB 的 swap 檔案
+sudo fallocate -l 2G /swapfile
+# 設定正確的權限
+sudo chmod 600 /swapfile
+# 將檔案格式化為 swap
+sudo mkswap /swapfile
+# 啟用 swap
+sudo swapon /swapfile
+# (可選) 永久生效，加入 /etc/fstab
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
 ## 步驟三：下載專案與安裝 Python 套件
@@ -61,8 +75,6 @@ cp .env.example .env
 nano .env
 ```
 
-> **注意**：請務必在 `.env` 中設定一組高強度的隨機字串作為 `SECRET_KEY`，並設定您的 SMTP 寄信參數，確保 `DEBUG=false`。
-
 2. 初始化系統，建立第一位管理員帳號：
 
 ```bash
@@ -90,8 +102,8 @@ Description=External Link Checker Service
 After=network.target
 
 [Service]
-User=root
-Group=root
+User=<您的登入帳號名稱>
+Group=<您的登入帳號名稱>
 WorkingDirectory=/opt/ext-link-checker
 Environment="PATH=/opt/ext-link-checker/.venv/bin"
 ExecStart=/opt/ext-link-checker/.venv/bin/python cli.py --serve
@@ -101,6 +113,8 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 ```
+
+> **資安提醒**：為了確保伺服器安全，`User` 與 `Group` 絕對不建議使用 `root`。請將 `<您的登入帳號名稱>` 替換為您目前登入的 Linux 帳號名稱（可輸入 `whoami` 指令查詢），這必須與您在步驟三設定資料夾權限的帳號一致。
 
 3. 重新載入 Systemd 並啟動服務：
 
