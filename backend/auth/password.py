@@ -30,8 +30,8 @@ def hash_password(plain_password: str) -> str:
         str: bcrypt 雜湊字串。
     """
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(plain_password.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
+    hashed = bcrypt.hashpw(plain_password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -47,8 +47,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     try:
         return bcrypt.checkpw(
-            plain_password.encode('utf-8'),
-            hashed_password.encode('utf-8')
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8")
         )
     except Exception:  # pylint: disable=broad-exception-caught
         return False

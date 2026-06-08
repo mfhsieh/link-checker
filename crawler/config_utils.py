@@ -4,23 +4,38 @@
 
 import logging
 import os
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_GLOBAL_CONFIG = {
+DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
     "crawler": {
         "timeout": 30,
         "delay": 3.0,
         "retries": 3,
         "max_depth": None,
         "max_pages": None,
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "user_agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ),
         "proxy_url": None,
         "ssl_exempt_domains": [],
         "approved_domains": [],
         "domain_delays": {},
-        "ignore_extensions": ["pdf", "zip", "jpg", "png", "gif", "mp4", "mp3", "doc", "docx", "xls", "xlsx", "csv"],
+        "ignore_extensions": [
+            "pdf",
+            "zip",
+            "jpg",
+            "png",
+            "gif",
+            "mp4",
+            "mp3",
+            "doc",
+            "docx",
+            "xls",
+            "xlsx",
+            "csv",
+        ],
         "ignore_regexes": [],
         "mime_type_filter": {
             "enabled": True,
@@ -51,9 +66,15 @@ ALLOWED_CRAWLER_KEYS: set[str] = {
 }
 
 def _apply_crawler_defaults(
-    crawler_config: dict[str, Any], global_crawler_config: dict[str, Any]
+    crawler_config: dict[str, object], global_crawler_config: dict[str, object]
 ) -> None:
-    """套用全域預設值到 crawler_config 中。"""
+    """
+    套用全域預設值到 crawler_config 中。
+
+    Args:
+        crawler_config (dict[str, object]): 個別任務的爬蟲設定。
+        global_crawler_config (dict[str, object]): 全域爬蟲預設設定。
+    """
     if "timeout" not in crawler_config:
         crawler_config["timeout"] = global_crawler_config.get("timeout", 30)
     if "delay" not in crawler_config:
@@ -81,9 +102,15 @@ def _apply_crawler_defaults(
         crawler_config["proxy_url"] = global_crawler_config.get("proxy_url", None)
 
 def _merge_crawler_lists(
-    crawler_config: dict[str, Any], global_crawler_config: dict[str, Any]
+    crawler_config: dict[str, object], global_crawler_config: dict[str, object]
 ) -> None:
-    """聯集合併 crawler_config 中的 list 參數。"""
+    """
+    聯集合併 crawler_config 中的 list 參數。
+
+    Args:
+        crawler_config (dict[str, object]): 個別任務的爬蟲設定。
+        global_crawler_config (dict[str, object]): 全域爬蟲預設設定。
+    """
     list_keys = [
         "ignore_extensions",
         "ignore_regexes",
@@ -103,14 +130,20 @@ def _merge_crawler_lists(
         elif key in ["ssl_exempt_domains"]:
             crawler_config[key] = []
 
-    global_domain_delays: dict = global_crawler_config.get("domain_delays") or {}
-    local_domain_delays: dict = crawler_config.get("domain_delays") or {}
+    global_domain_delays: dict[str, object] = global_crawler_config.get("domain_delays") or {}
+    local_domain_delays: dict[str, object] = crawler_config.get("domain_delays") or {}
     crawler_config["domain_delays"] = {**global_domain_delays, **local_domain_delays}
 
 def _enforce_crawler_limits(
-    crawler_config: dict[str, Any], global_crawler_config: dict[str, Any]
+    crawler_config: dict[str, object], global_crawler_config: dict[str, object]
 ) -> None:
-    """強制套用全域上下限。"""
+    """
+    強制套用全域上下限。
+
+    Args:
+        crawler_config (dict[str, object]): 個別任務的爬蟲設定。
+        global_crawler_config (dict[str, object]): 全域爬蟲限制設定。
+    """
     limits = [
         ("timeout", "min_timeout", "max_timeout", 30, 120),
         ("delay", "min_delay", "max_delay", 3.0, 6.0),
@@ -120,23 +153,44 @@ def _enforce_crawler_limits(
         min_val = global_crawler_config.get(min_k, def_min)
         max_val = global_crawler_config.get(max_k, def_max)
         if crawler_config[key] < min_val:
-            logging.warning("個別設定的 %s (%s) 小於最小值 (%s)，強制套用。", key, crawler_config[key], min_val)
+            logging.warning(
+                "個別設定的 %s (%s) 小於最小值 (%s)，強制套用。",
+                key,
+                crawler_config[key],
+                min_val,
+            )
             crawler_config[key] = min_val
         elif crawler_config[key] > max_val:
-            logging.warning("個別設定的 %s (%s) 大於最大值 (%s)，強制套用。", key, crawler_config[key], max_val)
+            logging.warning(
+                "個別設定的 %s (%s) 大於最大值 (%s)，強制套用。",
+                key,
+                crawler_config[key],
+                max_val,
+            )
             crawler_config[key] = max_val
 
 def merge_and_validate_crawler_config(
-    config: dict[str, Any], global_config: dict[str, Any]
-) -> dict[str, Any]:
-    """合併全域與個別的爬蟲設定，並確保個別設定遵守全域上下限。"""
-    crawler_config: dict[str, Any] = config.get("crawler", {})
+    config: dict[str, object], global_config: dict[str, object]
+) -> dict[str, object]:
+    """
+    合併全域與個別的爬蟲設定，並確保個別設定遵守全域上下限。
+
+    Args:
+        config (dict[str, object]): 原始請求的設定。
+        global_config (dict[str, object]): 全域配置。
+
+    Returns:
+        dict[str, object]: 驗證與合併完成後的爬蟲設定。
+    """
+    crawler_config: dict[str, object] = config.get("crawler", {})
     for key in list(crawler_config.keys()):
         if key not in ALLOWED_CRAWLER_KEYS:
-            logging.warning("個別設定 config.yaml 不允許覆寫 crawler.%s，此設定將被忽略。", key)
+            logging.warning(
+                "個別設定 config.yaml 不允許覆寫 crawler.%s，此設定將被忽略。", key
+            )
             del crawler_config[key]
 
-    global_crawler_config: dict[str, Any] = global_config.get("crawler", {})
+    global_crawler_config: dict[str, object] = global_config.get("crawler", {})
 
     _apply_crawler_defaults(crawler_config, global_crawler_config)
     _merge_crawler_lists(crawler_config, global_crawler_config)

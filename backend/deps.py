@@ -13,7 +13,7 @@ FastAPI 共用依賴注入模組。
 import logging
 import secrets
 import threading
-from typing import Generator
+from collections.abc import Generator
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session as DBSession # pylint: disable=unused-import

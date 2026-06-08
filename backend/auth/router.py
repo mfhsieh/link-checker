@@ -14,7 +14,6 @@ Session Token 以 HTTP-only Cookie 承載，不允許前端 JS 直接存取。
 
 import logging
 import secrets
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, field_validator
@@ -41,7 +40,15 @@ class LoginRequest(BaseModel):
     @field_validator("email")
     @classmethod
     def normalize_email(cls, v: str) -> str:
-        """將信箱轉為小寫去空白。"""
+        """
+        將信箱轉為小寫去空白。
+
+        Args:
+            v (str): 原始信箱字串。
+
+        Returns:
+            str: 處理後的信箱字串。
+        """
         return v.strip().lower()
 
 
@@ -59,7 +66,13 @@ class ChangePasswordRequest(BaseModel):
 # ── 輔助：設定 Session Cookie 與 CSRF Cookie ────────────────────────────────────
 
 def _set_session_cookie(response: Response, token: str) -> None:
-    """設定 HTTP-only Session Cookie。"""
+    """
+    設定 HTTP-only Session Cookie。
+
+    Args:
+        response (Response): FastAPI 回應物件。
+        token (str): 欲設定的 Session Token。
+    """
     settings = get_settings()
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
@@ -73,7 +86,13 @@ def _set_session_cookie(response: Response, token: str) -> None:
 
 
 def _set_csrf_cookie(response: Response, token: str) -> None:
-    """設定可讓 JS 讀取的 CSRF Cookie（非 HTTP-only）。"""
+    """
+    設定可讓 JS 讀取的 CSRF Cookie（非 HTTP-only）。
+
+    Args:
+        response (Response): FastAPI 回應物件。
+        token (str): 欲設定的 CSRF Token。
+    """
     settings = get_settings()
     response.set_cookie(
         key=settings.CSRF_COOKIE_NAME,
@@ -87,7 +106,12 @@ def _set_csrf_cookie(response: Response, token: str) -> None:
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    """清除 Session Cookie 與 CSRF Cookie。"""
+    """
+    清除 Session Cookie 與 CSRF Cookie。
+
+    Args:
+        response (Response): FastAPI 回應物件。
+    """
     settings = get_settings()
     response.delete_cookie(settings.SESSION_COOKIE_NAME, path="/")
     response.delete_cookie(settings.CSRF_COOKIE_NAME, path="/")
@@ -101,7 +125,7 @@ async def login(
     request: Request,
     response: Response,
     db: DBSession = Depends(get_auth_db),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     使用者登入。
 
@@ -118,7 +142,7 @@ async def login(
         db (DBSession): Auth 資料庫 Session。
 
     Returns:
-        dict[str, Any]: 登入結果，包含是否為首次登入 (is_first_login) 與使用者資訊 (user)。
+        dict[str, object]: 登入結果，包含是否為首次登入 (is_first_login) 與使用者資訊 (user)。
 
     Raises:
         HTTPException 400: 若參數不完整（同時提供或同時缺少密碼與 token）。
@@ -215,6 +239,15 @@ async def logout(
 ) -> dict[str, str]:
     """
     登出並清除 Session Token。
+
+    Args:
+        response (Response): FastAPI 回應物件，用於清除 Cookie。
+        request (Request): FastAPI 請求物件，用於讀取 Cookie。
+        db (DBSession): Auth DB Session。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
     """
     settings = get_settings()
     raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
@@ -228,9 +261,15 @@ async def logout(
 @router.get("/me", status_code=status.HTTP_200_OK)
 async def get_me(
     current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     取得當前已登入使用者的基本資訊。
+
+    Args:
+        current_user (User): 當前登入的使用者物件。
+
+    Returns:
+        dict[str, object]: 使用者的基本資訊。
     """
     return {
         "id": current_user.id,
@@ -254,6 +293,18 @@ async def change_password(
 ) -> dict[str, str]:
     """
     已登入使用者修改密碼（需提供現有密碼進行驗證）。
+
+    Args:
+        body (ChangePasswordRequest): 變更密碼的請求內容。
+        db (DBSession): Auth DB Session。
+        current_user (User): 當前登入的使用者物件。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 422: 現有密碼錯誤或新密碼不符合安全標準時拋出。
     """
     try:
         auth_service.change_password(

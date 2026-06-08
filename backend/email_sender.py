@@ -60,9 +60,13 @@ def _build_invitation_email(
   <p>請前往下方網址，並輸入您的電子郵件及專屬邀請碼以完成首次登入與密碼設定：</p>
   <div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:24px 0;">
     <p style="margin:0 0 8px 0;font-size:0.875rem;color:#666;">系統網址</p>
-    <p style="margin:0 0 16px 0;"><a href="{login_url}" style="color:#2563eb;text-decoration:none;">{login_url}</a></p>
+    <p style="margin:0 0 16px 0;">
+      <a href="{login_url}" style="color:#2563eb;text-decoration:none;">{login_url}</a>
+    </p>
     <p style="margin:0 0 8px 0;font-size:0.875rem;color:#666;">邀請碼</p>
-    <p style="margin:0;font-size:1.25rem;font-weight:bold;letter-spacing:1px;color:#1a1a2e;">{invitation_token}</p>
+    <p style="margin:0;font-size:1.25rem;font-weight:bold;letter-spacing:1px;color:#1a1a2e;">
+      {invitation_token}
+    </p>
   </div>
   <p style="color:#666;font-size:0.875rem">
     此邀請碼有效期為 <strong>{expires_hours} 小時</strong>，逾期後將失效。
@@ -83,7 +87,12 @@ def _build_invitation_email(
 
 
 def _send_email(msg: EmailMessage) -> None:
-    """執行實際的 SMTP 發送邏輯。"""
+    """
+    執行實際的 SMTP 發送邏輯。
+
+    Args:
+        msg (EmailMessage): 欲寄送的郵件物件。
+    """
     settings = get_settings()
     context = ssl.create_default_context()
     if settings.SMTP_USE_TLS:

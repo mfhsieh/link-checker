@@ -14,7 +14,6 @@ import re
 import sys
 import secrets
 import string
-from typing import Any
 import yaml
 from crawler.config_utils import merge_and_validate_crawler_config
 from crawler.manager import JobManager
@@ -27,7 +26,7 @@ logging.basicConfig(
 
 def load_config(
     config_path: str, allowed_directory: str | None = None
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     從指定的 YAML 檔案讀取設定值。
 
@@ -36,7 +35,7 @@ def load_config(
         allowed_directory (str | None): 限制此設定檔只能放置於此目錄（或其子目錄）下。
 
     Returns:
-        dict[str, Any]: 讀取出來的設定字典 (Dictionary) 物件。
+        dict[str, object]: 讀取出來的設定字典 (Dictionary) 物件。
 
     Raises:
         PermissionError: 當設定檔不符合安全路徑限制時拋出。
@@ -59,7 +58,7 @@ def load_config(
         return yaml.safe_load(f)
 
 
-def setup_logging(global_config: dict[str, Any]) -> None:
+def setup_logging(global_config: dict[str, object]) -> None:
     """
     依據全域設定檔來套用 Logging 輸出層級與檔案路徑。
 
@@ -67,7 +66,7 @@ def setup_logging(global_config: dict[str, Any]) -> None:
     的輸出層級與日誌檔案路徑。
 
     Args:
-        global_config (dict[str, Any]): 全域設定字典物件，需包含系統的全域設定參數。
+        global_config (dict[str, object]): 全域設定字典物件，需包含系統的全域設定參數。
     """
     logging_config = global_config.get("logging", {})
 
@@ -488,7 +487,7 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
 
 
 def _handle_resume_or_create(
-    manager: JobManager, args: argparse.Namespace, global_config: dict[str, Any]
+    manager: JobManager, args: argparse.Namespace, global_config: dict[str, object]
 ) -> None:
     """
     處理建立新任務或從中斷點恢復執行的指令。
@@ -498,7 +497,7 @@ def _handle_resume_or_create(
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數。
-        global_config (dict[str, Any]): 系統的全域設定字典。
+        global_config (dict[str, object]): 系統的全域設定字典。
 
     Raises:
         SystemExit: 當讀取設定失敗、驗證不通過或啟動爬蟲失敗時，終止程式並回傳錯誤碼 1。
@@ -512,7 +511,7 @@ def _handle_resume_or_create(
         manager.run_job(job_id=args.resume, force=args.force)
         return
 
-    config: dict[str, Any] = {}
+    config: dict[str, object] = {}
     if args.config:
         config_path = args.config
         if not config_path.startswith(("job/", "./job/", "/")):
@@ -581,7 +580,7 @@ def main() -> None:
     if not global_config_path.startswith(("config/", "./config/", "/")):
         global_config_path = os.path.join("config", global_config_path)
 
-    global_config: dict[str, Any] = {}
+    global_config: dict[str, object] = {}
     try:
         global_config = load_config(global_config_path, allowed_directory="config")
     except FileNotFoundError:

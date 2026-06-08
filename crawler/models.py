@@ -16,7 +16,8 @@ class Base(DeclarativeBase):
     """所有 SQLAlchemy 宣告式模型的基底類別 (Base Class)。"""
 
 def get_utc_now() -> datetime:
-    """取得不含時區資訊（naive）的當前 UTC 時間，以配合 SQLite 儲存格式。
+    """
+    取得不含時區資訊（naive）的當前 UTC 時間，以配合 SQLite 儲存格式。
 
     與 auth/models.py 的 _utc_now() 保持一致策略。
 
@@ -44,7 +45,9 @@ class Job(Base):
     """
     __tablename__ = "jobs"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     start_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     target_domains: Mapped[str] = mapped_column(Text, nullable=False)
@@ -117,7 +120,12 @@ class ExternalLink(Base):
     __tablename__ = "external_links"
     __table_args__ = (
         Index("ix_external_links_job_src_tgt", "job_id", "source_url", "target_url"),
-        UniqueConstraint("job_id", "source_url", "target_url", name="uq_external_links_job_src_tgt"),
+        UniqueConstraint(
+            "job_id",
+            "source_url",
+            "target_url",
+            name="uq_external_links_job_src_tgt",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

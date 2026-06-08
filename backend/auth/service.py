@@ -15,7 +15,6 @@ import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 from sqlalchemy.orm import Session as DBSession
 
@@ -42,7 +41,15 @@ def _utc_now() -> datetime:
 
 
 def _hash_token(token: str) -> str:
-    """對 Session Token 進行 SHA-256 雜湊（不可逆，僅儲存雜湊值）。"""
+    """
+    對 Session Token 進行 SHA-256 雜湊（不可逆，僅儲存雜湊值）。
+
+    Args:
+        token (str): 原始 Token。
+
+    Returns:
+        str: SHA-256 雜湊值。
+    """
     return hashlib.sha256(token.encode()).hexdigest()
 
 
@@ -53,7 +60,16 @@ def _log_event(
     ip_address: str | None = None,
     detail: str | None = None,
 ) -> None:
-    """寫入身分驗證事件日誌。"""
+    """
+    寫入身分驗證事件日誌。
+
+    Args:
+        db (DBSession): Auth DB Session。
+        event_type (str): 記錄的事件類型。
+        user_id (str | None): 相關使用者的 ID。
+        ip_address (str | None): 客戶端 IP。
+        detail (str | None): 補充詳細資訊。
+    """
     log = AuthLog(
         user_id=user_id,
         event_type=event_type,
@@ -67,7 +83,7 @@ def _log_event(
 # ── 邀請管理 ───────────────────────────────────────────────────────────────────
 
 
-def create_invitation(db: DBSession, email: str) -> dict[str, Any]:
+def create_invitation(db: DBSession, email: str) -> dict[str, object]:
     """
     建立新使用者帳號並寄送邀請郵件。
 
@@ -78,7 +94,7 @@ def create_invitation(db: DBSession, email: str) -> dict[str, Any]:
         email (str): 受邀者的電子郵件地址。
 
     Returns:
-        dict: 包含 user_id、email、token、expires_at 的邀請資料。
+        dict[str, object]: 包含 user_id、email、token、expires_at 的邀請資料。
 
     Raises:
         ValueError: 若 email 格式無效或帳號已為 active/suspended 狀態。
@@ -133,14 +149,29 @@ def create_invitation(db: DBSession, email: str) -> dict[str, Any]:
 
 
 def _is_account_locked(user: User) -> bool:
-    """判斷帳號是否目前被鎖定。"""
+    """
+    判斷帳號是否目前被鎖定。
+
+    Args:
+        user (User): 使用者物件。
+
+    Returns:
+        bool: 如果被鎖定則回傳 True。
+    """
     if user.locked_until and user.locked_until > _utc_now():
         return True
     return False
 
 
 def _increment_failed_login(db: DBSession, user: User, ip: str | None) -> None:
-    """增加失敗登入次數，超過閾值則鎖定帳號。"""
+    """
+    增加失敗登入次數，超過閾值則鎖定帳號。
+
+    Args:
+        db (DBSession): Auth DB Session。
+        user (User): 使用者物件。
+        ip (str | None): 客戶端 IP 位址。
+    """
     settings = get_settings()
     user.failed_login_count = (user.failed_login_count or 0) + 1
     if user.failed_login_count >= settings.LOGIN_MAX_ATTEMPTS:
@@ -164,7 +195,13 @@ def _increment_failed_login(db: DBSession, user: User, ip: str | None) -> None:
 
 
 def _reset_failed_login(db: DBSession, user: User) -> None:
-    """登入成功後重置失敗計數與鎖定狀態。"""
+    """
+    登入成功後重置失敗計數與鎖定狀態。
+
+    Args:
+        db (DBSession): Auth DB Session。
+        user (User): 使用者物件。
+    """
     user.failed_login_count = 0
     user.locked_until = None
     db.commit()
@@ -176,7 +213,7 @@ def authenticate_with_invitation(
     token: str,
     ip: str | None = None,
     user_agent: str | None = None,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     以邀請 UUID 進行首次登入身分驗證，並建立首次登入 Session。
 
@@ -188,7 +225,7 @@ def authenticate_with_invitation(
         user_agent (str | None): 客戶端 User-Agent。
 
     Returns:
-        dict: 包含 session_token 與 user 資訊。
+        dict[str, object]: 包含 session_token 與 user 資訊。
 
     Raises:
         ValueError: 邀請無效或帳號狀態不符。
@@ -245,7 +282,7 @@ def authenticate_with_password(
     password: str,
     ip: str | None = None,
     user_agent: str | None = None,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     以電子郵件 + 密碼進行一般登入。
 
@@ -257,7 +294,7 @@ def authenticate_with_password(
         user_agent (str | None): 客戶端 User-Agent。
 
     Returns:
-        dict: 包含 session_token 與 user 資訊。
+        dict[str, object]: 包含 session_token 與 user 資訊。
 
     Raises:
         ValueError: 帳號不存在、密碼錯誤、帳號鎖定或狀態不符。
@@ -337,7 +374,19 @@ def _create_session(
     user_agent: str | None,
     is_first_login: bool = False,
 ) -> tuple[str, Session]:
-    """建立新的 Session，回傳原始 token（供設定 Cookie）與 Session ORM 物件。"""
+    """
+    建立新的 Session，回傳原始 token（供設定 Cookie）與 Session ORM 物件。
+
+    Args:
+        db (DBSession): Auth DB Session。
+        user_id (str): 使用者 ID。
+        ip (str | None): 客戶端 IP。
+        user_agent (str | None): 客戶端 User-Agent。
+        is_first_login (bool): 是否為首次登入，預設為 False。
+
+    Returns:
+        tuple[str, Session]: 包含原始 Token 與 Session ORM 物件的元組。
+    """
     settings = get_settings()
     raw_token = secrets.token_urlsafe(32)
     token_hash = _hash_token(raw_token)

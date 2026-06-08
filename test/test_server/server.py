@@ -10,7 +10,6 @@ import time
 import os
 import threading
 import sys
-from typing import Any
 
 # 全域計數器與鎖，用以安全記錄請求次數
 request_counter: dict[str, int] = {"/temporary-error": 0}
@@ -23,13 +22,13 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     """
 
     # pylint: disable=arguments-differ, redefined-builtin
-    def log_message(self, format: str, *args: Any) -> None:
+    def log_message(self, format: str, *args: object) -> None:
         """
         覆寫日誌輸出，改以特定的 MockServer 前綴輸出至 stderr，保持終端機整潔。
 
         Args:
             format (str): 日誌格式化字串。
-            *args: 要填入格式化字串的變數。
+            *args (object): 要填入格式化字串的變數。
         """
         sys.stderr.write(
             f"MockServer - - [{self.log_date_time_string()}] {format % args}\n"

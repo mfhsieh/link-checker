@@ -11,7 +11,7 @@ import re
 import socket
 import threading
 from contextlib import contextmanager, nullcontext
-from typing import Any
+from collections.abc import Iterator
 from urllib.parse import urlparse, ParseResult, urljoin
 import httpx
 from bs4 import BeautifulSoup
@@ -19,28 +19,62 @@ from crawler.utils import normalize_url, get_domain, is_in_domain_list, resolve_
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-_default_social_domains = "facebook.com,fb.com,youtube.com,instagram.com,twitter.com,linkedin.com"
+_DEFAULT_SOCIAL_DOMAINS = "facebook.com,fb.com,youtube.com,instagram.com,twitter.com,linkedin.com"
 SOCIAL_DOMAINS: tuple[str, ...] = tuple(
-    d.strip() for d in os.environ.get("CRAWLER_SOCIAL_DOMAINS", _default_social_domains).split(",") if d.strip()
+    d.strip()
+    for d in os.environ.get("CRAWLER_SOCIAL_DOMAINS", _DEFAULT_SOCIAL_DOMAINS).split(",")
+    if d.strip()
 )
-MAX_CONTENT_LENGTH: int = int(os.environ.get("CRAWLER_MAX_CONTENT_LENGTH", 10 * 1024 * 1024))
+MAX_CONTENT_LENGTH: int = int(
+    os.environ.get("CRAWLER_MAX_CONTENT_LENGTH", 10 * 1024 * 1024)
+)
 
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
 _original_getaddrinfo = socket.getaddrinfo
 _dns_override = threading.local()
 
-def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+def _patched_getaddrinfo(
+    host: str | bytes | None,
+    port: str | int | None,
+    family: int = 0,
+    type_: int = 0,
+    proto: int = 0,
+    flags: int = 0,
+) -> list[tuple[int, int, int, str, object]]:
+    """
+    攔截 socket.getaddrinfo 以支援自訂 DNS 解析。
+
+    Args:
+        host (str | bytes | None): 目標主機。
+        port (str | int | None): 目標通訊埠。
+        family (int): 位址家族。
+        type_ (int): Socket 類型。
+        proto (int): 協定。
+        flags (int): 標記。
+
+    Returns:
+        list[tuple[int, int, int, str, object]]: 原始或被替換的位址資訊列表。
+    """
     overrides = getattr(_dns_override, "overrides", {})
     if host in overrides:
-        return _original_getaddrinfo(overrides[host], port, family, type, proto, flags)
-    return _original_getaddrinfo(host, port, family, type, proto, flags)
+        return _original_getaddrinfo(overrides[host], port, family, type_, proto, flags)
+    return _original_getaddrinfo(host, port, family, type_, proto, flags)
 
 socket.getaddrinfo = _patched_getaddrinfo
 
 @contextmanager
-def dns_override(host: str, ip: str):
-    """Thread-safe Context Manager，用以強制替換指定網域的 DNS 解析結果。"""
+def dns_override(host: str, ip: str) -> Iterator[None]:
+    """
+    Thread-safe Context Manager，用以強制替換指定網域的 DNS 解析結果。
+
+    Args:
+        host (str): 欲攔截的網域名稱。
+        ip (str): 強制對應的 IP 位址。
+
+    Yields:
+        None: 無回傳值。
+    """
     if not hasattr(_dns_override, "overrides"):
         _dns_override.overrides = {}
     _dns_override.overrides[host] = ip
@@ -63,12 +97,12 @@ class CrawlerCore:
         client (httpx.Client): 用於發送同步連線的 HTTPX 客戶端物件。
     """
 
-    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         timeout: int = 30,
         ignore_extensions: list[str] | None = None,
-        mime_type_filter: dict | None = None,
+        mime_type_filter: dict[str, object] | None = None,
         ignore_regexes: list[str] | None = None,
         user_agent: str | None = None,
         ssl_exempt_domains: list[str] | None = None,
@@ -80,7 +114,7 @@ class CrawlerCore:
         Args:
             timeout (int): HTTP 請求的逾時時間 (單位：秒)，預設為 30 秒。
             ignore_extensions (list[str] | None): 要忽略的副檔名清單，預設包含常見非 HTML 檔案。
-            mime_type_filter (dict | None): MIME 類型過濾設定。
+            mime_type_filter (dict[str, object] | None): MIME 類型過濾設定。
             ignore_regexes (list[str] | None): 要忽略的網址正規表示式 (Regex) 清單。
             user_agent (str | None): (選填) 自訂 HTTP 請求標頭的 User-Agent。
             ssl_exempt_domains (list[str] | None): (選填) 豁免 SSL 憑證驗證之網域清單。
@@ -95,7 +129,7 @@ class CrawlerCore:
             ".mp4",
             ".zip",
         ]
-        self.mime_type_filter: dict = mime_type_filter or {
+        self.mime_type_filter: dict[str, object] = mime_type_filter or {
             "enabled": True,
             "allowed_types": ["text/html", "application/xhtml+xml"],
         }
@@ -175,7 +209,11 @@ class CrawlerCore:
                 ip = resolve_ip(domain)
                 if ip:
                     if not is_safe_ip(ip):
-                        logger.warning("網址 %s 的 IP (%s) 被判定為不安全，已攔截潛在的 SSRF 攻擊！", current_url, ip)
+                        logger.warning(
+                            "網址 %s 的 IP (%s) 被判定為不安全，已攔截潛在的 SSRF 攻擊！",
+                            current_url,
+                            ip,
+                        )
                         return None, None, "skip", current_url, request_sent
 
             with dns_override(domain, ip) if domain and ip else nullcontext():
@@ -212,7 +250,11 @@ class CrawlerCore:
                     for chunk in response.iter_bytes(chunk_size=8192):
                         content_bytes.extend(chunk)
                         if len(content_bytes) > MAX_CONTENT_LENGTH:
-                            logger.warning("網址 %s 內容超過 %d bytes，已提早截斷保護記憶體", current_url, MAX_CONTENT_LENGTH)
+                            logger.warning(
+                                "網址 %s 內容超過 %d bytes，已提早截斷保護記憶體",
+                                current_url,
+                                MAX_CONTENT_LENGTH,
+                            )
                             break
 
                     charset = response.charset_encoding or "utf-8"
@@ -225,7 +267,7 @@ class CrawlerCore:
                         current_url,
                         request_sent,
                     )
-                
+
         logger.warning("網址 %s 超過最大重導向次數", url)
         return None, None, "skip", current_url, request_sent
 
@@ -246,7 +288,7 @@ class CrawlerCore:
         try:
             soup: BeautifulSoup = BeautifulSoup(html, "html.parser")
             links: list[str] = []
-            raw_links: list[Any] = []
+            raw_links: list[object] = []
 
             # 1. 擷取 href 屬性 (超連結 a, 樣式表 link)
             for tag in soup.find_all(["a", "link"], href=True):
@@ -275,7 +317,9 @@ class CrawlerCore:
 
                 href: str = val_str.strip()
                 # 排除 javascript, mailto 等非 http(s) 的錨點連結
-                if not href or href.lower().startswith(("javascript:", "mailto:", "tel:", "#")):
+                if not href or href.lower().startswith(
+                    ("javascript:", "mailto:", "tel:", "#")
+                ):
                     continue
                 normalized_link: str = normalize_url(href, base_url)
 
@@ -347,7 +391,7 @@ class CrawlerCore:
         """
         max_redirects = 5
         current_url = url
-        
+
         for _ in range(max_redirects):
             try:
                 tgt_dom = get_domain(current_url)
@@ -374,7 +418,9 @@ class CrawlerCore:
                 # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
                 domain = get_domain(current_url)
                 # 使用精確的子網域比對（防止 notfacebook.com 被誤判為社群網域）
-                is_social_media = domain and is_in_domain_list(domain.lower(), list(SOCIAL_DOMAINS))
+                is_social_media = domain and is_in_domain_list(
+                    domain.lower(), list(SOCIAL_DOMAINS)
+                )
 
                 if response.status_code in (400, 403, 405) or (
                     response.status_code >= 400 and is_social_media
@@ -399,7 +445,7 @@ class CrawlerCore:
                 return None, str(e)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 return None, str(e)
-                
+
         return None, "超過最大重導向次數限制"
 
     def close(self) -> None:

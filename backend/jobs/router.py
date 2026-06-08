@@ -24,7 +24,6 @@ import logging
 import os
 import tempfile
 import zipfile
-from typing import Any
 
 import yaml
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
@@ -38,6 +37,7 @@ from backend.deps import get_crawler_db, get_current_user, get_job_manager, requ
 from backend.jobs import service as job_service
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG, merge_and_validate_crawler_config
 from crawler.manager import JobManager, _sanitize_csv_value
+from crawler.models import Job
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,18 @@ class CreateJobRequest(BaseModel):
     @field_validator("start_url")
     @classmethod
     def validate_url(cls, v: str) -> str:
-        """驗證 URL 格式。"""
+        """
+        驗證 URL 格式。
+
+        Args:
+            v (str): 原始網址字串。
+
+        Returns:
+            str: 驗證後的網址字串。
+
+        Raises:
+            ValueError: 若網址不以 http:// 或 https:// 開頭時拋出。
+        """
         v = v.strip()
         if not (v.startswith("http://") or v.startswith("https://")):
             raise ValueError("起始 URL 必須以 http:// 或 https:// 開頭。")
@@ -72,7 +83,18 @@ class CreateJobRequest(BaseModel):
     @field_validator("target_domains")
     @classmethod
     def validate_domains(cls, v: list[str]) -> list[str]:
-        """確保至少有一個目標網域。"""
+        """
+        確保至少有一個目標網域。
+
+        Args:
+            v (list[str]): 原始網域列表。
+
+        Returns:
+            list[str]: 驗證後的網域列表。
+
+        Raises:
+            ValueError: 若列表為空時拋出。
+        """
         if not v:
             raise ValueError("至少需要指定一個目標網域。")
         return [d.strip() for d in v]
@@ -82,9 +104,17 @@ class CreateJobRequest(BaseModel):
 
 @router.get("/default-config", status_code=status.HTTP_200_OK)
 async def get_default_config(
-    current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """取得任務預設的全域配置，供前端建立任務時填入預設值與限制。"""
+    _current_user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    """
+    取得任務預設的全域配置，供前端建立任務時填入預設值與限制。
+
+    Args:
+        _current_user (User): 當前登入的使用者物件。
+
+    Returns:
+        dict[str, object]: 允許前端使用的預設配置過濾結果。
+    """
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
     crawler_config = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
@@ -114,8 +144,18 @@ async def list_jobs(
     status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
-) -> list[dict[str, Any]]:
-    """列出當前使用者的所有任務。"""
+) -> list[dict[str, object]]:
+    """
+    列出當前使用者的所有任務。
+
+    Args:
+        status_filter (str | None): 依任務狀態篩選。
+        current_user (User): 當前登入的使用者物件。
+        manager (JobManager): JobManager 實例。
+
+    Returns:
+        list[dict[str, object]]: 任務清單。
+    """
     return job_service.list_jobs(manager, current_user.id, status=status_filter)
 
 
@@ -125,9 +165,23 @@ async def create_job(
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
     _csrf: None = Depends(require_csrf),
-) -> dict[str, Any]:
-    """建立新的爬蟲任務。"""
-    
+) -> dict[str, object]:
+    """
+    建立新的爬蟲任務。
+
+    Args:
+        body (CreateJobRequest): 建立任務的請求內容。
+        current_user (User): 當前登入的使用者物件。
+        manager (JobManager): JobManager 實例。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, object]: 新建任務的 ID 與訊息。
+
+    Raises:
+        HTTPException 500: 建立任務失敗時拋出。
+    """
+
     # 安全白名單：只允許前端設定特定的 crawler_config 欄位
     allowed_crawler_keys = {
         "ignore_extensions", "ignore_regexes",
@@ -137,7 +191,7 @@ async def create_job(
 
     # 透過白名單動態過濾並組建 crawler_config
     body_dict = body.model_dump()
-    user_crawler_config: dict[str, Any] = {}
+    user_crawler_config: dict[str, object] = {}
     for key in allowed_crawler_keys:
         val = body_dict.get(key)
         # 過濾掉 None 與空字串/空陣列，避免覆蓋掉全域預設設定
@@ -177,8 +231,21 @@ async def get_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
-) -> dict[str, Any]:
-    """取得任務詳情（含進度）。"""
+) -> dict[str, object]:
+    """
+    取得任務詳情（含進度）。
+
+    Args:
+        job_id (str): 欲查詢的任務 ID。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+
+    Returns:
+        dict[str, object]: 任務詳情與進度。
+
+    Raises:
+        HTTPException 404: 找不到任務或無權限時拋出。
+    """
     try:
         return job_service.get_job_detail(manager, job_id, current_user.id)
     except ValueError as e:
@@ -192,7 +259,21 @@ async def start_job(
     manager: JobManager = Depends(get_job_manager),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """啟動任務（spawn 爬蟲子程序）。"""
+    """
+    啟動任務（spawn 爬蟲子程序）。
+
+    Args:
+        job_id (str): 欲啟動的任務 ID。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 若任務狀態不允許啟動時拋出。
+    """
     try:
         job_service.start_job(manager, job_id, current_user.id)
         return {"message": "任務已啟動。"}
@@ -207,7 +288,21 @@ async def pause_job(
     manager: JobManager = Depends(get_job_manager),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """暫停任務（協同暫停，更新 DB 狀態）。"""
+    """
+    暫停任務（協同暫停，更新 DB 狀態）。
+
+    Args:
+        job_id (str): 欲暫停的任務 ID。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 若操作失敗時拋出。
+    """
     try:
         job_service.pause_job(manager, job_id, current_user.id)
         return {"message": "已發送暫停指令，任務將在完成當前網頁後停止。"}
@@ -222,7 +317,21 @@ async def resume_job(
     manager: JobManager = Depends(get_job_manager),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """恢復已暫停的任務（只允許 paused 狀態）。"""
+    """
+    恢復已暫停的任務（只允許 paused 狀態）。
+
+    Args:
+        job_id (str): 欲恢復的任務 ID。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 若任務非暫停狀態時拋出。
+    """
     try:
         # 先確認任務狀態，resume 只允許 paused 狀態
         job = manager.get_job(job_id)
@@ -245,7 +354,21 @@ async def reset_job(
     manager: JobManager = Depends(get_job_manager),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """重置任務（清除結果並回到 pending 狀態）。"""
+    """
+    重置任務（清除結果並回到 pending 狀態）。
+
+    Args:
+        job_id (str): 欲重置的任務 ID。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 若操作失敗時拋出。
+    """
     try:
         job_service.reset_job(manager, job_id, current_user.id)
         return {"message": "任務已重置。"}
@@ -260,7 +383,21 @@ async def retry_failed_job(
     manager: JobManager = Depends(get_job_manager),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """局部重試任務中的失敗項目。"""
+    """
+    局部重試任務中的失敗項目。
+
+    Args:
+        job_id (str): 欲重試的任務 ID。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 若操作失敗時拋出。
+    """
     try:
         job_service.retry_failed_job(manager, job_id, current_user.id)
         return {"message": "任務失敗項目已重置。"}
@@ -275,7 +412,21 @@ async def delete_job(
     manager: JobManager = Depends(get_job_manager),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """刪除任務及所有相關資料。"""
+    """
+    刪除任務及所有相關資料。
+
+    Args:
+        job_id (str): 欲刪除的任務 ID。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 404: 若任務不存在時拋出。
+    """
     try:
         job_service.delete_job(manager, job_id, current_user.id)
         return {"message": "任務已刪除。"}
@@ -285,7 +436,7 @@ async def delete_job(
 
 class ResultsQueryArgs:
     """任務結果查詢參數。"""
-    # pylint: disable=too-few-public-methods,too-many-arguments,too-many-positional-arguments
+    # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
         status_filter: str | None = Query(
@@ -297,7 +448,17 @@ class ResultsQueryArgs:
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
     ) -> None:
-        """初始化結果查詢參數。"""
+        """
+        初始化結果查詢參數。
+
+        Args:
+            status_filter (str | None): 狀態過濾條件。
+            search (str | None): 搜尋字串。
+            exclude (str | None): 要排除的網域。
+            group_by (str): 聚合方式。
+            page (int): 頁碼。
+            page_size (int): 每頁筆數。
+        """
         self.status_filter = status_filter
         self.search = search
         self.exclude = exclude
@@ -312,8 +473,22 @@ async def get_results(
     query_args: ResultsQueryArgs = Depends(),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
-) -> dict[str, Any]:
-    """外連結果列表（支援篩選、搜尋、去重聚合與分頁）。"""
+) -> dict[str, object]:
+    """
+    外連結果列表（支援篩選、搜尋、去重聚合與分頁）。
+
+    Args:
+        job_id (str): 任務 ID。
+        query_args (ResultsQueryArgs): 結果查詢參數。
+        current_user (User): 當前登入的使用者。
+        db (DBSession): Crawler DB Session。
+
+    Returns:
+        dict[str, object]: 查詢結果。
+
+    Raises:
+        HTTPException 404: 找不到任務時拋出。
+    """
     try:
         query_obj = job_service.JobResultQuery(
             job_id=job_id,
@@ -335,8 +510,21 @@ async def get_results_summary(
     job_id: str,
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
-) -> dict[str, Any]:
-    """取得任務結果統計摘要。"""
+) -> dict[str, object]:
+    """
+    取得任務結果統計摘要。
+
+    Args:
+        job_id (str): 任務 ID。
+        current_user (User): 當前登入的使用者。
+        db (DBSession): Crawler DB Session。
+
+    Returns:
+        dict[str, object]: 任務結果統計。
+
+    Raises:
+        HTTPException 404: 找不到任務時拋出。
+    """
     try:
         return job_service.get_results_summary(db, job_id, current_user.id)
     except ValueError as e:
@@ -345,7 +533,7 @@ async def get_results_summary(
 
 class ExportQueryArgs:
     """匯出結果查詢參數。"""
-    # pylint: disable=too-few-public-methods,too-many-arguments,too-many-positional-arguments
+    # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
         status_filter: str | None = Query(
@@ -355,15 +543,31 @@ class ExportQueryArgs:
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         fmt: str = Query("csv", pattern="^(csv|json)$"),
     ) -> None:
-        """初始化匯出查詢參數。"""
+        """
+        初始化匯出查詢參數。
+
+        Args:
+            status_filter (str | None): 狀態過濾條件。
+            exclude (str | None): 要排除的網域。
+            group_by (str): 聚合方式。
+            fmt (str): 輸出格式 (csv 或 json)。
+        """
         self.status_filter = status_filter
         self.exclude = exclude
         self.group_by = group_by
         self.fmt = fmt
 
 
-def _sanitize_csv_dict(row: dict[str, Any]) -> dict[str, Any]:
-    """對 CSV 字典資料進行跳脫。"""
+def _sanitize_csv_dict(row: dict[str, object]) -> dict[str, object]:
+    """
+    對 CSV 字典資料進行跳脫。
+
+    Args:
+        row (dict[str, object]): 原始資料字典。
+
+    Returns:
+        dict[str, object]: 安全跳脫後的字典。
+    """
     return {k: _sanitize_csv_value(v) for k, v in row.items()}
 
 
@@ -451,19 +655,21 @@ async def export_results(
                 row_data = {
                     "Source URL": item["source_url"],
                     "External Link Count": item["occurrence_count"],
-                    "Target URLs": "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]])
+                    "Target URLs": "\n".join(
+                        [f"[{t['status']}] {t['url']}" for t in item["targets"]]
+                    ),
                 }
             else:
                 fieldnames = list(item.keys())
                 row_data = item
-                
+
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             if first:
                 writer.writeheader()
                 first = False
-                
+
             writer.writerow(_sanitize_csv_dict(row_data))
-            
+
             yield output.getvalue()
 
     return StreamingResponse(
@@ -481,6 +687,18 @@ async def export_full_report(
 ) -> Response:
     """
     匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。
+
+    Args:
+        job_id (str): 任務 ID。
+        background_tasks (BackgroundTasks): FastAPI 背景任務，用於清理暫存檔。
+        current_user (User): 當前登入的使用者。
+        db (DBSession): Crawler DB Session。
+
+    Returns:
+        Response: 檔案下載回應。
+
+    Raises:
+        HTTPException 404: 找不到任務時拋出。
     """
     try:
         job = db.query(Job).filter(Job.id == job_id).first()
@@ -510,8 +728,10 @@ async def export_full_report(
                         writer.writerow(_sanitize_csv_dict(item))
         except StopIteration:
             pass
-        
-        query_obj = job_service.JobResultQuery(job_id=job_id, user_id=current_user.id, group_by="none")
+
+        query_obj = job_service.JobResultQuery(
+            job_id=job_id, user_id=current_user.id, group_by="none"
+        )
         external_iterator = job_service.stream_job_results(db, query_obj)
         try:
             first_external = next(external_iterator)

@@ -7,11 +7,13 @@ CORS（開發模式）、全域例外處理。
 
 import logging
 import os
+import re
+import secrets
 
-from typing import Callable, Awaitable
+from collections.abc import Callable, Awaitable
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -56,7 +58,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         """
-        攔截請求並為回應加上安全性標頭。
+        攔截請求並為回應加上安全性標頭，同時生成並注入 CSP Nonce。
 
         Args:
             request (Request): FastAPI 請求物件。
@@ -65,15 +67,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         Returns:
             Response: 加上安全性標頭後的回應物件。
         """
+        nonce = secrets.token_urlsafe(16)
+        request.state.nonce = nonce
+
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            # 'unsafe-inline' 因前端 HTML 包含內嵌 <script> 與 <style> 而必須允許
-            # TODO: 未來改用 nonce 或 hash 機制取代 unsafe-inline 以強化 XSS 防禦
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
+            f"script-src 'self' 'nonce-{nonce}'; "
+            f"style-src 'self' 'nonce-{nonce}'; "
             "img-src 'self' data:;"
         )
         return response
@@ -92,36 +95,107 @@ if os.path.isdir(_frontend_dir):
     # 掛載 CSS / JS 靜態資源
     app.mount("/static", StaticFiles(directory=_frontend_dir), name="static")
 
-    @app.get("/app.html", include_in_schema=False)
-    async def serve_app() -> FileResponse:
-        """提供前台爬蟲任務主介面"""
-        return FileResponse(os.path.join(_frontend_dir, "app.html"))
+    def _serve_html_with_nonce(file_name: str, request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        讀取 HTML 檔案並動態注入 CSP nonce。
 
-    @app.get("/admin.html", include_in_schema=False)
-    async def serve_admin() -> FileResponse:
-        """提供系統管理員後台介面"""
-        return FileResponse(os.path.join(_frontend_dir, "admin.html"))
+        Args:
+            file_name (str): 欲讀取的 HTML 檔案名稱。
+            request (Request): FastAPI 請求物件。
 
-    @app.get("/set-password.html", include_in_schema=False)
-    async def serve_set_password() -> FileResponse:
-        """提供首次登入設定密碼介面"""
-        return FileResponse(os.path.join(_frontend_dir, "set-password.html"))
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 HTML 回應，若檔案不存在則重導向。
+        """
+        file_path = os.path.join(_frontend_dir, file_name)
+        if not os.path.exists(file_path):
+            return RedirectResponse(url="/")
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
 
-    @app.get("/", include_in_schema=False)
-    async def serve_index() -> FileResponse:
-        """提供登入與首頁介面"""
-        return FileResponse(os.path.join(_frontend_dir, "index.html"))
+        nonce = getattr(request.state, "nonce", "")
+        if nonce:
+            # 替換 script 與 style 標籤以動態注入 nonce
+            content = re.sub(r'<script\b', f'<script nonce="{nonce}"', content, flags=re.IGNORECASE)
+            content = re.sub(r'<style\b', f'<style nonce="{nonce}"', content, flags=re.IGNORECASE)
+
+        return HTMLResponse(content=content)
+
+    @app.get("/app.html", include_in_schema=False, response_model=None)
+    async def serve_app(request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        提供前台爬蟲任務主介面。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 app.html 回應。
+        """
+        return _serve_html_with_nonce("app.html", request)
+
+    @app.get("/admin.html", include_in_schema=False, response_model=None)
+    async def serve_admin(request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        提供系統管理員後台介面。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 admin.html 回應。
+        """
+        return _serve_html_with_nonce("admin.html", request)
+
+    @app.get("/set-password.html", include_in_schema=False, response_model=None)
+    async def serve_set_password(request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        提供首次登入設定密碼介面。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 set-password.html 回應。
+        """
+        return _serve_html_with_nonce("set-password.html", request)
+
+    @app.get("/", include_in_schema=False, response_model=None)
+    async def serve_index(request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        提供登入與首頁介面。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 index.html 回應。
+        """
+        return _serve_html_with_nonce("index.html", request)
 
     @app.get("/index.html", include_in_schema=False)
     async def redirect_index() -> RedirectResponse:
-        """將 /index.html 重導向至根路徑"""
+        """
+        將 /index.html 重導向至根路徑。
+
+        Returns:
+            RedirectResponse: 重導向回應。
+        """
         return RedirectResponse(url="/")
 
 
 # ── 全域例外處理 ───────────────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """捕捉未處理的例外，回傳統一格式的錯誤回應（不暴露堆疊追蹤至 HTTP 回應）。"""
+    """
+    捕捉未處理的例外，回傳統一格式的錯誤回應（不暴露堆疊追蹤至 HTTP 回應）。
+
+    Args:
+        request (Request): FastAPI 請求物件。
+        exc (Exception): 捕捉到的例外物件。
+
+    Returns:
+        JSONResponse: 包含錯誤細節的 500 JSON 回應。
+    """
     logger.exception("未處理的例外（%s %s）: %s", request.method, request.url.path, exc)
     return JSONResponse(
         status_code=500,
@@ -130,10 +204,19 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
-    """處理 HTTP 例外。若是前端一般頁面 404 找不到，自動導向首頁；API 或靜態檔案錯誤則保留 JSON 回應。"""
+    """
+    處理 HTTP 例外。若是前端一般頁面 404 找不到，自動導向首頁；API 或靜態檔案錯誤則保留 JSON 回應。
+
+    Args:
+        request (Request): FastAPI 請求物件。
+        exc (StarletteHTTPException): HTTP 例外物件。
+
+    Returns:
+        Response: 重導向或 JSON 錯誤回應。
+    """
     if exc.status_code == 404 and not request.url.path.startswith(("/api/", "/static/")):
         return RedirectResponse(url="/")
-    
+
     # 其他 HTTP 錯誤（包含 API 404）則照常回傳 JSON
     return JSONResponse(
         status_code=exc.status_code,
@@ -144,5 +227,10 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 # ── 健康檢查端點 ───────────────────────────────────────────────────────────────
 @app.get("/api/health", tags=["system"])
 async def health_check() -> dict[str, str]:
-    """服務健康檢查端點（供 CI/CD 或 Load Balancer 使用）。"""
+    """
+    服務健康檢查端點（供 CI/CD 或 Load Balancer 使用）。
+
+    Returns:
+        dict[str, str]: 服務健康狀態。
+    """
     return {"status": "ok"}

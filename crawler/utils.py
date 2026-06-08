@@ -5,7 +5,6 @@
 """
 
 import ipaddress
-import json
 import logging
 import os
 import socket
@@ -88,8 +87,13 @@ def is_safe_ip(ip_str: str) -> bool:
     try:
         ip = ipaddress.ip_address(ip_str)
         # 阻擋本機、私有網段、鏈結本地端、多播網段，以及未指定位置
-        if (ip.is_loopback or ip.is_private or ip.is_link_local
-                or ip.is_multicast or ip.is_unspecified):
+        if (
+            ip.is_loopback
+            or ip.is_private
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
             return False
         if str(ip) == "0.0.0.0":
             return False

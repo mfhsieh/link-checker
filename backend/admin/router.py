@@ -10,7 +10,6 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -20,6 +19,7 @@ from sqlalchemy.orm import Session as DBSession
 from backend.auth import service as auth_service
 from backend.auth.models import AuthLog, Invitation, User
 from backend.config import get_settings
+from backend.email_sender import send_test_email
 from backend.deps import (
     get_auth_db,
     get_crawler_db,
@@ -28,7 +28,6 @@ from backend.deps import (
     require_csrf,
 )
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
-from backend.email_sender import send_test_email
 from crawler.manager import JobManager
 from crawler.models import Job
 
@@ -41,24 +40,45 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 class CreateUserRequest(BaseModel):
     """建立使用者的請求結構。"""
+
     email: EmailStr
 
     @field_validator("email")
     @classmethod
     def normalize_email(cls, v: str) -> str:
-        """將信箱轉為小寫去空白。"""
+        """
+        將信箱轉為小寫去空白。
+
+        Args:
+            v (str): 原始信箱字串。
+
+        Returns:
+            str: 處理後的信箱字串。
+        """
         return v.strip().lower()
 
 
 class UpdateUserRequest(BaseModel):
     """更新使用者的請求結構。"""
-    status: str | None = None   # active / suspended
-    role: str | None = None     # user / admin
+
+    status: str | None = None  # active / suspended
+    role: str | None = None  # user / admin
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
-        """驗證 status 是否合法。"""
+        """
+        驗證 status 是否合法。
+
+        Args:
+            v (str | None): 帳號狀態值。
+
+        Returns:
+            str | None: 驗證後的狀態值。
+
+        Raises:
+            ValueError: 當狀態值不是 active 或 suspended 時拋出。
+        """
         if v is not None and v not in ("active", "suspended"):
             raise ValueError("status 必須為 active 或 suspended。")
         return v
@@ -66,7 +86,18 @@ class UpdateUserRequest(BaseModel):
     @field_validator("role")
     @classmethod
     def validate_role(cls, v: str | None) -> str | None:
-        """驗證 role 是否合法。"""
+        """
+        驗證 role 是否合法。
+
+        Args:
+            v (str | None): 角色值。
+
+        Returns:
+            str | None: 驗證後的角色值。
+
+        Raises:
+            ValueError: 當角色值不是 user 或 admin 時拋出。
+        """
         if v is not None and v not in ("user", "admin"):
             raise ValueError("role 必須為 user 或 admin。")
         return v
@@ -74,11 +105,13 @@ class UpdateUserRequest(BaseModel):
 
 class SendTestEmailRequest(BaseModel):
     """寄送測試郵件的請求結構。"""
+
     to_email: EmailStr
 
 
 class CrawlerConfigUpdate(BaseModel):
     """Crawler 區塊配置更新請求結構。"""
+
     model_config = {"extra": "forbid"}
 
     timeout: int | None = Field(None, ge=1)
@@ -92,7 +125,7 @@ class CrawlerConfigUpdate(BaseModel):
     domain_delays: dict[str, float] | None = None
     ignore_extensions: list[str] | None = None
     ignore_regexes: list[str] | None = None
-    mime_type_filter: dict[str, Any] | None = None
+    mime_type_filter: dict[str, object] | None = None
     min_timeout: int | None = Field(None, ge=1)
     max_timeout: int | None = Field(None, ge=1)
     min_delay: float | None = Field(None, ge=0.0)
@@ -102,8 +135,21 @@ class CrawlerConfigUpdate(BaseModel):
 
     @field_validator("mime_type_filter")
     @classmethod
-    def validate_mime_type_filter(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
-        """驗證 mime_type_filter 的內部結構。"""
+    def validate_mime_type_filter(
+        cls, v: dict[str, object] | None
+    ) -> dict[str, object] | None:
+        """
+        驗證 mime_type_filter 的內部結構。
+
+        Args:
+            v (dict[str, object] | None): 欲檢查的 mime_type_filter 字典。
+
+        Returns:
+            dict[str, object] | None: 驗證無誤後的字典。
+
+        Raises:
+            ValueError: 若內部結構屬性型別不符合規定時拋出。
+        """
         if v is not None:
             if not isinstance(v.get("enabled"), bool):
                 raise ValueError("mime_type_filter.enabled 必須為布林值 (bool)")
@@ -114,6 +160,7 @@ class CrawlerConfigUpdate(BaseModel):
 
 class UpdateConfigRequest(BaseModel):
     """全域配置更新的請求結構。"""
+
     model_config = {"extra": "forbid"}
     crawler: CrawlerConfigUpdate
 
@@ -122,11 +169,23 @@ class UpdateConfigRequest(BaseModel):
 
 @router.get("/users", status_code=status.HTTP_200_OK)
 async def list_users(
-    status_filter: str | None = Query(None, alias="status", description="依帳號狀態篩選"),
+    status_filter: str | None = Query(
+        None, alias="status", description="依帳號狀態篩選"
+    ),
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
-) -> list[dict[str, Any]]:
-    """列出所有使用者帳號。"""
+) -> list[dict[str, object]]:
+    """
+    列出所有使用者帳號。
+
+    Args:
+        status_filter (str | None): (選填) 依帳號狀態篩選。
+        auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
+        _admin (User): 當前管理員物件。
+
+    Returns:
+        list[dict[str, object]]: 系統中所有使用者的資訊陣列。
+    """
     query = auth_db.query(User)
     if status_filter:
         query = query.filter(User.status == status_filter)
@@ -150,8 +209,19 @@ async def create_user(
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
-) -> dict[str, Any]:
-    """新增使用者並寄送邀請郵件。"""
+) -> dict[str, object]:
+    """
+    新增使用者並寄送邀請郵件。
+
+    Args:
+        body (CreateUserRequest): 建立使用者的請求內容（含 email）。
+        auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
+        _admin (User): 當前管理員物件。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, object]: 操作成功與邀請狀態訊息。
+    """
     try:
         result = auth_service.create_invitation(auth_db, body.email)
         return {"message": "邀請已建立並寄送。", **result}
@@ -168,7 +238,20 @@ async def update_user(
     current_admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """修改帳號狀態或角色。帳號停用時自動清除所有 Session。"""
+    """
+    修改帳號狀態或角色。帳號停用時自動清除所有 Session。
+
+    Args:
+        user_id (str): 欲修改的使用者 ID。
+        body (UpdateUserRequest): 欲修改的狀態或角色內容。
+        request (Request): FastAPI 的 Request 物件（供紀錄 IP 使用）。
+        auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
+        current_admin (User): 當前執行操作的管理員物件。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 操作成功訊息。
+    """
     if user_id == current_admin.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -252,6 +335,7 @@ async def delete_user(
 
     Raises:
         HTTPException 400: 若管理員企圖刪除自己的帳號。
+        HTTPException 403: 企圖直接刪除其他管理員帳號。
         HTTPException 404: 若被刪除的使用者不存在。
     """
     if user_id == current_admin.id:
@@ -312,7 +396,18 @@ async def resend_invite(
     _admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """重新寄送邀請郵件（重置邀請 token）。"""
+    """
+    重新寄送邀請郵件（重置邀請 token）。
+
+    Args:
+        user_id (str): 目標使用者的 ID。
+        auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
+        _admin (User): 當前管理員物件。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功寄送邀請的訊息。
+    """
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
@@ -338,8 +433,19 @@ async def list_all_jobs(
     status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
     manager: JobManager = Depends(get_job_manager),
     _admin: User = Depends(require_admin),
-) -> list[dict[str, Any]]:
-    """列出所有使用者的任務（Admin 全視圖）。"""
+) -> list[dict[str, object]]:
+    """
+    列出所有使用者的任務（Admin 全視圖）。
+
+    Args:
+        user_id (str | None): (選填) 依使用者 ID 篩選。
+        status_filter (str | None): (選填) 依任務狀態篩選。
+        manager (JobManager): JobManager 實例。
+        _admin (User): 當前管理員物件。
+
+    Returns:
+        list[dict[str, object]]: 系統中所有任務的列表。
+    """
     return manager.get_all_jobs(user_id=user_id, status=status_filter)
 
 
@@ -352,7 +458,20 @@ async def takeover_job(
     _admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """強制接管卡死任務（重置 running 狀態為 paused）。"""
+    """
+    強制接管卡死任務（重置 running 狀態為 paused）。
+
+    Args:
+        job_id (str): 欲接管的任務 ID。
+        request (Request): FastAPI 請求物件。
+        manager (JobManager): JobManager 實例。
+        auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
+        _admin (User): 當前管理員物件。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 操作成功訊息。
+    """
     job = manager.get_job(job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
@@ -390,7 +509,20 @@ async def admin_delete_job(
     _admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """強制刪除任意任務（Admin 用）。"""
+    """
+    強制刪除任意任務（Admin 用）。
+
+    Args:
+        job_id (str): 欲刪除的任務 ID。
+        request (Request): FastAPI 請求物件。
+        manager (JobManager): JobManager 實例。
+        auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
+        _admin (User): 當前管理員物件。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 操作成功訊息。
+    """
     if not manager.get_job(job_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
 
@@ -418,8 +550,16 @@ async def admin_delete_job(
 @router.get("/config", status_code=status.HTTP_200_OK)
 async def get_config(
     _admin: User = Depends(require_admin),
-) -> dict[str, Any]:
-    """取得全域爬蟲配置（讀取 config_global.yaml）。"""
+) -> dict[str, object]:
+    """
+    取得全域爬蟲配置（讀取 config_global.yaml）。
+
+    Args:
+        _admin (User): 當前管理員物件。
+
+    Returns:
+        dict[str, object]: 目前的全域爬蟲配置。
+    """
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
     if not os.path.exists(config_path):
@@ -472,7 +612,7 @@ async def update_config(
     safe_body = {"crawler": crawler_updates}
 
     try:
-        existing: dict[str, Any] = {}
+        existing: dict[str, object] = {}
         if os.path.exists(config_path):
             with open(config_path, "r", encoding="utf-8") as f:
                 existing = yaml.safe_load(f) or {}
@@ -515,8 +655,16 @@ async def update_config(
 @router.get("/smtp", status_code=status.HTTP_200_OK)
 async def get_smtp_config(
     _admin: User = Depends(require_admin),
-) -> dict[str, Any]:
-    """取得 SMTP 配置狀態（密碼遮罩，從環境變數讀取）。"""
+) -> dict[str, object]:
+    """
+    取得 SMTP 配置狀態（密碼遮罩，從環境變數讀取）。
+
+    Args:
+        _admin (User): 當前管理員物件。
+
+    Returns:
+        dict[str, object]: SMTP 配置狀態，包含各種設定值。
+    """
     settings = get_settings()
     return {
         "host": settings.SMTP_HOST,
@@ -537,7 +685,17 @@ async def test_smtp(
     _admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
-    """寄送測試郵件以驗證 SMTP 設定。"""
+    """
+    寄送測試郵件以驗證 SMTP 設定。
+
+    Args:
+        body (SendTestEmailRequest): 請求內容，包含收件者信箱。
+        _admin (User): 當前管理員物件。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 操作成功訊息。
+    """
     success = send_test_email(body.to_email)
     if not success:
         raise HTTPException(
@@ -559,8 +717,23 @@ async def get_logs(
     page_size: int = Query(50, ge=1, le=200),
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
-) -> dict[str, Any]:
-    """查閱系統操作日誌（支援事件類型、使用者 ID 及時間範圍篩選）。"""
+) -> dict[str, object]:
+    """
+    查閱系統操作日誌（支援事件類型、使用者 ID 及時間範圍篩選）。
+
+    Args:
+        event_type (str | None): 欲篩選的事件類型。
+        user_id (str | None): 欲篩選的操作者 ID。
+        start_date (str | None): 開始日期字串。
+        end_date (str | None): 結束日期字串。
+        page (int): 欲查詢的頁碼，預設為 1。
+        page_size (int): 每頁顯示筆數，預設為 50。
+        auth_db (DBSession): Auth DB Session。
+        _admin (User): 當前管理員物件。
+
+    Returns:
+        dict[str, object]: 包含日誌項目列表與分頁資訊的字典。
+    """
     query = auth_db.query(AuthLog).order_by(AuthLog.created_at.desc())
 
     if event_type:

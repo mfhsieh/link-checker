@@ -6,7 +6,6 @@
 """
 
 import os
-import secrets
 from functools import lru_cache
 from dotenv import load_dotenv
 
@@ -22,9 +21,9 @@ class Settings:
     機密項目（如 SMTP_PASSWORD）在生產環境中必須透過環境變數提供。
     """
 
-    # pylint: disable=too-few-public-methods,too-many-instance-attributes
-
+    # pylint: disable=invalid-name
     def __init__(self) -> None:
+        """初始化應用程式設定，並從環境變數載入數值。"""
         # ── 應用程式基本設定 ────────────────────────────────────────────────────────
         self.APP_NAME: str = os.environ.get("APP_NAME", "外部連結檢查系統")
         self.DEBUG: bool = os.environ.get("DEBUG", "false").lower() == "true"

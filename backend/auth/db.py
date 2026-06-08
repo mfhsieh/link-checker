@@ -6,7 +6,6 @@ Auth DB 的資料庫連線設定。
 """
 
 import os
-from typing import Any
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import sessionmaker
 
@@ -43,8 +42,14 @@ def _create_auth_engine() -> Engine:
 
     if db_url.startswith("sqlite"):
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection: Any, _connection_record: Any) -> None:
-            """設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。"""
+        def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
+            """
+            設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。
+
+            Args:
+                dbapi_connection (object): SQLite 資料庫連線物件。
+                _connection_record (object): SQLAlchemy 連線紀錄物件（此處未使用）。
+            """
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
