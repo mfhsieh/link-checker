@@ -346,6 +346,18 @@ class ExportQueryArgs:
         self.fmt = fmt
 
 
+def _sanitize_csv_value(val: Any) -> Any:
+    """跳脫 CSV 注入風險字元。"""
+    if isinstance(val, str) and val and val[0] in ("=", "+", "-", "@"):
+        return f"'{val}"
+    return val
+
+
+def _sanitize_csv_dict(row: dict[str, Any]) -> dict[str, Any]:
+    """對 CSV 字典資料進行跳脫。"""
+    return {k: _sanitize_csv_value(v) for k, v in row.items()}
+
+
 @router.get("/{job_id}/results/export")
 async def export_results(
     job_id: str,
@@ -441,7 +453,7 @@ async def export_results(
                 writer.writeheader()
                 first = False
                 
-            writer.writerow(row_data)
+            writer.writerow(_sanitize_csv_dict(row_data))
             
             yield output.getvalue()
 
@@ -484,9 +496,9 @@ async def export_full_report(
                 with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
                     writer = csv.DictWriter(text_file, fieldnames=list(first_internal.keys()))
                     writer.writeheader()
-                    writer.writerow(first_internal)
+                    writer.writerow(_sanitize_csv_dict(first_internal))
                     for item in internal_iterator:
-                        writer.writerow(item)
+                        writer.writerow(_sanitize_csv_dict(item))
         except StopIteration:
             pass
         
@@ -498,9 +510,9 @@ async def export_full_report(
                 with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
                     writer = csv.DictWriter(text_file, fieldnames=list(first_external.keys()))
                     writer.writeheader()
-                    writer.writerow(first_external)
+                    writer.writerow(_sanitize_csv_dict(first_external))
                     for item in external_iterator:
-                        writer.writerow(item)
+                        writer.writerow(_sanitize_csv_dict(item))
         except StopIteration:
             pass
 

@@ -88,6 +88,18 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, Any]:
     }
 
 
+def _sanitize_csv_value(val: Any) -> Any:
+    """跳脫 CSV 注入風險字元。"""
+    if isinstance(val, str) and val and val[0] in ("=", "+", "-", "@"):
+        return f"'{val}"
+    return val
+
+
+def _sanitize_csv_row(row: list[Any]) -> list[Any]:
+    """對 CSV 單行資料進行跳脫。"""
+    return [_sanitize_csv_value(v) for v in row]
+
+
 def _aggregate_by_target(links: list[ExternalLink]) -> tuple[list[dict[str, Any]], list[str], list[list[Any]]]:
     """依外部目標去重聚合，產出供匯出的 JSON 與 CSV 結構。"""
     agg_data = defaultdict(
@@ -131,7 +143,7 @@ def _aggregate_by_target(links: list[ExternalLink]) -> tuple[list[dict[str, Any]
             "occurrence_count": d["count"],
             "source_urls": sources_list,
         })
-        csv_rows.append([
+        csv_rows.append(_sanitize_csv_row([
             tgt,
             d["ip"],
             d["is_secure"],
@@ -139,7 +151,7 @@ def _aggregate_by_target(links: list[ExternalLink]) -> tuple[list[dict[str, Any]
             d["error"],
             d["count"],
             ", ".join(sources_list),
-        ])
+        ]))
     return json_data, csv_headers, csv_rows
 
 
@@ -165,7 +177,7 @@ def _aggregate_by_source(links: list[ExternalLink]) -> tuple[list[dict[str, Any]
             "targets": d["targets"]
         })
         targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in d["targets"]])
-        csv_rows.append([src, d["count"], targets_str])
+        csv_rows.append(_sanitize_csv_row([src, d["count"], targets_str]))
         
     return json_data, csv_headers, csv_rows
 
@@ -194,7 +206,7 @@ def _aggregate_by_domain(links: list[ExternalLink]) -> tuple[list[dict[str, Any]
             "unique_urls": urls_sorted
         })
         urls_str = "\n".join(urls_sorted)
-        csv_rows.append([dom, d["count"], len(d["urls"]), urls_str])
+        csv_rows.append(_sanitize_csv_row([dom, d["count"], len(d["urls"]), urls_str]))
         
     return json_data, csv_headers, csv_rows
 
@@ -217,7 +229,7 @@ def _format_no_grouping(links: list[ExternalLink]) -> tuple[list[dict[str, Any]]
             "error_message": link.error_message if link.error_message else None,
             "created_at": link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         })
-        csv_rows.append([
+        csv_rows.append(_sanitize_csv_row([
             link.source_url,
             link.target_url,
             link.ip_address if link.ip_address else "",
@@ -225,7 +237,7 @@ def _format_no_grouping(links: list[ExternalLink]) -> tuple[list[dict[str, Any]]
             link.http_status_code if link.http_status_code is not None else "",
             link.error_message if link.error_message else "",
             link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-        ])
+        ]))
         
     return json_data, csv_headers, csv_rows
 
@@ -1051,7 +1063,7 @@ class JobManager:
                         cq_writer.writerow(["URL", "Source URL", "Status", "Depth", "Retry Count", "HTTP Status Code", "Error Message", "Created At"])
                         for q in q_items:
                             d = format_crawl_queue_item(q)
-                            cq_writer.writerow([d["URL"], d["Source URL"], d["Status"], d["Depth"], d["Retry Count"], d["HTTP Status Code"], d["Error Message"], d["Created At"]])
+                            cq_writer.writerow(_sanitize_csv_row([d["URL"], d["Source URL"], d["Status"], d["Depth"], d["Retry Count"], d["HTTP Status Code"], d["Error Message"], d["Created At"]]))
                         zf.writestr(f"job_{job_id}_crawl_records.csv", cq_io.getvalue().encode("utf-8-sig"))
                         
                     if e_items:
@@ -1059,11 +1071,11 @@ class JobManager:
                         el_writer = csv.writer(el_io)
                         el_writer.writerow(["Source URL", "Target URL", "IP Address", "Is Secure", "HTTP Status Code", "Error Message", "Found At"])
                         for link in e_items:
-                            el_writer.writerow([
+                            el_writer.writerow(_sanitize_csv_row([
                                 link.source_url, link.target_url, link.ip_address if link.ip_address else "",
                                 link.is_secure, link.http_status_code if link.http_status_code is not None else "",
                                 link.error_message if link.error_message else "", link.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                            ])
+                            ]))
                         zf.writestr(f"job_{job_id}_external_links.csv", el_io.getvalue().encode("utf-8-sig"))
                 return True
             except Exception as e:  # pylint: disable=broad-exception-caught
