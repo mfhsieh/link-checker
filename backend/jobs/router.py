@@ -10,6 +10,7 @@
 - POST   /api/jobs/{id}/pause             — 暫停任務
 - POST   /api/jobs/{id}/resume            — 恢復任務
 - POST   /api/jobs/{id}/reset             — 重置任務
+- POST   /api/jobs/{id}/retry-failed      — 重試任務的失敗項目
 - DELETE /api/jobs/{id}                   — 刪除任務
 - GET    /api/jobs/{id}/results           — 外連結果列表
 - GET    /api/jobs/{id}/results/summary   — 統計摘要
@@ -248,6 +249,21 @@ async def reset_job(
     try:
         job_service.reset_job(manager, job_id, current_user.id)
         return {"message": "任務已重置。"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+@router.post("/{job_id}/retry-failed", status_code=status.HTTP_200_OK)
+async def retry_failed_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    manager: JobManager = Depends(get_job_manager),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """局部重試任務中的失敗項目。"""
+    try:
+        job_service.retry_failed_job(manager, job_id, current_user.id)
+        return {"message": "任務失敗項目已重置。"}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 

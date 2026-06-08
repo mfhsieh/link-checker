@@ -119,6 +119,8 @@
             <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none">▶ 啟動</button>
             <button class="btn btn-secondary btn-sm" id="btn-pause-job" style="display:none">⏸ 暫停</button>
             <button class="btn btn-secondary btn-sm" id="btn-reset-job" style="display:none">↺ 重置</button>
+            <button class="btn btn-secondary btn-sm" id="btn-retry-failed-job" style="display:none"
+              title="僅重試失敗的內部網頁與無效的外部連結">⟳ 失敗重試</button>
             <button class="btn btn-danger btn-sm" id="btn-delete-job">🗑 刪除</button>
           </div>
         </div>
@@ -250,7 +252,7 @@
                 <select id="results-group-select" class="form-input"
                   style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
                   <option value="none">平鋪列表 (預設)</option>
-                  <option value="target">依外連目標聚合 (去重)</option>
+                  <option value="target">依外連目標聚合 (重複合併)</option>
                   <option value="source">依自家網頁聚合 (修補視角)</option>
                   <option value="domain">依外部網域統計 (資安盤點)</option>
                 </select>
@@ -1035,6 +1037,43 @@
           submitBtn.disabled = false;
         }
       });
+    }
+
+    // ── 局部重試邏輯 ───────────────────────────────────────────
+    const btnRetryFailed = document.getElementById('btn-retry-failed-job');
+    if (btnRetryFailed) {
+      btnRetryFailed.addEventListener('click', async () => {
+        const jobId = document.getElementById('job-id-display').textContent;
+        const confirmed = await showConfirm('重試失敗項目', '確定要將失敗的網頁與無效外連重新加入佇列並重試嗎？', '確定重試');
+        if (!confirmed) return;
+
+        btnRetryFailed.classList.add('loading');
+        btnRetryFailed.disabled = true;
+        try {
+          await api.post(`/api/jobs/${jobId}/retry-failed`);
+          toast.success('失敗項目已重置！您可以點擊啟動繼續任務。');
+          route();
+        } catch (err) {
+          toast.error('重試失敗：' + err.message);
+        } finally {
+          btnRetryFailed.classList.remove('loading');
+          btnRetryFailed.disabled = false;
+        }
+      });
+
+      // 監聽 job-status 的變化以控制按鈕顯示隱藏
+      const statusObserver = new MutationObserver(() => {
+        const statusEl = document.getElementById('job-status');
+        if (statusEl) {
+          const statusText = statusEl.textContent;
+          if (statusText.includes('完成') || statusText.includes('異常') || statusText.includes('Error')) {
+            btnRetryFailed.style.display = '';
+          } else {
+            btnRetryFailed.style.display = 'none';
+          }
+        }
+      });
+      statusObserver.observe(document.getElementById('job-status'), { childList: true, characterData: true, subtree: true });
     }
   </script>
 

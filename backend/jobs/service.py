@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PID_DIR = os.path.join(PROJECT_ROOT, "log", "pids")
 
+# 新增一個全域變數來記錄 Web 程序 spawn 的爬蟲子進程
+# 這樣我們就能呼叫 .poll() 來安全地回收 (Reap) 殭屍進程 (Zombie Processes)
+_ACTIVE_PROCESSES: dict[str, subprocess.Popen] = {}
+
 
 def _get_pid_file(job_id: str) -> str:
     """取得任務專屬的 PID 檔案路徑。"""
@@ -82,6 +86,16 @@ def _is_process_running(pid: int) -> bool:
 
 def _is_job_running(job_id: str) -> bool:
     """檢查該任務的爬蟲子進程是否仍在運行中。"""
+    # 優先檢查本地記錄的 Popen 物件，透過 poll() 能自動回收殭屍進程
+    proc = _ACTIVE_PROCESSES.get(job_id)
+    if proc is not None:
+        if proc.poll() is None:
+            return True
+        # 進程已結束，回收資源與 PID 檔案
+        _ACTIVE_PROCESSES.pop(job_id, None)
+        _clear_pid(job_id)
+        return False
+
     pid = _read_pid(job_id)
     if pid is None:
         return False
@@ -181,6 +195,7 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
             stderr=subprocess.DEVNULL,
             close_fds=True,
         )
+        _ACTIVE_PROCESSES[job_id] = proc
         _write_pid(job_id, proc.pid)
         logger.info("任務 %s 已啟動（PID: %d）", job_id, proc.pid)
         return True
@@ -329,6 +344,21 @@ def reset_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     result = manager.reset_job(job_id)
     if not result:
         raise ValueError("重置任務失敗，請確認任務狀態後再試。")
+    return result
+
+
+def retry_failed_job(manager: JobManager, job_id: str, user_id: str) -> bool:
+    """局部重試任務（失敗項目歸零並回到 pending 狀態）。"""
+    job = manager.get_job(job_id)
+    if not job:
+        raise ValueError(f"找不到任務 ID: {job_id}")
+    if job.user_id != user_id:
+        raise ValueError("無權限操作此任務。")
+    if job.status == "running":
+        raise ValueError("任務正在執行中，無法直接重試，請先暫停任務。")
+    result = manager.retry_failed_job(job_id)
+    if not result:
+        raise ValueError("重試任務失敗，請確認任務狀態後再試。")
     return result
 
 

@@ -1177,3 +1177,47 @@ class JobManager:
 
             session.commit()
             return True
+
+    def retry_failed_job(self, job_id: str) -> bool:
+        """
+        局部重試指定任務：將失敗的內部網頁與包含無效外連的網頁重新加入佇列。
+        """
+        with self.SessionLocal() as session:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if not job:
+                logger.error("找不到指定的任務 ID: %s", job_id)
+                return False
+
+            if job.status == "running":
+                logger.error("任務 %s 目前正在執行中，無法直接重試。請先暫停任務。", job_id)
+                return False
+
+            job.status = "pending"
+
+            # 1. 找出失敗的外部連結 (DNS 失敗或 HTTP 錯誤)
+            failed_ext_links = session.query(ExternalLink).filter(
+                ExternalLink.job_id == job_id,
+                ((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == "") | (ExternalLink.http_status_code >= 400))
+            ).all()
+
+            source_urls_to_retry = set()
+            for ext in failed_ext_links:
+                if ext.source_url:
+                    source_urls_to_retry.add(ext.source_url)
+                session.delete(ext)
+
+            # 2. 將這些失敗外連所屬的母網頁改回 pending (以便重新探測其上的外連)
+            if source_urls_to_retry:
+                session.query(CrawlQueue).filter(
+                    CrawlQueue.job_id == job_id,
+                    CrawlQueue.url.in_(source_urls_to_retry)
+                ).update({"status": "pending", "retry_count": 0, "status_code": None, "error_message": None}, synchronize_session=False)
+
+            # 3. 將本身爬取失敗的內部網頁也改回 pending
+            session.query(CrawlQueue).filter(
+                CrawlQueue.job_id == job_id,
+                CrawlQueue.status == "failed"
+            ).update({"status": "pending", "retry_count": 0, "status_code": None, "error_message": None}, synchronize_session=False)
+
+            session.commit()
+            return True

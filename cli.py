@@ -212,6 +212,7 @@ def _is_help_needed(args: argparse.Namespace) -> bool:
         args.pause,
         args.delete,
         args.reset,
+        args.retry_failed,
         args.create_admin,
         args.serve,
     ]
@@ -266,6 +267,12 @@ def parse_args() -> argparse.Namespace | None:
         type=str,
         metavar="JOB_ID",
         help="重設指定任務，清除已探索外連並將狀態與佇列歸零",
+    )
+    parser.add_argument(
+        "--retry-failed",
+        type=str,
+        metavar="JOB_ID",
+        help="局部重試指定任務的失敗網頁與無效外連",
     )
     parser.add_argument("--report", type=str, help="檢視指定任務的詳細進度與統計報表")
     parser.add_argument(
@@ -469,6 +476,11 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
         if not manager.reset_job(args.reset):
             sys.exit(1)
         logging.info("任務已成功重設。")
+    elif args.retry_failed:
+        logging.info("準備局部重試任務 %s 的失敗項目...", args.retry_failed)
+        if not manager.retry_failed_job(args.retry_failed):
+            sys.exit(1)
+        logging.info("任務的失敗項目已成功重置為 pending。您可以透過 --resume 再次啟動該任務。")
     else:
         handled = False
 
