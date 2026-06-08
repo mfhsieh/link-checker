@@ -20,7 +20,8 @@ from crawler.manager import JobManager
 
 # 設定初始的 logging，只輸出到畫面，確保 setup_logging 呼叫前的錯誤能被顯示
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 
@@ -164,7 +165,10 @@ def create_admin(email: str) -> None:
 
         # 如果系統已經有管理員，且要建立的不是原本那位，則強制阻擋
         if admin_count > 0 and (not existing or existing.role != "admin"):
-            print("錯誤：系統中已存在管理員帳號。依據安全規範，後續管理員請透過後台網頁介面邀請，禁止使用 CLI 重複建立。")
+            print(
+                "錯誤：系統中已存在管理員帳號。依據安全規範，"
+                "後續管理員請透過後台網頁介面邀請，禁止使用 CLI 重複建立。"
+            )
             sys.exit(1)
 
         random_password = generate_random_password()
@@ -301,7 +305,10 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument(
         "--exclude",
         type=str,
-        help="(選填) 搭配 --export 使用，排除指定的目標網域（多個以逗號分隔，例如: facebook.com,youtube.com）",
+        help=(
+            "(選填) 搭配 --export 使用，排除指定的目標網域"
+            "（多個以逗號分隔，例如: facebook.com,youtube.com）"
+        ),
     )
     parser.add_argument(
         "--group",
@@ -313,7 +320,10 @@ def parse_args() -> argparse.Namespace | None:
         type=str,
         choices=["none", "target", "source", "domain"],
         default="none",
-        help="(選填) 搭配 --export，指定聚合模式 (target:依外連, source:依來源頁面, domain:依網域)",
+        help=(
+            "(選填) 搭配 --export，指定聚合模式 "
+            "(target:依外連, source:依來源頁面, domain:依網域)"
+        ),
     )
     parser.add_argument(
         "--json",
@@ -420,7 +430,11 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     group_by = "target" if args.group else args.group_by
     logging.info("準備將任務 %s 匯出至 %s...", args.export, output_path)
     success = manager.export_job_results(
-        args.export, output_path, status_filter=args.filter, group_by=group_by, exclude=args.exclude
+        args.export,
+        output_path,
+        status_filter=args.filter,
+        group_by=group_by,
+        exclude=args.exclude,
     )
     if success:
         logging.info("匯出成功！")
@@ -428,8 +442,16 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
         sys.exit(1)
 
 def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
-    """處理匯出完整報表 (ZIP) 的指令。"""
-    output_path = args.output if args.output else f"report/{args.export_full}_full_report.zip"
+    """
+    處理匯出完整報表 (ZIP) 的指令。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含匯出目標等選項。
+    """
+    output_path = (
+        args.output if args.output else f"report/{args.export_full}_full_report.zip"
+    )
     if not output_path.endswith(".zip"):
         output_path += ".zip"
     logging.info("準備將任務 %s 的完整報表匯出至 %s...", args.export_full, output_path)
@@ -609,7 +631,9 @@ def main() -> None:
         try:
             import uvicorn  # pylint: disable=import-outside-toplevel
 
-            uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=args.reload)
+            uvicorn.run(
+                "backend.main:app", host="0.0.0.0", port=8000, reload=args.reload
+            )
         except Exception as e:  # pylint: disable=broad-exception-caught
             logging.error("啟動 Web 伺服器失敗: %s", e)
             sys.exit(1)

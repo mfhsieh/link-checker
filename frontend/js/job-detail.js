@@ -162,6 +162,7 @@ function renderJobInfo(job) {
   setTextContent('stat-total', total);
   setTextContent('stat-completed', progress.completed || 0);
   setTextContent('stat-pending', progress.pending || 0);
+  setTextContent('stat-skipped', progress.skipped || 0);
   setTextContent('stat-failed', progress.failed || 0);
 
   const canStart = ['pending', 'paused'].includes(job.status) && !job.is_running;
@@ -326,6 +327,7 @@ async function loadResultsPage(jobId) {
 
 function renderResultsSummary(summary) {
   setTextContent('summary-total', summary.total_external_links ?? 0);
+  setTextContent('summary-healthy', summary.healthy_count ?? 0);
   setTextContent('summary-dns-failed', summary.dns_failed_count ?? 0);
   setTextContent('summary-http-error', summary.http_error_count ?? 0);
   setTextContent('summary-insecure', summary.insecure_count ?? 0);

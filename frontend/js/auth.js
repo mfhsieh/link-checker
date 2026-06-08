@@ -52,7 +52,7 @@ export function initPasswordStrength(input, barEl, labelEl) {
 export async function initLoginPage() {
   // 若已登入，直接跳轉主頁
   try {
-    const me = await api.get('/api/auth/me');
+    const me = await api.get('/api/auth/me', { _t: Date.now() });
     if (me && me.status === 'active') {
       window.location.replace('/app.html');
       return;
@@ -78,20 +78,39 @@ export async function initLoginPage() {
   const loginBtn = document.getElementById('login-btn');
   const loginForm = document.getElementById('login-form');
   const errorEl = document.getElementById('login-error');
+  const toggleModeBtn = document.getElementById('toggle-mode-btn');
 
   if (!loginForm) return;
 
-  const isInviteMode = action === 'invite' || inviteToken;
+  let isInviteMode = (action === 'invite') || (inviteToken !== '');
 
-  // 首次登入模式
-  if (isInviteMode) {
-    emailInput.value = prefilledEmail;
-    tokenInput.value = inviteToken;
-    passwordGroup.style.display = 'none';
-    tokenGroup.style.display = 'block';
+  if (prefilledEmail) emailInput.value = prefilledEmail;
+  if (inviteToken) tokenInput.value = inviteToken;
 
-    document.getElementById('login-mode-label').textContent = '首次登入 — 請輸入電子郵件與邀請碼';
-    loginBtn.textContent = '驗證邀請並繼續';
+  function renderMode() {
+    errorEl.textContent = '';
+    if (isInviteMode) {
+      passwordGroup.style.display = 'none';
+      tokenGroup.style.display = 'block';
+      document.getElementById('login-mode-label').textContent = '首次登入 — 請輸入電子郵件與邀請碼';
+      loginBtn.textContent = '驗證邀請並繼續';
+      if (toggleModeBtn) toggleModeBtn.textContent = '已有密碼？改以密碼登入';
+    } else {
+      passwordGroup.style.display = 'block';
+      tokenGroup.style.display = 'none';
+      document.getElementById('login-mode-label').textContent = '請輸入您的帳號與密碼登入';
+      loginBtn.textContent = '登入';
+      if (toggleModeBtn) toggleModeBtn.textContent = '首次使用？改以邀請碼登入';
+    }
+  }
+
+  renderMode();
+
+  if (toggleModeBtn) {
+    toggleModeBtn.addEventListener('click', () => {
+      isInviteMode = !isInviteMode;
+      renderMode();
+    });
   }
 
   loginForm.addEventListener('submit', async (e) => {
@@ -136,7 +155,7 @@ export async function initLoginPage() {
 export async function initSetPasswordPage() {
   // 確認是首次登入 Session
   try {
-    const me = await api.get('/api/auth/me');
+    const me = await api.get('/api/auth/me', { _t: Date.now() });
     // me 端點對 is_first_login Session 回傳 403
     // 若能正常取得且 status=active，說明已完成設密
     if (me && me.status === 'active') {
@@ -211,7 +230,7 @@ let _cachedUser = null;
 export async function getCurrentUser(forceRefresh = false) {
   if (_cachedUser && !forceRefresh) return _cachedUser;
   try {
-    _cachedUser = await api.get('/api/auth/me');
+    _cachedUser = await api.get('/api/auth/me', { _t: Date.now() });
     return _cachedUser;
   } catch (_) {
     return null;

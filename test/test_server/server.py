@@ -34,7 +34,8 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             f"MockServer - - [{self.log_date_time_string()}] {format % args}\n"
         )
 
-    # pylint: disable=invalid-name,too-many-return-statements,too-many-branches,too-many-statements
+    # pylint: disable=invalid-name,too-many-return-statements
+    # pylint: disable=too-many-branches,too-many-statements
     def do_GET(self) -> None:
         """
         處理所有的 HTTP GET 請求，模擬指數退避重試、網路超時、重定向、特定 MIME 類型等多種情境。
@@ -104,13 +105,16 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
                 self.wfile.write(
-                    b"<html><body><h1>Access Granted to Browser User-Agent</h1></body></html>"
+                    b"<html><body><h1>Access Granted to Browser "
+                    b"User-Agent</h1></body></html>"
                 )
             else:
                 self.send_response(403)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(b"403 Forbidden - Only web browsers are allowed!")
+                self.wfile.write(
+                    b"403 Forbidden - Only web browsers are allowed!"
+                )
             return
 
         # 6. 靜態檔案回傳（index.html, page2.html, 以及重新導向後的 subfolder 目錄內容）

@@ -435,12 +435,12 @@
                   <td class="text-sm text-muted">${u.last_login_at ? new Date(u.last_login_at).toLocaleString('zh-TW') : '-'}</td>
                   <td>
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                      ${u.id !== user.id && u.role === 'user' && u.status !== 'suspended' ? `<button class="btn btn-sm btn-secondary" onclick="changeUserRole('${u.id}', '${escapeHtml(u.email)}', 'admin')">設為管理員</button>` : ''}
-                      ${u.id !== user.id && u.role === 'admin' ? `<button class="btn btn-sm btn-danger" onclick="changeUserRole('${u.id}', '${escapeHtml(u.email)}', 'user')">取消管理員</button>` : ''}
-                      ${u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger" onclick="suspendUser('${u.id}')">停用</button>` : ''}
-                      ${u.status === 'suspended' ? `<button class="btn btn-sm btn-secondary" onclick="activateUser('${u.id}', '${escapeHtml(u.email)}')">啟用</button>` : ''}
-                      ${['pending', 'expired'].includes(u.status) ? `<button class="btn btn-sm btn-secondary" onclick="resendInvite('${u.id}', '${escapeHtml(u.email)}')">重寄邀請</button>` : ''}
-                      ${u.id !== user.id && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}', '${escapeHtml(u.email)}')">刪除</button>` : ''}
+                      ${u.id !== user.id && u.role === 'user' && u.status !== 'suspended' ? `<button class="btn btn-sm btn-secondary user-action-btn" data-action="promote" data-id="${u.id}" data-email="${escapeHtml(u.email)}">設為管理員</button>` : ''}
+                      ${u.id !== user.id && u.role === 'admin' ? `<button class="btn btn-sm btn-danger user-action-btn" data-action="demote" data-id="${u.id}" data-email="${escapeHtml(u.email)}">取消管理員</button>` : ''}
+                      ${u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger user-action-btn" data-action="suspend" data-id="${u.id}">停用</button>` : ''}
+                      ${u.status === 'suspended' ? `<button class="btn btn-sm btn-secondary user-action-btn" data-action="activate" data-id="${u.id}" data-email="${escapeHtml(u.email)}">啟用</button>` : ''}
+                      ${['pending', 'expired'].includes(u.status) ? `<button class="btn btn-sm btn-secondary user-action-btn" data-action="resend" data-id="${u.id}" data-email="${escapeHtml(u.email)}">重寄邀請</button>` : ''}
+                      ${u.id !== user.id && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger user-action-btn" data-action="delete" data-id="${u.id}" data-email="${escapeHtml(u.email)}">刪除</button>` : ''}
                     </div>
                   </td>
                 </tr>
@@ -454,7 +454,7 @@
       }
     }
 
-    window.suspendUser = async (userId) => {
+    async function suspendUser(userId) {
       const confirmed = await showConfirm('⚠️ 停用帳號', '確定要停用此帳號？該使用者的所有 Session 將立即失效。', '停用', true);
       if (!confirmed) return;
       try {
@@ -462,9 +462,9 @@
         toast.success('帳號已停用。');
         await loadUsers();
       } catch (err) { toast.error(err.message); }
-    };
+    }
 
-    window.activateUser = async (userId, email) => {
+    async function activateUser(userId, email) {
       const confirmed = await showConfirm('⚠️ 啟用帳號', `確定要重新啟用帳號 ${email}？啟用後該使用者將可正常登入。`, '啟用', true);
       if (!confirmed) return;
       try {
@@ -472,9 +472,9 @@
         toast.success('帳號已重新啟用。');
         await loadUsers();
       } catch (err) { toast.error(err.message); }
-    };
+    }
 
-    window.changeUserRole = async (userId, email, newRole) => {
+    async function changeUserRole(userId, email, newRole) {
       const isPromote = newRole === 'admin';
       const roleName = isPromote ? '管理員' : '一般使用者';
       const title = isPromote ? '⚠️ 設為管理員' : '⚠️ 取消管理員';
@@ -489,18 +489,18 @@
         toast.success(`帳號角色已變更為${roleName}。`);
         await loadUsers();
       } catch (err) { toast.error(err.message); }
-    };
+    }
 
-    window.resendInvite = async (userId, email) => {
+    async function resendInvite(userId, email) {
       const confirmed = await showConfirm('重新寄送邀請', `確定要重新寄送邀請信至 ${email}？原本未使用的邀請碼將會立即失效。`, '重新寄送');
       if (!confirmed) return;
       try {
         await api.post(`/api/admin/users/${userId}/resend-invite`);
         toast.success('邀請已重新寄送。');
       } catch (err) { toast.error(err.message); }
-    };
+    }
 
-    window.deleteUser = async (userId, email) => {
+    async function deleteUser(userId, email) {
       const confirmed = await showConfirm('🚨 刪除帳號', `確定要刪除帳號 ${email}？此操作將一併刪除其所有任務資料，且無法復原。`, '永久刪除', true);
       if (!confirmed) return;
       try {
@@ -508,7 +508,21 @@
         toast.success('帳號已刪除。');
         await loadUsers();
       } catch (err) { toast.error(err.message); }
-    };
+    }
+
+    // 綁定使用者列表的事件委派
+    document.getElementById('users-table-container').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.user-action-btn');
+      if (!btn) return;
+      const { action, id, email } = btn.dataset;
+
+      if (action === 'promote') await changeUserRole(id, email, 'admin');
+      if (action === 'demote') await changeUserRole(id, email, 'user');
+      if (action === 'suspend') await suspendUser(id);
+      if (action === 'activate') await activateUser(id, email);
+      if (action === 'resend') await resendInvite(id, email);
+      if (action === 'delete') await deleteUser(id, email);
+    });
 
     // 邀請新使用者
     const inviteModal = document.getElementById('invite-user-modal');
@@ -782,8 +796,8 @@
                   <td class="text-sm text-muted">${escapeHtml(j.created_at || '-')}</td>
                   <td>
                     <div style="display:flex;gap:0.5rem">
-                      ${j.status === 'running' ? `<button class="btn btn-sm btn-secondary" onclick="takeoverJob('${j.id}')">強制接管 (暫停)</button>` : ''}
-                      <button class="btn btn-sm btn-danger" onclick="deleteJob('${j.id}')">刪除</button>
+                      ${j.status === 'running' ? `<button class="btn btn-sm btn-secondary job-action-btn" data-action="takeover" data-id="${j.id}">強制接管 (暫停)</button>` : ''}
+                      <button class="btn btn-sm btn-danger job-action-btn" data-action="delete" data-id="${j.id}">刪除</button>
                     </div>
                   </td>
                 </tr>
@@ -797,7 +811,7 @@
       }
     }
 
-    window.takeoverJob = async (jobId) => {
+    async function takeoverJob(jobId) {
       const confirmed = await showConfirm('⚠️ 強制接管任務', '確定要強制接管該任務？任務將被強制暫停。', '強制接管', true);
       if (!confirmed) return;
       try {
@@ -807,9 +821,9 @@
       } catch (err) {
         toast.error(err.message);
       }
-    };
+    }
 
-    window.deleteJob = async (jobId) => {
+    async function deleteJob(jobId) {
       const confirmed = await showConfirm('🚨 強制刪除任務', '確定要強制刪除該任務？此操作將清除所有關聯之佇列與外連資料，且無法復原。', '永久刪除', true);
       if (!confirmed) return;
       try {
@@ -819,7 +833,16 @@
       } catch (err) {
         toast.error(err.message);
       }
-    };
+    }
+
+    // 綁定任務列表的事件委派
+    document.getElementById('jobs-table-container').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.job-action-btn');
+      if (!btn) return;
+      const { action, id } = btn.dataset;
+      if (action === 'takeover') await takeoverJob(id);
+      if (action === 'delete') await deleteJob(id);
+    });
 
     // ── Hash Router ───────────────────────────────────────────
 

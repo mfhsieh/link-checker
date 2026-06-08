@@ -126,8 +126,8 @@
         </div>
 
         <!-- 任務資訊卡片 -->
-        <div class="grid-2" style="margin-bottom:2rem">
-          <div class="card">
+        <div style="display:flex; flex-wrap:wrap; gap:1.5rem; margin-bottom:2rem; align-items:stretch;">
+          <div class="card" style="flex: 1 1 300px;">
             <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
               <span class="card-title">任務資訊</span>
               <button class="btn btn-ghost btn-sm" id="btn-view-job-config" style="padding:0.25rem 0.5rem">檢視設定</button>
@@ -151,7 +151,7 @@
           </div>
 
           <!-- 爬取進度 -->
-          <div class="card">
+          <div class="card" style="flex: 2 1 500px;">
             <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
               <span class="card-title">爬取進度</span>
               <div style="display:flex; gap:0.75rem; align-items:center;">
@@ -162,7 +162,7 @@
             <div class="progress-bar" style="margin-bottom:1.25rem">
               <div class="progress-fill" id="job-progress-fill" style="width:0%"></div>
             </div>
-            <div class="grid-stats" style="grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:0">
+            <div class="grid-stats" style="grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:0">
               <div class="stat-card" style="padding:0.75rem">
                 <div class="stat-label">總計</div>
                 <div class="stat-value text-xl" id="stat-total">0</div>
@@ -176,6 +176,10 @@
                 <div class="stat-value text-xl" id="stat-pending">0</div>
               </div>
               <div class="stat-card" style="padding:0.75rem">
+                <div class="stat-label text-muted">略過</div>
+                <div class="stat-value text-xl text-muted" id="stat-skipped">0</div>
+              </div>
+              <div class="stat-card" style="padding:0.75rem">
                 <div class="stat-label text-danger">失敗</div>
                 <div class="stat-value text-xl text-danger" id="stat-failed">0</div>
               </div>
@@ -184,17 +188,21 @@
         </div>
 
         <!-- 外連結果摘要 -->
-        <div class="grid-stats" style="margin-bottom:1.5rem">
+        <div class="grid-stats" style="grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:1.5rem">
           <div class="stat-card">
             <div class="stat-label">外部連結總數</div>
             <div class="stat-value" id="summary-total">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label text-success">正常</div>
+            <div class="stat-value text-success" id="summary-healthy">0</div>
           </div>
           <div class="stat-card">
             <div class="stat-label text-danger">DNS 解析失敗</div>
             <div class="stat-value text-danger" id="summary-dns-failed">0</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label text-danger">HTTP 錯誤</div>
+            <div class="stat-label text-danger">HTTP / 連線錯誤</div>
             <div class="stat-value text-danger" id="summary-http-error">0</div>
           </div>
           <div class="stat-card">
@@ -245,7 +253,7 @@
             <div
               style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem; justify-content:flex-end; flex:2; min-width:300px;">
               <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
-              <button class="filter-chip" data-filter="broken">⚠ HTTP 錯誤</button>
+              <button class="filter-chip" data-filter="broken">⚠ HTTP / 連線錯誤</button>
               <button class="filter-chip" data-filter="insecure">🔓 非 HTTPS</button>
               <div style="display:flex;align-items:center;gap:0.5rem;margin-left:0.5rem;">
                 <!-- <label for="results-group-select" class="text-sm text-muted" style="white-space:nowrap">檢視模式:</label> -->

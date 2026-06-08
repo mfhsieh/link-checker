@@ -52,7 +52,7 @@ def wait_for_server(port: int, timeout: float = 5.0) -> bool:
     return False
 
 
-# pylint: disable=too-many-locals, too-many-branches, too-many-statements, line-too-long
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 # pylint: disable=import-outside-toplevel, import-error, protected-access
 # pylint: disable=subprocess-run-check, unspecified-encoding, multiple-statements
 # pylint: disable=consider-using-with, unused-variable, broad-exception-caught
@@ -198,7 +198,8 @@ def run_test() -> None:
 
         if crawler_proc.returncode != 0:
             print(
-                f"Error: Crawler process exited with non-zero code {crawler_proc.returncode}"
+                f"Error: Crawler process exited with "
+                f"non-zero code {crawler_proc.returncode}"
             )
             sys.exit(1)
 
@@ -231,7 +232,8 @@ def run_test() -> None:
 
         # B. 驗證外部連結與安全標記
         cursor.execute(
-            "SELECT target_url, ip_address, http_status_code, error_message, is_secure FROM external_links"
+            "SELECT target_url, ip_address, http_status_code, "
+            "error_message, is_secure FROM external_links"
         )
         external_links = cursor.fetchall()
 
@@ -252,7 +254,10 @@ def run_test() -> None:
         assert google_url in ext_dict, "Google link not found in DB"
         assert (
             ext_dict[google_url]["status_code"] == 200
-        ), f"Google status code should be 200, got {ext_dict[google_url]['status_code']}"
+        ), (
+            f"Google status code should be 200, "
+            f"got {ext_dict[google_url]['status_code']}"
+        )
         assert ext_dict[google_url]["ip"] is not None, "Google IP should not be None"
         assert (
             ext_dict[google_url]["is_secure"] == 1
@@ -297,10 +302,16 @@ def run_test() -> None:
         assert dns_fail_url in ext_dict, "DNS fail link not found in DB"
         assert (
             ext_dict[dns_fail_url]["ip"] is None
-        ), f"DNS fail link IP should be None, got {ext_dict[dns_fail_url]['ip']}"
+        ), (
+            f"DNS fail link IP should be None, "
+            f"got {ext_dict[dns_fail_url]['ip']}"
+        )
         assert (
             ext_dict[dns_fail_url]["status_code"] is None
-        ), f"DNS fail link status code should be None, got {ext_dict[dns_fail_url]['status_code']}"
+        ), (
+            f"DNS fail link status code should be None, "
+            f"got {ext_dict[dns_fail_url]['status_code']}"
+        )
         assert (
             ext_dict[dns_fail_url]["error"] is not None
         ), "DNS fail link should have an error message"
@@ -313,7 +324,10 @@ def run_test() -> None:
         assert neverssl_url in ext_dict, "neverssl.com link not found in DB"
         assert (
             ext_dict[neverssl_url]["is_secure"] == 0
-        ), f"neverssl.com is_secure should be 0 (False), got {ext_dict[neverssl_url]['is_secure']}"
+        ), (
+            f"neverssl.com is_secure should be 0 (False), "
+            f"got {ext_dict[neverssl_url]['is_secure']}"
+        )
 
         # 斷言 6: mock-social-media (應為 HTTP, is_secure 應為 0, 因為 HEAD 返回 501 且非社群網域故不降級，狀態碼應為 501)
         social_url = "http://127.0.0.1:8000/mock-social-media"
@@ -323,7 +337,10 @@ def run_test() -> None:
         ), "Mock social media is_secure should be 0"
         assert (
             ext_dict[social_url]["status_code"] == 501
-        ), f"Mock social media status_code should be 501, got {ext_dict[social_url]['status_code']}"
+        ), (
+            f"Mock social media status_code should be 501, "
+            f"got {ext_dict[social_url]['status_code']}"
+        )
 
         # 新增外部資源類型斷言 (CSS Link)
         fonts_url = "https://fonts.googleapis.com/css?family=Roboto"
@@ -388,7 +405,10 @@ def run_test() -> None:
                 found_grouped_404 = True
                 assert (
                     item["occurrence_count"] == 2
-                ), f"Expected 404 occurrence count to be 2, got {item['occurrence_count']}"
+                ), (
+                    f"Expected 404 occurrence count to be 2, "
+                    f"got {item['occurrence_count']}"
+                )
                 assert (
                     len(item["source_urls"]) == 2
                 ), "Expected 2 source urls for 404 link"
@@ -477,7 +497,10 @@ def run_test() -> None:
         print("--- Debug: Broken links found ---")
         for item in broken_data:
             print(
-                f"URL: {item.get('target_url')}, Code: {item.get('http_status_code')}, IP: {item.get('ip_address')}, Error: {item.get('error_message')}"
+                f"URL: {item.get('target_url')}, "
+                f"Code: {item.get('http_status_code')}, "
+                f"IP: {item.get('ip_address')}, "
+                f"Error: {item.get('error_message')}"
             )
 
         # 預期非 200 的外連共有 6 個（httpbin 404 x2, httpbin 500, httpbin post, broken-img, dns fail）
@@ -489,7 +512,11 @@ def run_test() -> None:
         ]
         assert (
             len(filtered_broken) == 6
-        ), f"Expected 6 broken links (excluding neverssl.com), got {len(filtered_broken)}: {[x['target_url'] for x in filtered_broken]}"
+        ), (
+            "Expected 6 broken links (excluding neverssl.com), "
+            f"got {len(filtered_broken)}: "
+            f"{[x['target_url'] for x in filtered_broken]}"
+        )
         os.remove(broken_file)
 
         # 測試 --filter insecure
@@ -511,8 +538,12 @@ def run_test() -> None:
         assert res_insecure.returncode == 0, "Export with --filter insecure failed"
         with open(insecure_file, "r") as f:
             insecure_data = json.load(f)
-        assert len(insecure_data) >= 2, f"Expected at least 2 insecure links, got {len(insecure_data)}"
-        assert all(item.get("is_secure") is False for item in insecure_data), "All insecure links should have is_secure=False"
+        assert len(insecure_data) >= 2, (
+            f"Expected at least 2 insecure links, got {len(insecure_data)}"
+        )
+        assert all(item.get("is_secure") is False for item in insecure_data), (
+            "All insecure links should have is_secure=False"
+        )
         os.remove(insecure_file)
 
         # 測試 --exclude
@@ -534,7 +565,9 @@ def run_test() -> None:
         assert res_exclude.returncode == 0, "Export with --exclude failed"
         with open(exclude_file, "r") as f:
             exclude_data = json.load(f)
-        assert not any("google.com" in item.get("target_url") for item in exclude_data), "Excluded domain should not be in export"
+        assert not any(
+            "google.com" in item.get("target_url") for item in exclude_data
+        ), "Excluded domain should not be in export"
         os.remove(exclude_file)
 
         # 測試 --export-full
@@ -552,12 +585,16 @@ def run_test() -> None:
         ]
         res_full = subprocess.run(export_full_cmd, capture_output=True, text=True)
         assert res_full.returncode == 0, "Export full report failed"
-        
+
         with zipfile.ZipFile(full_zip_file, "r") as zf:
             namelist = zf.namelist()
-            assert any("crawl_records.csv" in n for n in namelist), "crawl_records.csv missing in ZIP"
-            assert any("external_links.csv" in n for n in namelist), "external_links.csv missing in ZIP"
-            
+            assert any("crawl_records.csv" in n for n in namelist), (
+                "crawl_records.csv missing in ZIP"
+            )
+            assert any("external_links.csv" in n for n in namelist), (
+                "external_links.csv missing in ZIP"
+            )
+
         os.remove(full_zip_file)
 
         print("Verification Passed: Export filters and internal report.")
@@ -725,9 +762,10 @@ def run_test() -> None:
             "SELECT COUNT(*) FROM crawl_queue WHERE url LIKE '%relative-link.html'"
         )
         rel_count = cur_lim.fetchone()[0]
-        assert (
-            rel_count == 0
-        ), f"relative-link.html (depth 2) should NOT exist in queue when max_depth=1, got {rel_count}"
+        assert rel_count == 0, (
+            "relative-link.html (depth 2) should NOT exist in queue "
+            f"when max_depth=1, got {rel_count}"
+        )
 
         # B. 斷言 max_pages=3: completed / failed / skip-with-code 的實質請求網頁數量應恰為 3
         cur_lim.execute("""
@@ -738,7 +776,10 @@ def run_test() -> None:
         total_pages_crawled = cur_lim.fetchone()[0]
         assert (
             total_pages_crawled == 3
-        ), f"Total crawled pages should be exactly 3 when max_pages=3, got {total_pages_crawled}"
+        ), (
+            f"Total crawled pages should be exactly 3 when max_pages=3, "
+            f"got {total_pages_crawled}"
+        )
 
         conn_lim.close()
         print("Limits Validation Job Passed Successfully!")

@@ -444,12 +444,17 @@ class JobManager:
                 )
                 .count()
             )
-            # broken: HTTP 狀態碼 >= 400
+            # broken: HTTP 狀態碼 >= 400 或連線/憑證錯誤
             broken_count = (
                 session.query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == job_id,
-                    ExternalLink.http_status_code >= 400,
+                    (ExternalLink.http_status_code >= 400)
+                    | (
+                        (ExternalLink.http_status_code.is_(None))
+                        & (ExternalLink.ip_address.isnot(None))
+                        & (ExternalLink.ip_address != "")
+                    ),
                 )
                 .count()
             )
@@ -459,6 +464,8 @@ class JobManager:
                 .filter(ExternalLink.job_id == job_id)
                 .count()
             )
+
+            healthy_count = total_count - dead_count - broken_count
 
             # 組裝信件
             status_text = (
@@ -481,7 +488,8 @@ class JobManager:
                 f"  - 結束時間：{job.updated_at}\n\n"
                 f"外部連結檢查統計：\n"
                 f"  - 總共發現外部連結數：{total_count}\n"
-                f"  - 損壞連結 (Broken Links，HTTP 狀態碼 >= 400)：{broken_count} 個\n"
+                f"  - 正常連結 (Healthy)：{healthy_count} 個\n"
+                f"  - 損壞連結 (Broken Links，HTTP/連線異常)：{broken_count} 個\n"
                 f"  - 失效連結 (Dead Links，DNS 解析失敗)：{dead_count} 個\n\n"
                 f"詳細檢查結果，請登入系統後台查看。\n\n"
                 f"此為系統自動發送的郵件，請勿回覆。"
@@ -526,7 +534,10 @@ class JobManager:
   <h3 style="color:#2563eb;margin-top:24px;">外部連結檢查統計</h3>
   <ul style="padding-left:20px;line-height:1.6;">
     <li>總共發現外部連結數：<strong>{total_count}</strong></li>
-    <li>損壞連結 (Broken Links，HTTP 狀態碼 &gt;= 400)：
+    <li>正常連結 (Healthy)：
+      <span style="color:#10b981;font-weight:bold;">{healthy_count}</span> 個
+    </li>
+    <li>損壞連結 (Broken Links，HTTP / 連線異常)：
       <span style="color:#ef4444;font-weight:bold;">{broken_count}</span> 個
     </li>
     <li>失效連結 (Dead Links，DNS 解析失敗)：
@@ -1128,9 +1139,16 @@ class JobManager:
                     (ExternalLink.ip_address.is_(None))
                     | (ExternalLink.ip_address == "")
                 )
-            # broken: 有 HTTP 回應但狀態碼 >= 400（不含 NULL，NULL 屬於連線錯誤/尚未探測）
+            # broken: HTTP 狀態碼 >= 400 或發生連線錯誤（無狀態碼但有 IP）
             elif status_filter == "broken":
-                query = query.filter(ExternalLink.http_status_code >= 400)
+                query = query.filter(
+                    (ExternalLink.http_status_code >= 400)
+                    | (
+                        (ExternalLink.http_status_code.is_(None))
+                        & (ExternalLink.ip_address.isnot(None))
+                        & (ExternalLink.ip_address != "")
+                    )
+                )
             elif status_filter == "insecure":
                 query = query.filter(ExternalLink.is_secure.is_(False))
 
@@ -1421,6 +1439,7 @@ class JobManager:
                         (ExternalLink.ip_address.is_(None))
                         | (ExternalLink.ip_address == "")
                         | (ExternalLink.http_status_code >= 400)
+                        | (ExternalLink.http_status_code.is_(None))
                     ),
                 )
                 .all()

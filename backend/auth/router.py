@@ -113,8 +113,20 @@ def _clear_auth_cookies(response: Response) -> None:
         response (Response): FastAPI 回應物件。
     """
     settings = get_settings()
-    response.delete_cookie(settings.SESSION_COOKIE_NAME, path="/")
-    response.delete_cookie(settings.CSRF_COOKIE_NAME, path="/")
+    response.delete_cookie(
+        settings.SESSION_COOKIE_NAME,
+        path="/",
+        secure=not settings.DEBUG,
+        httponly=True,
+        samesite="strict",
+    )
+    response.delete_cookie(
+        settings.CSRF_COOKIE_NAME,
+        path="/",
+        secure=not settings.DEBUG,
+        httponly=False,
+        samesite="strict",
+    )
 
 
 # ── 端點實作 ────────────────────────────────────────────────────────────────────

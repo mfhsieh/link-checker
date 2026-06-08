@@ -622,8 +622,15 @@ def get_job_results(
             (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == "")
         )
     elif query_args.status_filter == "broken":
-        # broken：有 HTTP 回應但狀態碼 >= 400（不含 NULL，NULL 屬於連線錯誤/尚未探測）
-        query = query.filter(ExternalLink.http_status_code >= 400)
+        # broken：HTTP 狀態碼 >= 400 或發生連線錯誤（無狀態碼但有 IP）
+        query = query.filter(
+            (ExternalLink.http_status_code >= 400)
+            | (
+                (ExternalLink.http_status_code.is_(None))
+                & (ExternalLink.ip_address.isnot(None))
+                & (ExternalLink.ip_address != "")
+            )
+        )
     elif query_args.status_filter == "insecure":
         # insecure：非 HTTPS (HTTP 明文傳輸)
         query = query.filter(ExternalLink.is_secure.is_(False))
@@ -726,7 +733,12 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
         db.query(ExternalLink)
         .filter(
             ExternalLink.job_id == job_id,
-            ExternalLink.http_status_code >= 400,
+            (ExternalLink.http_status_code >= 400)
+            | (
+                (ExternalLink.http_status_code.is_(None))
+                & (ExternalLink.ip_address.isnot(None))
+                & (ExternalLink.ip_address != "")
+            ),
         )
         .count()
     )
@@ -739,10 +751,13 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
         .count()
     )
 
+    healthy_count = total_external - dns_failed - http_errors
+
     return {
         "job_id": job_id,
         "total_crawled_pages": total_queue,
         "total_external_links": total_external,
+        "healthy_count": healthy_count,
         "dns_failed_count": dns_failed,
         "http_error_count": http_errors,
         "insecure_count": insecure,
@@ -776,7 +791,14 @@ def stream_job_results(
             (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == "")
         )
     elif query_args.status_filter == "broken":
-        query = query.filter(ExternalLink.http_status_code >= 400)
+        query = query.filter(
+            (ExternalLink.http_status_code >= 400)
+            | (
+                (ExternalLink.http_status_code.is_(None))
+                & (ExternalLink.ip_address.isnot(None))
+                & (ExternalLink.ip_address != "")
+            )
+        )
     elif query_args.status_filter == "insecure":
         query = query.filter(ExternalLink.is_secure.is_(False))
 
