@@ -24,9 +24,7 @@ from crawler.utils import (
 from crawler.notifier import send_job_status_notification
 
 
-def _get_domain_delay(
-    url: str, domain_delays: dict[str, float], default_delay: float
-) -> float:
+def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: float) -> float:
     """
     根據給定網址，取得對應網域的請求延遲時間。
 
@@ -88,16 +86,12 @@ class JobManager:
 
         self.engine: Engine = create_engine(
             db_url,
-            connect_args={"check_same_thread": False}
-            if db_url.startswith("sqlite")
-            else {},
+            connect_args={"check_same_thread": False} if db_url.startswith("sqlite") else {},
         )
         if db_url.startswith("sqlite:"):
 
             @event.listens_for(self.engine, "connect")
-            def set_sqlite_pragma(
-                dbapi_connection: object, _connection_record: object
-            ) -> None:
+            def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
                 """
                 設定 SQLite 的 PRAGMA 參數，提升效能。
 
@@ -138,9 +132,7 @@ class JobManager:
         Returns:
             str: 新建立任務的 ID。
         """
-        config_str: str | None = (
-            json.dumps(crawler_config) if crawler_config is not None else None
-        )
+        config_str: str | None = json.dumps(crawler_config) if crawler_config is not None else None
 
         with self.SessionLocal() as session:
             job: Job = Job(
@@ -201,15 +193,12 @@ class JobManager:
                 return
 
             if job.status in ["completed", "error"]:
-                logger.warning(
-                    "任務 %s 的狀態已經是 %s，無法再次執行。", job_id, job.status
-                )
+                logger.warning("任務 %s 的狀態已經是 %s，無法再次執行。", job_id, job.status)
                 return
 
             if job.status == "running" and not force:
                 logger.error(
-                    "任務 %s 目前正在執行中。如果確定前次程序已經意外終止，"
-                    "請加上 -f 或 --force 參數強制接管任務。",
+                    "任務 %s 目前正在執行中。如果確定前次程序已經意外終止，請加上 -f 或 --force 參數強制接管任務。",
                     job_id,
                 )
                 return
@@ -217,31 +206,25 @@ class JobManager:
             job.status = "running"
             session.commit()
 
-            target_domains_list: list[str] = (
-                job.target_domains.split(",") if job.target_domains else []
-            )
-            internal_domains_list: list[str] = (
-                job.internal_domains.split(",") if job.internal_domains else []
-            )
+            target_domains_list: list[str] = job.target_domains.split(",") if job.target_domains else []
+            internal_domains_list: list[str] = job.internal_domains.split(",") if job.internal_domains else []
 
             if crawler_config is None:
                 # 代表從 Resume 恢復執行，需從資料庫讀取當時的設定檔
                 if job.config_json:
                     try:
                         crawler_config = json.loads(job.config_json)
-                        logger.info(
-                            "已從資料庫成功載入任務 %s 的專屬設定參數。", job_id
-                        )
+                        logger.info("已從資料庫成功載入任務 %s 的專屬設定參數。", job_id)
                     except json.JSONDecodeError:
-                        logger.error(
-                            "任務 %s 的設定檔解析失敗，將退回使用預設設定。", job_id
-                        )
+                        logger.error("任務 %s 的設定檔解析失敗，將退回使用預設設定。", job_id)
                         crawler_config = {}
                 else:
                     crawler_config = {}
 
             # 合併全域設定與個別任務設定
             timeout = crawler_config.get("timeout", 30)
+            connect_timeout = crawler_config.get("connect_timeout", 5.0)
+            external_check_timeout = crawler_config.get("external_check_timeout", 10.0)
             retries = crawler_config.get("retries", 3)
             delay = crawler_config.get("delay", 1.0)
             domain_delays = crawler_config.get("domain_delays", {}) or {}
@@ -257,6 +240,8 @@ class JobManager:
             # 建立爬蟲核心實例
             crawler = CrawlerCore(
                 timeout=timeout,
+                connect_timeout=connect_timeout,
+                external_check_timeout=external_check_timeout,
                 ignore_extensions=ignore_extensions,
                 mime_type_filter=mime_type_filter,
                 ignore_regexes=ignore_regexes,
@@ -267,25 +252,19 @@ class JobManager:
 
             # 統計該任務已發送實質請求的頁面數量
             crawled_count = (
-                session.query(CrawlQueue)
+                session
+                .query(CrawlQueue)
                 .filter(
                     CrawlQueue.job_id == job_id,
                     (CrawlQueue.status.in_(["completed", "failed"]))
-                    | (
-                        (CrawlQueue.status == "skip")
-                        & (CrawlQueue.status_code.isnot(None))
-                    ),
+                    | ((CrawlQueue.status == "skip") & (CrawlQueue.status_code.isnot(None))),
                 )
                 .count()
             )
 
             # 預熱外連快取：載入此任務已探測過的外連結果以防重複探測
-            checked_links_cache: dict[
-                str, tuple[str | None, int | None, str | None]
-            ] = {}
-            for ext in (
-                session.query(ExternalLink).filter(ExternalLink.job_id == job_id).all()
-            ):
+            checked_links_cache: dict[str, tuple[str | None, int | None, str | None]] = {}
+            for ext in session.query(ExternalLink).filter(ExternalLink.job_id == job_id).all():
                 if ext.http_status_code is not None or ext.error_message is not None:
                     checked_links_cache[ext.target_url] = (
                         ext.ip_address,
@@ -316,17 +295,14 @@ class JobManager:
                         )
                         job.status = "completed"
                         session.commit()
-                        send_job_status_notification(
-                            self.SessionLocal, job_id, "completed"
-                        )
+                        send_job_status_notification(self.SessionLocal, job_id, "completed")
                         break
 
                     # 從佇列中取得下一個等待處理的網址，依據 ID 排序以保障 FIFO 的 BFS 順序
                     queue_item: CrawlQueue | None = (
-                        session.query(CrawlQueue)
-                        .filter(
-                            CrawlQueue.job_id == job_id, CrawlQueue.status == "pending"
-                        )
+                        session
+                        .query(CrawlQueue)
+                        .filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "pending")
                         .order_by(CrawlQueue.id)
                         .first()
                     )
@@ -335,9 +311,7 @@ class JobManager:
                         logger.info("任務 %s 已無等待中的網址。任務完成。", job_id)
                         job.status = "completed"
                         session.commit()
-                        send_job_status_notification(
-                            self.SessionLocal, job_id, "completed"
-                        )
+                        send_job_status_notification(self.SessionLocal, job_id, "completed")
                         break
 
                     current_url: str = queue_item.url
@@ -367,9 +341,7 @@ class JobManager:
                             status_code,
                             status,
                             request_sent,
-                        ) = crawler.process_url(
-                            current_url, target_domains_list, internal_domains_list
-                        )
+                        ) = crawler.process_url(current_url, target_domains_list, internal_domains_list)
 
                         # 將狀態與狀態碼寫回佇列項目
                         queue_item.status_code = status_code
@@ -381,7 +353,8 @@ class JobManager:
                         if max_depth is None or next_depth <= max_depth:
                             for link in internal_links:
                                 exists = (
-                                    session.query(CrawlQueue)
+                                    session
+                                    .query(CrawlQueue)
                                     .filter(
                                         CrawlQueue.job_id == job_id,
                                         CrawlQueue.url == link,
@@ -406,7 +379,8 @@ class JobManager:
                         for link in unique_external_links:
                             # 檢查資料庫中是否已存在相同的 (job_id, source_url, target_url) 紀錄
                             exists = (
-                                session.query(ExternalLink)
+                                session
+                                .query(ExternalLink)
                                 .filter(
                                     ExternalLink.job_id == job_id,
                                     ExternalLink.source_url == current_url,
@@ -419,9 +393,7 @@ class JobManager:
 
                             # 如果之前已經探測過且有快取，則直接複用快取結果寫入資料庫
                             if link in checked_links_cache:
-                                cached_ip, cached_code, cached_err = (
-                                    checked_links_cache[link]
-                                )
+                                cached_ip, cached_code, cached_err = checked_links_cache[link]
                                 is_sec = link.startswith("https://")
                                 new_ext = ExternalLink(
                                     job_id=job_id,
@@ -453,23 +425,18 @@ class JobManager:
                                 """
                                 tgt_dom = get_domain(ext_link)
                                 ip_res = resolve_ip(tgt_dom) if tgt_dom else None
-                                code_res, err_res = crawler.check_external_link(
-                                    ext_link
-                                )
+                                code_res, err_res = crawler.check_external_link(ext_link)
                                 return ext_link, ip_res, code_res, err_res
 
-                            results = list(
-                                executor.map(
-                                    check_single_link, links_needing_http_check
-                                )
-                            )
+                            results = list(executor.map(check_single_link, links_needing_http_check))
 
                             for link, ip, status_code, err_msg in results:
                                 # 寫入快取供後續網頁共享
                                 checked_links_cache[link] = (ip, status_code, err_msg)
                                 # 再次防禦性檢查以防並行環境下重複寫入
                                 exists = (
-                                    session.query(ExternalLink)
+                                    session
+                                    .query(ExternalLink)
                                     .filter(
                                         ExternalLink.job_id == job_id,
                                         ExternalLink.source_url == current_url,
@@ -517,9 +484,7 @@ class JobManager:
                                 is_permanent_error = True
                         elif isinstance(e, httpx.RequestError):
                             queue_item.status_code = None
-                            logger.error(
-                                "抓取 %s 時發生連線請求錯誤: %s", current_url, e
-                            )
+                            logger.error("抓取 %s 時發生連線請求錯誤: %s", current_url, e)
                         else:
                             queue_item.status_code = None
                             logger.error("抓取 %s 時發生未預期例外: %s", current_url, e)
@@ -537,15 +502,10 @@ class JobManager:
                         else:
                             if queue_item.retry_count < retries:
                                 queue_item.retry_count += 1
-                                current_domain_delay = _get_domain_delay(
-                                    current_url, domain_delays, delay
-                                )
-                                backoff_delay = current_domain_delay * (
-                                    2 ** (queue_item.retry_count - 1)
-                                )
+                                current_domain_delay = _get_domain_delay(current_url, domain_delays, delay)
+                                backoff_delay = current_domain_delay * (2 ** (queue_item.retry_count - 1))
                                 logger.warning(
-                                    "處理網址 %s 發生暫時性錯誤，將進行重試 (第 %s/%s 次)。"
-                                    "啟用指數退避延遲 %s 秒...",
+                                    "處理網址 %s 發生暫時性錯誤，將進行重試 (第 %s/%s 次)。啟用指數退避延遲 %s 秒...",
                                     current_url,
                                     queue_item.retry_count,
                                     retries,
@@ -554,9 +514,7 @@ class JobManager:
                                 session.commit()
                                 time.sleep(backoff_delay)
                             else:
-                                logger.error(
-                                    "處理網址 %s 時發生錯誤且已達重試上限", current_url
-                                )
+                                logger.error("處理網址 %s 時發生錯誤且已達重試上限", current_url)
                                 queue_item.status = "failed"
                                 queue_item.error_message = str(e)
                                 session.commit()
@@ -564,9 +522,7 @@ class JobManager:
 
                     # 避免頻繁請求，加入短暫的延遲
                     if should_delay:
-                        current_domain_delay = _get_domain_delay(
-                            current_url, domain_delays, delay
-                        )
+                        current_domain_delay = _get_domain_delay(current_url, domain_delays, delay)
                         time.sleep(current_domain_delay)
 
             except KeyboardInterrupt:
@@ -586,9 +542,7 @@ class JobManager:
                 crawler.close()
             executor.shutdown(wait=False)
 
-    def get_all_jobs(
-        self, user_id: str | None = None, status: str | None = None
-    ) -> list[dict[str, object]]:
+    def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
         """
         取得所有任務的列表與基本資訊。可透過 user_id 進行過濾。
 
@@ -632,35 +586,19 @@ class JobManager:
             if not job:
                 return None
 
-            total_queue = (
-                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
-            )
+            total_queue = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
             completed = (
-                session.query(CrawlQueue)
-                .filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "completed")
-                .count()
+                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "completed").count()
             )
             pending = (
-                session.query(CrawlQueue)
-                .filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "pending")
-                .count()
+                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "pending").count()
             )
             failed = (
-                session.query(CrawlQueue)
-                .filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
-                .count()
+                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed").count()
             )
-            skipped = (
-                session.query(CrawlQueue)
-                .filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "skip")
-                .count()
-            )
+            skipped = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "skip").count()
 
-            total_external = (
-                session.query(ExternalLink)
-                .filter(ExternalLink.job_id == job_id)
-                .count()
-            )
+            total_external = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
 
             return {
                 "id": job.id,
@@ -697,9 +635,7 @@ class JobManager:
                 job.status = "paused"
                 session.commit()
                 return True
-            logger.warning(
-                "任務 %s 當前狀態為 %s，非 running，無法暫停。", job_id, job.status
-            )
+            logger.warning("任務 %s 當前狀態為 %s，非 running，無法暫停。", job_id, job.status)
             return False
 
     def delete_job(self, job_id: str) -> bool:
@@ -751,15 +687,11 @@ class JobManager:
             session.query(ExternalLink).filter(ExternalLink.job_id == job_id).delete()
 
             # 清除佇列中除起始網址外的所有記錄
-            session.query(CrawlQueue).filter(
-                CrawlQueue.job_id == job_id, CrawlQueue.url != job.start_url
-            ).delete()
+            session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.url != job.start_url).delete()
 
             # 重設起始網址的佇列狀態
             start_queue = (
-                session.query(CrawlQueue)
-                .filter(CrawlQueue.job_id == job_id, CrawlQueue.url == job.start_url)
-                .first()
+                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.url == job.start_url).first()
             )
             if start_queue:
                 start_queue.status = "pending"
@@ -767,9 +699,7 @@ class JobManager:
                 start_queue.status_code = None
                 start_queue.error_message = None
             else:
-                new_start = CrawlQueue(
-                    job_id=job_id, url=job.start_url, source_url=None, status="pending"
-                )
+                new_start = CrawlQueue(job_id=job_id, url=job.start_url, source_url=None, status="pending")
                 session.add(new_start)
 
             session.commit()
@@ -792,16 +722,15 @@ class JobManager:
                 return False
 
             if job.status == "running":
-                logger.error(
-                    "任務 %s 目前正在執行中，無法直接重試。請先暫停任務。", job_id
-                )
+                logger.error("任務 %s 目前正在執行中，無法直接重試。請先暫停任務。", job_id)
                 return False
 
             job.status = "pending"
 
             # 1. 找出失敗的外部連結 (DNS 失敗或 HTTP 錯誤)
             failed_ext_links = (
-                session.query(ExternalLink)
+                session
+                .query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == job_id,
                     (
@@ -836,9 +765,7 @@ class JobManager:
                 )
 
             # 3. 將本身爬取失敗的內部網頁也改回 pending
-            session.query(CrawlQueue).filter(
-                CrawlQueue.job_id == job_id, CrawlQueue.status == "failed"
-            ).update(
+            session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed").update(
                 {
                     "status": "pending",
                     "retry_count": 0,

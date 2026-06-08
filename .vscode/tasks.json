@@ -1,0 +1,53 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "▶️ 啟動 Web 伺服器 (Serve & Reload)",
+            "type": "shell",
+            "command": "python cli.py --serve --reload",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "🧪 執行 E2E 整合測試",
+            "type": "shell",
+            "command": "python test/run_test.py",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "🧹 執行排版與檢查 (Ruff + Pylint)",
+            "type": "shell",
+            "command": "ruff check --select I --fix . && ruff format . && pylint backend/ crawler/ cli.py test/",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "🌐 啟動 Mock 測試伺服器 (Port 8080)",
+            "type": "shell",
+            "command": "python test/test_server/server.py 8080",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+}

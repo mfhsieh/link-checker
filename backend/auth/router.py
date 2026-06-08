@@ -15,7 +15,7 @@ Session Token 以 HTTP-only Cookie 承載，不允許前端 JS 直接存取。
 import logging
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session as DBSession
 
@@ -147,6 +147,7 @@ def login(
     body: LoginRequest,
     request: Request,
     response: Response,
+    background_tasks: BackgroundTasks,
     db: DBSession = Depends(get_auth_db),
 ) -> dict[str, object]:
     """
@@ -162,6 +163,7 @@ def login(
         body (LoginRequest): 登入請求內容，包含 email、密碼或邀請 token。
         request (Request): FastAPI 請求物件。
         response (Response): FastAPI 回應物件，用於設定 Cookie。
+        background_tasks (BackgroundTasks): 用於背景執行 GC。
         db (DBSession): Auth 資料庫 Session。
 
     Returns:
@@ -209,6 +211,9 @@ def login(
 
     _set_session_cookie(response, session_token)
     _set_csrf_cookie(response, csrf_token)
+
+    # 觸發背景 GC 清理過期 Session
+    background_tasks.add_task(auth_service.run_session_gc_task)
 
     return {
         "is_first_login": result["is_first_login"],
@@ -263,6 +268,7 @@ def set_password(
 def logout(
     response: Response,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: DBSession = Depends(get_auth_db),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
@@ -272,6 +278,7 @@ def logout(
     Args:
         response (Response): FastAPI 回應物件，用於清除 Cookie。
         request (Request): FastAPI 請求物件，用於讀取 Cookie。
+        background_tasks (BackgroundTasks): 用於背景執行 GC。
         db (DBSession): Auth DB Session。
         _csrf (None): CSRF 防禦標記。
 
@@ -284,6 +291,10 @@ def logout(
         auth_service.invalidate_session(db, raw_token)
 
     _clear_auth_cookies(response)
+
+    # 觸發背景 GC 清理過期 Session
+    background_tasks.add_task(auth_service.run_session_gc_task)
+
     return {"message": "已成功登出。"}
 
 
@@ -305,11 +316,7 @@ def get_me(
         "email": current_user.email,
         "role": current_user.role,
         "status": current_user.status,
-        "last_login_at": (
-            current_user.last_login_at.isoformat()
-            if current_user.last_login_at
-            else None
-        ),
+        "last_login_at": (current_user.last_login_at.isoformat() if current_user.last_login_at else None),
     }
 
 

@@ -21,18 +21,15 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 _DEFAULT_SOCIAL_DOMAINS = "facebook.com,fb.com,youtube.com,instagram.com,twitter.com,linkedin.com"
 SOCIAL_DOMAINS: tuple[str, ...] = tuple(
-    d.strip()
-    for d in os.environ.get("CRAWLER_SOCIAL_DOMAINS", _DEFAULT_SOCIAL_DOMAINS).split(",")
-    if d.strip()
+    d.strip() for d in os.environ.get("CRAWLER_SOCIAL_DOMAINS", _DEFAULT_SOCIAL_DOMAINS).split(",") if d.strip()
 )
-MAX_CONTENT_LENGTH: int = int(
-    os.environ.get("CRAWLER_MAX_CONTENT_LENGTH", 10 * 1024 * 1024)
-)
+MAX_CONTENT_LENGTH: int = int(os.environ.get("CRAWLER_MAX_CONTENT_LENGTH", 10 * 1024 * 1024))
 
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
 _original_getaddrinfo = socket.getaddrinfo
 _dns_override = threading.local()
+
 
 def _patched_getaddrinfo(
     host: str | bytes | None,
@@ -61,7 +58,9 @@ def _patched_getaddrinfo(
         return _original_getaddrinfo(overrides[host], port, family, type_, proto, flags)
     return _original_getaddrinfo(host, port, family, type_, proto, flags)
 
+
 socket.getaddrinfo = _patched_getaddrinfo
+
 
 @contextmanager
 def dns_override(host: str, ip: str) -> Iterator[None]:
@@ -94,13 +93,18 @@ class CrawlerCore:
 
     Attributes:
         timeout (int): HTTP 請求的逾時時間 (單位：秒)。
+            connect_timeout (float): 建立 HTTP 連線的逾時時間 (單位：秒)。
+            external_check_timeout (float): 外部連結存活探測的總體逾時時間 (單位：秒)。
         client (httpx.Client): 用於發送同步連線的 HTTPX 客戶端物件。
+            exempt_client (httpx.Client): 用於發送免除 SSL 驗證的 HTTPX 客戶端物件。
     """
 
     # pylint: disable=too-many-arguments
     def __init__(
         self,
         timeout: int = 30,
+        connect_timeout: float = 5.0,
+        external_check_timeout: float = 10.0,
         ignore_extensions: list[str] | None = None,
         mime_type_filter: dict[str, object] | None = None,
         ignore_regexes: list[str] | None = None,
@@ -113,6 +117,8 @@ class CrawlerCore:
 
         Args:
             timeout (int): HTTP 請求的逾時時間 (單位：秒)，預設為 30 秒。
+                connect_timeout (float): 建立 HTTP 連線的逾時時間 (單位：秒)，預設為 5.0 秒。
+                external_check_timeout (float): 外部連結存活探測的總體逾時時間 (單位：秒)，預設為 10.0 秒。
             ignore_extensions (list[str] | None): 要忽略的副檔名清單，預設包含常見非 HTML 檔案。
             mime_type_filter (dict[str, object] | None): MIME 類型過濾設定。
             ignore_regexes (list[str] | None): 要忽略的網址正規表示式 (Regex) 清單。
@@ -121,6 +127,8 @@ class CrawlerCore:
             proxy_url (str | None): (選填) 代理伺服器 URL。
         """
         self.timeout: int = timeout
+        self.connect_timeout: float = connect_timeout
+        self.external_check_timeout: float = external_check_timeout
         self.ignore_extensions: list[str] = ignore_extensions or [
             ".pdf",
             ".jpg",
@@ -142,14 +150,17 @@ class CrawlerCore:
         )
         self.ssl_exempt_domains: list[str] = ssl_exempt_domains or []
         self.proxy_url: str | None = proxy_url
+
+        timeout_config = httpx.Timeout(self.timeout, connect=self.connect_timeout)
+
         self.client: httpx.Client = httpx.Client(
-            timeout=self.timeout,
+            timeout=timeout_config,
             follow_redirects=False,
             headers={"User-Agent": self.user_agent},
             proxy=self.proxy_url,
         )
         self.exempt_client: httpx.Client = httpx.Client(
-            timeout=self.timeout,
+            timeout=timeout_config,
             follow_redirects=False,
             headers={"User-Agent": self.user_agent},
             verify=False,  # 自簽憑證豁免
@@ -234,13 +245,9 @@ class CrawlerCore:
                     content_type: str = response.headers.get("Content-Type", "").lower()
 
                     if self.mime_type_filter.get("enabled", True):
-                        allowed_types: list[str] = self.mime_type_filter.get(
-                            "allowed_types", ["text/html"]
-                        )
+                        allowed_types: list[str] = self.mime_type_filter.get("allowed_types", ["text/html"])
                         # 若 content_type 不包含任何一個 allowed_type，則提早中斷並回傳 None
-                        if not any(
-                            allowed.lower() in content_type for allowed in allowed_types
-                        ):
+                        if not any(allowed.lower() in content_type for allowed in allowed_types):
                             logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
                             return None, response.status_code, "skip", current_url, request_sent
 
@@ -291,9 +298,7 @@ class CrawlerCore:
             raw_links: list[object] = []
 
             # 透過單次遍歷 HTML 樹來擷取所有標籤，大幅提升大型網頁的解析效能
-            for tag in soup.find_all(
-                ["a", "link", "script", "iframe", "img", "embed", "form", "object"]
-            ):
+            for tag in soup.find_all(["a", "link", "script", "iframe", "img", "embed", "form", "object"]):
                 # 1. 擷取 href 屬性 (超連結 a, 樣式表 link)
                 if tag.name in ("a", "link") and tag.has_attr("href"):
                     raw_links.append(tag.get("href"))
@@ -318,9 +323,7 @@ class CrawlerCore:
 
                 href: str = val_str.strip()
                 # 排除 javascript, mailto 等非 http(s) 的錨點連結
-                if not href or href.lower().startswith(
-                    ("javascript:", "mailto:", "tel:", "#")
-                ):
+                if not href or href.lower().startswith(("javascript:", "mailto:", "tel:", "#")):
                     continue
                 normalized_link: str = normalize_url(href, base_url)
 
@@ -405,8 +408,9 @@ class CrawlerCore:
 
                 client = self._get_client(current_url)
                 with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
-                    # 優先使用 HEAD 請求以節省流量與時間，逾時時間設為較短的 10 秒
-                    response = client.request("HEAD", current_url, timeout=10.0)
+                    # 優先使用 HEAD 請求以節省流量與時間，並套用精細化超時配置
+                    head_timeout = httpx.Timeout(self.external_check_timeout, connect=self.connect_timeout)
+                    response = client.request("HEAD", current_url, timeout=head_timeout)
 
                 # 處理重導向
                 if response.status_code in (301, 302, 303, 307, 308):
@@ -419,19 +423,14 @@ class CrawlerCore:
                 # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
                 domain = get_domain(current_url)
                 # 使用精確的子網域比對（防止 notfacebook.com 被誤判為社群網域）
-                is_social_media = domain and is_in_domain_list(
-                    domain.lower(), list(SOCIAL_DOMAINS)
-                )
+                is_social_media = domain and is_in_domain_list(domain.lower(), list(SOCIAL_DOMAINS))
 
-                if response.status_code in (400, 403, 405) or (
-                    response.status_code >= 400 and is_social_media
-                ):
+                if response.status_code in (400, 403, 405) or (response.status_code >= 400 and is_social_media):
                     # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案
                     headers = {"Range": "bytes=0-1023"}
+                    stream_timeout = httpx.Timeout(self.external_check_timeout, connect=self.connect_timeout)
                     with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
-                        with client.stream(
-                            "GET", current_url, headers=headers, timeout=10.0
-                        ) as resp:
+                        with client.stream("GET", current_url, headers=headers, timeout=stream_timeout) as resp:
                             if resp.status_code in (301, 302, 303, 307, 308):
                                 location = resp.headers.get("Location")
                                 if location:

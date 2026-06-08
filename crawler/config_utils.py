@@ -37,10 +37,13 @@ DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
             "csv",
         ],
         "ignore_regexes": [],
-        "mime_type_filter": {
-            "enabled": True,
-            "allowed_types": ["text/html", "application/xhtml+xml"]
-        },
+        "mime_type_filter": {"enabled": True, "allowed_types": ["text/html", "application/xhtml+xml"]},
+        "connect_timeout": 5.0,
+        "external_check_timeout": 10.0,
+        "min_connect_timeout": 1.0,
+        "max_connect_timeout": 30.0,
+        "min_external_check_timeout": 1.0,
+        "max_external_check_timeout": 30.0,
         "min_timeout": 5,
         "max_timeout": 120,
         "min_delay": 0.5,
@@ -52,6 +55,8 @@ DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
 
 ALLOWED_CRAWLER_KEYS: set[str] = {
     "timeout",
+    "connect_timeout",
+    "external_check_timeout",
     "delay",
     "retries",
     "mime_type_filter",
@@ -65,9 +70,8 @@ ALLOWED_CRAWLER_KEYS: set[str] = {
     "proxy_url",
 }
 
-def _apply_crawler_defaults(
-    crawler_config: dict[str, object], global_crawler_config: dict[str, object]
-) -> None:
+
+def _apply_crawler_defaults(crawler_config: dict[str, object], global_crawler_config: dict[str, object]) -> None:
     """
     套用全域預設值到 crawler_config 中。
 
@@ -77,6 +81,10 @@ def _apply_crawler_defaults(
     """
     if "timeout" not in crawler_config:
         crawler_config["timeout"] = global_crawler_config.get("timeout", 30)
+    if "connect_timeout" not in crawler_config:
+        crawler_config["connect_timeout"] = global_crawler_config.get("connect_timeout", 5.0)
+    if "external_check_timeout" not in crawler_config:
+        crawler_config["external_check_timeout"] = global_crawler_config.get("external_check_timeout", 10.0)
     if "delay" not in crawler_config:
         crawler_config["delay"] = global_crawler_config.get("delay", 3.0)
     if "retries" not in crawler_config:
@@ -101,9 +109,8 @@ def _apply_crawler_defaults(
     if "proxy_url" not in crawler_config:
         crawler_config["proxy_url"] = global_crawler_config.get("proxy_url", None)
 
-def _merge_crawler_lists(
-    crawler_config: dict[str, object], global_crawler_config: dict[str, object]
-) -> None:
+
+def _merge_crawler_lists(crawler_config: dict[str, object], global_crawler_config: dict[str, object]) -> None:
     """
     聯集合併 crawler_config 中的 list 參數。
 
@@ -134,9 +141,8 @@ def _merge_crawler_lists(
     local_domain_delays: dict[str, object] = crawler_config.get("domain_delays") or {}
     crawler_config["domain_delays"] = {**global_domain_delays, **local_domain_delays}
 
-def _enforce_crawler_limits(
-    crawler_config: dict[str, object], global_crawler_config: dict[str, object]
-) -> None:
+
+def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_config: dict[str, object]) -> None:
     """
     強制套用全域上下限。
 
@@ -146,6 +152,8 @@ def _enforce_crawler_limits(
     """
     limits = [
         ("timeout", "min_timeout", "max_timeout", 30, 120),
+        ("connect_timeout", "min_connect_timeout", "max_connect_timeout", 1.0, 30.0),
+        ("external_check_timeout", "min_external_check_timeout", "max_external_check_timeout", 1.0, 30.0),
         ("delay", "min_delay", "max_delay", 3.0, 6.0),
         ("retries", "min_retries", "max_retries", 0, 5),
     ]
@@ -169,9 +177,8 @@ def _enforce_crawler_limits(
             )
             crawler_config[key] = max_val
 
-def merge_and_validate_crawler_config(
-    config: dict[str, object], global_config: dict[str, object]
-) -> dict[str, object]:
+
+def merge_and_validate_crawler_config(config: dict[str, object], global_config: dict[str, object]) -> dict[str, object]:
     """
     合併全域與個別的爬蟲設定，並確保個別設定遵守全域上下限。
 
@@ -185,9 +192,7 @@ def merge_and_validate_crawler_config(
     crawler_config: dict[str, object] = config.get("crawler", {})
     for key in list(crawler_config.keys()):
         if key not in ALLOWED_CRAWLER_KEYS:
-            logging.warning(
-                "個別設定 config.yaml 不允許覆寫 crawler.%s，此設定將被忽略。", key
-            )
+            logging.warning("個別設定 config.yaml 不允許覆寫 crawler.%s，此設定將被忽略。", key)
             del crawler_config[key]
 
     global_crawler_config: dict[str, object] = global_config.get("crawler", {})

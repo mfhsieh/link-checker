@@ -104,9 +104,7 @@ def create_invitation(db: DBSession, email: str) -> dict[str, object]:
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
         if existing_user.status in ("active", "suspended"):
-            raise ValueError(
-                f"帳號 {email} 已存在（狀態：{existing_user.status}），無法重複邀請。"
-            )
+            raise ValueError(f"帳號 {email} 已存在（狀態：{existing_user.status}），無法重複邀請。")
         # pending / expired → 重新邀請，沿用既有帳號
         user = existing_user
         user.status = "pending"
@@ -175,9 +173,7 @@ def _increment_failed_login(db: DBSession, user: User, ip: str | None) -> None:
     settings = get_settings()
     user.failed_login_count = (user.failed_login_count or 0) + 1
     if user.failed_login_count >= settings.LOGIN_MAX_ATTEMPTS:
-        user.locked_until = _utc_now() + timedelta(
-            seconds=settings.LOGIN_LOCKOUT_SECONDS
-        )
+        user.locked_until = _utc_now() + timedelta(seconds=settings.LOGIN_LOCKOUT_SECONDS)
         logger.warning(
             "帳號 %s 因連續登入失敗 %d 次，已鎖定至 %s",
             user.email,
@@ -238,7 +234,8 @@ def authenticate_with_invitation(
         raise ValueError("此帳號已完成設定，請使用密碼登入。")
 
     invitation = (
-        db.query(Invitation)
+        db
+        .query(Invitation)
         .filter(
             Invitation.user_id == user.id,
             Invitation.token == token,
@@ -255,10 +252,7 @@ def authenticate_with_invitation(
         raise ValueError("邀請連結已過期，請聯繫管理員重新寄送邀請。")
 
     # 清除該帳號先前可能遺留的首次登入 Session，避免產生多個有效 first-login session
-    db.query(Session).filter(
-        Session.user_id == user.id,
-        Session.is_first_login.is_(True)
-    ).delete()
+    db.query(Session).filter(Session.user_id == user.id, Session.is_first_login.is_(True)).delete()
 
     # 建立首次登入 Session（is_first_login=True，需強制設密）
     session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=True)
@@ -309,9 +303,7 @@ def authenticate_with_password(
         hash_password(password)
 
     if not user or not user.password_hash:
-        _log_event(
-            db, "login_failed", ip_address=ip, detail=f"帳號不存在或尚未設密: {email}"
-        )
+        _log_event(db, "login_failed", ip_address=ip, detail=f"帳號不存在或尚未設密: {email}")
         raise ValueError("電子郵件或密碼錯誤。")
 
     if user.status == "pending":
@@ -326,9 +318,7 @@ def authenticate_with_password(
         raise ValueError("此帳號尚未完成首次設定，請使用邀請郵件中的連結進行登入。")
 
     if user.status == "suspended":
-        _log_event(
-            db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已停用"
-        )
+        _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已停用")
         raise ValueError("此帳號已被停用，請聯繫管理員。")
 
     if _is_account_locked(user):
@@ -337,24 +327,23 @@ def authenticate_with_password(
 
     if not password_is_correct:
         _increment_failed_login(db, user, ip)
-        _log_event(
-            db, "login_failed", user_id=user.id, ip_address=ip, detail="密碼錯誤"
-        )
+        _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="密碼錯誤")
         raise ValueError("電子郵件或密碼錯誤。")
+
+    is_first_time_login = user.last_login_at is None
 
     # 登入成功
     _reset_failed_login(db, user)
-    user.last_login_at = _utc_now()
+    if not is_first_time_login:
+        user.last_login_at = _utc_now()
     db.commit()
 
-    session_token, _ = _create_session(
-        db, user.id, ip, user_agent, is_first_login=False
-    )
+    session_token, _ = _create_session(db, user.id, ip, user_agent, is_first_login=is_first_time_login)
     _log_event(db, "login_success", user_id=user.id, ip_address=ip)
 
     return {
         "session_token": session_token,
-        "is_first_login": False,
+        "is_first_login": is_first_time_login,
         "user": {
             "id": user.id,
             "email": user.email,
@@ -422,7 +411,8 @@ def get_session_by_token(db: DBSession, raw_token: str) -> Session | None:
     token_hash = _hash_token(raw_token)
     now = _utc_now()
     return (
-        db.query(Session)
+        db
+        .query(Session)
         .filter(
             Session.token_hash == token_hash,
             Session.expires_at > now,
@@ -580,3 +570,24 @@ def change_password(
     db.commit()
 
     _log_event(db, "password_changed", user_id=user_id)
+
+
+def run_session_gc_task() -> None:
+    """
+    背景任務：清除 Auth DB 中所有已過期的 Session 紀錄 (Garbage Collection)。
+    """
+    # 延遲載入以避免與 router / deps 產生循環依賴
+    from backend.auth.db import get_auth_session_local  # pylint: disable=import-outside-toplevel
+
+    try:
+        session_factory = get_auth_session_local()
+        with session_factory() as db:
+            now = _utc_now()
+            count = (
+                db.query(Session).filter((Session.expires_at <= now) | (Session.absolute_expires_at <= now)).delete()
+            )
+            if count > 0:
+                db.commit()
+                logger.info("Session GC: 成功清理了 %d 筆過期的 Session", count)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("Session GC 發生錯誤: %s", e)

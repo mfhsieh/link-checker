@@ -72,6 +72,8 @@ class CreateJobRequest(BaseModel):
     max_pages: int | None = None
     delay: float | None = None
     timeout: int | None = None
+    connect_timeout: float | None = None
+    external_check_timeout: float | None = None
     retries: int | None = None
     proxy_url: str | None = None
 
@@ -152,8 +154,12 @@ def get_default_config(
         "min_delay",
         "max_delay",
         "timeout",
+        "connect_timeout",
+        "external_check_timeout",
         "min_timeout",
         "max_timeout",
+        "min_connect_timeout",
+        "max_connect_timeout",
         "retries",
         "min_retries",
         "max_retries",
@@ -165,9 +171,7 @@ def get_default_config(
 
 @router.get("", status_code=status.HTTP_200_OK)
 def list_jobs(
-    status_filter: str | None = Query(
-        None, alias="status", description="依任務狀態篩選"
-    ),
+    status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
 ) -> list[dict[str, object]]:
@@ -216,6 +220,8 @@ def create_job(
         "max_pages",
         "delay",
         "timeout",
+        "connect_timeout",
+        "external_check_timeout",
         "retries",
         "proxy_url",
     }
@@ -239,9 +245,7 @@ def create_job(
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("建立快照時讀取全域設定檔失敗: %s", e)
 
-    final_crawler_config = merge_and_validate_crawler_config(
-        {"crawler": user_crawler_config}, global_config
-    )
+    final_crawler_config = merge_and_validate_crawler_config({"crawler": user_crawler_config}, global_config)
 
     try:
         config_obj = job_service.JobCreateConfig(
@@ -252,9 +256,7 @@ def create_job(
         )
         job_id = job_service.create_job(manager, current_user.id, config_obj)
     except Exception as e:  # pylint: disable=broad-exception-caught
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
     return {"job_id": job_id, "message": "任務已建立。"}
 
@@ -311,9 +313,7 @@ def start_job(
         job_service.start_job(manager, job_id, current_user.id)
         return {"message": "任務已啟動。"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.post("/{job_id}/pause", status_code=status.HTTP_200_OK)
@@ -342,9 +342,7 @@ def pause_job(
         job_service.pause_job(manager, job_id, current_user.id)
         return {"message": "已發送暫停指令，任務將在完成當前網頁後停止。"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.post("/{job_id}/resume", status_code=status.HTTP_200_OK)
@@ -377,15 +375,11 @@ def resume_job(
         if job.user_id != current_user.id:
             raise ValueError("無權限操作此任務。")
         if job.status != "paused":
-            raise ValueError(
-                f"任務目前狀態為 {job.status}，resume 只允許恢復 paused 狀態的任務。"
-            )
+            raise ValueError(f"任務目前狀態為 {job.status}，resume 只允許恢復 paused 狀態的任務。")
         job_service.start_job(manager, job_id, current_user.id)
         return {"message": "任務已恢復執行。"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.post("/{job_id}/reset", status_code=status.HTTP_200_OK)
@@ -414,9 +408,7 @@ def reset_job(
         job_service.reset_job(manager, job_id, current_user.id)
         return {"message": "任務已重置。"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.post("/{job_id}/retry-failed", status_code=status.HTTP_200_OK)
@@ -445,9 +437,7 @@ def retry_failed_job(
         job_service.retry_failed_job(manager, job_id, current_user.id)
         return {"message": "任務失敗項目已重置。"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.delete("/{job_id}", status_code=status.HTTP_200_OK)
@@ -485,13 +475,9 @@ class ResultsQueryArgs:
     # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
-        status_filter: str | None = Query(
-            None, alias="filter", pattern="^(dead|broken|insecure)$"
-        ),
+        status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure)$"),
         search: str | None = Query(None),
-        exclude: str | None = Query(
-            None, description="排除指定的目標網域（多個以逗號分隔）"
-        ),
+        exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
@@ -585,9 +571,7 @@ class ExportQueryArgs:
     # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
-        status_filter: str | None = Query(
-            None, alias="filter", pattern="^(dead|broken|insecure)$"
-        ),
+        status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure)$"),
         exclude: str | None = Query(None),
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         fmt: str = Query("csv", pattern="^(csv|json)$"),
@@ -723,9 +707,7 @@ def export_results(
                 row_data = {
                     "Source URL": item["source_url"],
                     "External Link Count": item["occurrence_count"],
-                    "Target URLs": "\n".join(
-                        [f"[{t['status']}] {t['url']}" for t in item["targets"]]
-                    ),
+                    "Target URLs": "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]]),
                 }
             else:
                 fieldnames = list(item.keys())
@@ -790,16 +772,12 @@ def export_full_report(
     background_tasks.add_task(cleanup)
 
     with zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        internal_iterator = job_service.stream_internal_results(
-            db, job_id, current_user.id
-        )
+        internal_iterator = job_service.stream_internal_results(db, job_id, current_user.id)
         try:
             first_internal = next(internal_iterator)
             with zf.open(f"job_{job_id}_crawl_records.csv", "w") as f:
                 with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
-                    writer = csv.DictWriter(
-                        text_file, fieldnames=list(first_internal.keys())
-                    )
+                    writer = csv.DictWriter(text_file, fieldnames=list(first_internal.keys()))
                     writer.writeheader()
                     writer.writerow(_sanitize_csv_dict(first_internal))
                     for item in internal_iterator:
@@ -807,17 +785,13 @@ def export_full_report(
         except StopIteration:
             pass
 
-        query_obj = job_service.JobResultQuery(
-            job_id=job_id, user_id=current_user.id, group_by="none"
-        )
+        query_obj = job_service.JobResultQuery(job_id=job_id, user_id=current_user.id, group_by="none")
         external_iterator = job_service.stream_job_results(db, query_obj)
         try:
             first_external = next(external_iterator)
             with zf.open(f"job_{job_id}_external_links.csv", "w") as f:
                 with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
-                    writer = csv.DictWriter(
-                        text_file, fieldnames=list(first_external.keys())
-                    )
+                    writer = csv.DictWriter(text_file, fieldnames=list(first_external.keys()))
                     writer.writeheader()
                     writer.writerow(_sanitize_csv_dict(first_external))
                     for item in external_iterator:

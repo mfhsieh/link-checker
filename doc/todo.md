@@ -32,30 +32,30 @@
 
 ---
 
-## 5. 建立完整自動化測試程序 (QUALITY-09)
-* **功能描述**：目前專案缺乏完整的自動化測試程序（包含單元測試與整合測試），需要針對核心功能（如爬蟲引擎、身分驗證、任務排程等）建立完善的測試覆蓋。
-* **規劃方案**：導入 `pytest` 作為測試框架，優先補齊核心業務邏輯的單元測試，並配置 FastAPI 測試客戶端進行整合測試。未來可進一步於 CI/CD 流程中加入自動化測試關卡，以確保系統穩定性。
-* **狀態**：**待後續實作（Pending Review）**。
+## 5. [已完成] 整合 GitHub Actions 自動化 CI/CD (QUALITY-09)
+* **功能描述**：建立完整的自動化測試與靜態分析程序，確保每次程式碼提交都能維持高穩定性與 10.0 滿分品質。
+* **實作細節**：已撰寫 `test/run_test.py` 涵蓋 E2E 爬蟲流程與 API 整合測試，並建立 `.github/workflows/ci.yml`，在每次 Git Push 時自動執行 Ruff 排版檢查、Pylint 滿分檢驗與 E2E 測試腳本。
+* **狀態**：**✅ 已完成 (Completed)**。
 
 ---
 
-## 6. 跨資料庫刪除的不一致風險與 Session 垃圾回收 (Cross-DB Transaction & GC / QUALITY-12)
+## 6. [部分完成] 跨資料庫刪除的不一致風險與 Session 垃圾回收 (Cross-DB Transaction & GC / QUALITY-12)
 * **功能描述**：解決 `backend/admin/router.py` 跨庫刪除時，因缺乏分散式事務保護可能導致資料不一致的風險；同時解決資料庫中 Session 累積導致空間膨脹的問題。
-* **規劃方案**：
-  1. **軟刪除與排程清理 (最終一致性與 GC)**：在 `Auth DB` 的 `User` 表新增 `is_deleted` (Boolean) 欄位來實作軟刪除 (Soft Delete)。刪除帳號時僅標記此欄位，後續由 Cronjob 統一非同步清理兩個資料庫中的髒資料。同時，利用此 Cronjob 排程定期清理過期 (如超過 `max_age` 7 天) 的 Session 資料列。
-  2. **進階分散式事務模式**：未來若系統遷移至 PostgreSQL 或 MySQL 等架構，可考慮實作「二階段提交 (Two-Phase Commit)」或 Saga 模式，以系統層級確保跨庫操作的最終一致性。
-* **狀態**：**待後續實作（Pending Review）**。
+* **實作進度**：
+  1. **✅ Session 垃圾回收 (GC)**：已實作 `run_session_gc_task` 背景任務，在每次使用者登入或登出時，利用 FastAPI 的 `BackgroundTasks` 自動於背景非同步清除資料庫中的過期 Session，徹底解決空間無限膨脹的隱患。
+  2. **⏳ 軟刪除與分散式事務**：帳號與任務的跨庫刪除尚未實作軟刪除或二階段提交，目前仍維持循序物理刪除。未來若遷移至 PostgreSQL 可考慮實作 Saga 模式。
+* **狀態**：**🟡 部分實作 (Partially Completed)**。
 
 ---
 
-## 7. 後端密碼強度強制驗證 (Backend Password Validation)
-* **功能描述**：落實「絕不信任前端傳入資料」的安全鐵律，確保 API 端對密碼有嚴格的長度與複雜度驗證。
-* **規劃方案**：在後端的 `SetPasswordRequest` (於 `backend/auth/router.py` 中) 加入對等的 Pydantic 長度或正規表示式驗證（例如至少 8 碼），與前端 `auth.js` 中的 `calcPasswordStrength` 進度條提示相互配合。
-* **狀態**：**待後續實作（Pending Review）**。
+## 7. [已完成] 後端密碼強度強制驗證 (Backend Password Validation)
+* **功能描述**：落實「絕不信任前端傳入資料」的安全鐵律，已於後端實作嚴格的密碼強度驗證。
+* **實作細節**：已在 `backend/auth/password.py` 中實作 `validate_password_strength`，並於 `auth/service.py` 的 `set_first_password` 與 `change_password` 中強制呼叫檢驗。
+* **狀態**：**✅ 已完成 (Completed)**。
 
 ---
 
-## 8. Crawler 網路請求逾時精細化處理 (Crawler Timeout Optimization)
+## 8. [已完成] Crawler 網路請求逾時精細化處理 (Crawler Timeout Optimization)
 * **功能描述**：針對外部連結可能遇到的惡意阻擋 (Tarpit) 情況，優化現行單一的 `timeout` (預設 30 秒) 設定。
-* **規劃方案**：將爬蟲引擎 `httpx.Client` 的逾時設定拆分為 `connect` 與 `read` 兩個不同維度的超時時間，以更精細、快速地處理連線掛起的狀況，避免單一惡意連結拖慢整體爬取效能。
-* **狀態**：**待後續實作（Pending Review）**。
+* **實作細節**：已於系統中導入全域可配置之 `connect_timeout` 與 `external_check_timeout`。透過 `httpx.Timeout` 精細控制「TCP 連線建立」與「外連探測總體超時」之時間，確保遇到惡意伺服器時不佔用 ThreadPool，兼具高效防護與高度客製化彈性。
+* **狀態**：**✅ 已完成 (Completed)**。

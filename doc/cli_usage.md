@@ -63,6 +63,10 @@ crawler:
   # 安全上下限限制（個別任務若超出此範圍將被強制修正，以防負載過大或逾時失效）
   min_timeout: 15             # 逾時時間最小值限制 (秒)
   max_timeout: 120            # 逾時時間最大值限制 (秒)
+  min_connect_timeout: 1.0    # 建立連線逾時最小值限制 (秒)
+  max_connect_timeout: 30.0   # 建立連線逾時最大值限制 (秒)
+  min_external_check_timeout: 1.0  # 外連探測逾時最小值限制 (秒)
+  max_external_check_timeout: 30.0 # 外連探測逾時最大值限制 (秒)
   min_delay: 1.0              # 請求延遲時間最小值限制 (秒)
   max_delay: 10.0             # 請求延遲時間最大值限制 (秒)
   min_retries: 0              # 錯誤重試次數最小值限制 (次)
@@ -83,6 +87,8 @@ crawler:
 
   # 預設行為參數（當個別任務設定檔未指定時自動套用此預設值）
   timeout: 30                 # 預設逾時時間 (秒)
+  connect_timeout: 5.0        # 預設 TCP 建立連線逾時 (秒)
+  external_check_timeout: 10.0 # 預設外連存活探測總超時 (秒)
   delay: 3.0                  # 預設請求延遲 (秒)
   retries: 3                  # 預設重試次數 (次)
 
@@ -141,6 +147,12 @@ crawler:
   
   # HTTP 請求連線逾時時間 (單位：秒)
   timeout: 45
+  
+  # 建立連線 (TCP Connect) 逾時時間 (單位：秒)
+  connect_timeout: 5.0
+  
+  # 外連存活探測的總體逾時時間 (單位：秒)
+  external_check_timeout: 10.0
   
   # 遇到暫時性錯誤時的重試次數
   retries: 2

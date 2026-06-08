@@ -136,6 +136,12 @@ class CrawlerConfigUpdate(BaseModel):
     mime_type_filter: MimeTypeFilterConfig | None = None
     min_timeout: int | None = Field(None, ge=1)
     max_timeout: int | None = Field(None, ge=1)
+    connect_timeout: float | None = Field(None, ge=1.0)
+    external_check_timeout: float | None = Field(None, ge=1.0)
+    min_connect_timeout: float | None = Field(None, ge=1.0)
+    max_connect_timeout: float | None = Field(None, ge=1.0)
+    min_external_check_timeout: float | None = Field(None, ge=1.0)
+    max_external_check_timeout: float | None = Field(None, ge=1.0)
     min_delay: float | None = Field(None, ge=0.0)
     max_delay: float | None = Field(None, ge=0.0)
     min_retries: int | None = Field(None, ge=0)
@@ -154,9 +160,7 @@ class UpdateConfigRequest(BaseModel):
 
 @router.get("/users", status_code=status.HTTP_200_OK)
 def list_users(
-    status_filter: str | None = Query(
-        None, alias="status", description="依帳號狀態篩選"
-    ),
+    status_filter: str | None = Query(None, alias="status", description="依帳號狀態篩選"),
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
 ) -> list[dict[str, object]]:
@@ -245,9 +249,7 @@ def update_user(
 
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
     # [安全防護 1] 防止停用管理員
     if body.status == "suspended" and user.role == "admin":
@@ -333,9 +335,7 @@ def delete_user(
 
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
     # [安全防護 3] 防止刪除管理員
     if user.role == "admin":
@@ -399,9 +399,7 @@ def resend_invite(
     """
     user = auth_db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="使用者不存在。")
 
     if user.status not in ("pending", "expired"):
         raise HTTPException(
@@ -413,9 +411,7 @@ def resend_invite(
         auth_service.create_invitation(auth_db, user.email)
         return {"message": f"邀請已重新寄送至 {user.email}。"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 # ── 任務監控（Admin 視圖）─────────────────────────────────────────────────────
@@ -424,9 +420,7 @@ def resend_invite(
 @router.get("/jobs", status_code=status.HTTP_200_OK)
 def list_all_jobs(
     user_id: str | None = Query(None, description="依使用者 ID 篩選"),
-    status_filter: str | None = Query(
-        None, alias="status", description="依任務狀態篩選"
-    ),
+    status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
     manager: JobManager = Depends(get_job_manager),
     _admin: User = Depends(require_admin),
 ) -> list[dict[str, object]]:
@@ -470,9 +464,7 @@ def takeover_job(
     """
     job = manager.get_job(job_id)
     if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
     if job.status != "running":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -522,9 +514,7 @@ def admin_delete_job(
         dict[str, str]: 操作成功訊息。
     """
     if not manager.get_job(job_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
 
     # 記錄任務強制刪除的操作日誌
     log_detail = {
@@ -541,9 +531,7 @@ def admin_delete_job(
     auth_db.commit()
 
     if not manager.delete_job(job_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
     return {"message": f"任務 {job_id} 已刪除。"}
 
 
@@ -716,9 +704,7 @@ def test_smtp(
 def get_logs(
     event_type: str | None = Query(None),
     user_id: str | None = Query(None),
-    start_date: str | None = Query(
-        None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"
-    ),
+    start_date: str | None = Query(None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"),
     end_date: str | None = Query(None, description="結束日期 (YYYY-MM-DD 或 ISO 格式)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
