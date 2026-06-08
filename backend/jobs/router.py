@@ -36,7 +36,7 @@ from backend.config import get_settings
 from backend.deps import get_crawler_db, get_current_user, get_job_manager, require_csrf
 from backend.jobs import service as job_service
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG, merge_and_validate_crawler_config
-from crawler.manager import JobManager
+from crawler.manager import JobManager, _sanitize_csv_value
 
 logger = logging.getLogger(__name__)
 
@@ -344,13 +344,6 @@ class ExportQueryArgs:
         self.exclude = exclude
         self.group_by = group_by
         self.fmt = fmt
-
-
-def _sanitize_csv_value(val: Any) -> Any:
-    """跳脫 CSV 注入風險字元。"""
-    if isinstance(val, str) and val and val[0] in ("=", "+", "-", "@"):
-        return f"'{val}"
-    return val
 
 
 def _sanitize_csv_dict(row: dict[str, Any]) -> dict[str, Any]:

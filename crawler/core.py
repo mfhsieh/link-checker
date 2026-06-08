@@ -8,6 +8,9 @@
 import logging
 import os
 import re
+import socket
+import threading
+from contextlib import contextmanager, nullcontext
 from typing import Any
 from urllib.parse import urlparse, ParseResult, urljoin
 import httpx
@@ -21,6 +24,30 @@ SOCIAL_DOMAINS: tuple[str, ...] = tuple(
     d.strip() for d in os.environ.get("CRAWLER_SOCIAL_DOMAINS", _default_social_domains).split(",") if d.strip()
 )
 MAX_CONTENT_LENGTH: int = int(os.environ.get("CRAWLER_MAX_CONTENT_LENGTH", 10 * 1024 * 1024))
+
+
+# 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
+_original_getaddrinfo = socket.getaddrinfo
+_dns_override = threading.local()
+
+def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    overrides = getattr(_dns_override, "overrides", {})
+    if host in overrides:
+        return _original_getaddrinfo(overrides[host], port, family, type, proto, flags)
+    return _original_getaddrinfo(host, port, family, type, proto, flags)
+
+socket.getaddrinfo = _patched_getaddrinfo
+
+@contextmanager
+def dns_override(host: str, ip: str):
+    """Thread-safe Context Manager，用以強制替換指定網域的 DNS 解析結果。"""
+    if not hasattr(_dns_override, "overrides"):
+        _dns_override.overrides = {}
+    _dns_override.overrides[host] = ip
+    try:
+        yield
+    finally:
+        _dns_override.overrides.pop(host, None)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -143,19 +170,16 @@ class CrawlerCore:
 
             # SSRF 防禦：解析 IP 並確保為安全的外部 IP
             domain = get_domain(current_url)
-            safe_url = current_url
-            req_headers = {}
+            ip = None
             if domain:
                 ip = resolve_ip(domain)
                 if ip:
                     if not is_safe_ip(ip):
                         logger.warning("網址 %s 的 IP (%s) 被判定為不安全，已攔截潛在的 SSRF 攻擊！", current_url, ip)
                         return None, None, "skip", current_url, request_sent
-                    
-                    safe_url = current_url.replace(domain, ip, 1)
-                    req_headers["Host"] = domain
 
-            with client.stream("GET", safe_url, headers=req_headers) as response:
+            with dns_override(domain, ip) if domain and ip else nullcontext():
+                with client.stream("GET", current_url) as response:
                 request_sent = True
 
                 # 處理重導向
@@ -327,20 +351,17 @@ class CrawlerCore:
         for _ in range(max_redirects):
             try:
                 tgt_dom = get_domain(current_url)
-                safe_url = current_url
-                req_headers = {}
+                ip = None
                 if tgt_dom:
                     ip = resolve_ip(tgt_dom)
                     if ip:
                         if not is_safe_ip(ip):
                             return None, f"SSRF 防禦攔截：目標 IP ({ip}) 不安全"
-                        
-                        safe_url = current_url.replace(tgt_dom, ip, 1)
-                        req_headers["Host"] = tgt_dom
 
                 client = self._get_client(current_url)
-                # 優先使用 HEAD 請求以節省流量與時間，逾時時間設為較短的 10 秒
-                response = client.request("HEAD", safe_url, headers=req_headers, timeout=10.0)
+                with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
+                    # 優先使用 HEAD 請求以節省流量與時間，逾時時間設為較短的 10 秒
+                    response = client.request("HEAD", current_url, timeout=10.0)
 
                 # 處理重導向
                 if response.status_code in (301, 302, 303, 307, 308):
@@ -360,10 +381,10 @@ class CrawlerCore:
                 ):
                     # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案
                     headers = {"Range": "bytes=0-1023"}
-                    headers.update(req_headers)
-                    with client.stream(
-                        "GET", safe_url, headers=headers, timeout=10.0
-                    ) as resp:
+                    with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
+                        with client.stream(
+                            "GET", current_url, headers=headers, timeout=10.0
+                        ) as resp:
                         if resp.status_code in (301, 302, 303, 307, 308):
                             location = resp.headers.get("Location")
                             if location:
