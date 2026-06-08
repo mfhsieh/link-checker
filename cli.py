@@ -17,6 +17,7 @@ import string
 import yaml
 from crawler.config_utils import merge_and_validate_crawler_config
 from crawler.manager import JobManager
+from crawler.exporter import export_job_results, export_full_report
 
 # 設定初始的 logging，只輸出到畫面，確保 setup_logging 呼叫前的錯誤能被顯示
 logging.basicConfig(
@@ -173,9 +174,7 @@ def create_admin(email: str) -> None:
 
         random_password = generate_random_password()
         if existing:
-            print(
-                f"使用者 {email} 已存在，將更新其密碼並設為管理員。"
-            )
+            print(f"使用者 {email} 已存在，將更新其密碼並設為管理員。")
             existing.password_hash = hash_password(random_password)
             existing.role = "admin"
             existing.status = "active"
@@ -355,6 +354,7 @@ def parse_args() -> argparse.Namespace | None:
 
     return args
 
+
 def _handle_list_jobs(manager: JobManager, args: argparse.Namespace) -> None:
     """
     處理列出任務的指令。
@@ -429,9 +429,10 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     output_path = args.output if args.output else f"report/{args.export}{ext}"
     group_by = "target" if args.group else args.group_by
     logging.info("準備將任務 %s 匯出至 %s...", args.export, output_path)
-    success = manager.export_job_results(
-        args.export,
-        output_path,
+    success = export_job_results(
+        manager.SessionLocal,
+        job_id=args.export,
+        output_path=output_path,
         status_filter=args.filter,
         group_by=group_by,
         exclude=args.exclude,
@@ -440,6 +441,7 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
         logging.info("匯出成功！")
     else:
         sys.exit(1)
+
 
 def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
     """
@@ -455,7 +457,7 @@ def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
     if not output_path.endswith(".zip"):
         output_path += ".zip"
     logging.info("準備將任務 %s 的完整報表匯出至 %s...", args.export_full, output_path)
-    success = manager.export_full_report(args.export_full, output_path)
+    success = export_full_report(manager.SessionLocal, args.export_full, output_path)
     if success:
         logging.info("匯出成功！")
     else:
@@ -501,7 +503,9 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
         logging.info("準備局部重試任務 %s 的失敗項目...", args.retry_failed)
         if not manager.retry_failed_job(args.retry_failed):
             sys.exit(1)
-        logging.info("任務的失敗項目已成功重置為 pending。您可以透過 --resume 再次啟動該任務。")
+        logging.info(
+            "任務的失敗項目已成功重置為 pending。您可以透過 --resume 再次啟動該任務。"
+        )
     else:
         handled = False
 

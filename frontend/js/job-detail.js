@@ -23,12 +23,13 @@ let _eventsBound = false;
 let _pollInterval = 5000;
 
 function startPolling(jobId) {
-  if (_pollTimer) return;
-  _pollTimer = setInterval(() => refreshJobDetail(jobId), _pollInterval);
+  if (_pollTimer) clearTimeout(_pollTimer);
+  // 使用 setTimeout 取代 setInterval，配合執行完畢後再次呼叫，避免非同步請求堆疊
+  _pollTimer = setTimeout(() => refreshJobDetail(jobId), _pollInterval);
 }
 
 function stopPolling() {
-  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
 }
 
 function showConfirm(title, message, confirmText = '確定', isDanger = false) {
@@ -123,6 +124,14 @@ async function refreshJobDetail(jobId) {
     }
   } catch (err) {
     toast.error('無法取得任務資訊：' + err.message);
+    // 即使發生網路連線錯誤，仍持續輪詢，避免單次斷線導致畫面永久卡死
+    if (err.status !== 404 && err.status !== 401 && err.status !== 403) {
+      if (_currentJobId) {
+        startPolling(_currentJobId);
+      }
+    } else {
+      stopPolling();
+    }
   }
 }
 

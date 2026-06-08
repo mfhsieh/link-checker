@@ -21,7 +21,12 @@ from sqlalchemy.orm import Session as DBSession
 
 from backend.auth import service as auth_service
 from backend.config import get_settings
-from backend.deps import get_auth_db, get_current_session, get_current_user, require_csrf
+from backend.deps import (
+    get_auth_db,
+    get_current_session,
+    get_current_user,
+    require_csrf,
+)
 from backend.auth.models import User, Session as AuthSession
 
 logger = logging.getLogger(__name__)
@@ -31,8 +36,10 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # ── Request / Response Schema ──────────────────────────────────────────────────
 
+
 class LoginRequest(BaseModel):
     """登入請求的 Schema。"""
+
     email: EmailStr
     password: str | None = None
     token: str | None = None  # 邀請 UUID（首次登入用）
@@ -54,16 +61,19 @@ class LoginRequest(BaseModel):
 
 class SetPasswordRequest(BaseModel):
     """首次登入設定密碼的 Schema。"""
+
     new_password: str
 
 
 class ChangePasswordRequest(BaseModel):
     """修改密碼的 Schema。"""
+
     current_password: str
     new_password: str
 
 
 # ── 輔助：設定 Session Cookie 與 CSRF Cookie ────────────────────────────────────
+
 
 def _set_session_cookie(response: Response, token: str) -> None:
     """
@@ -131,8 +141,9 @@ def _clear_auth_cookies(response: Response) -> None:
 
 # ── 端點實作 ────────────────────────────────────────────────────────────────────
 
+
 @router.post("/login", status_code=status.HTTP_200_OK)
-async def login(
+def login(
     body: LoginRequest,
     request: Request,
     response: Response,
@@ -167,14 +178,20 @@ async def login(
         if body.token and not body.password:
             # 首次登入（邀請 UUID 驗證）
             result = auth_service.authenticate_with_invitation(
-                db, body.email, body.token,
-                ip=client_ip, user_agent=user_agent,
+                db,
+                body.email,
+                body.token,
+                ip=client_ip,
+                user_agent=user_agent,
             )
         elif body.password and not body.token:
             # 一般密碼登入
             result = auth_service.authenticate_with_password(
-                db, body.email, body.password,
-                ip=client_ip, user_agent=user_agent,
+                db,
+                body.email,
+                body.password,
+                ip=client_ip,
+                user_agent=user_agent,
             )
         else:
             raise HTTPException(
@@ -200,7 +217,7 @@ async def login(
 
 
 @router.post("/set-password", status_code=status.HTTP_200_OK)
-async def set_password(
+def set_password(
     body: SetPasswordRequest,
     db: DBSession = Depends(get_auth_db),
     current_session: AuthSession = Depends(get_current_session),
@@ -243,7 +260,7 @@ async def set_password(
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout(
+def logout(
     response: Response,
     request: Request,
     db: DBSession = Depends(get_auth_db),
@@ -271,7 +288,7 @@ async def logout(
 
 
 @router.get("/me", status_code=status.HTTP_200_OK)
-async def get_me(
+def get_me(
     current_user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     """
@@ -297,7 +314,7 @@ async def get_me(
 
 
 @router.patch("/password", status_code=status.HTTP_200_OK)
-async def change_password(
+def change_password(
     body: ChangePasswordRequest,
     db: DBSession = Depends(get_auth_db),
     current_user: User = Depends(get_current_user),

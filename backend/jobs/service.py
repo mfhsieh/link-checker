@@ -20,10 +20,12 @@ from collections.abc import Iterator
 from collections import defaultdict
 from dataclasses import dataclass
 from urllib.parse import urlparse
+from sqlalchemy import func, case
 
 from sqlalchemy.orm import Session as DBSession
 
-from crawler.manager import JobManager, format_crawl_queue_item
+from crawler.manager import JobManager
+from crawler.exporter import format_crawl_queue_item
 from crawler.models import CrawlQueue, ExternalLink, Job
 from crawler.utils import (
     get_domain,
@@ -718,38 +720,49 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
         raise ValueError("無權限存取此任務。")
 
     total_queue = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
-    total_external = (
-        db.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
-    )
-    dns_failed = (
-        db.query(ExternalLink)
-        .filter(
-            ExternalLink.job_id == job_id,
-            (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
-        )
-        .count()
-    )
-    http_errors = (
-        db.query(ExternalLink)
-        .filter(
-            ExternalLink.job_id == job_id,
-            (ExternalLink.http_status_code >= 400)
-            | (
-                (ExternalLink.http_status_code.is_(None))
-                & (ExternalLink.ip_address.isnot(None))
-                & (ExternalLink.ip_address != "")
+
+    # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
+    # pylint: disable=not-callable
+    stats = (
+        db.query(
+            func.count(ExternalLink.id).label("total"),
+            func.sum(
+                case(
+                    (
+                        (ExternalLink.ip_address.is_(None))
+                        | (ExternalLink.ip_address == ""),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("dns_failed"),
+            func.sum(
+                case(
+                    (
+                        (ExternalLink.http_status_code >= 400)
+                        | (
+                            (ExternalLink.http_status_code.is_(None))
+                            & (ExternalLink.ip_address.isnot(None))
+                            & (ExternalLink.ip_address != "")
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("http_errors"),
+            func.sum(case((ExternalLink.is_secure.is_(False), 1), else_=0)).label(
+                "insecure"
             ),
         )
-        .count()
+        .filter(ExternalLink.job_id == job_id)
+        .first()
     )
-    insecure = (
-        db.query(ExternalLink)
-        .filter(
-            ExternalLink.job_id == job_id,
-            ExternalLink.is_secure.is_(False),
-        )
-        .count()
-    )
+    # pylint: enable=not-callable
+
+    total_external = int(stats.total) if stats and stats.total else 0
+    dns_failed = int(stats.dns_failed) if stats and stats.dns_failed else 0
+    http_errors = int(stats.http_errors) if stats and stats.http_errors else 0
+    insecure = int(stats.insecure) if stats and stats.insecure else 0
 
     healthy_count = total_external - dns_failed - http_errors
 

@@ -49,7 +49,12 @@ _JOB_MANAGER_LOCK = threading.Lock()
 
 
 def get_job_manager() -> JobManager:
-    """提供全域單一實例的 JobManager。"""
+    """
+    提供全域單一實例的 JobManager。
+
+    Returns:
+        JobManager: 系統全域唯一的 JobManager 實例。
+    """
     global _JOB_MANAGER  # pylint: disable=global-statement
     if _JOB_MANAGER is None:
         with _JOB_MANAGER_LOCK:

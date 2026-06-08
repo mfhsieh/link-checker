@@ -65,7 +65,7 @@ async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    const message = (data && data.detail) ? data.detail : `HTTP ${response.status}`;
+    const message = (data && data.detail) ? data.detail : (typeof data === 'string' && data.trim() ? data.trim() : `HTTP ${response.status} ${response.statusText}`);
     const err = new Error(message);
     err.status = response.status;
     err.data = data;

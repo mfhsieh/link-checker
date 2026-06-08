@@ -24,9 +24,18 @@ import logging
 import os
 import tempfile
 import zipfile
+from collections.abc import Generator
 
 import yaml
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Response,
+    status,
+)
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session as DBSession
@@ -35,8 +44,12 @@ from backend.auth.models import User
 from backend.config import get_settings
 from backend.deps import get_crawler_db, get_current_user, get_job_manager, require_csrf
 from backend.jobs import service as job_service
-from crawler.config_utils import DEFAULT_GLOBAL_CONFIG, merge_and_validate_crawler_config
-from crawler.manager import JobManager, _sanitize_csv_value
+from crawler.config_utils import (
+    DEFAULT_GLOBAL_CONFIG,
+    merge_and_validate_crawler_config,
+)
+from crawler.manager import JobManager
+from crawler.exporter import _sanitize_csv_value
 from crawler.models import Job
 
 logger = logging.getLogger(__name__)
@@ -46,8 +59,10 @@ router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 # ── Request Schema ─────────────────────────────────────────────────────────────
 
+
 class CreateJobRequest(BaseModel):
     """建立任務請求的 Schema。"""
+
     start_url: str
     target_domains: list[str]
     internal_domains: list[str] = []
@@ -102,8 +117,9 @@ class CreateJobRequest(BaseModel):
 
 # ── 端點實作 ────────────────────────────────────────────────────────────────────
 
+
 @router.get("/default-config", status_code=status.HTTP_200_OK)
-async def get_default_config(
+def get_default_config(
     _current_user: User = Depends(get_current_user),
 ) -> dict[str, object]:
     """
@@ -130,18 +146,28 @@ async def get_default_config(
 
     # 僅提取前端有使用到的欄位，過濾掉不需要暴露的敏感或內部配置
     allowed_keys = {
-        "ignore_extensions", "ignore_regexes",
-        "delay", "min_delay", "max_delay",
-        "timeout", "min_timeout", "max_timeout",
-        "retries", "min_retries", "max_retries",
-        "proxy_url"
+        "ignore_extensions",
+        "ignore_regexes",
+        "delay",
+        "min_delay",
+        "max_delay",
+        "timeout",
+        "min_timeout",
+        "max_timeout",
+        "retries",
+        "min_retries",
+        "max_retries",
+        "proxy_url",
     }
 
     return {k: v for k, v in crawler_config.items() if k in allowed_keys}
 
+
 @router.get("", status_code=status.HTTP_200_OK)
-async def list_jobs(
-    status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
+def list_jobs(
+    status_filter: str | None = Query(
+        None, alias="status", description="依任務狀態篩選"
+    ),
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
 ) -> list[dict[str, object]]:
@@ -160,7 +186,7 @@ async def list_jobs(
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_job(
+def create_job(
     body: CreateJobRequest,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
@@ -184,9 +210,14 @@ async def create_job(
 
     # 安全白名單：只允許前端設定特定的 crawler_config 欄位
     allowed_crawler_keys = {
-        "ignore_extensions", "ignore_regexes",
-        "max_depth", "max_pages", "delay", "timeout",
-        "retries", "proxy_url"
+        "ignore_extensions",
+        "ignore_regexes",
+        "max_depth",
+        "max_pages",
+        "delay",
+        "timeout",
+        "retries",
+        "proxy_url",
     }
 
     # 透過白名單動態過濾並組建 crawler_config
@@ -221,13 +252,15 @@ async def create_job(
         )
         job_id = job_service.create_job(manager, current_user.id, config_obj)
     except Exception as e:  # pylint: disable=broad-exception-caught
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        ) from e
 
     return {"job_id": job_id, "message": "任務已建立。"}
 
 
 @router.get("/{job_id}", status_code=status.HTTP_200_OK)
-async def get_job(
+def get_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
@@ -253,7 +286,7 @@ async def get_job(
 
 
 @router.post("/{job_id}/start", status_code=status.HTTP_200_OK)
-async def start_job(
+def start_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
@@ -278,11 +311,13 @@ async def start_job(
         job_service.start_job(manager, job_id, current_user.id)
         return {"message": "任務已啟動。"}
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.post("/{job_id}/pause", status_code=status.HTTP_200_OK)
-async def pause_job(
+def pause_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
@@ -307,11 +342,13 @@ async def pause_job(
         job_service.pause_job(manager, job_id, current_user.id)
         return {"message": "已發送暫停指令，任務將在完成當前網頁後停止。"}
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.post("/{job_id}/resume", status_code=status.HTTP_200_OK)
-async def resume_job(
+def resume_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
@@ -340,15 +377,19 @@ async def resume_job(
         if job.user_id != current_user.id:
             raise ValueError("無權限操作此任務。")
         if job.status != "paused":
-            raise ValueError(f"任務目前狀態為 {job.status}，resume 只允許恢復 paused 狀態的任務。")
+            raise ValueError(
+                f"任務目前狀態為 {job.status}，resume 只允許恢復 paused 狀態的任務。"
+            )
         job_service.start_job(manager, job_id, current_user.id)
         return {"message": "任務已恢復執行。"}
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.post("/{job_id}/reset", status_code=status.HTTP_200_OK)
-async def reset_job(
+def reset_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
@@ -373,11 +414,13 @@ async def reset_job(
         job_service.reset_job(manager, job_id, current_user.id)
         return {"message": "任務已重置。"}
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.post("/{job_id}/retry-failed", status_code=status.HTTP_200_OK)
-async def retry_failed_job(
+def retry_failed_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
@@ -402,11 +445,13 @@ async def retry_failed_job(
         job_service.retry_failed_job(manager, job_id, current_user.id)
         return {"message": "任務失敗項目已重置。"}
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.delete("/{job_id}", status_code=status.HTTP_200_OK)
-async def delete_job(
+def delete_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
@@ -436,6 +481,7 @@ async def delete_job(
 
 class ResultsQueryArgs:
     """任務結果查詢參數。"""
+
     # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
@@ -443,7 +489,9 @@ class ResultsQueryArgs:
             None, alias="filter", pattern="^(dead|broken|insecure)$"
         ),
         search: str | None = Query(None),
-        exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
+        exclude: str | None = Query(
+            None, description="排除指定的目標網域（多個以逗號分隔）"
+        ),
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
@@ -468,7 +516,7 @@ class ResultsQueryArgs:
 
 
 @router.get("/{job_id}/results", status_code=status.HTTP_200_OK)
-async def get_results(
+def get_results(
     job_id: str,
     query_args: ResultsQueryArgs = Depends(),
     current_user: User = Depends(get_current_user),
@@ -506,7 +554,7 @@ async def get_results(
 
 
 @router.get("/{job_id}/results/summary", status_code=status.HTTP_200_OK)
-async def get_results_summary(
+def get_results_summary(
     job_id: str,
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
@@ -533,6 +581,7 @@ async def get_results_summary(
 
 class ExportQueryArgs:
     """匯出結果查詢參數。"""
+
     # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
@@ -572,7 +621,7 @@ def _sanitize_csv_dict(row: dict[str, object]) -> dict[str, object]:
 
 
 @router.get("/{job_id}/results/export")
-async def export_results(
+def export_results(
     job_id: str,
     query_args: ExportQueryArgs = Depends(),
     current_user: User = Depends(get_current_user),
@@ -620,7 +669,14 @@ async def export_results(
         filename += f"_by_{query_args.group_by}"
 
     if query_args.fmt == "json":
-        def json_generator():
+
+        def json_generator() -> Generator[str, None, None]:
+            """
+            產生 JSON 格式輸出字串的產生器。
+
+            Yields:
+                str: 區塊的 JSON 字串。
+            """
             yield "[\n"
             first = True
             for item in job_service.stream_job_results(db, query_obj):
@@ -629,6 +685,7 @@ async def export_results(
                 yield json.dumps(item, ensure_ascii=False, indent=2)
                 first = False
             yield "\n]"
+
         return StreamingResponse(
             json_generator(),
             media_type="application/json",
@@ -636,19 +693,30 @@ async def export_results(
         )
 
     # CSV 格式
-    def csv_generator():
-        yield "\ufeff"  # BOM for Excel
-        first = True
-        for item in job_service.stream_job_results(db, query_obj):
-            output = io.StringIO()
+    def csv_generator() -> Generator[str, None, None]:
+        """
+        產生 CSV 格式輸出字串的產生器。
 
+        Yields:
+            str: 區塊的 CSV 字串。
+        """
+        yield "\ufeff"  # BOM for Excel
+        output = io.StringIO()
+        writer = None
+
+        for item in job_service.stream_job_results(db, query_obj):
             if query_args.group_by == "domain":
-                fieldnames = ["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"]
+                fieldnames = [
+                    "Domain",
+                    "Occurrence Count",
+                    "Unique URLs Count",
+                    "Unique URLs",
+                ]
                 row_data = {
                     "Domain": item["domain"],
                     "Occurrence Count": item["occurrence_count"],
                     "Unique URLs Count": item["unique_urls_count"],
-                    "Unique URLs": "\n".join(item["unique_urls"])
+                    "Unique URLs": "\n".join(item["unique_urls"]),
                 }
             elif query_args.group_by == "source":
                 fieldnames = ["Source URL", "External Link Count", "Target URLs"]
@@ -663,14 +731,15 @@ async def export_results(
                 fieldnames = list(item.keys())
                 row_data = item
 
-            writer = csv.DictWriter(output, fieldnames=fieldnames)
-            if first:
+            if writer is None:
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
                 writer.writeheader()
-                first = False
 
             writer.writerow(_sanitize_csv_dict(row_data))
 
             yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
 
     return StreamingResponse(
         csv_generator(),
@@ -678,8 +747,9 @@ async def export_results(
         headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
     )
 
+
 @router.get("/{job_id}/export/full")
-async def export_full_report(
+def export_full_report(
     job_id: str,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
@@ -710,18 +780,26 @@ async def export_full_report(
     fd, temp_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
 
-    def cleanup():
+    def cleanup() -> None:
+        """
+        背景清理暫存 ZIP 檔案的任務。
+        """
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
     background_tasks.add_task(cleanup)
 
     with zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        internal_iterator = job_service.stream_internal_results(db, job_id, current_user.id)
+        internal_iterator = job_service.stream_internal_results(
+            db, job_id, current_user.id
+        )
         try:
             first_internal = next(internal_iterator)
             with zf.open(f"job_{job_id}_crawl_records.csv", "w") as f:
                 with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
-                    writer = csv.DictWriter(text_file, fieldnames=list(first_internal.keys()))
+                    writer = csv.DictWriter(
+                        text_file, fieldnames=list(first_internal.keys())
+                    )
                     writer.writeheader()
                     writer.writerow(_sanitize_csv_dict(first_internal))
                     for item in internal_iterator:
@@ -737,7 +815,9 @@ async def export_full_report(
             first_external = next(external_iterator)
             with zf.open(f"job_{job_id}_external_links.csv", "w") as f:
                 with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
-                    writer = csv.DictWriter(text_file, fieldnames=list(first_external.keys()))
+                    writer = csv.DictWriter(
+                        text_file, fieldnames=list(first_external.keys())
+                    )
                     writer.writeheader()
                     writer.writerow(_sanitize_csv_dict(first_external))
                     for item in external_iterator:

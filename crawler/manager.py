@@ -5,14 +5,10 @@
 管理爬取佇列 (Queue)、處理中斷例外，以及執行主要的爬蟲迴圈。
 """
 
-import csv
-import io
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
 import os
-import zipfile
 import time
 
 import httpx
@@ -25,15 +21,7 @@ from crawler.utils import (
     resolve_ip,
     get_domain,
 )
-
-try:
-    from backend.auth.db import get_auth_session_local
-    from backend.auth.models import User
-    from backend.email_sender import send_notification_email
-
-    _BACKEND_AVAILABLE = True
-except ImportError:
-    _BACKEND_AVAILABLE = False
+from crawler.notifier import send_job_status_notification
 
 
 def _get_domain_delay(
@@ -73,274 +61,6 @@ def _get_domain_delay(
     return matched_delays[0][1]
 
 
-def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
-    """
-    格式化 CrawlQueue 項目為字典供報表使用。
-
-    Args:
-        q (CrawlQueue): 欲格式化的佇列項目。
-
-    Returns:
-        dict[str, object]: 包含佇列項目詳細資訊的字典。
-    """
-    return {
-        "URL": q.url,
-        "Source URL": q.source_url if q.source_url else "",
-        "Status": q.status,
-        "Depth": q.depth,
-        "Retry Count": q.retry_count,
-        "HTTP Status Code": q.status_code if q.status_code is not None else "",
-        "Error Message": q.error_message if q.error_message else "",
-        "Created At": q.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-    }
-
-
-def _sanitize_csv_value(val: object) -> object:
-    """
-    跳脫 CSV 注入風險字元。
-
-    Args:
-        val (object): 原始數值。
-
-    Returns:
-        object: 跳脫後的安全數值。
-    """
-    if isinstance(val, str) and val and val[0] in ("=", "+", "-", "@"):
-        return f"'{val}"
-    return val
-
-
-def _sanitize_csv_row(row: list[object]) -> list[object]:
-    """
-    對 CSV 單行資料進行跳脫。
-
-    Args:
-        row (list[object]): 原始單行資料陣列。
-
-    Returns:
-        list[object]: 跳脫後的單行資料陣列。
-    """
-    return [_sanitize_csv_value(v) for v in row]
-
-
-def _aggregate_by_target(
-    links: list[ExternalLink],
-) -> tuple[list[dict[str, object]], list[str], list[list[object]]]:
-    """
-    依外部目標去重聚合，產出供匯出的 JSON 與 CSV 結構。
-
-    Args:
-        links (list[ExternalLink]): 欲聚合的外部連結紀錄陣列。
-
-    Returns:
-        tuple[list[dict[str, object]], list[str], list[list[object]]]:
-            (JSON 資料陣列, CSV 標頭, CSV 行資料陣列)。
-    """
-    agg_data = defaultdict(
-        lambda: {
-            "ip": "",
-            "is_secure": True,
-            "status_code": None,
-            "error": "",
-            "count": 0,
-            "sources": set(),
-        }
-    )
-    for link in links:
-        tgt = link.target_url
-        d = agg_data[tgt]
-        d["count"] += 1
-        d["sources"].add(link.source_url)
-        d["is_secure"] = link.is_secure
-        if link.ip_address and not d["ip"]:
-            d["ip"] = link.ip_address
-        if link.http_status_code is not None and d["status_code"] is None:
-            d["status_code"] = link.http_status_code
-        if link.error_message and not d["error"]:
-            d["error"] = link.error_message
-
-    json_data = []
-    csv_rows = []
-    csv_headers = [
-        "Target URL",
-        "IP Address",
-        "Is Secure",
-        "HTTP Status Code",
-        "Error Message",
-        "Occurrence Count",
-        "Source URLs",
-    ]
-
-    for tgt, d in agg_data.items():
-        sources_list = sorted(list(d["sources"]))
-        json_data.append(
-            {
-                "target_url": tgt,
-                "ip_address": d["ip"] if d["ip"] else None,
-                "is_secure": d["is_secure"],
-                "http_status_code": d["status_code"],
-                "error_message": d["error"] if d["error"] else None,
-                "occurrence_count": d["count"],
-                "source_urls": sources_list,
-            }
-        )
-        csv_rows.append(
-            _sanitize_csv_row(
-                [
-                    tgt,
-                    d["ip"],
-                    d["is_secure"],
-                    d["status_code"] if d["status_code"] is not None else "",
-                    d["error"],
-                    d["count"],
-                    ", ".join(sources_list),
-                ]
-            )
-        )
-    return json_data, csv_headers, csv_rows
-
-
-def _aggregate_by_source(
-    links: list[ExternalLink],
-) -> tuple[list[dict[str, object]], list[str], list[list[object]]]:
-    """
-    依自家網頁 (修補視角) 聚合，產出供匯出的 JSON 與 CSV 結構。
-
-    Args:
-        links (list[ExternalLink]): 欲聚合的外部連結紀錄陣列。
-
-    Returns:
-        tuple[list[dict[str, object]], list[str], list[list[object]]]:
-            (JSON 資料陣列, CSV 標頭, CSV 行資料陣列)。
-    """
-    agg_source = defaultdict(lambda: {"count": 0, "targets": []})
-    for link in links:
-        d = agg_source[link.source_url]
-        d["count"] += 1
-        status_str = (
-            str(link.http_status_code)
-            if link.http_status_code is not None
-            else ("DNS Failed" if not link.ip_address else "Error")
-        )
-        d["targets"].append(
-            {
-                "url": link.target_url,
-                "status": status_str,
-            }
-        )
-
-    json_data = []
-    csv_rows = []
-    csv_headers = ["Source URL", "Occurrence Count", "Target URLs"]
-    for src, d in agg_source.items():
-        json_data.append(
-            {"source_url": src, "occurrence_count": d["count"], "targets": d["targets"]}
-        )
-        targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in d["targets"]])
-        csv_rows.append(_sanitize_csv_row([src, d["count"], targets_str]))
-
-    return json_data, csv_headers, csv_rows
-
-
-def _aggregate_by_domain(
-    links: list[ExternalLink],
-) -> tuple[list[dict[str, object]], list[str], list[list[object]]]:
-    """
-    依外部網域聚合 (資安盤點)，產出供匯出的 JSON 與 CSV 結構。
-
-    Args:
-        links (list[ExternalLink]): 欲聚合的外部連結紀錄陣列。
-
-    Returns:
-        tuple[list[dict[str, object]], list[str], list[list[object]]]:
-            (JSON 資料陣列, CSV 標頭, CSV 行資料陣列)。
-    """
-    agg_domain: dict[str, dict[str, object]] = defaultdict(
-        lambda: {"count": 0, "urls": set()}
-    )
-    for link in links:
-        dom = get_domain(link.target_url) or "unknown"
-        d = agg_domain[dom]
-        d["count"] += 1
-        d["urls"].add(link.target_url)
-
-    sorted_domains = sorted(
-        agg_domain.items(), key=lambda x: x[1]["count"], reverse=True
-    )
-
-    json_data = []
-    csv_rows = []
-    csv_headers = ["Domain", "Occurrence Count", "Unique URLs Count", "Unique URLs"]
-
-    for dom, d in sorted_domains:
-        urls_sorted = sorted(list(d["urls"]))
-        json_data.append(
-            {
-                "domain": dom,
-                "occurrence_count": d["count"],
-                "unique_urls_count": len(d["urls"]),
-                "unique_urls": urls_sorted,
-            }
-        )
-        urls_str = "\n".join(urls_sorted)
-        csv_rows.append(_sanitize_csv_row([dom, d["count"], len(d["urls"]), urls_str]))
-
-    return json_data, csv_headers, csv_rows
-
-
-def _format_no_grouping(
-    links: list[ExternalLink],
-) -> tuple[list[dict[str, object]], list[str], list[list[object]]]:
-    """
-    平鋪導出 (不聚合)，產出供匯出的 JSON 與 CSV 結構。
-
-    Args:
-        links (list[ExternalLink]): 欲轉換的外部連結紀錄陣列。
-
-    Returns:
-        tuple[list[dict[str, object]], list[str], list[list[object]]]:
-            (JSON 資料陣列, CSV 標頭, CSV 行資料陣列)。
-    """
-    json_data = []
-    csv_rows = []
-    csv_headers = [
-        "Source URL",
-        "Target URL",
-        "IP Address",
-        "Is Secure",
-        "HTTP Status Code",
-        "Error Message",
-        "Found At",
-    ]
-    for link in links:
-        json_data.append(
-            {
-                "source_url": link.source_url,
-                "target_url": link.target_url,
-                "ip_address": link.ip_address if link.ip_address else None,
-                "is_secure": link.is_secure,
-                "http_status_code": link.http_status_code,
-                "error_message": link.error_message if link.error_message else None,
-                "created_at": link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            }
-        )
-        csv_rows.append(
-            _sanitize_csv_row(
-                [
-                    link.source_url,
-                    link.target_url,
-                    link.ip_address if link.ip_address else "",
-                    link.is_secure,
-                    link.http_status_code if link.http_status_code is not None else "",
-                    link.error_message if link.error_message else "",
-                    link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
-        )
-
-    return json_data, csv_headers, csv_rows
-
-
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -366,7 +86,12 @@ class JobManager:
             if db_dir and not os.path.exists(db_dir):
                 os.makedirs(db_dir, exist_ok=True)
 
-        self.engine: Engine = create_engine(db_url)
+        self.engine: Engine = create_engine(
+            db_url,
+            connect_args={"check_same_thread": False}
+            if db_url.startswith("sqlite")
+            else {},
+        )
         if db_url.startswith("sqlite:"):
 
             @event.listens_for(self.engine, "connect")
@@ -390,172 +115,6 @@ class JobManager:
         Base.metadata.create_all(self.engine)
         # pylint: disable=invalid-name, unsubscriptable-object
         self.SessionLocal: sessionmaker[Session] = sessionmaker(bind=self.engine)
-
-    def _send_job_status_notification(self, job_id: str, status: str) -> None:
-        """
-        在任務完成或發生錯誤時，向任務建立者發送 Email 通知，並附帶結果統計。
-
-        Args:
-            job_id (str): 任務 ID。
-            status (str): 結束的狀態 ('completed' 或 'error')。
-        """
-        if not _BACKEND_AVAILABLE:
-            logger.warning("[Email Notification] 因無法載入後端模組，跳過通知信發送。")
-            return
-
-        with self.SessionLocal() as session:
-            job: Job | None = session.query(Job).filter(Job.id == job_id).first()
-            if not job:
-                return
-
-            user_id = job.user_id
-            if not user_id:
-                logger.info("[Email Notification] 任務為匿名任務，不發送通知信。")
-                return
-
-            # 取得使用者的 Email
-            try:
-                auth_session_factory = get_auth_session_local()
-                with auth_session_factory() as auth_session:
-                    user = auth_session.query(User).filter(User.id == user_id).first()
-                    if not user or not user.email:
-                        logger.warning(
-                            "[Email Notification] 找不到使用者 ID %s 或其無信箱設定，跳過通知信發送。",
-                            user_id,
-                        )
-                        return
-                    to_email = user.email
-            except Exception as ex:  # pylint: disable=broad-exception-caught
-                logger.error(
-                    "[Email Notification] 自 Auth DB 查詢使用者 %s 的信箱時發生錯誤: %s",
-                    user_id,
-                    ex,
-                )
-                return
-
-            # 統計外部連結狀態
-            # dead: DNS 解析失敗（IP 為 None 或空）
-            dead_count = (
-                session.query(ExternalLink)
-                .filter(
-                    ExternalLink.job_id == job_id,
-                    (ExternalLink.ip_address.is_(None))
-                    | (ExternalLink.ip_address == ""),
-                )
-                .count()
-            )
-            # broken: HTTP 狀態碼 >= 400 或連線/憑證錯誤
-            broken_count = (
-                session.query(ExternalLink)
-                .filter(
-                    ExternalLink.job_id == job_id,
-                    (ExternalLink.http_status_code >= 400)
-                    | (
-                        (ExternalLink.http_status_code.is_(None))
-                        & (ExternalLink.ip_address.isnot(None))
-                        & (ExternalLink.ip_address != "")
-                    ),
-                )
-                .count()
-            )
-            # 總外連數
-            total_count = (
-                session.query(ExternalLink)
-                .filter(ExternalLink.job_id == job_id)
-                .count()
-            )
-
-            healthy_count = total_count - dead_count - broken_count
-
-            # 組裝信件
-            status_text = (
-                "已完成 (Completed)"
-                if status == "completed"
-                else "發生嚴重異常 (Error)"
-            )
-            subject = (
-                f"【外部連結檢查系統】任務狀態通知 ({status_text}) - 任務 ID: {job_id}"
-            )
-
-            plain_text = (
-                f"您好，\n\n"
-                f"您所建立的外部連結檢查任務已執行結束。\n\n"
-                f"任務資訊：\n"
-                f"  - 任務 ID：{job_id}\n"
-                f"  - 起始網址：{job.start_url}\n"
-                f"  - 任務狀態：{status_text}\n"
-                f"  - 建立時間：{job.created_at}\n"
-                f"  - 結束時間：{job.updated_at}\n\n"
-                f"外部連結檢查統計：\n"
-                f"  - 總共發現外部連結數：{total_count}\n"
-                f"  - 正常連結 (Healthy)：{healthy_count} 個\n"
-                f"  - 損壞連結 (Broken Links，HTTP/連線異常)：{broken_count} 個\n"
-                f"  - 失效連結 (Dead Links，DNS 解析失敗)：{dead_count} 個\n\n"
-                f"詳細檢查結果，請登入系統後台查看。\n\n"
-                f"此為系統自動發送的郵件，請勿回覆。"
-            )
-
-            html_body = f"""\
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head><meta charset="UTF-8"></head>
-<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#333;">
-  <h2 style="color:#1a1a2e;border-bottom:2px solid #eee;padding-bottom:12px;">外部連結檢查任務通知</h2>
-  <p>您好，</p>
-  <p>您所建立的外部連結檢查任務已執行結束。</p>
-  
-  <table style="width:100%;border-collapse:collapse;margin:20px 0;background:#f9f9f9;border-radius:6px;overflow:hidden;">
-    <tr style="border-bottom:1px solid #eee;">
-      <td style="padding:10px;font-weight:bold;width:120px;">任務 ID</td>
-      <td style="padding:10px;font-family:monospace;">{job_id}</td>
-    </tr>
-    <tr style="border-bottom:1px solid #eee;">
-      <td style="padding:10px;font-weight:bold;">起始網址</td>
-      <td style="padding:10px;"><a href="{job.start_url}" target="_blank">{job.start_url}</a></td>
-    </tr>
-    <tr style="border-bottom:1px solid #eee;">
-      <td style="padding:10px;font-weight:bold;">任務狀態</td>
-      <td style="padding:10px;
-                 color:{"#10b981" if status == "completed" else "#ef4444"};
-                 font-weight:bold;">
-        {status_text}
-      </td>
-    </tr>
-    <tr style="border-bottom:1px solid #eee;">
-      <td style="padding:10px;font-weight:bold;">建立時間</td>
-      <td style="padding:10px;">{job.created_at}</td>
-    </tr>
-    <tr>
-      <td style="padding:10px;font-weight:bold;">結束時間</td>
-      <td style="padding:10px;">{job.updated_at}</td>
-    </tr>
-  </table>
-
-  <h3 style="color:#2563eb;margin-top:24px;">外部連結檢查統計</h3>
-  <ul style="padding-left:20px;line-height:1.6;">
-    <li>總共發現外部連結數：<strong>{total_count}</strong></li>
-    <li>正常連結 (Healthy)：
-      <span style="color:#10b981;font-weight:bold;">{healthy_count}</span> 個
-    </li>
-    <li>損壞連結 (Broken Links，HTTP / 連線異常)：
-      <span style="color:#ef4444;font-weight:bold;">{broken_count}</span> 個
-    </li>
-    <li>失效連結 (Dead Links，DNS 解析失敗)：
-      <span style="color:#ef4444;font-weight:bold;">{dead_count}</span> 個
-    </li>
-  </ul>
-
-  <p style="margin-top:24px;">詳細檢查結果與完整匯出報表，請登入系統後台查看。</p>
-  <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-  <p style="color:#999;font-size:0.75rem;">此為系統自動發送的郵件，請勿回覆。</p>
-</body>
-</html>"""
-
-            try:
-                # 寄出郵件
-                send_notification_email(to_email, subject, plain_text, html_body)
-            except Exception as ex:  # pylint: disable=broad-exception-caught
-                logger.error("[Email Notification] 寄送任務通知信失敗: %s", ex)
 
     # pylint: disable=too-many-arguments
     def create_job(
@@ -734,6 +293,9 @@ class JobManager:
                         ext.error_message,
                     )
 
+            # 建立共用的執行緒池，避免每個網頁都重新建立與銷毀執行緒而產生額外開銷
+            executor = ThreadPoolExecutor(max_workers=5)
+
             try:
                 while True:
                     # 協同暫停檢查：確認任務狀態是否在外部被更改
@@ -754,7 +316,9 @@ class JobManager:
                         )
                         job.status = "completed"
                         session.commit()
-                        self._send_job_status_notification(job_id, "completed")
+                        send_job_status_notification(
+                            self.SessionLocal, job_id, "completed"
+                        )
                         break
 
                     # 從佇列中取得下一個等待處理的網址，依據 ID 排序以保障 FIFO 的 BFS 順序
@@ -771,7 +335,9 @@ class JobManager:
                         logger.info("任務 %s 已無等待中的網址。任務完成。", job_id)
                         job.status = "completed"
                         session.commit()
-                        self._send_job_status_notification(job_id, "completed")
+                        send_job_status_notification(
+                            self.SessionLocal, job_id, "completed"
+                        )
                         break
 
                     current_url: str = queue_item.url
@@ -873,20 +439,30 @@ class JobManager:
                         if links_needing_http_check:
                             # 並發處理實際需要進行探測的外部連結，最快提升檢測效能
                             def check_single_link(
-                                l: str,
+                                ext_link: str,
                             ) -> tuple[str, str | None, int | None, str | None]:
-                                """獨立進行單一外部連結的存活與 IP 解析檢查。"""
-                                tgt_dom = get_domain(l)
-                                ip_res = resolve_ip(tgt_dom) if tgt_dom else None
-                                code_res, err_res = crawler.check_external_link(l)
-                                return l, ip_res, code_res, err_res
+                                """
+                                獨立進行單一外部連結的存活與 IP 解析檢查。
 
-                            with ThreadPoolExecutor(max_workers=5) as executor:
-                                results = list(
-                                    executor.map(
-                                        check_single_link, links_needing_http_check
-                                    )
+                                Args:
+                                    ext_link (str): 外部連結網址。
+
+                                Returns:
+                                    tuple[str, str | None, int | None, str | None]:
+                                        包含 (網址, IP, HTTP 狀態碼, 錯誤訊息)。
+                                """
+                                tgt_dom = get_domain(ext_link)
+                                ip_res = resolve_ip(tgt_dom) if tgt_dom else None
+                                code_res, err_res = crawler.check_external_link(
+                                    ext_link
                                 )
+                                return ext_link, ip_res, code_res, err_res
+
+                            results = list(
+                                executor.map(
+                                    check_single_link, links_needing_http_check
+                                )
+                            )
 
                             for link, ip, status_code, err_msg in results:
                                 # 寫入快取供後續網頁共享
@@ -1005,9 +581,10 @@ class JobManager:
                 if job:
                     job.status = "error"
                     session.commit()
-                    self._send_job_status_notification(job_id, "error")
+                    send_job_status_notification(self.SessionLocal, job_id, "error")
             finally:
                 crawler.close()
+            executor.shutdown(wait=False)
 
     def get_all_jobs(
         self, user_id: str | None = None, status: str | None = None
@@ -1100,214 +677,6 @@ class JobManager:
                 },
                 "external_links": total_external,
             }
-
-    # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-    def export_job_results(
-        self,
-        job_id: str,
-        output_path: str,
-        status_filter: str | None = None,
-        export_group: bool = False,
-        group_by: str = "none",
-        exclude: str | None = None,
-    ) -> bool:
-        """
-        將指定任務收集到的外部連結匯出為 CSV 或 JSON 格式。
-
-        Args:
-            job_id (str): 欲匯出結果的任務 ID。
-            output_path (str): 匯出檔案的目的地路徑。
-            status_filter (str | None): (選填) 'dead', 'broken' 或 'insecure' 的過濾條件。
-            export_group (bool): (已棄用) 向下相容，請改用 group_by="target"。
-            group_by (str): 聚合模式 ("none", "target", "source", "domain")。
-            exclude (str | None): (選填) 排除指定的目標網域，多個以逗號分隔。
-
-        Returns:
-            bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
-        """
-        with self.SessionLocal() as session:
-            job = session.query(Job).filter(Job.id == job_id).first()
-            if not job:
-                logger.error("找不到指定的任務 ID: %s", job_id)
-                return False
-
-            query = session.query(ExternalLink).filter(ExternalLink.job_id == job_id)
-
-            # dead: DNS 解析失敗 (IP 位址為空)
-            if status_filter == "dead":
-                query = query.filter(
-                    (ExternalLink.ip_address.is_(None))
-                    | (ExternalLink.ip_address == "")
-                )
-            # broken: HTTP 狀態碼 >= 400 或發生連線錯誤（無狀態碼但有 IP）
-            elif status_filter == "broken":
-                query = query.filter(
-                    (ExternalLink.http_status_code >= 400)
-                    | (
-                        (ExternalLink.http_status_code.is_(None))
-                        & (ExternalLink.ip_address.isnot(None))
-                        & (ExternalLink.ip_address != "")
-                    )
-                )
-            elif status_filter == "insecure":
-                query = query.filter(ExternalLink.is_secure.is_(False))
-
-            if exclude:
-                excludes = [e.strip() for e in exclude.split(",") if e.strip()]
-                for exc in excludes:
-                    query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
-
-            links = query.order_by(ExternalLink.created_at).all()
-
-            output_dir = os.path.dirname(output_path)
-            if output_dir and not os.path.exists(output_dir):
-                os.makedirs(output_dir, exist_ok=True)
-
-            is_json = output_path.lower().endswith(".json")
-
-            try:
-                if export_group and group_by == "none":
-                    group_by = "target"
-
-                if group_by == "target":
-                    json_data, csv_headers, csv_rows = _aggregate_by_target(links)
-                elif group_by == "source":
-                    json_data, csv_headers, csv_rows = _aggregate_by_source(links)
-                elif group_by == "domain":
-                    json_data, csv_headers, csv_rows = _aggregate_by_domain(links)
-                else:
-                    json_data, csv_headers, csv_rows = _format_no_grouping(links)
-
-                if is_json:
-                    with open(output_path, "w", encoding="utf-8") as f:
-                        json.dump(json_data, f, ensure_ascii=False, indent=2)
-                else:
-                    with open(output_path, "w", newline="", encoding="utf-8") as f:
-                        writer = csv.writer(f)
-                        writer.writerow(csv_headers)
-                        writer.writerows(csv_rows)
-
-                return True
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error("匯出檔案時發生錯誤: %s", e)
-                return False
-
-    def export_full_report(self, job_id: str, output_path: str) -> bool:
-        """
-        匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。
-
-        Args:
-            job_id (str): 欲匯出完整報表的任務 ID。
-            output_path (str): 輸出的 ZIP 檔案路徑。
-
-        Returns:
-            bool: 匯出成功回傳 True，發生錯誤或任務不存在回傳 False。
-        """
-        with self.SessionLocal() as session:
-            job = session.query(Job).filter(Job.id == job_id).first()
-            if not job:
-                logger.error("找不到指定的任務 ID: %s", job_id)
-                return False
-
-            q_items = (
-                session.query(CrawlQueue)
-                .filter(CrawlQueue.job_id == job_id)
-                .order_by(CrawlQueue.id)
-                .all()
-            )
-            e_items = (
-                session.query(ExternalLink)
-                .filter(ExternalLink.job_id == job_id)
-                .order_by(ExternalLink.created_at)
-                .all()
-            )
-
-            output_dir = os.path.dirname(output_path)
-            if output_dir and not os.path.exists(output_dir):
-                os.makedirs(output_dir, exist_ok=True)
-
-            try:
-                with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                    if q_items:
-                        cq_io = io.StringIO()
-                        cq_writer = csv.writer(cq_io)
-                        cq_writer.writerow(
-                            [
-                                "URL",
-                                "Source URL",
-                                "Status",
-                                "Depth",
-                                "Retry Count",
-                                "HTTP Status Code",
-                                "Error Message",
-                                "Created At",
-                            ]
-                        )
-                        for q in q_items:
-                            d = format_crawl_queue_item(q)
-                            cq_writer.writerow(
-                                _sanitize_csv_row(
-                                    [
-                                        d["URL"],
-                                        d["Source URL"],
-                                        d["Status"],
-                                        d["Depth"],
-                                        d["Retry Count"],
-                                        d["HTTP Status Code"],
-                                        d["Error Message"],
-                                        d["Created At"],
-                                    ]
-                                )
-                            )
-                        zf.writestr(
-                            f"job_{job_id}_crawl_records.csv",
-                            cq_io.getvalue().encode("utf-8-sig"),
-                        )
-
-                    if e_items:
-                        el_io = io.StringIO()
-                        el_writer = csv.writer(el_io)
-                        el_writer.writerow(
-                            [
-                                "Source URL",
-                                "Target URL",
-                                "IP Address",
-                                "Is Secure",
-                                "HTTP Status Code",
-                                "Error Message",
-                                "Found At",
-                            ]
-                        )
-                        for link in e_items:
-                            el_writer.writerow(
-                                _sanitize_csv_row(
-                                    [
-                                        link.source_url,
-                                        link.target_url,
-                                        link.ip_address if link.ip_address else "",
-                                        link.is_secure,
-                                        (
-                                            link.http_status_code
-                                            if link.http_status_code is not None
-                                            else ""
-                                        ),
-                                        (
-                                            link.error_message
-                                            if link.error_message
-                                            else ""
-                                        ),
-                                        link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                                    ]
-                                )
-                            )
-                        zf.writestr(
-                            f"job_{job_id}_external_links.csv",
-                            el_io.getvalue().encode("utf-8-sig"),
-                        )
-                return True
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error("匯出完整報表時發生錯誤: %s", e)
-                return False
 
     def pause_job(self, job_id: str) -> bool:
         """

@@ -290,21 +290,22 @@ class CrawlerCore:
             links: list[str] = []
             raw_links: list[object] = []
 
-            # 1. 擷取 href 屬性 (超連結 a, 樣式表 link)
-            for tag in soup.find_all(["a", "link"], href=True):
-                raw_links.append(tag.get("href"))
-
-            # 2. 擷取 src 屬性 (script, iframe, img, embed)
-            for tag in soup.find_all(["script", "iframe", "img", "embed"], src=True):
-                raw_links.append(tag.get("src"))
-
-            # 3. 擷取 action 屬性 (form)
-            for tag in soup.find_all("form", action=True):
-                raw_links.append(tag.get("action"))
-
-            # 4. 擷取 data 屬性 (object)
-            for tag in soup.find_all("object", data=True):
-                raw_links.append(tag.get("data"))
+            # 透過單次遍歷 HTML 樹來擷取所有標籤，大幅提升大型網頁的解析效能
+            for tag in soup.find_all(
+                ["a", "link", "script", "iframe", "img", "embed", "form", "object"]
+            ):
+                # 1. 擷取 href 屬性 (超連結 a, 樣式表 link)
+                if tag.name in ("a", "link") and tag.has_attr("href"):
+                    raw_links.append(tag.get("href"))
+                # 2. 擷取 src 屬性 (script, iframe, img, embed)
+                elif tag.name in ("script", "iframe", "img", "embed") and tag.has_attr("src"):
+                    raw_links.append(tag.get("src"))
+                # 3. 擷取 action 屬性 (form)
+                elif tag.name == "form" and tag.has_attr("action"):
+                    raw_links.append(tag.get("action"))
+                # 4. 擷取 data 屬性 (object)
+                elif tag.name == "object" and tag.has_attr("data"):
+                    raw_links.append(tag.get("data"))
 
             for attr_val in raw_links:
                 if isinstance(attr_val, list):
