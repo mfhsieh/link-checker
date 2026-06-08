@@ -180,51 +180,51 @@ class CrawlerCore:
 
             with dns_override(domain, ip) if domain and ip else nullcontext():
                 with client.stream("GET", current_url) as response:
-                request_sent = True
+                    request_sent = True
 
-                # 處理重導向
-                if response.status_code in (301, 302, 303, 307, 308):
-                    location = response.headers.get("Location")
-                    if not location:
-                        return None, response.status_code, "skip", current_url, request_sent
-                    current_url = urljoin(current_url, location)
-                    continue
+                    # 處理重導向
+                    if response.status_code in (301, 302, 303, 307, 308):
+                        location = response.headers.get("Location")
+                        if not location:
+                            return None, response.status_code, "skip", current_url, request_sent
+                        current_url = urljoin(current_url, location)
+                        continue
 
-                response.raise_for_status()
+                    response.raise_for_status()
 
-                # 檢查 HTTP 回應的 Content-Type
-                content_type: str = response.headers.get("Content-Type", "").lower()
+                    # 檢查 HTTP 回應的 Content-Type
+                    content_type: str = response.headers.get("Content-Type", "").lower()
 
-                if self.mime_type_filter.get("enabled", True):
-                    allowed_types: list[str] = self.mime_type_filter.get(
-                        "allowed_types", ["text/html"]
+                    if self.mime_type_filter.get("enabled", True):
+                        allowed_types: list[str] = self.mime_type_filter.get(
+                            "allowed_types", ["text/html"]
+                        )
+                        # 若 content_type 不包含任何一個 allowed_type，則提早中斷並回傳 None
+                        if not any(
+                            allowed.lower() in content_type for allowed in allowed_types
+                        ):
+                            logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
+                            return None, response.status_code, "skip", current_url, request_sent
+
+                    # 若檢查通過，讀取所有資料
+                    # 改用分塊讀取，並限制最大記憶體用量
+                    content_bytes = bytearray()
+                    for chunk in response.iter_bytes(chunk_size=8192):
+                        content_bytes.extend(chunk)
+                        if len(content_bytes) > MAX_CONTENT_LENGTH:
+                            logger.warning("網址 %s 內容超過 %d bytes，已提早截斷保護記憶體", current_url, MAX_CONTENT_LENGTH)
+                            break
+
+                    charset = response.charset_encoding or "utf-8"
+                    text = content_bytes.decode(charset, errors="replace")
+
+                    return (
+                        text,
+                        response.status_code,
+                        "completed",
+                        current_url,
+                        request_sent,
                     )
-                    # 若 content_type 不包含任何一個 allowed_type，則提早中斷並回傳 None
-                    if not any(
-                        allowed.lower() in content_type for allowed in allowed_types
-                    ):
-                        logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
-                        return None, response.status_code, "skip", current_url, request_sent
-
-                # 若檢查通過，讀取所有資料
-                # 改用分塊讀取，並限制最大記憶體用量
-                content_bytes = bytearray()
-                for chunk in response.iter_bytes(chunk_size=8192):
-                    content_bytes.extend(chunk)
-                    if len(content_bytes) > MAX_CONTENT_LENGTH:
-                        logger.warning("網址 %s 內容超過 %d bytes，已提早截斷保護記憶體", current_url, MAX_CONTENT_LENGTH)
-                        break
-
-                charset = response.charset_encoding or "utf-8"
-                text = content_bytes.decode(charset, errors="replace")
-
-                return (
-                    text,
-                    response.status_code,
-                    "completed",
-                    current_url,
-                    request_sent,
-                )
                 
         logger.warning("網址 %s 超過最大重導向次數", url)
         return None, None, "skip", current_url, request_sent
@@ -385,13 +385,13 @@ class CrawlerCore:
                         with client.stream(
                             "GET", current_url, headers=headers, timeout=10.0
                         ) as resp:
-                        if resp.status_code in (301, 302, 303, 307, 308):
-                            location = resp.headers.get("Location")
-                            if location:
-                                current_url = urljoin(current_url, location)
-                                continue
+                            if resp.status_code in (301, 302, 303, 307, 308):
+                                location = resp.headers.get("Location")
+                                if location:
+                                    current_url = urljoin(current_url, location)
+                                    continue
+                                return resp.status_code, None
                             return resp.status_code, None
-                        return resp.status_code, None
                 return response.status_code, None
             except httpx.HTTPStatusError as e:
                 return e.response.status_code, str(e)
