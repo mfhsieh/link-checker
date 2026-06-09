@@ -1,6 +1,6 @@
 # 爬蟲引擎參數設定指南 (Crawler Parameters Guide)
 
-本系統的爬蟲引擎設計具備高度彈性，共提供 **18 個** 可供配置的參數。這些參數可分為五大類，能在建立「個別爬蟲任務 (`job/*.yaml`)」時精確指定，部分參數亦可於「全域設定檔 (`config/config_global.yaml`)」中配置預設值與安全上下限。
+本系統的爬蟲引擎設計具備高度彈性，共提供 **20 個** 可供配置的參數。其中 18 個參數能在建立「個別爬蟲任務 (`job/*.yaml`)」時精確指定，另外 2 個為系統級核心防護限制，僅能於「全域設定檔 (`config/config_global.yaml`)」中配置。
 
 ---
 
@@ -33,6 +33,8 @@
 
 * **`max_depth`** (整數 | null)：最大爬取深度。例如設為 2，代表只爬起始頁，以及起始頁點進去的第一層連結。預設為 `null` (無限制)。
 * **`max_pages`** (整數 | null)：最大抓取頁數。當實質下載的網頁數量達到此上限時，任務會強制且優雅地結束。預設為 `null` (無限制)。
+* **`max_content_length`** (整數)：最大允許下載的網頁容量 (Bytes)。這是保護系統記憶體的硬性限制 (防禦 OOM 崩潰)，**僅限全域設定配置**，個別任務無法覆寫 (預設 10MB)。
+* **`max_redirects`** (整數)：HTTP 重導向追蹤次數上限。避免陷入惡意轉址迴圈，**僅限全域設定配置**，個別任務無法覆寫 (預設 10 次)。
 
 ---
 
@@ -63,8 +65,11 @@
 
 * `min_timeout` / `max_timeout`
 * `min_connect_timeout` / `max_connect_timeout`
+* `min_external_check_timeout` / `max_external_check_timeout`
 * `min_delay` / `max_delay`
 * `min_retries` / `max_retries`
+* `max_max_depth` (當任務的深度設為無限制時，強制套用此最大深度)
+* `max_max_pages` (當任務的頁數設為無限制時，強制套用此最大頁數)
 
 **防禦機制運作方式**：
 如果使用者在建立個別任務時，設定的 `delay` 為 `0.1` 秒，但全域設定的 `min_delay` 為 `1.0` 秒，系統會在任務啟動前，自動將該任務的 `delay` 強制修正回 `1.0` 秒。此機制可有效保障系統與目標伺服器的整體安全！
