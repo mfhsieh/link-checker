@@ -329,9 +329,15 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
                 "max_pages",
                 "delay",
                 "timeout",
+                "connect_timeout",
+                "external_check_timeout",
                 "retries",
+                "max_content_length",
                 "ignore_extensions",
                 "ignore_regexes",
+                "user_agent",
+                "ssl_exempt_domains",
+                "domain_delays",
             }
             for k in allowed_keys:
                 if k in raw_config:

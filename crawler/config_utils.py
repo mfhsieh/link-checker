@@ -330,11 +330,12 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
         ("max_pages", "max_max_pages", 10000),
     ]
     for key, max_k, def_max in optional_limits:
-        max_val = global_crawler_config.get(max_k)
-        if max_val is None:
+        if max_k in global_crawler_config:
+            max_val = global_crawler_config[max_k]
+        else:
             max_val = default_crawler.get(max_k, def_max)
-        if max_val is None:
-            max_val = def_max
+            if max_val is None:
+                max_val = def_max
 
         val = crawler_config.get(key)
 
