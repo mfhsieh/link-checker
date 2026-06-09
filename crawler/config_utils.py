@@ -5,7 +5,7 @@
 import logging
 import os
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
     "crawler": {
@@ -22,6 +22,7 @@ DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
         "max_max_depth": None,
         "max_max_pages": None,
         "max_content_length": 10485760,
+        "max_redirects": 10,
         "user_agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -104,6 +105,7 @@ def _sanitize_crawler_types(config: dict[str, object]) -> None:
         "max_max_depth": int,
         "max_max_pages": int,
         "max_content_length": int,
+        "max_redirects": int,
     }
     string_types = {"user_agent", "proxy_url"}
     dict_types = {"mime_type_filter", "domain_delays"}
@@ -197,6 +199,7 @@ def _apply_crawler_defaults(crawler_config: dict[str, object], global_crawler_co
         "user_agent",
         "mime_type_filter",
         "max_content_length",
+        "max_redirects",
     ]
     for key in non_nullable_keys:
         if crawler_config.get(key) is None:

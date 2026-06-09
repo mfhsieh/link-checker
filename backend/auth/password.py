@@ -9,14 +9,14 @@ import re
 import bcrypt
 
 # 密碼強度規則
-_MIN_LENGTH = 12
-_COMPLEXITY_PATTERNS = [
-    re.compile(r"[A-Z]"),       # 大寫字母
-    re.compile(r"[a-z]"),       # 小寫字母
-    re.compile(r"[0-9]"),       # 數字
-    re.compile(r"[^A-Za-z0-9]"), # 特殊符號
+_MIN_LENGTH: int = 12
+_COMPLEXITY_PATTERNS: list[re.Pattern] = [
+    re.compile(r"[A-Z]"),  # 大寫字母
+    re.compile(r"[a-z]"),  # 小寫字母
+    re.compile(r"[0-9]"),  # 數字
+    re.compile(r"[^A-Za-z0-9]"),  # 特殊符號
 ]
-_MIN_COMPLEXITY_CLASSES = 3
+_MIN_COMPLEXITY_CLASSES: int = 3
 
 
 def hash_password(plain_password: str) -> str:
@@ -29,7 +29,7 @@ def hash_password(plain_password: str) -> str:
     Returns:
         str: bcrypt 雜湊字串。
     """
-    salt = bcrypt.gensalt()
+    salt = bcrypt.gensalt(rounds=12)
     hashed = bcrypt.hashpw(plain_password.encode("utf-8"), salt)
     return hashed.decode("utf-8")
 
@@ -46,10 +46,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         bool: 若相符回傳 True，否則回傳 False。
     """
     try:
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8"),
-            hashed_password.encode("utf-8")
-        )
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
     except (ValueError, TypeError):
         return False
 
@@ -75,19 +72,13 @@ def validate_password_strength(password: str, email: str) -> list[str]:
     if len(password) < _MIN_LENGTH:
         errors.append(f"密碼長度至少需要 {_MIN_LENGTH} 個字元。")
 
-    matched_classes = sum(
-        1 for pattern in _COMPLEXITY_PATTERNS if pattern.search(password)
-    )
+    matched_classes = sum(1 for pattern in _COMPLEXITY_PATTERNS if pattern.search(password))
     if matched_classes < _MIN_COMPLEXITY_CLASSES:
-        errors.append(
-            f"密碼需包含大寫字母、小寫字母、數字、特殊符號中的至少 {_MIN_COMPLEXITY_CLASSES} 類。"
-        )
+        errors.append(f"密碼需包含大寫字母、小寫字母、數字、特殊符號中的至少 {_MIN_COMPLEXITY_CLASSES} 類。")
 
     # 提取 email 本地端（@ 前面的部分）並進行相似度比對
     local_part = email.split("@")[0].lower() if "@" in email else email.lower()
-    if local_part and (
-        local_part in password.lower() or password.lower() in local_part
-    ):
+    if local_part and (local_part in password.lower() or password.lower() in local_part):
         errors.append("密碼不得與電子郵件帳號相同或包含電子郵件的本地端部分。")
 
     return errors

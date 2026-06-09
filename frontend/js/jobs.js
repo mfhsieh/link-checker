@@ -25,44 +25,44 @@ export function renderJobList(jobs, container) {
     );
     emptyState.appendChild(svgDoc.documentElement);
 
-    const title = document.createElement('div');
-    title.className = 'empty-state-title';
-    title.textContent = '尚無任務';
-    emptyState.appendChild(title);
+    const titleEl = document.createElement('div');
+    titleEl.className = 'empty-state-title';
+    titleEl.textContent = '尚無任務';
+    emptyState.appendChild(titleEl);
 
-    const desc = document.createElement('div');
-    desc.className = 'empty-state-desc';
-    desc.textContent = '點擊右上角「新增任務」開始建立您的第一個外連掃描任務';
-    emptyState.appendChild(desc);
+    const descEl = document.createElement('div');
+    descEl.className = 'empty-state-desc';
+    descEl.textContent = '點擊右上角「新增任務」開始建立您的第一個外連掃描任務';
+    emptyState.appendChild(descEl);
 
     container.appendChild(emptyState);
     return;
   }
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'table-wrapper';
+  const wrapperEl = document.createElement('div');
+  wrapperEl.className = 'table-wrapper';
 
-  const table = document.createElement('table');
-  table.className = 'table';
-  table.id = 'jobs-table';
+  const tableEl = document.createElement('table');
+  tableEl.className = 'table';
+  tableEl.id = 'jobs-table';
 
-  const thead = document.createElement('thead');
-  const trHead = document.createElement('tr');
+  const theadEl = document.createElement('thead');
+  const headRowEl = document.createElement('tr');
   ['任務 ID', '起始 URL', '狀態', '建立時間', '操作'].forEach(text => {
     const th = document.createElement('th');
     th.textContent = text;
-    trHead.appendChild(th);
+    headRowEl.appendChild(th);
   });
-  thead.appendChild(trHead);
-  table.appendChild(thead);
+  theadEl.appendChild(headRowEl);
+  tableEl.appendChild(theadEl);
 
-  const tbody = document.createElement('tbody');
+  const tbodyEl = document.createElement('tbody');
   jobs.forEach(job => {
-    tbody.appendChild(renderJobRow(job));
+    tbodyEl.appendChild(renderJobRow(job));
   });
-  table.appendChild(tbody);
-  wrapper.appendChild(table);
-  container.appendChild(wrapper);
+  tableEl.appendChild(tbodyEl);
+  wrapperEl.appendChild(tableEl);
+  container.appendChild(wrapperEl);
 }
 
 function renderJobRow(job) {

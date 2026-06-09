@@ -83,11 +83,11 @@ export async function initJobDetailPage(jobId) {
     if (groupSelect) groupSelect.value = 'none';
 
     // 依照是否有排除設定來改變按鈕的視覺呈現
-    const btnOpenExclude = document.getElementById('btn-open-exclude-modal');
-    if (btnOpenExclude) {
-        btnOpenExclude.style.color = _currentExclude ? 'var(--color-brand-500)' : '';
-        btnOpenExclude.style.borderColor = _currentExclude ? 'var(--color-brand-500)' : '';
-        btnOpenExclude.style.background = _currentExclude ? 'hsla(221, 83%, 53%, 0.1)' : '';
+    const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
+    if (openExcludeBtn) {
+        openExcludeBtn.style.color = _currentExclude ? 'var(--color-brand-500)' : '';
+        openExcludeBtn.style.borderColor = _currentExclude ? 'var(--color-brand-500)' : '';
+        openExcludeBtn.style.background = _currentExclude ? 'hsla(221, 83%, 53%, 0.1)' : '';
     }
 
     if (!_eventsBound) {
@@ -237,10 +237,10 @@ function bindControlButtons() {
         await download(`/api/jobs/${_currentJobId}/export/full`);
     });
 
-    const btnViewConfig = document.getElementById('btn-view-job-config');
-    const modalConfig = document.getElementById('job-config-modal');
-    if (btnViewConfig && modalConfig) {
-        btnViewConfig.addEventListener('click', () => {
+    const viewConfigBtn = document.getElementById('btn-view-job-config');
+    const configModalEl = document.getElementById('job-config-modal');
+    if (viewConfigBtn && configModalEl) {
+        viewConfigBtn.addEventListener('click', () => {
             const container = document.getElementById('job-config-display-container');
             if (container) {
                 if (!_currentJobConfig) {
@@ -293,10 +293,10 @@ function bindControlButtons() {
           `;
                 }
             }
-            modalConfig.style.display = 'flex';
+            configModalEl.style.display = 'flex';
         });
-        document.getElementById('job-config-close')?.addEventListener('click', () => modalConfig.style.display = 'none');
-        document.getElementById('job-config-ok')?.addEventListener('click', () => modalConfig.style.display = 'none');
+        document.getElementById('job-config-close')?.addEventListener('click', () => configModalEl.style.display = 'none');
+        document.getElementById('job-config-ok')?.addEventListener('click', () => configModalEl.style.display = 'none');
     }
 }
 
@@ -570,49 +570,49 @@ function renderPagination(res, jobId) {
     const paginationDiv = document.createElement('div');
     paginationDiv.className = 'pagination';
 
-    const btnPrev = document.createElement('button');
-    btnPrev.className = 'page-btn';
-    btnPrev.textContent = '‹';
-    if (page <= 1) btnPrev.disabled = true;
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'page-btn';
+    prevBtn.textContent = '‹';
+    if (page <= 1) prevBtn.disabled = true;
     else {
-        btnPrev.dataset.page = page - 1;
-        btnPrev.addEventListener('click', async () => {
+        prevBtn.dataset.page = page - 1;
+        prevBtn.addEventListener('click', async () => {
             _currentPage = page - 1;
             await loadResultsPage(jobId);
         });
     }
-    paginationDiv.appendChild(btnPrev);
+    paginationDiv.appendChild(prevBtn);
 
     const delta = 2;
     const start = Math.max(1, page - delta);
     const end = Math.min(total_pages, page + delta);
 
     for (let i = start; i <= end; i++) {
-        const pBtn = document.createElement('button');
-        pBtn.className = i === page ? 'page-btn active' : 'page-btn';
-        pBtn.textContent = i;
-        pBtn.dataset.page = i;
+        const pageBtn = document.createElement('button');
+        pageBtn.className = i === page ? 'page-btn active' : 'page-btn';
+        pageBtn.textContent = i;
+        pageBtn.dataset.page = i;
         if (i !== page) {
-            pBtn.addEventListener('click', async () => {
+            pageBtn.addEventListener('click', async () => {
                 _currentPage = i;
                 await loadResultsPage(jobId);
             });
         }
-        paginationDiv.appendChild(pBtn);
+        paginationDiv.appendChild(pageBtn);
     }
 
-    const btnNext = document.createElement('button');
-    btnNext.className = 'page-btn';
-    btnNext.textContent = '›';
-    if (page >= total_pages) btnNext.disabled = true;
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'page-btn';
+    nextBtn.textContent = '›';
+    if (page >= total_pages) nextBtn.disabled = true;
     else {
-        btnNext.dataset.page = page + 1;
-        btnNext.addEventListener('click', async () => {
+        nextBtn.dataset.page = page + 1;
+        nextBtn.addEventListener('click', async () => {
             _currentPage = page + 1;
             await loadResultsPage(jobId);
         });
     }
-    paginationDiv.appendChild(btnNext);
+    paginationDiv.appendChild(nextBtn);
 
     paginationEl.appendChild(paginationDiv);
 }
@@ -644,33 +644,33 @@ function bindResultsControls() {
     }
 
     // ── 綁定排除網域 Modal 邏輯 ──────────────────────────────────────────
-    const btnOpenExclude = document.getElementById('btn-open-exclude-modal');
-    const excludeModal = document.getElementById('exclude-domains-modal');
-    const excludeTextarea = document.getElementById('exclude-domains-textarea');
-    const excludeSubmit = document.getElementById('exclude-domains-submit');
-    const excludeClose = document.getElementById('exclude-domains-close');
-    const excludeCancel = document.getElementById('exclude-domains-cancel');
+    const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
+    const excludeModalEl = document.getElementById('exclude-domains-modal');
+    const excludeTextareaInput = document.getElementById('exclude-domains-textarea');
+    const excludeSubmitBtn = document.getElementById('exclude-domains-submit');
+    const excludeCloseBtn = document.getElementById('exclude-domains-close');
+    const excludeCancelBtn = document.getElementById('exclude-domains-cancel');
 
-    if (btnOpenExclude && excludeModal) {
-        const closeExcludeModal = () => { excludeModal.style.display = 'none'; };
+    if (openExcludeBtn && excludeModalEl) {
+        const closeExcludeModal = () => { excludeModalEl.style.display = 'none'; };
 
-        btnOpenExclude.addEventListener('click', () => {
-            excludeTextarea.value = _currentExclude.split(',').filter(Boolean).join('\n');
-            excludeModal.style.display = 'flex';
-            setTimeout(() => excludeTextarea.focus(), 50);
+        openExcludeBtn.addEventListener('click', () => {
+            excludeTextareaInput.value = _currentExclude.split(',').filter(Boolean).join('\n');
+            excludeModalEl.style.display = 'flex';
+            setTimeout(() => excludeTextareaInput.focus(), 50);
         });
 
-        excludeClose.addEventListener('click', closeExcludeModal);
-        excludeCancel.addEventListener('click', closeExcludeModal);
+        excludeCloseBtn.addEventListener('click', closeExcludeModal);
+        excludeCancelBtn.addEventListener('click', closeExcludeModal);
 
-        excludeSubmit.addEventListener('click', async () => {
-            const lines = excludeTextarea.value.split('\n').map(s => s.trim()).filter(Boolean);
+        excludeSubmitBtn.addEventListener('click', async () => {
+            const lines = excludeTextareaInput.value.split('\n').map(s => s.trim()).filter(Boolean);
             _currentExclude = lines.join(',');
             localStorage.setItem('ext-link-checker-exclude-domains', _currentExclude);
 
-            btnOpenExclude.style.color = _currentExclude ? 'var(--color-brand-500)' : '';
-            btnOpenExclude.style.borderColor = _currentExclude ? 'var(--color-brand-500)' : '';
-            btnOpenExclude.style.background = _currentExclude ? 'hsla(221, 83%, 53%, 0.1)' : '';
+            openExcludeBtn.style.color = _currentExclude ? 'var(--color-brand-500)' : '';
+            openExcludeBtn.style.borderColor = _currentExclude ? 'var(--color-brand-500)' : '';
+            openExcludeBtn.style.background = _currentExclude ? 'hsla(221, 83%, 53%, 0.1)' : '';
 
             closeExcludeModal();
             _currentPage = 1;

@@ -26,30 +26,30 @@ function getContainer() {
 export function showToast(message, type = 'info', duration = 4000) {
     const container = getContainer();
 
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.setAttribute('role', 'alert');
-    const msgDiv = document.createElement('div');
-    msgDiv.className = 'toast-message';
-    msgDiv.textContent = message;
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast toast-${type}`;
+    toastEl.setAttribute('role', 'alert');
+    const msgEl = document.createElement('div');
+    msgEl.className = 'toast-message';
+    msgEl.textContent = message;
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'toast-close';
     closeBtn.setAttribute('aria-label', '關閉通知');
     closeBtn.textContent = '✕';
 
-    toast.appendChild(msgDiv);
-    toast.appendChild(closeBtn);
+    toastEl.appendChild(msgEl);
+    toastEl.appendChild(closeBtn);
 
     const remove = () => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(24px)';
-        toast.style.transition = 'all 0.25s ease';
-        setTimeout(() => toast.remove(), 250);
+        toastEl.style.opacity = '0';
+        toastEl.style.transform = 'translateX(24px)';
+        toastEl.style.transition = 'all 0.25s ease';
+        setTimeout(() => toastEl.remove(), 250);
     };
 
     closeBtn.addEventListener('click', remove);
-    container.appendChild(toast);
+    container.appendChild(toastEl);
 
     if (duration > 0) {
         setTimeout(remove, duration);
@@ -62,4 +62,3 @@ export const toast = {
     error: (msg, d) => showToast(msg, 'error', d),
     info: (msg, d) => showToast(msg, 'info', d),
 };
-

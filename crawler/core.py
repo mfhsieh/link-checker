@@ -11,6 +11,7 @@ import socket
 import threading
 from contextlib import contextmanager, nullcontext
 from collections.abc import Iterator
+from collections.abc import Callable
 from urllib.parse import urlparse, ParseResult, urljoin
 import httpx
 from bs4 import BeautifulSoup
@@ -20,8 +21,8 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
-_original_getaddrinfo = socket.getaddrinfo
-_dns_override = threading.local()
+_original_getaddrinfo: Callable = socket.getaddrinfo
+_dns_override: threading.local = threading.local()
 
 
 def _patched_getaddrinfo(
@@ -105,6 +106,7 @@ class CrawlerCore:
         ssl_exempt_domains: list[str] | None = None,
         proxy_url: str | None = None,
         max_content_length: int = 10485760,
+        max_redirects: int = 10,
         social_domains: list[str] | None = None,
     ) -> None:
         """
@@ -120,7 +122,8 @@ class CrawlerCore:
             user_agent (str | None): (選填) 自訂 HTTP 請求標頭的 User-Agent。
             ssl_exempt_domains (list[str] | None): (選填) 豁免 SSL 憑證驗證之網域清單。
             proxy_url (str | None): (選填) 代理伺服器 URL。
-            max_content_length (int): 最大允許下載的網頁容量 (Bytes)。
+            max_content_length (int): 最大允許下載的網頁容量 (Bytes)，預設為 10 MB。
+            max_redirects (int): HTTP 重導向次數上限，預設為 10 次。
             social_domains (list[str] | None): (選填) 允許 GET 降級探測的社群網域清單。
         """
         self.timeout: int = timeout
@@ -153,6 +156,7 @@ class CrawlerCore:
         self.ssl_exempt_domains: list[str] = ssl_exempt_domains or []
         self.proxy_url: str | None = proxy_url
         self.max_content_length: int = max_content_length
+        self.max_redirects: int = max_redirects
         self.social_domains: list[str] = social_domains or [
             "facebook.com",
             "fb.com",
@@ -207,7 +211,7 @@ class CrawlerCore:
             tuple[str | None, int | None, str, str, bool, str | None]: 回傳 (HTML字串, HTTP狀態碼, 狀態, 最終網址, 是否發送請求, 錯誤或警告訊息)。
                 狀態字串為 'completed', 'warning' 或 'skip'。
         """
-        max_redirects = 5
+        max_redirects = self.max_redirects
         current_url = url
         request_sent = False
 
@@ -424,7 +428,7 @@ class CrawlerCore:
         Returns:
             tuple[int | None, str | None]: 回傳 (HTTP 狀態碼, 錯誤訊息)。
         """
-        max_redirects = 5
+        max_redirects = self.max_redirects
         current_url = url
 
         for _ in range(max_redirects):

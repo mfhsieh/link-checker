@@ -32,6 +32,7 @@ ext-link-checker/
 ├── config/             # 存放全域設定檔 (config_global.yaml)
 ├── crawler/            # 爬蟲程式與 JOB 管理 (核心模組)
 │   ├── __init__.py
+│   ├── config_utils.py # 組態防呆驗證與全域設定合併工具
 │   ├── core.py         # 爬蟲核心邏輯 (抓取網頁、解析 HTML、提取與過濾連結)
 │   ├── manager.py      # JOB 管理 (任務分派、資料持久化、防呆安全鎖)
 │   ├── models.py       # Crawler DB 資料庫模型
@@ -43,7 +44,9 @@ ext-link-checker/
 │   ├── deploy_gcp_vm.md      # GCP 雲端部署指南
 │   └── python_coding_style.md # Python 程式風格與開發規範
 ├── job/                # 存放個別任務 YAML 設定檔的安全目錄
-├── log/                # 存放系統日誌 (crawler.log)
+├── log/                # 存放系統日誌與進程狀態
+│   ├── pids/           # 存放運行中爬蟲子程序的 PID 檔案
+│   └── crawler.log     # 系統主日誌檔
 ├── report/             # 外部連結分析報告之預設匯出目錄
 ├── test/               # 一鍵式自動化整合測試套件
 │   ├── test_server/    # 本機 Mock HTTP 測試伺服器
@@ -56,13 +59,17 @@ ext-link-checker/
 * **系統架構解耦 (CLI-First)**：
   爬蟲核心 (`crawler/`) 與後台網頁系統 (`backend/`) 徹底解耦。在沒有啟動 Web 伺服器的情況下，依然能單獨透過 `cli.py` 命令列程式完整運行與管理爬蟲任務。近期更進一步將「報表匯出」與「發信通知」剝離至獨立模組 (`exporter.py`, `notifier.py`)，嚴格遵守單一職責原則 (SRP)。
 * **資料庫實體分離**：
-  系統維護兩個獨立的資料庫：`crawler.db` (爬蟲業務資料) 與 `auth.db` (帳號與身分驗證資料)，兩者不共用連線池與 Schema，確保業務邏輯邊界清晰。針對高頻寫入的 `crawler.db`，啟用了 SQLite 的 **WAL (Write-Ahead Logging)** 與 **NORMAL** 同步模式以防 I/O 阻塞。
+  系統維護兩個獨立的資料庫：`crawler.db` (爬蟲業務資料) 與 `auth.db` (帳號與身分驗證資料)，兩者不共用連線池與 Schema，確保業務邏輯邊界清晰。針對高頻寫入的 SQLite，全域啟用了 **WAL (Write-Ahead Logging)**、**NORMAL** 同步模式與大容量快取 (`PRAGMA cache_size`) 以防 I/O 阻塞。
 * **後端 Web API Server**：
   採用 **FastAPI** 作為後端框架，提供非同步、高效能的 RESTful API，並實作基於 HttpOnly Cookie 的安全 Session 管理與邀請制帳號機制。針對資料庫 I/O 等阻塞操作，嚴格規範採用同步 `def` 路由以交由底層執行緒池處理，保護主事件迴圈 (Event Loop Blocking 防禦)。
+* **Web 與爬蟲程序的橋接設計 (Subprocess Spawning)**：
+  Web 後端不直接在自身記憶體或執行緒中運行爬蟲。當使用者於介面觸發「啟動」時，後端服務會透過 `subprocess.Popen` 生成獨立的作業系統子程序 (等同於執行 `cli.py --resume`)，並於 `log/pids/` 目錄寫入 PID 檔案進行生命週期追蹤。此架構完美保證了 Web API 的高可用性，徹底杜絕爬蟲佔用伺服器主記憶體或引發 GIL (Global Interpreter Lock) 阻塞。
 * **前端 Web UI**：
-  堅持採用**輕量原生技術棧 (Vanilla JS + ESM / Vanilla CSS)**，不引入 React、Vue 等框架與打包工具，大幅降低供應鏈風險與長期維護成本。實作了具備網路波動韌性 (Resilience) 的狀態輪詢機制。
+  堅持採用**輕量原生技術棧 (Vanilla JS + ESM / Vanilla CSS)**，不引入 React、Vue 等框架與打包工具，大幅降低供應鏈風險與長期維護成本。實作了基於 `hashchange` 的無刷新 SPA 路由，以及具備網路波動韌性 (Resilience) 與動態間隔的狀態輪詢機制。
 * **網路連線與網頁解析**：
   採用 **HTTPX** 處理同步 HTTP/HTTPS 連線，並搭配 **BeautifulSoup 4** 進行 HTML 樹狀結構解析。針對外部連結的存活探測，引入 **`ThreadPoolExecutor`** 進行多執行緒並發處理，最大化診斷效能。
+* **任務級快取與頻寬節約 (Job-level Cache)**：
+  於爬蟲核心調度層 (`manager.py`) 實作了記憶體快取。同一個爬蟲任務中若多次遇到相同的外部連結，系統會直接複用初次的 DNS 解析與 HTTP 存活探測結果，不僅大幅提升掃描速度，更能避免對外部目標網站造成 DDoS 風險與節約頻寬。
 * **任務狀態驅動**：
   系統具備高可靠度，所有的任務與網址佇列皆由資料庫狀態驅動 (`pending`, `running`, `paused`, `completed` 等)。攔截 `Ctrl+C` 訊號轉化為溫和暫停，支援中斷與斷點續傳。
 * **來源精準追溯與防重**：

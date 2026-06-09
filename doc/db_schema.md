@@ -130,7 +130,7 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | `Integer` | **Primary Key**, `Auto-Increment` | 日誌的主鍵。 |
 | `user_id` | `String(36)` | **Logical FK**, `Nullable` | 關聯的使用者 ID（部分事件可能無法確定使用者）。於應用層控管關聯，未設定實體外鍵約束。 |
-| `event_type` | `String(50)` | `NOT NULL` | 事件類型：`login_success`, `login_failed`, `logout`, `locked`, `password_set`, `password_changed`, `invitation_sent`, `user_status_changed`, `user_deleted`, `job_force_action`, `config_change` 等。 |
+| `event_type` | `String(50)` | `NOT NULL` | 事件類型：`first_login_attempt`, `login_success`, `login_failed`, `logout`, `locked`, `password_set`, `password_changed`, `invitation_sent`, `user_status_changed`, `user_deleted`, `job_force_action`, `config_change` 等。 |
 | `ip_address` | `String(45)` | `Nullable` | 事件發生時的客戶端來源 IP 位址。 |
 | `detail` | `Text` | `Nullable` | 附加描述資訊（如登入失敗原因，或在敏感操作時以 JSON 格式記錄變更前後差異細節）。 |
 | `created_at` | `DateTime` | `Default: 當下 UTC 時間` | 事件發生的 UTC 時間戳記。 |

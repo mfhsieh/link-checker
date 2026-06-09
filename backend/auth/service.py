@@ -27,7 +27,7 @@ from backend.auth.password import (
 from backend.config import get_settings
 from backend.email_sender import send_invitation_email
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:

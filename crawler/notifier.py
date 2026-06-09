@@ -22,12 +22,10 @@ try:
 except ImportError:
     _BACKEND_AVAILABLE = False
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def send_job_status_notification(
-    session_factory: sessionmaker[Session], job_id: str, status: str
-) -> None:
+def send_job_status_notification(session_factory: sessionmaker[Session], job_id: str, status: str) -> None:
     """
     在任務完成或發生錯誤時，向任務建立者發送 Email 通知，並附帶結果統計。
 
@@ -75,7 +73,8 @@ def send_job_status_notification(
 
         # 統計外部連結狀態
         dead_count = (
-            session.query(ExternalLink)
+            session
+            .query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
                 (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
@@ -83,7 +82,8 @@ def send_job_status_notification(
             .count()
         )
         broken_count = (
-            session.query(ExternalLink)
+            session
+            .query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
                 (ExternalLink.http_status_code >= 400)
@@ -95,18 +95,12 @@ def send_job_status_notification(
             )
             .count()
         )
-        total_count = (
-            session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
-        )
+        total_count = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
 
         healthy_count = total_count - dead_count - broken_count
 
-        status_text = (
-            "已完成 (Completed)" if status == "completed" else "發生嚴重異常 (Error)"
-        )
-        subject = (
-            f"【外部連結檢查系統】任務狀態通知 ({status_text}) - 任務 ID: {job_id}"
-        )
+        status_text = "已完成 (Completed)" if status == "completed" else "發生嚴重異常 (Error)"
+        subject = f"【外部連結檢查系統】任務狀態通知 ({status_text}) - 任務 ID: {job_id}"
 
         plain_text = (
             f"您好，\n\n"

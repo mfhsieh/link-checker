@@ -14,7 +14,7 @@ from datetime import datetime
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth import service as auth_service
@@ -32,9 +32,9 @@ from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 from crawler.manager import JobManager
 from crawler.models import Job
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router: APIRouter = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 # ── Request Schema ─────────────────────────────────────────────────────────────
@@ -129,6 +129,7 @@ class CrawlerConfigUpdate(BaseModel):
     max_depth: int | None = Field(None, ge=1)
     max_pages: int | None = Field(None, ge=1)
     max_content_length: int | None = Field(None, ge=1024)
+    max_redirects: int | None = Field(None, ge=0)
     user_agent: str | None = None
     proxy_url: str | None = None
     ssl_exempt_domains: list[str] | None = None
@@ -152,6 +153,16 @@ class CrawlerConfigUpdate(BaseModel):
     max_max_depth: int | None = Field(None, ge=1)
     max_max_pages: int | None = Field(None, ge=1)
 
+    @field_validator("ssl_exempt_domains", "social_domains", "ignore_extensions")
+    @classmethod
+    def clean_string_lists(cls, v: list[str] | None) -> list[str] | None:
+        """
+        移除清單中的前後空白與空字串。
+        """
+        if v is not None:
+            return [item.strip() for item in v if item.strip()]
+        return v
+
     @field_validator("ignore_regexes")
     @classmethod
     def validate_regexes(cls, v: list[str] | None) -> list[str] | None:
@@ -168,12 +179,33 @@ class CrawlerConfigUpdate(BaseModel):
             ValueError: 若有任何正則表達式編譯失敗時拋出。
         """
         if v is not None:
-            for pattern in v:
+            cleaned = [pattern.strip() for pattern in v if pattern.strip()]
+            for pattern in cleaned:
                 try:
                     re.compile(pattern)
                 except re.error as e:
                     raise ValueError(f"無效的正則表達式 '{pattern}': {e}") from e
+            return cleaned
         return v
+
+    @model_validator(mode="after")
+    def validate_min_max_pairs(self) -> "CrawlerConfigUpdate":
+        """
+        確保各項安全上下限設定的最小值不大於最大值。
+        """
+        pairs = [
+            ("min_timeout", "max_timeout", "逾時時間"),
+            ("min_connect_timeout", "max_connect_timeout", "TCP 連線逾時"),
+            ("min_external_check_timeout", "max_external_check_timeout", "外連探測逾時"),
+            ("min_delay", "max_delay", "請求延遲"),
+            ("min_retries", "max_retries", "重試次數"),
+        ]
+        for min_k, max_k, label in pairs:
+            min_v = getattr(self, min_k)
+            max_v = getattr(self, max_k)
+            if min_v is not None and max_v is not None and min_v > max_v:
+                raise ValueError(f"{label}的最小值 ({min_v}) 不可大於最大值 ({max_v})。")
+        return self
 
     @field_validator("domain_delays")
     @classmethod

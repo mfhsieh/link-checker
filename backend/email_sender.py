@@ -14,7 +14,7 @@ from email.message import EmailMessage
 
 from backend.config import get_settings
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _build_invitation_email(

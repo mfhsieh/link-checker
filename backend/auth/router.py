@@ -29,9 +29,9 @@ from backend.deps import (
 )
 from backend.auth.models import User, Session as AuthSession
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router: APIRouter = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 # ── Request / Response Schema ──────────────────────────────────────────────────

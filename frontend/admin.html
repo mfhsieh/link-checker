@@ -173,7 +173,7 @@
                     <input class="form-input" type="number" id="cfg-retries" placeholder="載入中..." required />
                   </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-depth">最大深度</label>
                     <input class="form-input" type="number" id="cfg-max-depth" placeholder="載入中..." />
@@ -182,9 +182,15 @@
                     <label class="form-label" for="cfg-max-pages">最大頁數</label>
                     <input class="form-input" type="number" id="cfg-max-pages" placeholder="載入中..." />
                   </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-content-length">最大下載容量 (Bytes)</label>
                     <input class="form-input" type="number" id="cfg-max-content-length" placeholder="載入中..." required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-max-redirects">最大重導向次數</label>
+                    <input class="form-input" type="number" id="cfg-max-redirects" placeholder="載入中..." required />
                   </div>
                 </div>
                 <div class="form-group" style="margin-bottom:1rem">
@@ -638,6 +644,7 @@
         document.getElementById('cfg-max-depth').value = c.max_depth ?? '';
         document.getElementById('cfg-max-pages').value = c.max_pages ?? '';
         document.getElementById('cfg-max-content-length').value = c.max_content_length ?? '';
+        document.getElementById('cfg-max-redirects').value = c.max_redirects ?? '';
         document.getElementById('cfg-user-agent').value = c.user_agent ?? '';
         document.getElementById('cfg-proxy-url').value = c.proxy_url ?? '';
 
@@ -712,6 +719,7 @@
           max_depth: getInt('cfg-max-depth'),
           max_pages: getInt('cfg-max-pages'),
           max_content_length: getInt('cfg-max-content-length'),
+          max_redirects: getInt('cfg-max-redirects'),
           user_agent: getStr('cfg-user-agent'),
           proxy_url: getStr('cfg-proxy-url'),
 

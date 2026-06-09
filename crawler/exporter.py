@@ -20,7 +20,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from crawler.models import CrawlQueue, ExternalLink, Job
 from crawler.utils import get_domain
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
@@ -123,29 +123,25 @@ def _aggregate_by_target(
 
     for tgt, d in agg_data.items():
         sources_list = sorted(list(d["sources"]))
-        json_data.append(
-            {
-                "target_url": tgt,
-                "ip_address": d["ip"] if d["ip"] else None,
-                "is_secure": d["is_secure"],
-                "http_status_code": d["status_code"],
-                "error_message": d["error"] if d["error"] else None,
-                "occurrence_count": d["count"],
-                "source_urls": sources_list,
-            }
-        )
+        json_data.append({
+            "target_url": tgt,
+            "ip_address": d["ip"] if d["ip"] else None,
+            "is_secure": d["is_secure"],
+            "http_status_code": d["status_code"],
+            "error_message": d["error"] if d["error"] else None,
+            "occurrence_count": d["count"],
+            "source_urls": sources_list,
+        })
         csv_rows.append(
-            _sanitize_csv_row(
-                [
-                    tgt,
-                    d["ip"],
-                    d["is_secure"],
-                    d["status_code"] if d["status_code"] is not None else "",
-                    d["error"],
-                    d["count"],
-                    ", ".join(sources_list),
-                ]
-            )
+            _sanitize_csv_row([
+                tgt,
+                d["ip"],
+                d["is_secure"],
+                d["status_code"] if d["status_code"] is not None else "",
+                d["error"],
+                d["count"],
+                ", ".join(sources_list),
+            ])
         )
     return json_data, csv_headers, csv_rows
 
@@ -178,9 +174,7 @@ def _aggregate_by_source(
     csv_rows = []
     csv_headers = ["Source URL", "Occurrence Count", "Target URLs"]
     for src, d in agg_source.items():
-        json_data.append(
-            {"source_url": src, "occurrence_count": d["count"], "targets": d["targets"]}
-        )
+        json_data.append({"source_url": src, "occurrence_count": d["count"], "targets": d["targets"]})
         targets_str = "\n".join([f"[{t['status']}] {t['url']}" for t in d["targets"]])
         csv_rows.append(_sanitize_csv_row([src, d["count"], targets_str]))
 
@@ -200,18 +194,14 @@ def _aggregate_by_domain(
         tuple[list[dict[str, object]], list[str], list[list[object]]]:
             (JSON 資料陣列, CSV 標頭, CSV 行資料陣列)。
     """
-    agg_domain: dict[str, dict[str, object]] = defaultdict(
-        lambda: {"count": 0, "urls": set()}
-    )
+    agg_domain: dict[str, dict[str, object]] = defaultdict(lambda: {"count": 0, "urls": set()})
     for link in links:
         dom = get_domain(link.target_url) or "unknown"
         d = agg_domain[dom]
         d["count"] += 1
         d["urls"].add(link.target_url)
 
-    sorted_domains = sorted(
-        agg_domain.items(), key=lambda x: x[1]["count"], reverse=True
-    )
+    sorted_domains = sorted(agg_domain.items(), key=lambda x: x[1]["count"], reverse=True)
 
     json_data = []
     csv_rows = []
@@ -219,14 +209,12 @@ def _aggregate_by_domain(
 
     for dom, d in sorted_domains:
         urls_sorted = sorted(list(d["urls"]))
-        json_data.append(
-            {
-                "domain": dom,
-                "occurrence_count": d["count"],
-                "unique_urls_count": len(d["urls"]),
-                "unique_urls": urls_sorted,
-            }
-        )
+        json_data.append({
+            "domain": dom,
+            "occurrence_count": d["count"],
+            "unique_urls_count": len(d["urls"]),
+            "unique_urls": urls_sorted,
+        })
         urls_str = "\n".join(urls_sorted)
         csv_rows.append(_sanitize_csv_row([dom, d["count"], len(d["urls"]), urls_str]))
 
@@ -258,29 +246,25 @@ def _format_no_grouping(
         "Found At",
     ]
     for link in links:
-        json_data.append(
-            {
-                "source_url": link.source_url,
-                "target_url": link.target_url,
-                "ip_address": link.ip_address if link.ip_address else None,
-                "is_secure": link.is_secure,
-                "http_status_code": link.http_status_code,
-                "error_message": link.error_message if link.error_message else None,
-                "created_at": link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            }
-        )
+        json_data.append({
+            "source_url": link.source_url,
+            "target_url": link.target_url,
+            "ip_address": link.ip_address if link.ip_address else None,
+            "is_secure": link.is_secure,
+            "http_status_code": link.http_status_code,
+            "error_message": link.error_message if link.error_message else None,
+            "created_at": link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        })
         csv_rows.append(
-            _sanitize_csv_row(
-                [
-                    link.source_url,
-                    link.target_url,
-                    link.ip_address if link.ip_address else "",
-                    link.is_secure,
-                    link.http_status_code if link.http_status_code is not None else "",
-                    link.error_message if link.error_message else "",
-                    link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
+            _sanitize_csv_row([
+                link.source_url,
+                link.target_url,
+                link.ip_address if link.ip_address else "",
+                link.is_secure,
+                link.http_status_code if link.http_status_code is not None else "",
+                link.error_message if link.error_message else "",
+                link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ])
         )
     return json_data, csv_headers, csv_rows
 
@@ -318,9 +302,7 @@ def export_job_results(
         query = session.query(ExternalLink).filter(ExternalLink.job_id == job_id)
 
         if status_filter == "dead":
-            query = query.filter(
-                (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == "")
-            )
+            query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
         elif status_filter == "broken":
             query = query.filter(
                 (ExternalLink.http_status_code >= 400)
@@ -374,9 +356,7 @@ def export_job_results(
             return False
 
 
-def export_full_report(
-    session_factory: sessionmaker[Session], job_id: str, output_path: str
-) -> bool:
+def export_full_report(session_factory: sessionmaker[Session], job_id: str, output_path: str) -> bool:
     """
     匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。
 
@@ -395,9 +375,7 @@ def export_full_report(
             return False
 
         q_count = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
-        e_count = (
-            session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
-        )
+        e_count = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
 
         output_dir = os.path.dirname(output_path)
         if output_dir and not os.path.exists(output_dir):
@@ -407,87 +385,71 @@ def export_full_report(
             with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 if q_count > 0:
                     q_items = (
-                        session.query(CrawlQueue)
+                        session
+                        .query(CrawlQueue)
                         .filter(CrawlQueue.job_id == job_id)
                         .order_by(CrawlQueue.id)
                         .yield_per(2000)
                     )
                     with zf.open(f"job_{job_id}_crawl_records.csv", "w") as f:
-                        with io.TextIOWrapper(
-                            f, encoding="utf-8-sig", newline=""
-                        ) as text_file:
+                        with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
                             cq_writer = csv.writer(text_file)
-                            cq_writer.writerow(
-                                [
-                                    "URL",
-                                    "Source URL",
-                                    "Status",
-                                    "Depth",
-                                    "Retry Count",
-                                    "HTTP Status Code",
-                                    "Error Message",
-                                    "Created At",
-                                ]
-                            )
+                            cq_writer.writerow([
+                                "URL",
+                                "Source URL",
+                                "Status",
+                                "Depth",
+                                "Retry Count",
+                                "HTTP Status Code",
+                                "Error Message",
+                                "Created At",
+                            ])
                             for q in q_items:
                                 d = format_crawl_queue_item(q)
                                 cq_writer.writerow(
-                                    _sanitize_csv_row(
-                                        [
-                                            d["URL"],
-                                            d["Source URL"],
-                                            d["Status"],
-                                            d["Depth"],
-                                            d["Retry Count"],
-                                            d["HTTP Status Code"],
-                                            d["Error Message"],
-                                            d["Created At"],
-                                        ]
-                                    )
+                                    _sanitize_csv_row([
+                                        d["URL"],
+                                        d["Source URL"],
+                                        d["Status"],
+                                        d["Depth"],
+                                        d["Retry Count"],
+                                        d["HTTP Status Code"],
+                                        d["Error Message"],
+                                        d["Created At"],
+                                    ])
                                 )
 
                 if e_count > 0:
                     e_items = (
-                        session.query(ExternalLink)
+                        session
+                        .query(ExternalLink)
                         .filter(ExternalLink.job_id == job_id)
                         .order_by(ExternalLink.created_at)
                         .yield_per(2000)
                     )
                     with zf.open(f"job_{job_id}_external_links.csv", "w") as f:
-                        with io.TextIOWrapper(
-                            f, encoding="utf-8-sig", newline=""
-                        ) as text_file:
+                        with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
                             el_writer = csv.writer(text_file)
-                            el_writer.writerow(
-                                [
-                                    "Source URL",
-                                    "Target URL",
-                                    "IP Address",
-                                    "Is Secure",
-                                    "HTTP Status Code",
-                                    "Error Message",
-                                    "Found At",
-                                ]
-                            )
+                            el_writer.writerow([
+                                "Source URL",
+                                "Target URL",
+                                "IP Address",
+                                "Is Secure",
+                                "HTTP Status Code",
+                                "Error Message",
+                                "Found At",
+                            ])
                             for link in e_items:
                                 el_writer.writerow(
-                                    _sanitize_csv_row(
-                                        [
-                                            link.source_url,
-                                            link.target_url,
-                                            link.ip_address if link.ip_address else "",
-                                            link.is_secure,
-                                            link.http_status_code
-                                            if link.http_status_code is not None
-                                            else "",
-                                            link.error_message
-                                            if link.error_message
-                                            else "",
-                                            link.created_at.strftime(
-                                                "%Y-%m-%d %H:%M:%S"
-                                            ),
-                                        ]
-                                    )
+                                    _sanitize_csv_row([
+                                        link.source_url,
+                                        link.target_url,
+                                        link.ip_address if link.ip_address else "",
+                                        link.is_secure,
+                                        link.http_status_code if link.http_status_code is not None else "",
+                                        link.error_message if link.error_message else "",
+                                        link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                                    ])
                                 )
             return True
         except Exception as e:  # pylint: disable=broad-exception-caught

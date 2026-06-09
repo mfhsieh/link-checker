@@ -73,14 +73,14 @@ export async function initLoginPage() {
     const emailInput = document.getElementById('login-email');
     const passwordInput = document.getElementById('login-password');
     const tokenInput = document.getElementById('login-token');
-    const passwordGroup = document.getElementById('password-group');
-    const tokenGroup = document.getElementById('token-group');
+    const passwordGroupEl = document.getElementById('password-group');
+    const tokenGroupEl = document.getElementById('token-group');
     const loginBtn = document.getElementById('login-btn');
-    const loginForm = document.getElementById('login-form');
+    const loginFormEl = document.getElementById('login-form');
     const errorEl = document.getElementById('login-error');
     const toggleModeBtn = document.getElementById('toggle-mode-btn');
 
-    if (!loginForm) return;
+    if (!loginFormEl) return;
 
     let isInviteMode = (action === 'invite') || (inviteToken !== '');
 
@@ -90,14 +90,14 @@ export async function initLoginPage() {
     function renderMode() {
         errorEl.textContent = '';
         if (isInviteMode) {
-            passwordGroup.style.display = 'none';
-            tokenGroup.style.display = 'block';
+            passwordGroupEl.style.display = 'none';
+            tokenGroupEl.style.display = 'block';
             document.getElementById('login-mode-label').textContent = '首次登入 — 請輸入電子郵件與邀請碼';
             loginBtn.textContent = '驗證邀請並繼續';
             if (toggleModeBtn) toggleModeBtn.textContent = '已有密碼？改以密碼登入';
         } else {
-            passwordGroup.style.display = 'block';
-            tokenGroup.style.display = 'none';
+            passwordGroupEl.style.display = 'block';
+            tokenGroupEl.style.display = 'none';
             document.getElementById('login-mode-label').textContent = '請輸入您的帳號與密碼登入';
             loginBtn.textContent = '登入';
             if (toggleModeBtn) toggleModeBtn.textContent = '首次使用？改以邀請碼登入';
@@ -113,7 +113,7 @@ export async function initLoginPage() {
         });
     }
 
-    loginForm.addEventListener('submit', async (e) => {
+    loginFormEl.addEventListener('submit', async (e) => {
         e.preventDefault();
         errorEl.textContent = '';
 
@@ -172,21 +172,21 @@ export async function initSetPasswordPage() {
         }
     }
 
-    const form = document.getElementById('set-password-form');
+    const formEl = document.getElementById('set-password-form');
     const newPwdInput = document.getElementById('new-password');
     const confirmPwdInput = document.getElementById('confirm-password');
     const submitBtn = document.getElementById('set-password-btn');
     const errorEl = document.getElementById('set-password-error');
-    const strengthBar = document.getElementById('strength-bar');
-    const strengthLabel = document.getElementById('strength-label');
+    const strengthBarEl = document.getElementById('strength-bar');
+    const strengthLabelEl = document.getElementById('strength-label');
 
-    if (!form) return;
+    if (!formEl) return;
 
-    if (newPwdInput && strengthBar && strengthLabel) {
-        initPasswordStrength(newPwdInput, strengthBar, strengthLabel);
+    if (newPwdInput && strengthBarEl && strengthLabelEl) {
+        initPasswordStrength(newPwdInput, strengthBarEl, strengthLabelEl);
     }
 
-    form.addEventListener('submit', async (e) => {
+    formEl.addEventListener('submit', async (e) => {
         e.preventDefault();
         errorEl.textContent = '';
 

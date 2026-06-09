@@ -16,17 +16,18 @@ import threading
 from collections.abc import Generator
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session as DBSession # pylint: disable=unused-import
+from sqlalchemy.orm import Session as DBSession  # pylint: disable=unused-import
 
-from backend.auth.db import get_auth_session_local # pylint: disable=unused-import
+from backend.auth.db import get_auth_session_local  # pylint: disable=unused-import
 from backend.auth.models import Session as AuthSession, User
 from backend.config import get_settings
 from crawler.manager import JobManager
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 # ── Auth DB 依賴 ────────────────────────────────────────────────────────────────
+
 
 def get_auth_db() -> Generator[DBSession, None, None]:
     """
@@ -45,7 +46,7 @@ def get_auth_db() -> Generator[DBSession, None, None]:
 # ── Crawler DB 依賴（透過 JobManager）──────────────────────────────────────────
 
 _JOB_MANAGER: JobManager | None = None
-_JOB_MANAGER_LOCK = threading.Lock()
+_JOB_MANAGER_LOCK: threading.Lock = threading.Lock()
 
 
 def get_job_manager() -> JobManager:
@@ -82,6 +83,7 @@ def get_crawler_db() -> Generator[DBSession, None, None]:
 
 
 # ── Session / 使用者依賴 ────────────────────────────────────────────────────────
+
 
 def get_current_session(
     request: Request,
@@ -193,6 +195,7 @@ def require_admin(
 
 
 # ── CSRF 防禦依賴 ───────────────────────────────────────────────────────────────
+
 
 def require_csrf(request: Request) -> None:
     """

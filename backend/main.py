@@ -21,13 +21,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from backend.auth.router import router as auth_router
 from backend.jobs.router import router as jobs_router
 from backend.admin.router import router as admin_router
-from backend.config import get_settings
+from backend.config import get_settings, Settings
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-settings = get_settings()
+settings: Settings = get_settings()
 
-app = FastAPI(
+app: FastAPI = FastAPI(
     title=settings.APP_NAME,
     description="外部連結檢查爬蟲 Web 服務 API",
     version="2.0.0",
@@ -56,9 +56,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
 
     # pylint: disable=too-few-public-methods
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         """
         攔截請求並為回應加上安全性標頭，同時生成並注入 CSP Nonce。
 
@@ -93,16 +91,14 @@ app.include_router(jobs_router)
 app.include_router(admin_router)
 
 # ── 靜態檔案服務 ───────────────────────────────────────────────────────────────
-_frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+_frontend_dir: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 
 if os.path.isdir(_frontend_dir):
     # 掛載 CSS / JS 靜態資源
     app.mount("/static", StaticFiles(directory=_frontend_dir), name="static")
     _html_cache: dict[str, str] = {}
 
-    def _serve_html_with_nonce(
-        file_name: str, request: Request
-    ) -> HTMLResponse | RedirectResponse:
+    def _serve_html_with_nonce(file_name: str, request: Request) -> HTMLResponse | RedirectResponse:
         """
         讀取 HTML 檔案並動態注入 CSP nonce。
 
@@ -126,12 +122,8 @@ if os.path.isdir(_frontend_dir):
         nonce = getattr(request.state, "nonce", "")
         if nonce:
             # 替換 script 與 style 標籤以動態注入 nonce
-            content = re.sub(
-                r"<script\b", f'<script nonce="{nonce}"', content, flags=re.IGNORECASE
-            )
-            content = re.sub(
-                r"<style\b", f'<style nonce="{nonce}"', content, flags=re.IGNORECASE
-            )
+            content = re.sub(r"<script\b", f'<script nonce="{nonce}"', content, flags=re.IGNORECASE)
+            content = re.sub(r"<style\b", f'<style nonce="{nonce}"', content, flags=re.IGNORECASE)
 
         return HTMLResponse(content=content)
 
@@ -219,9 +211,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
-) -> Response:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
     """
     處理 HTTP 例外。若是前端一般頁面 404 找不到，自動導向首頁；API 或靜態檔案錯誤則保留 JSON 回應。
 
@@ -232,9 +222,7 @@ async def http_exception_handler(
     Returns:
         Response: 重導向或 JSON 錯誤回應。
     """
-    if exc.status_code == 404 and not request.url.path.startswith(
-        ("/api/", "/static/")
-    ):
+    if exc.status_code == 404 and not request.url.path.startswith(("/api/", "/static/")):
         return RedirectResponse(url="/")
 
     # 其他 HTTP 錯誤（包含 API 404）則照常回傳 JSON

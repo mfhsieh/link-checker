@@ -100,6 +100,17 @@ crawler:
   domain_delays:
     # example.com: 5.0
 
+  # 全域排除的路徑規則 (Regular Expression)
+  ignore_regexes:
+    # - "^https://example\\.com/logout"
+
+  # 允許在遇到 HTTP 錯誤時降級使用 GET 請求探測的大型社群或反爬蟲網域清單
+  social_domains:
+    - "facebook.com"
+    - "fb.com"
+    - "youtube.com"
+    - "youtu.be"
+
   # 預設略過且不進行 HTML 抓取解析的副檔名清單（會與個別任務清單聯集合併）
   ignore_extensions:
     - ".pdf"

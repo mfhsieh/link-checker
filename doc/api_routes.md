@@ -31,9 +31,9 @@
 
 | 方法 | 路徑 | 說明 | 權限 |
 |------|------|------|------|
-| `GET` | `/api/jobs/{job_id}/results` | 列出外連結果（支援篩選、分頁） | 已登入（僅限自身任務） |
+| `GET` | `/api/jobs/{job_id}/results` | 列出外連結果（支援篩選、排除網域、分頁） | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/summary` | 取得任務統計摘要 | 已登入（僅限自身任務） |
-| `GET` | `/api/jobs/{job_id}/results/export` | 匯出結果（CSV / JSON，支援篩選） | 已登入（僅限自身任務） |
+| `GET` | `/api/jobs/{job_id}/results/export` | 匯出結果（CSV / JSON，支援篩選、排除網域） | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/export/full` | 匯出完整報表大禮包 (ZIP 壓縮檔) | 已登入（僅限自身任務） |
 
 ## 4. 後台管理 API

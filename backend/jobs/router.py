@@ -53,9 +53,9 @@ from crawler.manager import JobManager
 from crawler.exporter import _sanitize_csv_value
 from crawler.models import Job
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+router: APIRouter = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
 # ── Request Schema ─────────────────────────────────────────────────────────────
@@ -152,12 +152,13 @@ class CreateJobRequest(BaseModel):
         Raises:
             ValueError: 若有任何正則表達式編譯失敗時拋出。
         """
-        for pattern in v:
+        cleaned = [pattern.strip() for pattern in v if pattern.strip()]
+        for pattern in cleaned:
             try:
                 re.compile(pattern)
             except re.error as e:
                 raise ValueError(f"無效的正則表達式 '{pattern}': {e}") from e
-        return v
+        return cleaned
 
     @field_validator("domain_delays")
     @classmethod

@@ -140,11 +140,11 @@ export async function download(path) {
     if (match) filename = match[1];
 
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const linkEl = document.createElement('a');
+    linkEl.href = url;
+    linkEl.download = filename;
+    document.body.appendChild(linkEl);
+    linkEl.click();
+    linkEl.remove();
     URL.revokeObjectURL(url);
 }

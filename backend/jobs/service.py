@@ -31,10 +31,10 @@ from crawler.utils import (
     get_domain,
 )
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PID_DIR = os.path.join(PROJECT_ROOT, "log", "pids")
+PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PID_DIR: str = os.path.join(PROJECT_ROOT, "log", "pids")
 
 # 新增一個全域變數來記錄 Web 程序 spawn 的爬蟲子進程
 # 這樣我們就能呼叫 .poll() 來安全地回收 (Reap) 殭屍進程 (Zombie Processes)
@@ -333,6 +333,7 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
                 "external_check_timeout",
                 "retries",
                 "max_content_length",
+                "max_redirects",
                 "ignore_extensions",
                 "ignore_regexes",
                 "user_agent",

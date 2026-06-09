@@ -237,6 +237,7 @@ class JobManager:
             max_depth = crawler_config.get("max_depth", None)
             max_pages = crawler_config.get("max_pages", None)
             max_content_length = crawler_config.get("max_content_length", 10485760)
+            max_redirects = crawler_config.get("max_redirects", 10)
             social_domains = crawler_config.get("social_domains", []) or []
 
             # 統計該任務已發送實質請求的頁面數量
@@ -266,7 +267,7 @@ class JobManager:
 
             crawler = None
             try:
-                # 建立爬蟲核心實例
+                # 建立爬蟲核心實例 (傳入包含 max_redirects 的完整設定)
                 crawler = CrawlerCore(
                     timeout=timeout,
                     connect_timeout=connect_timeout,
@@ -278,6 +279,7 @@ class JobManager:
                     ssl_exempt_domains=ssl_exempt_domains,
                     proxy_url=proxy_url,
                     max_content_length=max_content_length,
+                    max_redirects=max_redirects,
                     social_domains=social_domains,
                 )
 
