@@ -7,20 +7,24 @@ __pycache__/
 .venv/
 
 # 資料庫目錄
-db/
+db/*
+!db/.gitkeep
 
 # 個別任務設定檔目錄
 job/*
-!job/test_*
+!job/.gitkeep
 
 # 紀錄檔目錄
-log/
+log/*
+!log/.gitkeep
 
 # 結果輸出目錄
-report/
+report/*
+!report/.gitkeep
 
 # 暫存檔目錄
-tmp/
+tmp/*
+!tmp/.gitkeep
 
 # 組態檔
 config/config_global.yaml

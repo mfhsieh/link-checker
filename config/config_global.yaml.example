@@ -1,69 +1,59 @@
-# 全域資料庫連線字串
-db_url: "sqlite:///db/crawler.db"
-
-# 全域 Logging 設定
-logging:
-  # 輸出到畫面的日誌層級 (可選：DEBUG, INFO, WARNING, ERROR, CRITICAL)
-  console_level: "INFO"
-  # 儲存到檔案的日誌層級 (可選：DEBUG, INFO, WARNING, ERROR, CRITICAL)
-  file_level: "DEBUG"
-  # 日誌儲存的目錄與檔名
-  log_file: "log/crawler.log"
-
 # 爬蟲引擎的全域限制與預設值
 crawler:
-  # HTTP 請求連線逾時時間的「最小值」限制 (單位：秒)
-  # 個別任務設定檔若低於此值，將被強制套用此值，避免因超時設定過短而頻繁失敗
-  min_timeout: 15
+  # HTTP 請求連線逾時時間的最小/最大限制 (單位：秒)
+  # 個別任務設定檔若超出此範圍，將被強制修正，以防設定過短頻繁失敗或過長佔用資源
+  min_timeout: 10
+  max_timeout: 60
 
-  # HTTP 請求連線逾時時間的「最大值」限制 (單位：秒)
-  # 個別任務設定檔若高於此值，將被強制套用此值，避免單一請求佔用過長等待時間
-  max_timeout: 120
+  # 建立 TCP 連線的最小/最大逾時時間限制 (單位：秒)
+  min_connect_timeout: 1.0
+  max_connect_timeout: 30.0
 
-  # 每次發送請求前延遲時間的「最小值」限制 (單位：秒)
-  # 個別任務設定檔若低於此值，將被強制套用此值，避免過度頻繁請求對目標網站造成攻擊
-  min_delay: 1
+  # 外部連結存活探測的最小/最大逾時時間限制 (單位：秒)
+  min_external_check_timeout: 1.0
+  max_external_check_timeout: 30.0
 
-  # 每次發送請求前延遲時間的「最大值」限制 (單位：秒)
-  # 個別任務設定檔若高於此值，將被強制套用此值，確保爬蟲任務不會因過度延遲而效率低落
+  # 每次發送請求前延遲時間的最小/最大限制 (單位：秒)
+  # 個別任務設定檔若超出此範圍，將被強制修正，避免頻繁請求造成攻擊或過度延遲降低效率
+  min_delay: 1.0
   max_delay: 10.0
 
-  # 失敗連結的「最小」重試次數限制
-  # 個別任務設定檔若低於此值，將被強制套用此值
+  # 失敗連結重試次數的最小/最大限制 (次)
+  # 個別任務設定檔若超出此範圍，將被強制修正，避免無止盡的重試
   min_retries: 0
-
-  # 失敗連結的「最大」重試次數限制
-  # 個別任務設定檔若高於此值，將被強制套用此值，避免無止盡的重試
   max_retries: 5
 
+  # 爬蟲最大網頁讀取容量上限 (單位：Bytes，預設為 10MB = 10485760)
+  # 這是保護系統記憶體的硬性限制，個別任務無法覆寫
+  max_content_length: 10485760
+
+  # 任務可設定之最大探索深度的最大限制
+  # 若個別任務設為 null (無限制)，將被強制套用此最大值以防死循環陷阱
+  max_max_depth: null
+
+  # 任務可設定之最大抓取頁數的最大限制
+  # 若個別任務設為 null (無限制)，將被強制套用此最大值以防資源耗盡
+  max_max_pages: null
+
   # 預設的 HTTP 請求標頭 User-Agent
-  # 用於模擬瀏覽器行為以防範目標網站直接封鎖預設爬蟲標頭
+  # 用於模擬瀏覽器行為以防範目標網站直接封鎖預設爬蟲標頭。
+  # 合併規則：【完全覆寫】若個別任務有指定，將完全取代此預設值。
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-  # 依據 HTTP Header 中的 MIME 類型來決定是否下載完整內容
-  # 若個別任務的設定檔中未覆寫，將自動套用此全域預設值
-  mime_type_filter:
-    enabled: true
-    allowed_types:
-      - "text/html"
-      - "application/xhtml+xml"
-
   # 代理伺服器 URL (例如 "http://user:password@proxy.example.com:8080")
-  # 預設為 null。當設定時，所有 HTTP 請求都會透過此代理伺服器發送
-  # 注意：可透過環境變數 CRAWLER_PROXY_URL 優先覆寫
+  # 預設為 null。當設定時，所有 HTTP 請求都會透過此代理伺服器發送。
+  # 合併規則：【條件覆寫】個別任務可覆寫；但若有設定環境變數 CRAWLER_PROXY_URL，將具有最高優先權強制覆寫。
   proxy_url: null
-
-  # 最大探索深度限制 (從起始網頁開始的點擊次數)
-  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
-  max_depth: null
-
-  # 最大抓取實質網頁頁面數量上限
-  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
-  max_pages: null
 
   # 預設的 HTTP 請求連線逾時時間 (單位：秒)
   # 若個別任務的 config.yaml 未設定 timeout，將自動套用此全域預設值
   timeout: 30
+
+  # 預設 TCP 建立連線的逾時時間 (單位：秒)
+  connect_timeout: 5.0
+
+  # 預設外部連結存活探測的總體逾時時間 (單位：秒)
+  external_check_timeout: 10.0
 
   # 預設的每次發送請求前延遲時間 (單位：秒)
   # 若個別任務的 config.yaml 未設定 delay，將自動套用此全域預設值
@@ -73,25 +63,52 @@ crawler:
   # 若個別任務未設定 retries，將自動套用此全域預設值
   retries: 3
 
-  # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證，降低資安風險)
-  # 支援子網域匹配 (例如設定 "example.com" 亦可匹配 "sub.example.com")
-  # 注意：可透過環境變數 CRAWLER_SSL_EXEMPT_DOMAINS 進行增補
-  ssl_exempt_domains:
-    # - "example.com"
+  # 最大探索深度限制 (從起始網頁開始的點擊次數)
+  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
+  max_depth: null
 
-  # 網域特定請求延遲時間對照表 (單位：秒)
-  # 當爬取特定網域時，將以其設定的時間覆寫預設的 delay 時間，避免過度存取造成對方伺服器負載過大
-  # 系統使用最長匹配優先原則 (例如 "sub.example.com" 優先於 "example.com")
-  domain_delays:
-    # example.com: 5.0
+  # 最大抓取實質網頁頁面數量上限
+  # null 代表無限制；可被個別任務 YAML 設定檔覆寫
+  max_pages: null
+
+  # 依據 HTTP Header 中的 MIME 類型來決定是否下載完整內容
+  # 若個別任務的設定檔中未覆寫，將自動套用此全域預設值
+  mime_type_filter:
+    enabled: true
+    allowed_types:
+      - "text/html"
+      - "application/xhtml+xml"
 
   # 全域排除的路徑規則 (Regular Expression)
-  # 符合這些正則表達式的 URL 將會被直接忽略，不進行爬取與探測
+  # 符合這些正則表達式的 URL 將會被直接忽略，不進行爬取與探測。
+  # 合併規則：【聯集合併 (Union)】個別任務的排除規則會與此清單疊加生效，確保地雷路徑絕對被阻擋。
   ignore_regexes:
     # - "^https://example\\.com/logout"
 
+  # 網域特定請求延遲時間對照表 (單位：秒)
+  # 當爬取特定網域時，將以其設定的時間覆寫預設的 delay 時間，避免過度存取造成對方伺服器負載過大。
+  # 系統使用最長匹配優先原則 (例如 "sub.example.com" 優先於 "example.com")。
+  # 合併規則：【字典合併與優先覆寫】個別任務的設定會與此合併，若遇相同網域則以任務設定為準。
+  domain_delays:
+    # example.com: 5.0
+
+  # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證，降低資安風險)
+  # 支援子網域匹配 (例如設定 "example.com" 亦可匹配 "sub.example.com")。
+  # 合併規則：【三方聯集 (Union)】任務設定、此全域設定與環境變數 CRAWLER_SSL_EXEMPT_DOMAINS 之清單將疊加生效。
+  ssl_exempt_domains:
+    # - "example.com"
+
+  # 允許在遇到 HTTP 錯誤時降級使用 GET 請求探測的大型社群或反爬蟲網域清單
+  # 支援子網域匹配 (最長匹配優先)。
+  # 合併規則：【聯集合併 (Union)】個別任務的設定會與此全域清單疊加生效。
+  social_domains:
+    - "facebook.com"
+    - "fb.com"
+    - "youtube.com"
+    - "youtu.be"
+
   # 預設略過且不進行 HTML 抓取解析的副檔名清單
-  # 這些副檔名的連結會與個別任務設定檔中的清單進行聯集合併，以節省系統頻寬與處理資源
+  # 合併規則：【聯集合併 (Union)】個別任務的清單會與此清單疊加生效，防範意外下載巨型非網頁檔案。
   ignore_extensions:
     # 文件
     - ".pdf"

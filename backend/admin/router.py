@@ -9,6 +9,7 @@ import copy
 import json
 import logging
 import os
+import re
 from datetime import datetime
 
 import yaml
@@ -127,9 +128,11 @@ class CrawlerConfigUpdate(BaseModel):
     retries: int | None = Field(None, ge=0)
     max_depth: int | None = Field(None, ge=1)
     max_pages: int | None = Field(None, ge=1)
+    max_content_length: int | None = Field(None, ge=1024)
     user_agent: str | None = None
     proxy_url: str | None = None
     ssl_exempt_domains: list[str] | None = None
+    social_domains: list[str] | None = None
     domain_delays: dict[str, float] | None = None
     ignore_extensions: list[str] | None = None
     ignore_regexes: list[str] | None = None
@@ -146,6 +149,52 @@ class CrawlerConfigUpdate(BaseModel):
     max_delay: float | None = Field(None, ge=0.0)
     min_retries: int | None = Field(None, ge=0)
     max_retries: int | None = Field(None, ge=0)
+    max_max_depth: int | None = Field(None, ge=1)
+    max_max_pages: int | None = Field(None, ge=1)
+
+    @field_validator("ignore_regexes")
+    @classmethod
+    def validate_regexes(cls, v: list[str] | None) -> list[str] | None:
+        """
+        驗證正則表達式列表是否合法。
+
+        Args:
+            v (list[str] | None): 欲驗證的正則表達式列表。
+
+        Returns:
+            list[str] | None: 驗證後的正則表達式列表。
+
+        Raises:
+            ValueError: 若有任何正則表達式編譯失敗時拋出。
+        """
+        if v is not None:
+            for pattern in v:
+                try:
+                    re.compile(pattern)
+                except re.error as e:
+                    raise ValueError(f"無效的正則表達式 '{pattern}': {e}") from e
+        return v
+
+    @field_validator("domain_delays")
+    @classmethod
+    def validate_domain_delays(cls, v: dict[str, float] | None) -> dict[str, float] | None:
+        """
+        驗證網域延遲時間是否合法。
+
+        Args:
+            v (dict[str, float] | None): 欲驗證的網域延遲時間字典。
+
+        Returns:
+            dict[str, float] | None: 驗證後的網域延遲時間字典。
+
+        Raises:
+            ValueError: 若有任何延遲時間小於 0 時拋出。
+        """
+        if v is not None:
+            for domain, delay in v.items():
+                if delay < 0:
+                    raise ValueError(f"網域 {domain} 的延遲時間不可小於 0")
+        return v
 
 
 class UpdateConfigRequest(BaseModel):

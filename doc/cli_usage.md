@@ -112,7 +112,7 @@ crawler:
 
 ## 2. 建立並啟動新爬蟲任務
 
-爬蟲需要一個任務設定檔來定義起始網址 (`start_url`)、允許深入的目標網域與內部網域。基於專案規範，建議將這些個別設定檔放置於 `job/` 目錄中。
+爬蟲需要一個任務設定檔來定義起始網址 (`start_url`)、允許深入的目標網域與信任網域。基於專案規範，建議將這些個別設定檔放置於 `job/` 目錄中。
 
 ### 步驟 1：建立任務設定檔 (例如 `job/my_task.yaml`)
 
@@ -131,9 +131,9 @@ target_domains:
   - "www.example.com"
   - "blog.example.com"
 
-# 被視為「內部網域」的清單。
+# 被視為「信任網域」的清單。
 # 若爬取到的 <a> 連結其網域「不在」此清單內，就會被判定為外部連結並記錄下來。
-internal_domains:
+trusted_domains:
   - "www.example.com"
   - "blog.example.com"
   - "auth.example.com"

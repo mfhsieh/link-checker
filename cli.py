@@ -15,9 +15,16 @@ import sys
 import secrets
 import string
 import yaml
-from crawler.config_utils import merge_and_validate_crawler_config
-from crawler.manager import JobManager
-from crawler.exporter import export_job_results, export_full_report
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# pylint: disable=wrong-import-position
+# isort: off
+from crawler.config_utils import merge_and_validate_crawler_config  # noqa: E402
+from crawler.exporter import export_full_report, export_job_results  # noqa: E402
+from crawler.manager import JobManager  # noqa: E402
+# isort: on
 
 # 設定初始的 logging，只輸出到畫面，確保 setup_logging 呼叫前的錯誤能被顯示
 logging.basicConfig(
@@ -56,21 +63,13 @@ def load_config(config_path: str, allowed_directory: str | None = None) -> dict[
         return yaml.safe_load(f)
 
 
-def setup_logging(global_config: dict[str, object]) -> None:
+def setup_logging() -> None:
     """
-    依據全域設定檔來套用 Logging 輸出層級與檔案路徑。
-
-    會從全域設定中讀取 `logging` 區塊，分別設定畫面 (Console) 與檔案 (File)
-    的輸出層級與日誌檔案路徑。
-
-    Args:
-        global_config (dict[str, object]): 全域設定字典物件，需包含系統的全域設定參數。
+    依據環境變數來套用 Logging 輸出層級與檔案路徑。
     """
-    logging_config = global_config.get("logging", {})
-
-    console_level_str = logging_config.get("console_level", "INFO")
-    file_level_str = logging_config.get("file_level", "DEBUG")
-    log_file = logging_config.get("log_file", "log/crawler.log")
+    console_level_str = os.environ.get("LOG_CONSOLE_LEVEL", "INFO")
+    file_level_str = os.environ.get("LOG_FILE_LEVEL", "DEBUG")
+    log_file = os.environ.get("LOG_FILE_PATH", "log/crawler.log")
 
     console_level = getattr(logging, console_level_str.upper(), logging.INFO)
     file_level = getattr(logging, file_level_str.upper(), logging.DEBUG)
@@ -263,7 +262,7 @@ def parse_args() -> argparse.Namespace | None:
         "--retry-failed",
         type=str,
         metavar="JOB_ID",
-        help="局部重試指定任務的失敗網頁與無效外連",
+        help="局部重試指定任務中爬取失敗的內部網頁",
     )
     parser.add_argument("--report", type=str, help="檢視指定任務的詳細進度與統計報表")
     parser.add_argument(
@@ -526,17 +525,30 @@ def _handle_resume_or_create(manager: JobManager, args: argparse.Namespace, glob
     crawler_config = merge_and_validate_crawler_config(config, global_config)
 
     try:
-        start_url: str | None = config.get("start_url")
-        target_domains: list[str] = config.get("target_domains", [])
-        internal_domains: list[str] = config.get("internal_domains", [])
+        start_url: str | None = str(config.get("start_url")).strip() if config.get("start_url") is not None else None
+        target_domains_raw = config.get("target_domains", [])
+        trusted_domains_raw = config.get("trusted_domains", [])
 
-        if isinstance(target_domains, str):
-            target_domains = [target_domains]
-        if isinstance(internal_domains, str):
-            internal_domains = [internal_domains]
+        if isinstance(target_domains_raw, str):
+            target_domains_raw = [target_domains_raw]
+        elif not isinstance(target_domains_raw, list):
+            target_domains_raw = [str(target_domains_raw)] if target_domains_raw is not None else []
+
+        target_domains: list[str] = [str(d).strip() for d in target_domains_raw if str(d).strip()]
+
+        if isinstance(trusted_domains_raw, str):
+            trusted_domains_raw = [trusted_domains_raw]
+        elif not isinstance(trusted_domains_raw, list):
+            trusted_domains_raw = [str(trusted_domains_raw)] if trusted_domains_raw is not None else []
+
+        trusted_domains: list[str] = [str(d).strip() for d in trusted_domains_raw if str(d).strip()]
 
         if not start_url:
             logging.error("設定檔中缺少必填參數: start_url")
+            sys.exit(1)
+
+        if not (start_url.startswith("http://") or start_url.startswith("https://")):
+            logging.error("設定檔參數錯誤: start_url 必須以 http:// 或 https:// 開頭")
             sys.exit(1)
 
         if not target_domains:
@@ -547,7 +559,7 @@ def _handle_resume_or_create(manager: JobManager, args: argparse.Namespace, glob
         job_id: str = manager.create_job(
             start_url,
             target_domains,
-            internal_domains,
+            trusted_domains,
             crawler_config=crawler_config,
             user_id=args.user_id,
         )
@@ -587,8 +599,8 @@ def main() -> None:
         logging.error("讀取全域設定檔時發生錯誤: %s", e)
         sys.exit(1)
 
-    setup_logging(global_config)
-    db_url: str = global_config.get("db_url", "sqlite:///db/crawler.db")
+    setup_logging()
+    db_url: str = os.environ.get("CRAWLER_DB_URL", "sqlite:///db/crawler.db")
 
     if args.create_admin:
         try:

@@ -94,6 +94,13 @@
             <h1 class="page-title">我的任務</h1>
             <p class="page-subtitle">管理外部連結掃描任務</p>
           </div>
+          <a href="#/new" class="btn btn-primary">
+            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;margin-right:0.25rem;">
+              <path
+                d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+            </svg>
+            新增任務
+          </a>
         </div>
         <div id="jobs-list-container"></div>
       </div>
@@ -116,12 +123,15 @@
             </div>
           </div>
           <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none">▶ 啟動</button>
-            <button class="btn btn-secondary btn-sm" id="btn-pause-job" style="display:none">⏸ 暫停</button>
-            <button class="btn btn-secondary btn-sm" id="btn-reset-job" style="display:none">↺ 重置</button>
+            <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none" title="開始或繼續執行爬蟲任務">▶
+              啟動</button>
+            <button class="btn btn-secondary btn-sm" id="btn-pause-job" style="display:none"
+              title="暫停執行中的任務（將在完成當下頁面後停止）">⏸ 暫停</button>
+            <button class="btn btn-secondary btn-sm" id="btn-reset-job" style="display:none"
+              title="清除所有紀錄與外連結果，將任務退回初始狀態">↺ 重置</button>
             <button class="btn btn-secondary btn-sm" id="btn-retry-failed-job" style="display:none"
-              title="僅重試失敗的內部網頁與無效的外部連結">⟳ 失敗重試</button>
-            <button class="btn btn-danger btn-sm" id="btn-delete-job">🗑 刪除</button>
+              title="重試爬取失敗的內部網頁">⟳ 失敗重試</button>
+            <button class="btn btn-danger btn-sm" id="btn-delete-job" title="永久刪除此任務及其所有關聯資料">🗑 刪除</button>
           </div>
         </div>
 
@@ -162,7 +172,7 @@
             <div class="progress-bar" style="margin-bottom:1.25rem">
               <div class="progress-fill" id="job-progress-fill" style="width:0%"></div>
             </div>
-            <div class="grid-stats" style="grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:0">
+            <div class="grid-stats" style="grid-template-columns:repeat(6,1fr);gap:0.75rem;margin-bottom:0">
               <div class="stat-card" style="padding:0.75rem">
                 <div class="stat-label">總計</div>
                 <div class="stat-value text-xl" id="stat-total">0</div>
@@ -170,6 +180,10 @@
               <div class="stat-card" style="padding:0.75rem">
                 <div class="stat-label text-success">完成</div>
                 <div class="stat-value text-xl text-success" id="stat-completed">0</div>
+              </div>
+              <div class="stat-card" style="padding:0.75rem" title="網頁容量過大而被提早截斷，可能遺漏部分連結">
+                <div class="stat-label text-warning">部分截斷</div>
+                <div class="stat-value text-xl text-warning" id="stat-warning">0</div>
               </div>
               <div class="stat-card" style="padding:0.75rem">
                 <div class="stat-label">等待中</div>
@@ -305,13 +319,13 @@
                       class="required">*</span></label>
                   <textarea class="form-textarea" id="job-target-domains" rows="2" required
                     placeholder="example.com&#10;www.example.com"></textarea>
-                  <div class="form-hint">限制爬蟲僅深入探索這些網域的內部連結，每行一個。</div>
+                  <div class="form-hint">每行一個。限制爬蟲僅深入探索這些網域的內部連結。</div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="job-internal-domains">內部網域 (Internal Domains)</label>
-                  <textarea class="form-textarea" id="job-internal-domains" rows="2"
+                  <label class="form-label" for="job-trusted-domains">信任網域 (Trusted Domains)</label>
+                  <textarea class="form-textarea" id="job-trusted-domains" rows="2"
                     placeholder="sub.example.com"></textarea>
-                  <div class="form-hint">屬於這些網域的連結將被視為內部連結，不會作為「外部連結」結果輸出。每行一個。</div>
+                  <div class="form-hint">每行一個。屬於這些網域的連結將被視為內部連結，不會作為「外部連結」結果輸出。</div>
                 </div>
               </div>
 
@@ -323,17 +337,40 @@
                   <div class="form-group">
                     <label class="form-label" for="job-ignore-exts">忽略的副檔名</label>
                     <textarea class="form-textarea" id="job-ignore-exts" rows="3" placeholder="載入中..."></textarea>
-                    <div class="form-hint" id="hint-ignore-exts">每行一個。您輸入的項目將與系統全域設定合併生效。</div>
+                    <div class="form-hint" id="hint-ignore-exts">每行一個。將與系統全域設定合併疊加生效 <strong>【聯集】</strong>。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="job-ignore-regexes">忽略的路徑規則 (Regex)</label>
                     <textarea class="form-textarea" id="job-ignore-regexes" rows="3" placeholder="載入中..."></textarea>
-                    <div class="form-hint" id="hint-ignore-regexes">每行一個。您輸入的項目將與系統全域設定合併生效。</div>
+                    <div class="form-hint" id="hint-ignore-regexes">每行一個。將與系統全域設定合併疊加生效 <strong>【聯集】</strong>。</div>
                   </div>
+                </div>
+                <div class="grid-2" style="margin-bottom:1.5rem">
+                  <div class="form-group">
+                    <label class="form-label" for="job-domain-delays">特定網域延遲 (秒)</label>
+                    <textarea class="form-textarea" id="job-domain-delays" rows="2"
+                      placeholder="example.com: 5.0"></textarea>
+                    <div class="form-hint" id="hint-domain-delays">每行一個。格式為 <code>網域: 秒數</code>，衝突時以任務設定為準
+                      <strong>【字典合併與優先覆寫】</strong>。
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="job-ssl-exempt">自簽憑證豁免網域</label>
+                    <textarea class="form-textarea" id="job-ssl-exempt" rows="2" placeholder="example.com"></textarea>
+                    <div class="form-hint" id="hint-ssl-exempt">每行一個。忽略這些網域的 SSL 驗證，將與系統全域設定合併疊加生效
+                      <strong>【聯集】</strong>。
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom:1.5rem">
+                  <label class="form-label" for="job-user-agent">自訂 User-Agent</label>
+                  <input class="form-input" type="text" id="job-user-agent" placeholder="載入中..." />
+                  <div class="form-hint">留空自動套用全域預設值；若有填寫將完全取代全域設定 <strong>【完全覆寫】</strong>。</div>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="job-proxy-url">代理伺服器 (Proxy URL)</label>
                   <input class="form-input" type="url" id="job-proxy-url" placeholder="http://user:pass@proxy:8080" />
+                  <div class="form-hint">若有填寫將取代全域設定 <strong>【條件覆寫】</strong>。注意：伺服器環境變數具有最高強制覆寫優先權。</div>
                 </div>
               </div>
             </div>
@@ -345,26 +382,50 @@
               <div class="card">
                 <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
                     class="card-title">資源與限制</span></div>
-                <div class="form-group" style="margin-bottom:1.25rem">
-                  <label class="form-label" for="job-max-depth">最大爬取深度</label>
-                  <input class="form-input" type="number" id="job-max-depth" min="1" placeholder="留空不限制" />
-                  <div class="form-hint">從起始網頁開始的點擊層數。</div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom:1.25rem">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label" for="job-timeout">總連線逾時 (秒)</label>
+                    <input class="form-input" type="number" id="job-timeout" placeholder="載入中..." />
+                    <div class="form-hint">單頁抓取總等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label" for="job-connect-timeout">TCP 連線逾時</label>
+                    <input class="form-input" type="number" id="job-connect-timeout" step="0.1" placeholder="載入中..." />
+                    <div class="form-hint">TCP 建立連線等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label" for="job-ext-check-timeout">外連探測逾時</label>
+                    <input class="form-input" type="number" id="job-ext-check-timeout" step="0.1"
+                      placeholder="載入中..." />
+                    <div class="form-hint">外連存活檢查等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                  </div>
                 </div>
-                <div class="form-group" style="margin-bottom:1.25rem">
-                  <label class="form-label" for="job-max-pages">最大抓取頁數</label>
-                  <input class="form-input" type="number" id="job-max-pages" min="1" placeholder="留空不限制" />
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom:1.25rem">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label" for="job-delay">請求延遲 (秒)</label>
+                    <input class="form-input" type="number" id="job-delay" step="0.1" placeholder="載入中..." />
+                    <div class="form-hint">每次發送請求前的等待。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label" for="job-retries">失敗重試次數</label>
+                    <input class="form-input" type="number" id="job-retries" placeholder="載入中..." />
+                    <div class="form-hint">暫時性錯誤的重試次數。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                  </div>
                 </div>
-                <div class="form-group" style="margin-bottom:1.25rem">
-                  <label class="form-label" for="job-delay">請求延遲 (秒)</label>
-                  <input class="form-input" type="number" id="job-delay" step="0.1" placeholder="載入中..." />
-                </div>
-                <div class="form-group" style="margin-bottom:1.25rem">
-                  <label class="form-label" for="job-timeout">連線逾時 (秒)</label>
-                  <input class="form-input" type="number" id="job-timeout" placeholder="載入中..." />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="job-retries">失敗重試次數</label>
-                  <input class="form-input" type="number" id="job-retries" placeholder="載入中..." />
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label" for="job-max-depth">最大爬取深度</label>
+                    <input class="form-input" type="number" id="job-max-depth" min="1" />
+                    <div class="form-hint">從起點開始的點擊層數。留空無限制，受最大極限約束 <strong>【強制收斂】</strong>。</div>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label" for="job-max-pages">最大抓取頁數</label>
+                    <input class="form-input" type="number" id="job-max-pages" min="1" />
+                    <div class="form-hint">總抓取頁數上限。留空無限制，受最大極限約束 <strong>【強制收斂】</strong>。</div>
+                  </div>
                 </div>
               </div>
 
@@ -374,7 +435,7 @@
                 </div>
                 <div style="display:flex; gap:0.75rem; flex-direction: column;">
                   <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-job"
-                    style="width:100%">建立任務並開始</button>
+                    style="width:100%">建立任務</button>
                   <a class="btn btn-ghost" href="#/jobs"
                     style="width:100%;text-align:center;justify-content:center;">取消並返回列表</a>
                 </div>
@@ -430,7 +491,7 @@
                 </div>
               </div>
               <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
-                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🌍 內部網域 (Internal
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🌍 信任網域 (Trusted
                   Domains)
                 </div>
                 <div>
@@ -450,9 +511,9 @@
               </li>
               <li style="margin-bottom:0.75rem;">
                 <strong style="color:var(--text-primary)">填寫網址與範圍：</strong>貼上您要掃描的「起始
-                URL」。系統通常會自動幫您預填「目標網域」及「內部網域」。但您可以按照自身狀況調整，例如：<strong
+                URL」。系統通常會自動幫您預填「目標網域」及「信任網域」。但您可以按照自身狀況調整，例如：<strong
                   style="color:var(--text-primary)">在「目標網域」新增子網站</strong>、<strong
-                  style="color:var(--text-primary)">在「內部網域」新增 gov.tw 網域</strong>。
+                  style="color:var(--text-primary)">在「信任網域」新增 gov.tw 網域</strong>。
               </li>
               <li style="margin-bottom:0.75rem;">
                 <strong style="color:var(--text-primary)">調整進階設定（可選）：</strong>您可以根據需求填寫進階參數：
@@ -500,8 +561,8 @@
                 系統在發送請求時，會先檢查目標的檔案資訊（標頭）。若判斷為影音或壓縮檔等非網頁檔案，會主動中斷連線，節省網路頻寬與處理時間。</li>
               <li style="margin-bottom:0.5rem;"><strong>動態降級讀取技術：</strong> 部分大型社群平台（如 Facebook,
                 Instagram）會阻擋自動化探測程式。本系統可自動降級為微量讀取模式，減少外部連結被誤判為失效的機率。</li>
-              <li style="margin-bottom:0.5rem;"><strong>自訂內部網域：</strong> 您可以將特定的關聯網域（如 <code>gov.tw</code>
-                或子公司網址）加入「內部網域」，系統會將其視為內部連結並略過外部存活探測，節省不必要的檢查時間。</li>
+              <li style="margin-bottom:0.5rem;"><strong>自訂信任網域：</strong> 您可以將特定的關聯網域（如 <code>gov.tw</code>
+                或子公司網址）加入「信任網域」，系統會將其視為內部連結並略過外部存活探測，節省不必要的檢查時間。</li>
               <li><strong>彈性的資源控制：</strong> 系統支援「最大抓取頁數」限制，並可自訂「忽略的路徑規則」與「忽略的副檔名」，讓您能針對重點頁面進行掃描，避開不需要檢查的歷史或靜態資源區塊。
               </li>
             </ul>
@@ -798,8 +859,10 @@
           }
           if (min !== undefined && min !== null) el.min = min;
           if (max !== undefined && max !== null) el.max = max;
-          if (min !== undefined && max !== null) {
+          if (min !== undefined && min !== null && max !== undefined && max !== null) {
             el.placeholder = `${min} ~ ${max}`;
+          } else if (min !== undefined && min !== null) {
+            el.placeholder = `${min} ~ 無限制`;
           }
         };
 
@@ -807,7 +870,7 @@
         if (extEl) extEl.placeholder = '.pdf\n.zip';
         const extHint = document.getElementById('hint-ignore-exts');
         if (extHint && config.ignore_extensions?.length) {
-          extHint.innerHTML = `每行一個。您輸入的項目將與系統全域設定 <button type="button" id="btn-view-exts" title="檢視預設副檔名" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併生效。`;
+          extHint.innerHTML = `每行一個。將與系統全域設定 <button type="button" id="btn-view-exts" title="檢視預設副檔名" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併疊加生效 <strong>【聯集】</strong>。`;
           document.getElementById('btn-view-exts').addEventListener('click', () => {
             showDefaultListModal('預設攔截副檔名 (唯讀)', config.ignore_extensions.join('\n'));
           });
@@ -817,15 +880,46 @@
         if (regexEl) regexEl.placeholder = '^https://example\\.com/logout';
         const regexHint = document.getElementById('hint-ignore-regexes');
         if (regexHint && config.ignore_regexes?.length) {
-          regexHint.innerHTML = `每行一個。您輸入的項目將與系統全域設定 <button type="button" id="btn-view-regexes" title="檢視預設路徑規則" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併生效。`;
+          regexHint.innerHTML = `每行一個。將與系統全域設定 <button type="button" id="btn-view-regexes" title="檢視預設路徑規則" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併疊加生效 <strong>【聯集】</strong>。`;
           document.getElementById('btn-view-regexes').addEventListener('click', () => {
             showDefaultListModal('預設攔截路徑規則 (唯讀)', config.ignore_regexes.join('\n'));
           });
         }
 
+        setField('job-user-agent', config.user_agent);
+
+        const sslEl = document.getElementById('job-ssl-exempt');
+        if (sslEl) sslEl.placeholder = 'example.com';
+        const sslHint = document.getElementById('hint-ssl-exempt');
+        if (sslHint && config.ssl_exempt_domains?.length) {
+          sslHint.innerHTML = `每行一個。忽略這些網域的 SSL 驗證，將與系統全域設定 <button type="button" id="btn-view-ssl" title="檢視預設豁免網域" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 合併疊加生效 <strong>【聯集】</strong>。`;
+          document.getElementById('btn-view-ssl').addEventListener('click', () => {
+            showDefaultListModal('預設自簽憑證豁免網域 (唯讀)', config.ssl_exempt_domains.join('\n'));
+          });
+        }
+
+        const dd = config.domain_delays || {};
+        const ddLines = Object.entries(dd).map(([k, v]) => `${k}: ${v}`);
+        const ddEl = document.getElementById('job-domain-delays');
+        if (ddEl) {
+          ddEl.value = '';
+          ddEl.defaultValue = '';
+        }
+        const ddHint = document.getElementById('hint-domain-delays');
+        if (ddHint && ddLines.length) {
+          ddHint.innerHTML = `每行一個。格式為 <code>網域: 秒數</code>。將與系統全域設定 <button type="button" id="btn-view-dd" title="檢視預設特定網域延遲" style="background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button> 衝突時以任務設定為準 <strong>【字典合併與優先覆寫】</strong>。`;
+          document.getElementById('btn-view-dd').addEventListener('click', () => {
+            showDefaultListModal('預設特定網域延遲 (唯讀)', ddLines.join('\n'));
+          });
+        }
+
         setField('job-delay', config.delay, config.min_delay, config.max_delay);
         setField('job-timeout', config.timeout, config.min_timeout, config.max_timeout);
+        setField('job-connect-timeout', config.connect_timeout, config.min_connect_timeout, config.max_connect_timeout);
+        setField('job-ext-check-timeout', config.external_check_timeout, config.min_external_check_timeout, config.max_external_check_timeout);
         setField('job-retries', config.retries, config.min_retries, config.max_retries);
+        setField('job-max-depth', config.max_depth, 1, config.max_max_depth);
+        setField('job-max-pages', config.max_pages, 1, config.max_max_pages);
         setField('job-proxy-url', config.proxy_url);
 
         _isDefaultsLoaded = true;
@@ -964,9 +1058,9 @@
     if (createJobForm) {
       const jobUrlInput = document.getElementById('job-url');
       const targetDomainsInput = document.getElementById('job-target-domains');
-      const internalDomainsInput = document.getElementById('job-internal-domains');
+      const trustedDomainsInput = document.getElementById('job-trusted-domains');
 
-      // 自動填寫網域防呆：當網址輸入完畢時，自動提取 hostname 填入目標網域與內部網域
+      // 自動填寫網域防呆：當網址輸入完畢時，自動提取 hostname 填入目標網域與信任網域
       if (jobUrlInput && targetDomainsInput) {
         jobUrlInput.addEventListener('blur', () => {
           if (jobUrlInput.value.trim()) {
@@ -975,8 +1069,8 @@
               if (!targetDomainsInput.value.trim()) {
                 targetDomainsInput.value = url.hostname;
               }
-              if (internalDomainsInput && !internalDomainsInput.value.trim()) {
-                internalDomainsInput.value = url.hostname;
+              if (trustedDomainsInput && !trustedDomainsInput.value.trim()) {
+                trustedDomainsInput.value = url.hostname;
               }
             } catch (e) { }
           }
@@ -991,7 +1085,7 @@
 
         const startUrl = jobUrlInput.value.trim();
         const targetDomainsRaw = targetDomainsInput.value;
-        const internalDomainsRaw = document.getElementById('job-internal-domains').value;
+        const trustedDomainsRaw = document.getElementById('job-trusted-domains').value;
         const ignoreExtsRaw = document.getElementById('job-ignore-exts').value;
         const ignoreRegexesRaw = document.getElementById('job-ignore-regexes').value;
 
@@ -1007,7 +1101,7 @@
           const body = {
             start_url: startUrl,
             target_domains: targetDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean),
-            internal_domains: internalDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean)
+            trusted_domains: trustedDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean)
           };
 
           const depth = document.getElementById('job-max-depth').value;
@@ -1022,6 +1116,12 @@
           const timeout = document.getElementById('job-timeout').value;
           if (timeout) body.timeout = parseFloat(timeout);
 
+          const connectTimeout = document.getElementById('job-connect-timeout').value;
+          if (connectTimeout) body.connect_timeout = parseFloat(connectTimeout);
+
+          const extCheckTimeout = document.getElementById('job-ext-check-timeout').value;
+          if (extCheckTimeout) body.external_check_timeout = parseFloat(extCheckTimeout);
+
           const retries = document.getElementById('job-retries').value;
           if (retries) body.retries = parseInt(retries, 10);
 
@@ -1034,6 +1134,27 @@
           const ignoreRegexes = ignoreRegexesRaw.split('\n').map(s => s.trim()).filter(Boolean);
           if (ignoreRegexes.length) body.ignore_regexes = ignoreRegexes;
 
+          const userAgent = document.getElementById('job-user-agent').value.trim();
+          if (userAgent) body.user_agent = userAgent;
+
+          const sslExemptRaw = document.getElementById('job-ssl-exempt').value;
+          const sslExempt = sslExemptRaw.split('\n').map(s => s.trim()).filter(Boolean);
+          if (sslExempt.length) body.ssl_exempt_domains = sslExempt;
+
+          const ddLines = document.getElementById('job-domain-delays').value.split('\n').map(s => s.trim()).filter(Boolean);
+          if (ddLines.length > 0) {
+            const domain_delays = {};
+            for (const line of ddLines) {
+              const parts = line.split(':');
+              if (parts.length !== 2) throw new Error('特定網域延遲格式錯誤，必須為 "網域: 延遲秒數"');
+              const domain = parts[0].trim();
+              const delayVal = parseFloat(parts[1].trim());
+              if (isNaN(delayVal) || delayVal < 0) throw new Error(`特定網域延遲秒數無效: ${parts[1]}`);
+              domain_delays[domain] = delayVal;
+            }
+            body.domain_delays = domain_delays;
+          }
+
           const res = await api.post('/api/jobs', body);
           toast.success('任務已建立成功！');
           window.location.hash = `#/jobs/${res.job_id}`;
@@ -1045,43 +1166,6 @@
           submitBtn.disabled = false;
         }
       });
-    }
-
-    // ── 局部重試邏輯 ───────────────────────────────────────────
-    const btnRetryFailed = document.getElementById('btn-retry-failed-job');
-    if (btnRetryFailed) {
-      btnRetryFailed.addEventListener('click', async () => {
-        const jobId = document.getElementById('job-id-display').textContent;
-        const confirmed = await showConfirm('重試失敗項目', '確定要將失敗的網頁與無效外連重新加入佇列並重試嗎？', '確定重試');
-        if (!confirmed) return;
-
-        btnRetryFailed.classList.add('loading');
-        btnRetryFailed.disabled = true;
-        try {
-          await api.post(`/api/jobs/${jobId}/retry-failed`);
-          toast.success('失敗項目已重置！您可以點擊啟動繼續任務。');
-          route();
-        } catch (err) {
-          toast.error('重試失敗：' + err.message);
-        } finally {
-          btnRetryFailed.classList.remove('loading');
-          btnRetryFailed.disabled = false;
-        }
-      });
-
-      // 監聽 job-status 的變化以控制按鈕顯示隱藏
-      const statusObserver = new MutationObserver(() => {
-        const statusEl = document.getElementById('job-status');
-        if (statusEl) {
-          const statusText = statusEl.textContent;
-          if (statusText.includes('完成') || statusText.includes('異常') || statusText.includes('Error')) {
-            btnRetryFailed.style.display = '';
-          } else {
-            btnRetryFailed.style.display = 'none';
-          }
-        }
-      });
-      statusObserver.observe(document.getElementById('job-status'), { childList: true, characterData: true, subtree: true });
     }
   </script>
 

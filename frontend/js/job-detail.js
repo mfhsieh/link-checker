@@ -177,11 +177,13 @@ function renderJobInfo(job) {
     const canStart = ['pending', 'paused'].includes(job.status) && !job.is_running;
     const canPause = isActuallyRunning && !isPausing;
     const canReset = ['completed', 'error', 'paused'].includes(job.status) && !job.is_running;
+    const canRetry = ['completed', 'error'].includes(job.status) && !job.is_running;
 
     toggleDisplay('btn-start-job', canStart);
     toggleDisplay('btn-resume-job', false);
     toggleDisplay('btn-pause-job', canPause);
     toggleDisplay('btn-reset-job', canReset);
+    toggleDisplay('btn-retry-failed-job', canRetry);
 }
 
 function bindControlButtons() {
@@ -206,6 +208,15 @@ function bindControlButtons() {
         if (!confirmed) return;
         await api.post(`/api/jobs/${_currentJobId}/reset`);
         toast.success('任務已重置。');
+        await refreshJobDetail(_currentJobId);
+        await loadResults(_currentJobId);
+    });
+
+    bindBtn('btn-retry-failed-job', async () => {
+        const confirmed = await showConfirm('重試失敗項目', '確定要將爬取失敗的內部網頁重新加入佇列並重試嗎？\n（註：此操作不會影響或重試已經紀錄為無效的外部連結）', '確定重試');
+        if (!confirmed) return;
+        await api.post(`/api/jobs/${_currentJobId}/retry-failed`);
+        toast.success('失敗項目已重置！您可以點擊啟動繼續任務。');
         await refreshJobDetail(_currentJobId);
         await loadResults(_currentJobId);
     });
@@ -252,7 +263,7 @@ function bindControlButtons() {
                 <div style="font-weight:600; border-bottom:1px solid var(--surface-border); padding-bottom:0.5rem; margin-bottom:0.75rem;">🌐 網域設定</div>
                 <div style="display:grid; grid-template-columns: 110px 1fr; gap:0.75rem 0.5rem; font-size:0.875rem;">
                   <div class="text-muted">目標網域</div><div>${formatList(c.target_domains)}</div>
-                  <div class="text-muted">內部網域</div><div>${formatList(c.internal_domains)}</div>
+                  <div class="text-muted">信任網域</div><div>${formatList(c.trusted_domains)}</div>
                 </div>
               </div>
               <div>

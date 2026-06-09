@@ -60,7 +60,7 @@ def _build_invitation_email(
   <p>請前往下方網址，並輸入您的電子郵件及專屬邀請碼以完成首次登入與密碼設定：</p>
   <div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:24px 0;">
     <p style="margin:0 0 8px 0;font-size:0.875rem;color:#666;">系統網址</p>
-    <p style="margin:0 0 16px 0;">
+    <p style="margin:0 0 16px 0;font-size:1.25rem;font-weight:bold;color:#1a1a2e;">
       <a href="{login_url}" style="color:#2563eb;text-decoration:none;">{login_url}</a>
     </p>
     <p style="margin:0 0 8px 0;font-size:0.875rem;color:#666;">邀請碼</p>
@@ -104,9 +104,7 @@ def _send_email(msg: EmailMessage) -> None:
                 smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
             smtp.send_message(msg)
     else:
-        with smtplib.SMTP_SSL(
-            settings.SMTP_HOST, settings.SMTP_PORT, context=context
-        ) as smtp:
+        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as smtp:
             if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
                 smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
             smtp.send_message(msg)
@@ -131,8 +129,7 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
     if settings.SMTP_CONSOLE_MODE:
         login_url = f"{settings.BASE_URL}/?action=invite"
         logger.info(
-            "[SMTP Console Mode] 邀請郵件（未實際寄送）:\n"
-            "  收件者: %s\n  Subject: %s\n  登入連結: %s\n  邀請碼: %s",
+            "[SMTP Console Mode] 邀請郵件（未實際寄送）:\n  收件者: %s\n  Subject: %s\n  登入連結: %s\n  邀請碼: %s",
             to_email,
             msg["Subject"],
             login_url,
@@ -166,8 +163,7 @@ def send_test_email(to_email: str) -> bool:
     msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
     msg["To"] = to_email
     msg.set_content(
-        f"這是一封由「{settings.APP_NAME}」發送的 SMTP 測試郵件。\n"
-        f"若您收到此郵件，代表 SMTP 設定已正確運作。"
+        f"這是一封由「{settings.APP_NAME}」發送的 SMTP 測試郵件。\n若您收到此郵件，代表 SMTP 設定已正確運作。"
     )
 
     if settings.SMTP_CONSOLE_MODE:
@@ -213,8 +209,7 @@ def send_notification_email(
 
     if settings.SMTP_CONSOLE_MODE:
         logger.info(
-            "[SMTP Console Mode] 通知郵件（未實際寄送）:\n"
-            "  收件者: %s\n  Subject: %s\n  內文:\n%s",
+            "[SMTP Console Mode] 通知郵件（未實際寄送）:\n  收件者: %s\n  Subject: %s\n  內文:\n%s",
             to_email,
             subject,
             plain_text,

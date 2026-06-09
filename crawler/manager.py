@@ -115,7 +115,7 @@ class JobManager:
         self,
         start_url: str,
         target_domains: list[str],
-        internal_domains: list[str],
+        trusted_domains: list[str],
         crawler_config: dict[str, object] | None = None,
         user_id: str | None = None,
     ) -> str:
@@ -125,7 +125,7 @@ class JobManager:
         Args:
             start_url (str): 準備進行爬取的起始網址。
             target_domains (list[str]): 允許爬蟲深入遍歷的網域陣列。
-            internal_domains (list[str]): 被視為內部網站的網域陣列。
+            trusted_domains (list[str]): 被視為信任網站的網域陣列。
             crawler_config (dict[str, object] | None): (選填) 要寫入資料庫鎖定的爬蟲設定。
             user_id (str | None): (選填) 該任務的擁有者 ID。
 
@@ -139,7 +139,7 @@ class JobManager:
                 user_id=user_id,
                 start_url=start_url,
                 target_domains=",".join(target_domains),
-                internal_domains=",".join(internal_domains),
+                trusted_domains=",".join(trusted_domains),
                 status="pending",
                 config_json=config_str,
             )
@@ -207,7 +207,7 @@ class JobManager:
             session.commit()
 
             target_domains_list: list[str] = job.target_domains.split(",") if job.target_domains else []
-            internal_domains_list: list[str] = job.internal_domains.split(",") if job.internal_domains else []
+            trusted_domains_list: list[str] = job.trusted_domains.split(",") if job.trusted_domains else []
 
             if crawler_config is None:
                 # 代表從 Resume 恢復執行，需從資料庫讀取當時的設定檔
@@ -236,19 +236,8 @@ class JobManager:
             proxy_url = crawler_config.get("proxy_url", None)
             max_depth = crawler_config.get("max_depth", None)
             max_pages = crawler_config.get("max_pages", None)
-
-            # 建立爬蟲核心實例
-            crawler = CrawlerCore(
-                timeout=timeout,
-                connect_timeout=connect_timeout,
-                external_check_timeout=external_check_timeout,
-                ignore_extensions=ignore_extensions,
-                mime_type_filter=mime_type_filter,
-                ignore_regexes=ignore_regexes,
-                user_agent=user_agent,
-                ssl_exempt_domains=ssl_exempt_domains,
-                proxy_url=proxy_url,
-            )
+            max_content_length = crawler_config.get("max_content_length", 10485760)
+            social_domains = crawler_config.get("social_domains", []) or []
 
             # 統計該任務已發送實質請求的頁面數量
             crawled_count = (
@@ -256,7 +245,7 @@ class JobManager:
                 .query(CrawlQueue)
                 .filter(
                     CrawlQueue.job_id == job_id,
-                    (CrawlQueue.status.in_(["completed", "failed"]))
+                    (CrawlQueue.status.in_(["completed", "failed", "warning"]))
                     | ((CrawlQueue.status == "skip") & (CrawlQueue.status_code.isnot(None))),
                 )
                 .count()
@@ -275,7 +264,23 @@ class JobManager:
             # 建立共用的執行緒池，避免每個網頁都重新建立與銷毀執行緒而產生額外開銷
             executor = ThreadPoolExecutor(max_workers=5)
 
+            crawler = None
             try:
+                # 建立爬蟲核心實例
+                crawler = CrawlerCore(
+                    timeout=timeout,
+                    connect_timeout=connect_timeout,
+                    external_check_timeout=external_check_timeout,
+                    ignore_extensions=ignore_extensions,
+                    mime_type_filter=mime_type_filter,
+                    ignore_regexes=ignore_regexes,
+                    user_agent=user_agent,
+                    ssl_exempt_domains=ssl_exempt_domains,
+                    proxy_url=proxy_url,
+                    max_content_length=max_content_length,
+                    social_domains=social_domains,
+                )
+
                 while True:
                     # 協同暫停檢查：確認任務狀態是否在外部被更改
                     session.expire(job)
@@ -324,6 +329,7 @@ class JobManager:
                         status_code: int | None
                         status: str
                         request_sent: bool
+                        err_msg: str | None
 
                         # 若設定了最大爬取深度，且目前項目的深度已超過該限制，則略過不再往下爬行。
                         # 註：當 queue_item.depth == max_depth 時，此條件不成立，網頁仍會被爬取並探測外連；
@@ -341,11 +347,13 @@ class JobManager:
                             status_code,
                             status,
                             request_sent,
-                        ) = crawler.process_url(current_url, target_domains_list, internal_domains_list)
+                            err_msg,
+                        ) = crawler.process_url(current_url, target_domains_list, trusted_domains_list)
 
                         # 將狀態與狀態碼寫回佇列項目
                         queue_item.status_code = status_code
                         queue_item.status = status
+                        queue_item.error_message = err_msg
                         session.commit()
 
                         # 處理內部連結：如果尚未存在佇列中且未超過最大探索深度，則新增為 pending，深度遞增
@@ -539,7 +547,8 @@ class JobManager:
                     session.commit()
                     send_job_status_notification(self.SessionLocal, job_id, "error")
             finally:
-                crawler.close()
+                if crawler:
+                    crawler.close()
             executor.shutdown(wait=False)
 
     def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
@@ -590,6 +599,9 @@ class JobManager:
             completed = (
                 session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "completed").count()
             )
+            warning = (
+                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "warning").count()
+            )
             pending = (
                 session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "pending").count()
             )
@@ -609,6 +621,7 @@ class JobManager:
                 "queue": {
                     "total": total_queue,
                     "completed": completed,
+                    "warning": warning,
                     "skipped": skipped,
                     "pending": pending,
                     "failed": failed,
@@ -727,44 +740,7 @@ class JobManager:
 
             job.status = "pending"
 
-            # 1. 找出失敗的外部連結 (DNS 失敗或 HTTP 錯誤)
-            failed_ext_links = (
-                session
-                .query(ExternalLink)
-                .filter(
-                    ExternalLink.job_id == job_id,
-                    (
-                        (ExternalLink.ip_address.is_(None))
-                        | (ExternalLink.ip_address == "")
-                        | (ExternalLink.http_status_code >= 400)
-                        | (ExternalLink.http_status_code.is_(None))
-                    ),
-                )
-                .all()
-            )
-
-            source_urls_to_retry = set()
-            for ext in failed_ext_links:
-                if ext.source_url:
-                    source_urls_to_retry.add(ext.source_url)
-                session.delete(ext)
-
-            # 2. 將這些失敗外連所屬的母網頁改回 pending (以便重新探測其上的外連)
-            if source_urls_to_retry:
-                session.query(CrawlQueue).filter(
-                    CrawlQueue.job_id == job_id,
-                    CrawlQueue.url.in_(source_urls_to_retry),
-                ).update(
-                    {
-                        "status": "pending",
-                        "retry_count": 0,
-                        "status_code": None,
-                        "error_message": None,
-                    },
-                    synchronize_session=False,
-                )
-
-            # 3. 將本身爬取失敗的內部網頁也改回 pending
+            # 將本身爬取失敗的內部網頁改回 pending
             session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed").update(
                 {
                     "status": "pending",

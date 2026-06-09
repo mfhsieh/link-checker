@@ -158,7 +158,7 @@ erDiagram
         String(128) user_id "任務擁有者 ID"
         String(2048) start_url "爬蟲起始網址"
         Text target_domains "允許的目標網域清單"
-        Text internal_domains "視為內部的網域清單"
+        Text trusted_domains "視為信任的網域清單"
         Text config_json "最終爬蟲設定快照 (JSON)"
         String(50) status "任務狀態"
         DateTime created_at "建立時間"
@@ -203,7 +203,7 @@ erDiagram
 | `user_id` | `String(128)` | `Nullable`, `Index` | 該任務的擁有者 ID。預設為 `NULL`（代表系統匿名建立）。 |
 | `start_url` | `String(2048)` | `NOT NULL` | 該任務開始進行爬取的起點網址。 |
 | `target_domains` | `Text` | `NOT NULL` | 允許爬蟲深入抓取的網域清單，以逗號 (`,`) 分隔。 |
-| `internal_domains` | `Text` | `NOT NULL` | 視為內部系統的網域清單，以逗號 (`,`) 分隔。 |
+| `trusted_domains` | `Text` | `NOT NULL` | 視為信任系統的網域清單，以逗號 (`,`) 分隔。 |
 | `config_json` | `Text` | `Nullable` | 任務建立當下，已與全域設定合併之最終爬蟲參數快照 (JSON 格式)。註：為落實最小權限，後端 API 提取此快照時會主動進行機密遮蔽 (如 Proxy 密碼)。 |
 | `status` | `String(50)` | `Default: 'pending'` | 任務狀態，包含：`pending` (等待中), `running` (執行中), `paused` (已暫停), `completed` (已完成), `error` (發生嚴重例外)。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 任務建立的 UTC 時間戳記。 |

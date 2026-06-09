@@ -33,9 +33,7 @@ from crawler.utils import (
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PID_DIR = os.path.join(PROJECT_ROOT, "log", "pids")
 
 # 新增一個全域變數來記錄 Web 程序 spawn 的爬蟲子進程
@@ -173,7 +171,7 @@ class JobCreateConfig:
 
     start_url: str
     target_domains: list[str]
-    internal_domains: list[str]
+    trusted_domains: list[str]
     crawler_config: dict[str, object]
 
 
@@ -210,13 +208,11 @@ def create_job(
     job_id = manager.create_job(
         start_url=config.start_url,
         target_domains=config.target_domains,
-        internal_domains=config.internal_domains,
+        trusted_domains=config.trusted_domains,
         crawler_config=config.crawler_config,
         user_id=user_id,
     )
-    logger.info(
-        "使用者 %s 建立新任務 %s，起始 URL: %s", user_id, job_id, config.start_url
-    )
+    logger.info("使用者 %s 建立新任務 %s，起始 URL: %s", user_id, job_id, config.start_url)
     return job_id
 
 
@@ -296,9 +292,7 @@ def pause_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     return result
 
 
-def get_job_detail(
-    manager: JobManager, job_id: str, user_id: str | None = None
-) -> dict[str, object]:
+def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None) -> dict[str, object]:
     """
     取得任務詳情（含進度統計）。
 
@@ -325,9 +319,7 @@ def get_job_detail(
     # 組合一份只包含「使用者需要知道的」安全設定快照
     config_snapshot = {
         "target_domains": job.target_domains.split(",") if job.target_domains else [],
-        "internal_domains": (
-            job.internal_domains.split(",") if job.internal_domains else []
-        ),
+        "trusted_domains": (job.trusted_domains.split(",") if job.trusted_domains else []),
     }
     if job.config_json:
         try:
@@ -348,9 +340,7 @@ def get_job_detail(
             if raw_config.get("proxy_url"):
                 parsed = urlparse(raw_config["proxy_url"])
                 if parsed.password:
-                    config_snapshot["proxy_url"] = raw_config["proxy_url"].replace(
-                        parsed.password, "***"
-                    )
+                    config_snapshot["proxy_url"] = raw_config["proxy_url"].replace(parsed.password, "***")
                 else:
                     config_snapshot["proxy_url"] = raw_config["proxy_url"]
         except json.JSONDecodeError:
@@ -370,9 +360,7 @@ def get_job_detail(
     }
 
 
-def list_jobs(
-    manager: JobManager, user_id: str, status: str | None = None
-) -> list[dict[str, object]]:
+def list_jobs(manager: JobManager, user_id: str, status: str | None = None) -> list[dict[str, object]]:
     """
     列出指定使用者的所有任務。
 
@@ -529,14 +517,12 @@ def _group_by_domain(links: list[ExternalLink]) -> list[dict[str, object]]:
 
     result = []
     for v in agg.values():
-        result.append(
-            {
-                "domain": v["domain"],
-                "occurrence_count": v["occurrence_count"],
-                "unique_urls_count": len(v["unique_urls"]),
-                "unique_urls": sorted(list(v["unique_urls"])),
-            }
-        )
+        result.append({
+            "domain": v["domain"],
+            "occurrence_count": v["occurrence_count"],
+            "unique_urls_count": len(v["unique_urls"]),
+            "unique_urls": sorted(list(v["unique_urls"])),
+        })
     # 依出現次數降冪排序
     result.sort(key=lambda x: x["occurrence_count"], reverse=True)
     return result
@@ -569,14 +555,12 @@ def _group_by_source(links: list[ExternalLink]) -> list[dict[str, object]]:
             if lnk.http_status_code is not None
             else ("DNS Failed" if not lnk.ip_address else "Error")
         )
-        d["targets"].append(
-            {
-                "url": lnk.target_url,
-                "status": status_str,
-                "is_secure": lnk.is_secure,
-                "error_message": lnk.error_message,
-            }
-        )
+        d["targets"].append({
+            "url": lnk.target_url,
+            "status": status_str,
+            "is_secure": lnk.is_secure,
+            "error_message": lnk.error_message,
+        })
 
     return [{**v} for v in agg.values()]
 
@@ -609,8 +593,7 @@ def get_job_results(
     if query_args.search:
         search_pattern = f"%{query_args.search}%"
         query = query.filter(
-            ExternalLink.target_url.like(search_pattern)
-            | ExternalLink.source_url.like(search_pattern)
+            ExternalLink.target_url.like(search_pattern) | ExternalLink.source_url.like(search_pattern)
         )
 
     if query_args.exclude:
@@ -620,9 +603,7 @@ def get_job_results(
 
     if query_args.status_filter == "dead":
         # dead：DNS 解析失敗（IP 位址為空）
-        query = query.filter(
-            (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == "")
-        )
+        query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
     elif query_args.status_filter == "broken":
         # broken：HTTP 狀態碼 >= 400 或發生連線錯誤（無狀態碼但有 IP）
         query = query.filter(
@@ -649,12 +630,7 @@ def get_job_results(
     else:
         total = query.count()
         offset = (query_args.page - 1) * query_args.page_size
-        links = (
-            query.order_by(ExternalLink.created_at)
-            .offset(offset)
-            .limit(query_args.page_size)
-            .all()
-        )
+        links = query.order_by(ExternalLink.created_at).offset(offset).limit(query_args.page_size).all()
         items_list = [
             {
                 "id": lnk.id,
@@ -668,11 +644,7 @@ def get_job_results(
             }
             for lnk in links
         ]
-        total_pages = (
-            (total + query_args.page_size - 1) // query_args.page_size
-            if total > 0
-            else 1
-        )
+        total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
         return {
             "items": items_list,
             "total": total,
@@ -685,9 +657,7 @@ def get_job_results(
     offset = (query_args.page - 1) * query_args.page_size
     items = items_list[offset : offset + query_args.page_size]
 
-    total_pages = (
-        (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
-    )
+    total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
 
     return {
         "items": items,
@@ -724,13 +694,13 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
     # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
     # pylint: disable=not-callable
     stats = (
-        db.query(
+        db
+        .query(
             func.count(ExternalLink.id).label("total"),
             func.sum(
                 case(
                     (
-                        (ExternalLink.ip_address.is_(None))
-                        | (ExternalLink.ip_address == ""),
+                        (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
                         1,
                     ),
                     else_=0,
@@ -750,9 +720,7 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
                     else_=0,
                 )
             ).label("http_errors"),
-            func.sum(case((ExternalLink.is_secure.is_(False), 1), else_=0)).label(
-                "insecure"
-            ),
+            func.sum(case((ExternalLink.is_secure.is_(False), 1), else_=0)).label("insecure"),
         )
         .filter(ExternalLink.job_id == job_id)
         .first()
@@ -777,9 +745,7 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
     }
 
 
-def stream_job_results(
-    db: DBSession, query_args: JobResultQuery
-) -> Iterator[dict[str, object]]:
+def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[dict[str, object]]:
     """
     查詢任務的外連結果，並以 yield 串流回傳以節省記憶體。
 
@@ -800,9 +766,7 @@ def stream_job_results(
     query = db.query(ExternalLink).filter(ExternalLink.job_id == query_args.job_id)
 
     if query_args.status_filter == "dead":
-        query = query.filter(
-            (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == "")
-        )
+        query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
     elif query_args.status_filter == "broken":
         query = query.filter(
             (ExternalLink.http_status_code >= 400)
@@ -869,9 +833,7 @@ def stream_job_results(
                 "source_urls": sorted(list(v["source_urls"])),
             }
     elif query_args.group_by == "domain":
-        agg = defaultdict(
-            lambda: {"domain": "", "occurrence_count": 0, "unique_urls": set()}
-        )
+        agg = defaultdict(lambda: {"domain": "", "occurrence_count": 0, "unique_urls": set()})
         for lnk in cursor:
             dom = get_domain(lnk.target_url) or "unknown"
             d = agg[dom]
@@ -881,21 +843,17 @@ def stream_job_results(
 
         result = []
         for v in agg.values():
-            result.append(
-                {
-                    "domain": v["domain"],
-                    "occurrence_count": v["occurrence_count"],
-                    "unique_urls_count": len(v["unique_urls"]),
-                    "unique_urls": sorted(list(v["unique_urls"])),
-                }
-            )
+            result.append({
+                "domain": v["domain"],
+                "occurrence_count": v["occurrence_count"],
+                "unique_urls_count": len(v["unique_urls"]),
+                "unique_urls": sorted(list(v["unique_urls"])),
+            })
         result.sort(key=lambda x: x["occurrence_count"], reverse=True)
         for item in result:
             yield item
     elif query_args.group_by == "source":
-        agg = defaultdict(
-            lambda: {"source_url": "", "occurrence_count": 0, "targets": []}
-        )
+        agg = defaultdict(lambda: {"source_url": "", "occurrence_count": 0, "targets": []})
         for lnk in cursor:
             d = agg[lnk.source_url]
             d["source_url"] = lnk.source_url
@@ -905,21 +863,17 @@ def stream_job_results(
                 if lnk.http_status_code is not None
                 else ("DNS Failed" if not lnk.ip_address else "Error")
             )
-            d["targets"].append(
-                {
-                    "url": lnk.target_url,
-                    "status": status_str,
-                    "is_secure": lnk.is_secure,
-                    "error_message": lnk.error_message,
-                }
-            )
+            d["targets"].append({
+                "url": lnk.target_url,
+                "status": status_str,
+                "is_secure": lnk.is_secure,
+                "error_message": lnk.error_message,
+            })
         for v in agg.values():
             yield v
 
 
-def stream_internal_results(
-    db: DBSession, job_id: str, user_id: str
-) -> Iterator[dict[str, object]]:
+def stream_internal_results(db: DBSession, job_id: str, user_id: str) -> Iterator[dict[str, object]]:
     """
     查詢任務的內部佇列結果，並以 yield 串流回傳。
 
@@ -940,11 +894,6 @@ def stream_internal_results(
     if job.user_id != user_id:
         raise ValueError("無權限存取此任務。")
 
-    cursor = (
-        db.query(CrawlQueue)
-        .filter(CrawlQueue.job_id == job_id)
-        .order_by(CrawlQueue.id)
-        .yield_per(2000)
-    )
+    cursor = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).yield_per(2000)
     for q in cursor:
         yield format_crawl_queue_item(q)

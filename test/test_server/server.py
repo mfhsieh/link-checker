@@ -12,7 +12,7 @@ import threading
 import sys
 
 # 全域計數器與鎖，用以安全記錄請求次數
-request_counter: dict[str, int] = {"/temporary-error": 0}
+request_counter: dict[str, int] = {"/temporary-error": 0, "/flaky_internal": 0}
 counter_lock: threading.Lock = threading.Lock()
 
 
@@ -30,9 +30,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             format (str): 日誌格式化字串。
             *args (object): 要填入格式化字串的變數。
         """
-        sys.stderr.write(
-            f"MockServer - - [{self.log_date_time_string()}] {format % args}\n"
-        )
+        sys.stderr.write(f"MockServer - - [{self.log_date_time_string()}] {format % args}\n")
 
     # pylint: disable=invalid-name,too-many-return-statements
     # pylint: disable=too-many-branches,too-many-statements
@@ -50,16 +48,12 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(503)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(
-                    b"503 Service Unavailable (Temporary Error for Testing)"
-                )
+                self.wfile.write(b"503 Service Unavailable (Temporary Error for Testing)")
             else:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(
-                    b"<html><body><h1>Success! Retry worked.</h1></body></html>"
-                )
+                self.wfile.write(b"<html><body><h1>Success! Retry worked.</h1></body></html>")
             return
 
         # 2. 測試：網路超時 (Slow Response)
@@ -68,9 +62,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(
-                b"<html><body><h1>Slow response completed</h1></body></html>"
-            )
+            self.wfile.write(b"<html><body><h1>Slow response completed</h1></body></html>")
             return
 
         # 3. 測試：302 重新導向 (Redirect)
@@ -104,17 +96,66 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(
-                    b"<html><body><h1>Access Granted to Browser "
-                    b"User-Agent</h1></body></html>"
-                )
+                self.wfile.write(b"<html><body><h1>Access Granted to Browser User-Agent</h1></body></html>")
             else:
                 self.send_response(403)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
+                self.wfile.write(b"403 Forbidden - Only web browsers are allowed!")
+            return
+
+        # 7. 測試：失敗重試 (Flaky Endpoint)
+        if self.path == "/flaky_internal":
+            with counter_lock:
+                request_counter["/flaky_internal"] = request_counter.get("/flaky_internal", 0) + 1
+                current_count: int = request_counter["/flaky_internal"]
+
+            if current_count <= 1:
+                self.send_response(500)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(b"500 Internal Server Error (Flaky)")
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
                 self.wfile.write(
-                    b"403 Forbidden - Only web browsers are allowed!"
+                    b"<html><body><h1>Flaky Page Recovered!</h1>"
+                    b"<a href='https://www.example.com'>Example</a></body></html>"
                 )
+            return
+
+        # 8. 測試：重置 Flaky 狀態
+        if self.path == "/reset_flaky":
+            with counter_lock:
+                request_counter["/flaky_internal"] = 0
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"message": "State reset"}')
+            return
+
+        # 9. 測試：Tarpit 端點 (Timeout Simulation)
+        if self.path == "/tarpit":
+            time.sleep(10)  # 阻礙 10 秒以觸發進階測試的 external_check_timeout (2.0s)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"<html><body>Too late!</body></html>")
+            return
+
+        # 10. 測試：Advanced Test 進入點
+        if self.path == "/advanced_test":
+            port = self.server.server_address[1]
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(
+                b"<html><body>"
+                b"<a href='/flaky_internal'>Flaky Internal</a> "
+                + f"<a href='http://localhost:{port}/tarpit'>Tarpit External</a>".encode("utf-8")
+                + b"</body></html>"
+            )
             return
 
         # 6. 靜態檔案回傳（index.html, page2.html, 以及重新導向後的 subfolder 目錄內容）
@@ -138,6 +179,14 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             if local_path.endswith(".html"):
                 self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                with open(target_abs_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                port = self.server.server_address[1]
+                content = content.replace("127.0.0.1", f"127.0.0.1:{port}")
+                content = content.replace("localhost", f"localhost:{port}")
+                self.wfile.write(content.encode("utf-8"))
+                return
             elif local_path.endswith(".pdf"):
                 self.send_header("Content-Type", "application/pdf")
             else:
@@ -152,6 +201,20 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
         self.wfile.write(b"404 Not Found")
+
+    def do_HEAD(self) -> None:
+        """
+        處理 HTTP HEAD 請求。
+        模擬 Tarpit 超時，其餘路徑回傳 501 以符合 mock-social-media 測試期待。
+        """
+        if self.path == "/tarpit":
+            time.sleep(10)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            return
+
+        self.send_error(501, "Unsupported method ('HEAD')")
 
 
 def run(port: int = 8000) -> None:

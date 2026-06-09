@@ -14,7 +14,7 @@ import time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-PORT: int = 8000
+PORT: int = 8080
 DB_PATH: str = "db/crawler.db"
 YAML_CONFIG: str = "job/test_job.yaml"
 
@@ -82,15 +82,9 @@ def run_test() -> None:
     client_exempt = crawler_instance._get_client("https://badssl.com/index.html")
     client_exempt2 = crawler_instance._get_client("https://sub.self-signed.org/test")
 
-    assert (
-        client_normal is crawler_instance.client
-    ), "Normal client should be the standard client"
-    assert (
-        client_exempt is crawler_instance.exempt_client
-    ), "Exempted domain client should be the exempt client"
-    assert (
-        client_exempt2 is crawler_instance.exempt_client
-    ), "Subdomain of exempted domain should be the exempt client"
+    assert client_normal is crawler_instance.client, "Normal client should be the standard client"
+    assert client_exempt is crawler_instance.exempt_client, "Exempted domain client should be the exempt client"
+    assert client_exempt2 is crawler_instance.exempt_client, "Subdomain of exempted domain should be the exempt client"
     crawler_instance.close()
     print("Unit Test Passed: SSL Exempt Client check.")
 
@@ -134,22 +128,16 @@ def run_test() -> None:
     merged = merge_and_validate_crawler_config(local_cfg, global_cfg)
 
     # 斷言環境變數正確覆寫
-    assert (
-        merged["proxy_url"] == "http://env-proxy:8080"
-    ), f"Proxy should be overridden by env, got {merged['proxy_url']}"
+    assert merged["proxy_url"] == "http://env-proxy:8080", (
+        f"Proxy should be overridden by env, got {merged['proxy_url']}"
+    )
 
     # 斷言 ssl_exempt_domains 包含全域、個別與環境變數之聯集
     exempt_set = set(merged["ssl_exempt_domains"])
-    assert (
-        "global-exempt.com" in exempt_set
-    ), "global-exempt.com should be in exempt domains"
-    assert (
-        "local-exempt.com" in exempt_set
-    ), "local-exempt.com should be in exempt domains"
+    assert "global-exempt.com" in exempt_set, "global-exempt.com should be in exempt domains"
+    assert "local-exempt.com" in exempt_set, "local-exempt.com should be in exempt domains"
     assert "env-exempt.com" in exempt_set, "env-exempt.com should be in exempt domains"
-    assert (
-        "sub.env-exempt.org" in exempt_set
-    ), "sub.env-exempt.org should be in exempt domains"
+    assert "sub.env-exempt.org" in exempt_set, "sub.env-exempt.org should be in exempt domains"
 
     # 清理環境變數
     del os.environ["CRAWLER_PROXY_URL"]
@@ -158,16 +146,12 @@ def run_test() -> None:
 
     # 3. 檢查 port 是否已被佔用
     if is_port_in_use(PORT):
-        print(
-            f"Warning: Port {PORT} is already in use. Attempting to run anyway, but it might fail."
-        )
+        print(f"Warning: Port {PORT} is already in use. Attempting to run anyway, but it might fail.")
 
     # 4. 啟動 Mock HTTP Server
     server_cmd = [sys.executable, "test/test_server/server.py", str(PORT)]
     print(f"Starting Mock Server: {' '.join(server_cmd)}")
-    server_proc = subprocess.Popen(
-        server_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
+    server_proc = subprocess.Popen(server_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     try:
         # 等待伺服器就緒
@@ -185,6 +169,21 @@ def run_test() -> None:
             print(f"Removing old database: {DB_PATH}")
             os.remove(DB_PATH)
 
+        # 動態產生主測試設定檔，確保 PORT 與最新欄位名稱正確
+        os.makedirs("job", exist_ok=True)
+        with open(YAML_CONFIG, "w", encoding="utf-8") as f:
+            f.write(f"""\
+start_url: "http://localhost:{PORT}/index.html"
+target_domains:
+  - "localhost"
+trusted_domains:
+  - "localhost"
+crawler:
+  retries: 0
+  delay: 0.1
+  timeout: 30
+""")
+
         crawler_cmd = [sys.executable, "cli.py", "-c", YAML_CONFIG]
         print(f"Running Crawler: {' '.join(crawler_cmd)}")
         crawler_proc = subprocess.run(crawler_cmd, capture_output=True, text=True)
@@ -197,10 +196,7 @@ def run_test() -> None:
             print(crawler_proc.stderr)
 
         if crawler_proc.returncode != 0:
-            print(
-                f"Error: Crawler process exited with "
-                f"non-zero code {crawler_proc.returncode}"
-            )
+            print(f"Error: Crawler process exited with non-zero code {crawler_proc.returncode}")
             sys.exit(1)
 
         print("Crawler finished successfully.")
@@ -220,21 +216,12 @@ def run_test() -> None:
         queue_stats = dict(cursor.fetchall())
         print(f"Queue Stats: {queue_stats}")
 
-        assert (
-            queue_stats.get("completed", 0) == 6
-        ), f"Expected 6 completed urls, got {queue_stats.get('completed')}"
-        assert (
-            queue_stats.get("skip", 0) == 2
-        ), f"Expected 2 skipped urls, got {queue_stats.get('skip')}"
-        assert (
-            queue_stats.get("failed", 0) == 1
-        ), f"Expected 1 failed urls, got {queue_stats.get('failed')}"
+        assert queue_stats.get("completed", 0) == 6, f"Expected 6 completed urls, got {queue_stats.get('completed')}"
+        assert queue_stats.get("skip", 0) == 2, f"Expected 2 skipped urls, got {queue_stats.get('skip')}"
+        assert queue_stats.get("failed", 0) == 1, f"Expected 1 failed urls, got {queue_stats.get('failed')}"
 
         # B. 驗證外部連結與安全標記
-        cursor.execute(
-            "SELECT target_url, ip_address, http_status_code, "
-            "error_message, is_secure FROM external_links"
-        )
+        cursor.execute("SELECT target_url, ip_address, http_status_code, error_message, is_secure FROM external_links")
         external_links = cursor.fetchall()
 
         ext_dict = {}
@@ -252,16 +239,11 @@ def run_test() -> None:
         # 斷言 1: Google (應為 200, 且有 IP, is_secure 應為 1)
         google_url = "https://www.google.com"
         assert google_url in ext_dict, "Google link not found in DB"
-        assert (
-            ext_dict[google_url]["status_code"] == 200
-        ), (
-            f"Google status code should be 200, "
-            f"got {ext_dict[google_url]['status_code']}"
+        assert ext_dict[google_url]["status_code"] == 200, (
+            f"Google status code should be 200, got {ext_dict[google_url]['status_code']}"
         )
         assert ext_dict[google_url]["ip"] is not None, "Google IP should not be None"
-        assert (
-            ext_dict[google_url]["is_secure"] == 1
-        ), "Google is_secure should be 1 (True)"
+        assert ext_dict[google_url]["is_secure"] == 1, "Google is_secure should be 1 (True)"
 
         # 斷言 2: httpbin 404
         status_404_url = "https://httpbin.org/status/404"
@@ -273,12 +255,10 @@ def run_test() -> None:
             None,
         ), f"404 status should be 404, 503 or None, got {s_code_404}"
         if s_code_404 is None:
-            assert (
-                ext_dict[status_404_url]["error"] is not None
-            ), "Error message should not be None when status_code is None"
-        assert (
-            ext_dict[status_404_url]["is_secure"] == 1
-        ), "httpbin 404 is_secure should be 1"
+            assert ext_dict[status_404_url]["error"] is not None, (
+                "Error message should not be None when status_code is None"
+            )
+        assert ext_dict[status_404_url]["is_secure"] == 1, "httpbin 404 is_secure should be 1"
 
         # 斷言 3: httpbin 500
         status_500_url = "https://httpbin.org/status/500"
@@ -290,78 +270,52 @@ def run_test() -> None:
             None,
         ), f"500 status should be 500, 503 or None, got {s_code_500}"
         if s_code_500 is None:
-            assert (
-                ext_dict[status_500_url]["error"] is not None
-            ), "Error message should not be None when status_code is None"
-        assert (
-            ext_dict[status_500_url]["is_secure"] == 1
-        ), "httpbin 500 is_secure should be 1"
+            assert ext_dict[status_500_url]["error"] is not None, (
+                "Error message should not be None when status_code is None"
+            )
+        assert ext_dict[status_500_url]["is_secure"] == 1, "httpbin 500 is_secure should be 1"
 
         # 斷言 4: DNS 失敗連結
         dns_fail_url = "https://this-dns-does-not-exist-at-all-123456789.com"
         assert dns_fail_url in ext_dict, "DNS fail link not found in DB"
-        assert (
-            ext_dict[dns_fail_url]["ip"] is None
-        ), (
-            f"DNS fail link IP should be None, "
-            f"got {ext_dict[dns_fail_url]['ip']}"
+        assert ext_dict[dns_fail_url]["ip"] is None, (
+            f"DNS fail link IP should be None, got {ext_dict[dns_fail_url]['ip']}"
         )
-        assert (
-            ext_dict[dns_fail_url]["status_code"] is None
-        ), (
-            f"DNS fail link status code should be None, "
-            f"got {ext_dict[dns_fail_url]['status_code']}"
+        assert ext_dict[dns_fail_url]["status_code"] is None, (
+            f"DNS fail link status code should be None, got {ext_dict[dns_fail_url]['status_code']}"
         )
-        assert (
-            ext_dict[dns_fail_url]["error"] is not None
-        ), "DNS fail link should have an error message"
-        assert (
-            ext_dict[dns_fail_url]["is_secure"] == 1
-        ), "DNS fail link is_secure should be 1"
+        assert ext_dict[dns_fail_url]["error"] is not None, "DNS fail link should have an error message"
+        assert ext_dict[dns_fail_url]["is_secure"] == 1, "DNS fail link is_secure should be 1"
 
         # 斷言 5: neverssl.com (應為 HTTP, is_secure 應為 0)
         neverssl_url = "http://neverssl.com"
         assert neverssl_url in ext_dict, "neverssl.com link not found in DB"
-        assert (
-            ext_dict[neverssl_url]["is_secure"] == 0
-        ), (
-            f"neverssl.com is_secure should be 0 (False), "
-            f"got {ext_dict[neverssl_url]['is_secure']}"
+        assert ext_dict[neverssl_url]["is_secure"] == 0, (
+            f"neverssl.com is_secure should be 0 (False), got {ext_dict[neverssl_url]['is_secure']}"
         )
 
         # 斷言 6: mock-social-media (應為 HTTP, is_secure 應為 0, 因為 HEAD 返回 501 且非社群網域故不降級，狀態碼應為 501)
-        social_url = "http://127.0.0.1:8000/mock-social-media"
+        social_url = f"http://127.0.0.1:{PORT}/mock-social-media"
         assert social_url in ext_dict, "Mock social media link not found in DB"
-        assert (
-            ext_dict[social_url]["is_secure"] == 0
-        ), "Mock social media is_secure should be 0"
-        assert (
-            ext_dict[social_url]["status_code"] == 501
-        ), (
-            f"Mock social media status_code should be 501, "
-            f"got {ext_dict[social_url]['status_code']}"
+        assert ext_dict[social_url]["is_secure"] == 0, "Mock social media is_secure should be 0"
+        assert ext_dict[social_url]["status_code"] == 501, (
+            f"Mock social media status_code should be 501, got {ext_dict[social_url]['status_code']}"
         )
 
         # 新增外部資源類型斷言 (CSS Link)
         fonts_url = "https://fonts.googleapis.com/css?family=Roboto"
         assert fonts_url in ext_dict, "Fonts CSS link not found in DB"
-        assert (
-            ext_dict[fonts_url]["is_secure"] == 1
-        ), "Fonts CSS link is_secure should be 1"
+        assert ext_dict[fonts_url]["is_secure"] == 1, "Fonts CSS link is_secure should be 1"
 
         # 新增外部資源類型斷言 (JS Script)
         analytics_url = "https://www.google-analytics.com/analytics.js"
         assert analytics_url in ext_dict, "Analytics JS link not found in DB"
-        assert (
-            ext_dict[analytics_url]["is_secure"] == 1
-        ), "Analytics JS link is_secure should be 1"
+        assert ext_dict[analytics_url]["is_secure"] == 1, "Analytics JS link is_secure should be 1"
 
         # 新增外部資源類型斷言 (Form action)
         form_url = "https://httpbin.org/post"
         assert form_url in ext_dict, "Form action link not found in DB"
-        assert (
-            ext_dict[form_url]["is_secure"] == 1
-        ), "Form action link is_secure should be 1"
+        assert ext_dict[form_url]["is_secure"] == 1, "Form action link is_secure should be 1"
 
         # 新增外部資源類型斷言 (Img src)
         img_url = "https://example.com/broken-img.jpg"
@@ -403,34 +357,19 @@ def run_test() -> None:
         for item in export_data:
             if item["target_url"] == status_404_url:
                 found_grouped_404 = True
-                assert (
-                    item["occurrence_count"] == 2
-                ), (
-                    f"Expected 404 occurrence count to be 2, "
-                    f"got {item['occurrence_count']}"
+                assert item["occurrence_count"] == 2, (
+                    f"Expected 404 occurrence count to be 2, got {item['occurrence_count']}"
                 )
-                assert (
-                    len(item["source_urls"]) == 2
-                ), "Expected 2 source urls for 404 link"
-                assert (
-                    "http://localhost:8000/index.html" in item["source_urls"]
-                ), "Missing index.html source"
-                assert (
-                    "http://localhost:8000/page2.html" in item["source_urls"]
-                ), "Missing page2.html source"
-                assert (
-                    item["is_secure"] is True
-                ), "404 is_secure in export should be True"
+                assert len(item["source_urls"]) == 2, "Expected 2 source urls for 404 link"
+                assert f"http://localhost:{PORT}/index.html" in item["source_urls"], "Missing index.html source"
+                assert f"http://localhost:{PORT}/page2.html" in item["source_urls"], "Missing page2.html source"
+                assert item["is_secure"] is True, "404 is_secure in export should be True"
             elif item["target_url"] == google_url:
                 found_grouped_google = True
-                assert (
-                    item["is_secure"] is True
-                ), "Google is_secure in export should be True"
+                assert item["is_secure"] is True, "Google is_secure in export should be True"
             elif item["target_url"] == neverssl_url:
                 found_grouped_neverssl = True
-                assert (
-                    item["is_secure"] is False
-                ), "neverssl.com is_secure in export should be False"
+                assert item["is_secure"] is False, "neverssl.com is_secure in export should be False"
 
         assert found_grouped_404, "Grouped 404 not found in export"
         assert found_grouped_google, "Grouped Google not found in export"
@@ -467,10 +406,9 @@ def run_test() -> None:
         with open(dead_file, "r") as f:
             dead_data = json.load(f)
         assert len(dead_data) == 1, f"Expected 1 dead link, got {len(dead_data)}"
-        assert (
-            dead_data[0]["target_url"]
-            == "https://this-dns-does-not-exist-at-all-123456789.com"
-        ), "Dead link target mismatch"
+        assert dead_data[0]["target_url"] == "https://this-dns-does-not-exist-at-all-123456789.com", (
+            "Dead link target mismatch"
+        )
         os.remove(dead_file)
 
         # 測試 --filter broken
@@ -505,14 +443,8 @@ def run_test() -> None:
 
         # 預期非 200 的外連共有 6 個（httpbin 404 x2, httpbin 500, httpbin post, broken-img, dns fail）
         # 排除 possibly flaky neverssl.com 連結 (若它連不上會被歸類為 broken)
-        filtered_broken = [
-            item
-            for item in broken_data
-            if item.get("target_url") != "http://neverssl.com"
-        ]
-        assert (
-            len(filtered_broken) == 6
-        ), (
+        filtered_broken = [item for item in broken_data if item.get("target_url") != "http://neverssl.com"]
+        assert len(filtered_broken) == 6, (
             "Expected 6 broken links (excluding neverssl.com), "
             f"got {len(filtered_broken)}: "
             f"{[x['target_url'] for x in filtered_broken]}"
@@ -538,9 +470,7 @@ def run_test() -> None:
         assert res_insecure.returncode == 0, "Export with --filter insecure failed"
         with open(insecure_file, "r") as f:
             insecure_data = json.load(f)
-        assert len(insecure_data) >= 2, (
-            f"Expected at least 2 insecure links, got {len(insecure_data)}"
-        )
+        assert len(insecure_data) >= 2, f"Expected at least 2 insecure links, got {len(insecure_data)}"
         assert all(item.get("is_secure") is False for item in insecure_data), (
             "All insecure links should have is_secure=False"
         )
@@ -565,9 +495,9 @@ def run_test() -> None:
         assert res_exclude.returncode == 0, "Export with --exclude failed"
         with open(exclude_file, "r") as f:
             exclude_data = json.load(f)
-        assert not any(
-            "google.com" in item.get("target_url") for item in exclude_data
-        ), "Excluded domain should not be in export"
+        assert not any("google.com" in item.get("target_url") for item in exclude_data), (
+            "Excluded domain should not be in export"
+        )
         os.remove(exclude_file)
 
         # 測試 --export-full
@@ -588,12 +518,8 @@ def run_test() -> None:
 
         with zipfile.ZipFile(full_zip_file, "r") as zf:
             namelist = zf.namelist()
-            assert any("crawl_records.csv" in n for n in namelist), (
-                "crawl_records.csv missing in ZIP"
-            )
-            assert any("external_links.csv" in n for n in namelist), (
-                "external_links.csv missing in ZIP"
-            )
+            assert any("crawl_records.csv" in n for n in namelist), "crawl_records.csv missing in ZIP"
+            assert any("external_links.csv" in n for n in namelist), "external_links.csv missing in ZIP"
 
         os.remove(full_zip_file)
 
@@ -613,9 +539,7 @@ def run_test() -> None:
         conn_check = sqlite3.connect(DB_PATH)
         cur_check = conn_check.cursor()
         cur_check.execute("SELECT status FROM jobs WHERE id = ?", (job_id,))
-        assert (
-            cur_check.fetchone()[0] == "completed"
-        ), "Job status should remain completed"
+        assert cur_check.fetchone()[0] == "completed", "Job status should remain completed"
         conn_check.close()
 
         # B. 測試 --reset (重置任務)
@@ -626,32 +550,20 @@ def run_test() -> None:
         conn_check = sqlite3.connect(DB_PATH)
         cur_check = conn_check.cursor()
         cur_check.execute("SELECT status FROM jobs WHERE id = ?", (job_id,))
-        assert (
-            cur_check.fetchone()[0] == "pending"
-        ), "Job status should be reset to pending"
+        assert cur_check.fetchone()[0] == "pending", "Job status should be reset to pending"
 
-        cur_check.execute(
-            "SELECT COUNT(*) FROM external_links WHERE job_id = ?", (job_id,)
-        )
-        assert (
-            cur_check.fetchone()[0] == 0
-        ), "External links should be cleared after reset"
+        cur_check.execute("SELECT COUNT(*) FROM external_links WHERE job_id = ?", (job_id,))
+        assert cur_check.fetchone()[0] == 0, "External links should be cleared after reset"
 
-        cur_check.execute(
-            "SELECT COUNT(*) FROM crawl_queue WHERE job_id = ?", (job_id,)
-        )
+        cur_check.execute("SELECT COUNT(*) FROM crawl_queue WHERE job_id = ?", (job_id,))
         # 重置後佇列應該只剩下 1 個 (即 start_url)
-        assert (
-            cur_check.fetchone()[0] == 1
-        ), "Queue should only contain start URL after reset"
+        assert cur_check.fetchone()[0] == 1, "Queue should only contain start URL after reset"
         conn_check.close()
 
         # C. 測試暫停與恢復爬行 (--pause & --resume)
         print("Resuming job in background...")
         resume_bg_cmd = [sys.executable, "cli.py", "--resume", job_id]
-        bg_proc = subprocess.Popen(
-            resume_bg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
+        bg_proc = subprocess.Popen(resume_bg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         # 等待 1.5 秒等它開始執行並鎖定在 running 狀態
         time.sleep(1.5)
@@ -671,9 +583,7 @@ def run_test() -> None:
             print("--- Background Resume stderr ---")
             print(bg_err)
 
-        assert (
-            res_pause.returncode == 0
-        ), f"Pause command failed with exit code {res_pause.returncode}"
+        assert res_pause.returncode == 0, f"Pause command failed with exit code {res_pause.returncode}"
 
         # 等待背景任務結束 (協同暫停)
         try:
@@ -687,16 +597,12 @@ def run_test() -> None:
             print("stdout:", stdout_bg)
             print("stderr:", stderr_bg)
 
-        assert (
-            bg_proc.returncode == 0
-        ), f"Background resume failed with code {bg_proc.returncode}"
+        assert bg_proc.returncode == 0, f"Background resume failed with code {bg_proc.returncode}"
 
         conn_check = sqlite3.connect(DB_PATH)
         cur_check = conn_check.cursor()
         cur_check.execute("SELECT status FROM jobs WHERE id = ?", (job_id,))
-        assert (
-            cur_check.fetchone()[0] == "paused"
-        ), f"Expected job status to be paused, got {cur_check.fetchone()[0]}"
+        assert cur_check.fetchone()[0] == "paused", f"Expected job status to be paused, got {cur_check.fetchone()[0]}"
         conn_check.close()
 
         # 再次恢復爬行直到完畢
@@ -707,9 +613,7 @@ def run_test() -> None:
         conn_check = sqlite3.connect(DB_PATH)
         cur_check = conn_check.cursor()
         cur_check.execute("SELECT status FROM jobs WHERE id = ?", (job_id,))
-        assert (
-            cur_check.fetchone()[0] == "completed"
-        ), "Job should be completed after resume"
+        assert cur_check.fetchone()[0] == "completed", "Job should be completed after resume"
         conn_check.close()
 
         # D. 測試 --delete (刪除任務)
@@ -722,14 +626,10 @@ def run_test() -> None:
         cur_check.execute("SELECT COUNT(*) FROM jobs WHERE id = ?", (job_id,))
         assert cur_check.fetchone()[0] == 0, "Job record should be deleted"
 
-        cur_check.execute(
-            "SELECT COUNT(*) FROM crawl_queue WHERE job_id = ?", (job_id,)
-        )
+        cur_check.execute("SELECT COUNT(*) FROM crawl_queue WHERE job_id = ?", (job_id,))
         assert cur_check.fetchone()[0] == 0, "Crawl queue should be cleared"
 
-        cur_check.execute(
-            "SELECT COUNT(*) FROM external_links WHERE job_id = ?", (job_id,)
-        )
+        cur_check.execute("SELECT COUNT(*) FROM external_links WHERE job_id = ?", (job_id,))
         assert cur_check.fetchone()[0] == 0, "External links should be cleared"
         conn_check.close()
 
@@ -740,7 +640,22 @@ def run_test() -> None:
         if os.path.exists(DB_PATH):
             os.remove(DB_PATH)
 
-        limit_crawler_cmd = [sys.executable, "cli.py", "-c", "test_limit_job.yaml"]
+        limit_yaml = "job/test_limit_job.yaml"
+        with open(limit_yaml, "w", encoding="utf-8") as f:
+            f.write(f"""\
+start_url: "http://localhost:{PORT}/index.html"
+target_domains:
+  - "localhost"
+trusted_domains:
+  - "localhost"
+crawler:
+  retries: 0
+  delay: 0.1
+  max_depth: 1
+  max_pages: 3
+""")
+
+        limit_crawler_cmd = [sys.executable, "cli.py", "-c", limit_yaml]
         print(f"Running Limit Crawler: {' '.join(limit_crawler_cmd)}")
         limit_proc = subprocess.run(limit_crawler_cmd, capture_output=True, text=True)
         print("--- Limit Crawler stdout ---")
@@ -749,40 +664,128 @@ def run_test() -> None:
             print("--- Limit Crawler stderr ---")
             print(limit_proc.stderr)
 
-        assert (
-            limit_proc.returncode == 0
-        ), f"Limit crawler failed with exit code {limit_proc.returncode}"
+        assert limit_proc.returncode == 0, f"Limit crawler failed with exit code {limit_proc.returncode}"
 
         # 連線資料庫驗證深度與頁數限制
         conn_lim = sqlite3.connect(DB_PATH)
         cur_lim = conn_lim.cursor()
 
         # A. 斷言 max_depth=1: 深度為 2 的 relative-link.html 不應在佇列中
-        cur_lim.execute(
-            "SELECT COUNT(*) FROM crawl_queue WHERE url LIKE '%relative-link.html'"
-        )
+        cur_lim.execute("SELECT COUNT(*) FROM crawl_queue WHERE url LIKE '%relative-link.html'")
         rel_count = cur_lim.fetchone()[0]
         assert rel_count == 0, (
-            "relative-link.html (depth 2) should NOT exist in queue "
-            f"when max_depth=1, got {rel_count}"
+            f"relative-link.html (depth 2) should NOT exist in queue when max_depth=1, got {rel_count}"
         )
 
         # B. 斷言 max_pages=3: completed / failed / skip-with-code 的實質請求網頁數量應恰為 3
         cur_lim.execute("""
             SELECT COUNT(*) FROM crawl_queue 
-            WHERE status IN ('completed', 'failed') 
+            WHERE status IN ('completed', 'failed', 'warning') 
                OR (status = 'skip' AND status_code IS NOT NULL)
         """)
         total_pages_crawled = cur_lim.fetchone()[0]
-        assert (
-            total_pages_crawled == 3
-        ), (
-            f"Total crawled pages should be exactly 3 when max_pages=3, "
-            f"got {total_pages_crawled}"
+        assert total_pages_crawled == 3, (
+            f"Total crawled pages should be exactly 3 when max_pages=3, got {total_pages_crawled}"
         )
 
         conn_lim.close()
         print("Limits Validation Job Passed Successfully!")
+
+        # =====================================================================
+        # 8. 執行進階測試：失敗重試 (Flaky) 與 Tarpit 防禦 (Timeout)
+        # =====================================================================
+        print("\nRunning Advanced Validation: Flaky Retry and Tarpit Defense...")
+        import urllib.request
+
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{PORT}/reset_flaky").read()
+        except Exception:
+            pass
+
+        if os.path.exists(DB_PATH):
+            os.remove(DB_PATH)
+
+        advanced_yaml = "job/test_advanced_job.yaml"
+        with open(advanced_yaml, "w", encoding="utf-8") as f:
+            f.write(f"""\
+start_url: "http://127.0.0.1:{PORT}/advanced_test"
+target_domains:
+  - "127.0.0.1"
+trusted_domains:
+  - "127.0.0.1"
+crawler:
+  retries: 0
+  delay: 0.1
+  timeout: 5
+  connect_timeout: 2.0
+  external_check_timeout: 2.0
+""")
+
+        advanced_cmd = [sys.executable, "cli.py", "-c", advanced_yaml]
+        print(f"Running Advanced Crawler: {' '.join(advanced_cmd)}")
+        adv_proc = subprocess.run(advanced_cmd, capture_output=True, text=True)
+        print("--- Advanced Crawler stdout ---")
+        print(adv_proc.stdout)
+        if adv_proc.stderr:
+            print("--- Advanced Crawler stderr ---")
+            print(adv_proc.stderr)
+
+        assert adv_proc.returncode == 0, f"Advanced crawler failed with exit code {adv_proc.returncode}"
+
+        conn_adv = sqlite3.connect(DB_PATH)
+        cur_adv = conn_adv.cursor()
+
+        # 取得 job_id
+        cur_adv.execute("SELECT id FROM jobs LIMIT 1")
+        adv_job_id = cur_adv.fetchone()[0]
+
+        # 斷言 A: Tarpit 外連被正確標記為超時錯誤
+        cur_adv.execute("SELECT http_status_code, error_message FROM external_links WHERE target_url LIKE '%/tarpit'")
+        tarpit_res = cur_adv.fetchone()
+        assert tarpit_res is not None, "Tarpit link should be recorded"
+        assert tarpit_res[0] is None, "Tarpit link should have no status code due to timeout"
+        assert tarpit_res[1] is not None and (
+            "timeout" in tarpit_res[1].lower() or "timed out" in tarpit_res[1].lower()
+        ), f"Tarpit link should timeout, got error: {tarpit_res[1]}"
+
+        # 斷言 B: flaky_internal 爬取失敗 (因為 retries=0)
+        cur_adv.execute("SELECT status FROM crawl_queue WHERE url LIKE '%/flaky_internal'")
+        flaky_status = cur_adv.fetchone()
+        assert flaky_status is not None, "Flaky internal page should be in queue"
+        assert flaky_status[0] == "failed", (
+            f"Flaky internal page status should be failed on first try, got {flaky_status[0]}"
+        )
+
+        # 觸發 --retry-failed 指令
+        print("Retrying failed internal pages...")
+        retry_cmd = [sys.executable, "cli.py", "--retry-failed", adv_job_id]
+        subprocess.run(retry_cmd, capture_output=True, text=True, check=True)
+
+        # 斷言 C: 狀態已被重置為 pending，接著恢復執行
+        cur_adv.execute("SELECT status FROM crawl_queue WHERE url LIKE '%/flaky_internal'")
+        assert cur_adv.fetchone()[0] == "pending", "Flaky internal page status should be reset to pending"
+
+        print("Resuming advanced job to process retried pages...")
+        resume_adv_cmd = [sys.executable, "cli.py", "--resume", adv_job_id]
+        subprocess.run(resume_adv_cmd, capture_output=True, text=True, check=True)
+
+        # 斷言 D: flaky_internal 這次成功了 (completed)，並且發現了裡面的 external link
+        cur_adv.execute("SELECT status FROM crawl_queue WHERE url LIKE '%/flaky_internal'")
+        assert cur_adv.fetchone()[0] == "completed", "Flaky internal page should be completed after retry"
+
+        cur_adv.execute("SELECT target_url FROM external_links WHERE target_url = 'https://www.example.com'")
+        assert cur_adv.fetchone() is not None, "External link from flaky page should be found after retry"
+
+        conn_adv.close()
+        if os.path.exists(advanced_yaml):
+            os.remove(advanced_yaml)
+        print("Advanced Validation (Tarpit & Flaky) Passed Successfully!")
+
+        # 清理測試過程中動態產生的設定檔，保持工作目錄乾淨
+        if os.path.exists(YAML_CONFIG):
+            os.remove(YAML_CONFIG)
+        if os.path.exists("job/test_limit_job.yaml"):
+            os.remove("job/test_limit_job.yaml")
 
         print("\n=== All E2E Assertions Passed! Test SUCCESS ===")
         sys.exit(0)

@@ -6,7 +6,6 @@
 """
 
 import logging
-import os
 import re
 import socket
 import threading
@@ -18,12 +17,6 @@ from bs4 import BeautifulSoup
 from crawler.utils import normalize_url, get_domain, is_in_domain_list, resolve_ip, is_safe_ip
 
 logger: logging.Logger = logging.getLogger(__name__)
-
-_DEFAULT_SOCIAL_DOMAINS = "facebook.com,fb.com,youtube.com,instagram.com,twitter.com,linkedin.com"
-SOCIAL_DOMAINS: tuple[str, ...] = tuple(
-    d.strip() for d in os.environ.get("CRAWLER_SOCIAL_DOMAINS", _DEFAULT_SOCIAL_DOMAINS).split(",") if d.strip()
-)
-MAX_CONTENT_LENGTH: int = int(os.environ.get("CRAWLER_MAX_CONTENT_LENGTH", 10 * 1024 * 1024))
 
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
@@ -111,6 +104,8 @@ class CrawlerCore:
         user_agent: str | None = None,
         ssl_exempt_domains: list[str] | None = None,
         proxy_url: str | None = None,
+        max_content_length: int = 10485760,
+        social_domains: list[str] | None = None,
     ) -> None:
         """
         初始化 CrawlerCore 物件。
@@ -125,6 +120,8 @@ class CrawlerCore:
             user_agent (str | None): (選填) 自訂 HTTP 請求標頭的 User-Agent。
             ssl_exempt_domains (list[str] | None): (選填) 豁免 SSL 憑證驗證之網域清單。
             proxy_url (str | None): (選填) 代理伺服器 URL。
+            max_content_length (int): 最大允許下載的網頁容量 (Bytes)。
+            social_domains (list[str] | None): (選填) 允許 GET 降級探測的社群網域清單。
         """
         self.timeout: int = timeout
         self.connect_timeout: float = connect_timeout
@@ -142,7 +139,12 @@ class CrawlerCore:
             "allowed_types": ["text/html", "application/xhtml+xml"],
         }
         self.ignore_regexes: list[str] = ignore_regexes or []
-        self.ignore_regex_compiled = [re.compile(p) for p in self.ignore_regexes]
+        self.ignore_regex_compiled = []
+        for p in self.ignore_regexes:
+            try:
+                self.ignore_regex_compiled.append(re.compile(p))
+            except re.error as e:
+                logger.warning("略過無效的正則表達式 '%s': %s", p, e)
         self.user_agent: str = user_agent or (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -150,6 +152,15 @@ class CrawlerCore:
         )
         self.ssl_exempt_domains: list[str] = ssl_exempt_domains or []
         self.proxy_url: str | None = proxy_url
+        self.max_content_length: int = max_content_length
+        self.social_domains: list[str] = social_domains or [
+            "facebook.com",
+            "fb.com",
+            "youtube.com",
+            "instagram.com",
+            "twitter.com",
+            "linkedin.com",
+        ]
 
         timeout_config = httpx.Timeout(self.timeout, connect=self.connect_timeout)
 
@@ -185,7 +196,7 @@ class CrawlerCore:
             return self.exempt_client
         return self.client
 
-    def fetch(self, url: str) -> tuple[str | None, int | None, str, str, bool]:
+    def fetch(self, url: str) -> tuple[str | None, int | None, str, str, bool, str | None]:
         """
         抓取給定網址的 HTML 內容。
 
@@ -193,8 +204,8 @@ class CrawlerCore:
             url (str): 欲抓取的網址字串。
 
         Returns:
-            tuple[str | None, int | None, str, str, bool]: 回傳 (HTML字串, HTTP狀態碼, 狀態字串, 最終網址, 是否發送請求)。
-                狀態字串為 'completed' 或 'skip'。
+            tuple[str | None, int | None, str, str, bool, str | None]: 回傳 (HTML字串, HTTP狀態碼, 狀態, 最終網址, 是否發送請求, 錯誤或警告訊息)。
+                狀態字串為 'completed', 'warning' 或 'skip'。
         """
         max_redirects = 5
         current_url = url
@@ -204,12 +215,12 @@ class CrawlerCore:
             # 略過符合 Regex 規則的連結以節省請求
             if any(pattern.search(current_url) for pattern in self.ignore_regex_compiled):
                 logger.debug("網址 %s 符合忽略之 Regex 規則，略過爬取", current_url)
-                return None, None, "skip", current_url, request_sent
+                return None, None, "skip", current_url, request_sent, "符合忽略之 Regex 規則"
 
             # 略過指定的非 HTML 副檔名以節省頻寬與時間
             parsed_path = urlparse(current_url).path.lower()
             if any(parsed_path.endswith(ext) for ext in self.ignore_extensions):
-                return None, None, "skip", current_url, request_sent
+                return None, None, "skip", current_url, request_sent, "符合忽略之副檔名"
 
             client = self._get_client(current_url)
 
@@ -225,7 +236,7 @@ class CrawlerCore:
                             current_url,
                             ip,
                         )
-                        return None, None, "skip", current_url, request_sent
+                        return None, None, "skip", current_url, request_sent, f"SSRF 防禦攔截：目標 IP ({ip}) 不安全"
 
             with dns_override(domain, ip) if domain and ip else nullcontext():
                 with client.stream("GET", current_url) as response:
@@ -235,7 +246,14 @@ class CrawlerCore:
                     if response.status_code in (301, 302, 303, 307, 308):
                         location = response.headers.get("Location")
                         if not location:
-                            return None, response.status_code, "skip", current_url, request_sent
+                            return (
+                                None,
+                                response.status_code,
+                                "skip",
+                                current_url,
+                                request_sent,
+                                "重導向但無 Location 標頭",
+                            )
                         current_url = urljoin(current_url, location)
                         continue
 
@@ -249,34 +267,46 @@ class CrawlerCore:
                         # 若 content_type 不包含任何一個 allowed_type，則提早中斷並回傳 None
                         if not any(allowed.lower() in content_type for allowed in allowed_types):
                             logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
-                            return None, response.status_code, "skip", current_url, request_sent
+                            return (
+                                None,
+                                response.status_code,
+                                "skip",
+                                current_url,
+                                request_sent,
+                                f"略過非目標 MIME 類型 ({content_type})",
+                            )
 
                     # 若檢查通過，讀取所有資料
                     # 改用分塊讀取，並限制最大記憶體用量
                     content_bytes = bytearray()
+                    err_msg = None
                     for chunk in response.iter_bytes(chunk_size=8192):
                         content_bytes.extend(chunk)
-                        if len(content_bytes) > MAX_CONTENT_LENGTH:
+                        if len(content_bytes) > self.max_content_length:
+                            err_msg = f"網頁容量超過上限 ({self.max_content_length} bytes)，內容已被提早截斷"
                             logger.warning(
                                 "網址 %s 內容超過 %d bytes，已提早截斷保護記憶體",
                                 current_url,
-                                MAX_CONTENT_LENGTH,
+                                self.max_content_length,
                             )
                             break
 
                     charset = response.charset_encoding or "utf-8"
                     text = content_bytes.decode(charset, errors="replace")
 
+                    status = "warning" if err_msg else "completed"
+
                     return (
                         text,
                         response.status_code,
-                        "completed",
+                        status,
                         current_url,
                         request_sent,
+                        err_msg,
                     )
 
         logger.warning("網址 %s 超過最大重導向次數", url)
-        return None, None, "skip", current_url, request_sent
+        return None, None, "skip", current_url, request_sent, "超過最大重導向次數"
 
     def extract_links(self, html: str, base_url: str) -> list[str]:
         """
@@ -337,28 +367,29 @@ class CrawlerCore:
             return []
 
     def process_url(
-        self, url: str, target_domains: list[str], internal_domains: list[str]
-    ) -> tuple[list[str], list[str], int | None, str, bool]:
+        self, url: str, target_domains: list[str], trusted_domains: list[str]
+    ) -> tuple[list[str], list[str], int | None, str, bool, str | None]:
         """
         處理單一網址，包含抓取網頁、擷取連結以及分類。
 
         Args:
             url (str): 準備處理的網址。
             target_domains (list[str]): 允許爬蟲進入的網域陣列。
-            internal_domains (list[str]): 被視為內部的網域陣列。指向這些網域以外的連結將被視為目標。
+            trusted_domains (list[str]): 被視為信任的網域陣列。指向這些網域以外的連結將被視為目標。
 
         Returns:
-            tuple[list[str], list[str], int | None, str, bool]: 包含：
+            tuple[list[str], list[str], int | None, str, bool, str | None]: 包含：
                 - internal_links: 準備加入佇列繼續爬取的內部連結陣列。
                 - external_target_links: 需被記錄的外部連結陣列。
                 - status_code: HTTP 狀態碼 (若有)。
                 - status: 最終狀態 ('completed' 或 'skip')。
                 - request_sent: 是否發送了 HTTP 請求。
+                - err_msg: 擷取過程的警告或錯誤訊息 (若有)。
         """
-        html, status_code, status, final_url, request_sent = self.fetch(url)
+        html, status_code, status, final_url, request_sent, err_msg = self.fetch(url)
 
         if not html:
-            return [], [], status_code, status, request_sent
+            return [], [], status_code, status, request_sent, err_msg
 
         links: list[str] = self.extract_links(html, final_url)
 
@@ -374,11 +405,11 @@ class CrawlerCore:
             if is_in_domain_list(domain, target_domains):
                 internal_links.append(link)
 
-            # 規則 2: 找出連向內部網域 (internal_domains) 以外的外部網址
-            if not is_in_domain_list(domain, internal_domains):
+            # 規則 2: 找出連向信任網域 (trusted_domains) 以外的外部網址
+            if not is_in_domain_list(domain, trusted_domains):
                 external_target_links.append(link)
 
-        return internal_links, external_target_links, status_code, status, request_sent
+        return internal_links, external_target_links, status_code, status, request_sent, err_msg
 
     def check_external_link(self, url: str) -> tuple[int | None, str | None]:
         """
@@ -423,7 +454,7 @@ class CrawlerCore:
                 # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
                 domain = get_domain(current_url)
                 # 使用精確的子網域比對（防止 notfacebook.com 被誤判為社群網域）
-                is_social_media = domain and is_in_domain_list(domain.lower(), list(SOCIAL_DOMAINS))
+                is_social_media = domain and is_in_domain_list(domain.lower(), self.social_domains)
 
                 if response.status_code in (400, 403, 405) or (response.status_code >= 400 and is_social_media):
                     # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案

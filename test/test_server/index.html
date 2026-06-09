@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Link Checker Verification Page</title>
     <!-- CSS style link for verification -->
@@ -7,13 +8,14 @@
     <!-- JS script link for verification -->
     <script src="https://www.google-analytics.com/analytics.js"></script>
 </head>
+
 <body>
     <h1>Link Checker Verification Sandbox</h1>
     <p>This page contains various types of internal and external links for testing all crawler features.</p>
-    
+
     <h2>1. Crawl traversal & Aggregation Verification</h2>
     <ul>
-        <li><a href="page2.html">Page 2 (Internal traversal test)</a></li>
+        <li><a href="page2.html">Page 2 (internal traversal test)</a></li>
         <li><a href="https://httpbin.org/status/404">Repeated 404 Link (Aggregation test)</a></li>
         <li>
             <!-- form action verification -->
@@ -35,7 +37,8 @@
     <h2>3. Resource Filters (Skip & Delay Rules) Verification</h2>
     <ul>
         <li><a href="test.pdf">Ignored PDF File (Extension skip verification - Expect No Request, Zero Delay)</a></li>
-        <li><a href="/infinite-stream">Binary Stream File (MIME-type check verification - Expect Aborted Connection, With Delay)</a></li>
+        <li><a href="/infinite-stream">Binary Stream File (MIME-type check verification - Expect Aborted Connection,
+                With Delay)</a></li>
     </ul>
 
     <h2>4. Error Recovery & Retries Verification</h2>
@@ -51,7 +54,8 @@
         <li><a href="https://this-dns-does-not-exist-at-all-123456789.com">Dead Link (DNS resolve failure test)</a></li>
         <li><a href="https://httpbin.org/status/500">500 Server Error Link</a></li>
         <li><a href="http://neverssl.com">NeverSSL (HTTP link for security flag check)</a></li>
-        <li><a href="http://127.0.0.1:8000/mock-social-media">Mock Social Media (HEAD downgrade test)</a></li>
+        <li><a href="http://127.0.0.1/mock-social-media">Mock Social Media (HEAD downgrade test)</a></li>
     </ul>
 </body>
+
 </html>

@@ -65,7 +65,16 @@ async function request(path, options = {}) {
     }
 
     if (!response.ok) {
-        const message = (data && data.detail) ? data.detail : (typeof data === 'string' && data.trim() ? data.trim() : `HTTP ${response.status} ${response.statusText}`);
+        let message = `HTTP ${response.status} ${response.statusText}`;
+        if (data && data.detail) {
+            if (Array.isArray(data.detail)) {
+                message = data.detail.map(e => `[${e.loc && e.loc.length > 0 ? e.loc[e.loc.length - 1] : '參數錯誤'}] ${e.msg}`).join('\n');
+            } else {
+                message = data.detail;
+            }
+        } else if (typeof data === 'string' && data.trim()) {
+            message = data.trim();
+        }
         const err = new Error(message);
         err.status = response.status;
         err.data = data;

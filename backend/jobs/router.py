@@ -22,6 +22,7 @@ import io
 import json
 import logging
 import os
+import re
 import tempfile
 import zipfile
 from collections.abc import Generator
@@ -37,7 +38,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
@@ -63,19 +64,24 @@ router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 class CreateJobRequest(BaseModel):
     """建立任務請求的 Schema。"""
 
+    model_config = {"extra": "forbid"}
+
     start_url: str
     target_domains: list[str]
-    internal_domains: list[str] = []
+    trusted_domains: list[str] = []
     ignore_extensions: list[str] = []
     ignore_regexes: list[str] = []
-    max_depth: int | None = None
-    max_pages: int | None = None
-    delay: float | None = None
-    timeout: int | None = None
-    connect_timeout: float | None = None
-    external_check_timeout: float | None = None
-    retries: int | None = None
+    max_depth: int | None = Field(None, ge=1)
+    max_pages: int | None = Field(None, ge=1)
+    delay: float | None = Field(None, ge=0.0)
+    timeout: int | None = Field(None, ge=1)
+    connect_timeout: float | None = Field(None, ge=1.0)
+    external_check_timeout: float | None = Field(None, ge=1.0)
+    retries: int | None = Field(None, ge=0)
     proxy_url: str | None = None
+    user_agent: str | None = None
+    ssl_exempt_domains: list[str] = []
+    domain_delays: dict[str, float] | None = None
 
     @field_validator("start_url")
     @classmethod
@@ -112,9 +118,67 @@ class CreateJobRequest(BaseModel):
         Raises:
             ValueError: 若列表為空時拋出。
         """
-        if not v:
+        cleaned = [d.strip() for d in v if d.strip()]
+        if not cleaned:
             raise ValueError("至少需要指定一個目標網域。")
-        return [d.strip() for d in v]
+        return cleaned
+
+    @field_validator("trusted_domains", "ssl_exempt_domains", "ignore_extensions")
+    @classmethod
+    def clean_string_lists(cls, v: list[str]) -> list[str]:
+        """
+        移除清單中的前後空白與空字串。
+
+        Args:
+            v (list[str]): 原始字串列表。
+
+        Returns:
+            list[str]: 清理後的字串列表。
+        """
+        return [item.strip() for item in v if item.strip()]
+
+    @field_validator("ignore_regexes")
+    @classmethod
+    def validate_regexes(cls, v: list[str]) -> list[str]:
+        """
+        驗證正則表達式列表是否合法。
+
+        Args:
+            v (list[str]): 欲驗證的正則表達式列表。
+
+        Returns:
+            list[str]: 驗證後的正則表達式列表。
+
+        Raises:
+            ValueError: 若有任何正則表達式編譯失敗時拋出。
+        """
+        for pattern in v:
+            try:
+                re.compile(pattern)
+            except re.error as e:
+                raise ValueError(f"無效的正則表達式 '{pattern}': {e}") from e
+        return v
+
+    @field_validator("domain_delays")
+    @classmethod
+    def validate_domain_delays(cls, v: dict[str, float] | None) -> dict[str, float] | None:
+        """
+        驗證特定網域延遲時間是否合法。
+
+        Args:
+            v (dict[str, float] | None): 欲驗證的網域延遲時間字典。
+
+        Returns:
+            dict[str, float] | None: 驗證後的網域延遲時間字典。
+
+        Raises:
+            ValueError: 若有任何延遲時間小於 0 時拋出。
+        """
+        if v is not None:
+            for domain, delay in v.items():
+                if delay < 0:
+                    raise ValueError(f"網域 {domain} 的延遲時間不可小於 0")
+        return v
 
 
 # ── 端點實作 ────────────────────────────────────────────────────────────────────
@@ -160,10 +224,17 @@ def get_default_config(
         "max_timeout",
         "min_connect_timeout",
         "max_connect_timeout",
+        "min_external_check_timeout",
+        "max_external_check_timeout",
         "retries",
         "min_retries",
         "max_retries",
+        "max_max_depth",
+        "max_max_pages",
         "proxy_url",
+        "user_agent",
+        "ssl_exempt_domains",
+        "domain_delays",
     }
 
     return {k: v for k, v in crawler_config.items() if k in allowed_keys}
@@ -224,6 +295,9 @@ def create_job(
         "external_check_timeout",
         "retries",
         "proxy_url",
+        "user_agent",
+        "ssl_exempt_domains",
+        "domain_delays",
     }
 
     # 透過白名單動態過濾並組建 crawler_config
@@ -251,7 +325,7 @@ def create_job(
         config_obj = job_service.JobCreateConfig(
             start_url=body.start_url,
             target_domains=body.target_domains,
-            internal_domains=body.internal_domains,
+            trusted_domains=body.trusted_domains,
             crawler_config=final_crawler_config,
         )
         job_id = job_service.create_job(manager, current_user.id, config_obj)
