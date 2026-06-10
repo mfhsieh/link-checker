@@ -17,6 +17,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session as DBSession
+from sqlalchemy.orm.exc import StaleDataError
 
 from backend.auth.models import AuthLog, Invitation, Session, User
 from backend.auth.password import (
@@ -434,7 +435,14 @@ def refresh_session(db: DBSession, session: Session) -> None:
     """
     settings = get_settings()
     session.expires_at = _utc_now() + timedelta(seconds=settings.SESSION_EXPIRE_SECONDS)
-    db.commit()
+    try:
+        db.commit()
+    except StaleDataError:
+        db.rollback()
+        logger.debug("Session 紀錄可能已被併發登出或背景 GC 清除，略過滑動更新。")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        db.rollback()
+        logger.warning("更新 Session 有效期時發生未預期錯誤: %s", e)
 
 
 def invalidate_session(db: DBSession, raw_token: str) -> None:
