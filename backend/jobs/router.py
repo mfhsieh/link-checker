@@ -38,12 +38,12 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
 from backend.config import get_settings
-from backend.deps import get_crawler_db, get_current_user, get_job_manager, require_csrf
+from backend.deps import get_auth_db, get_crawler_db, get_current_user, get_job_manager, require_csrf
 from backend.jobs import service as job_service
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
@@ -180,6 +180,22 @@ class CreateJobRequest(BaseModel):
                 if delay < 0:
                     raise ValueError(f"網域 {domain} 的延遲時間不可小於 0")
         return v
+
+
+class TransferJobRequest(BaseModel):
+    """移交任務請求的 Schema。"""
+
+    model_config = {"extra": "forbid"}
+
+    target_email: EmailStr
+
+    @field_validator("target_email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        """
+        將信箱轉為小寫去空白。
+        """
+        return v.strip().lower()
 
 
 # ── 端點實作 ────────────────────────────────────────────────────────────────────
@@ -544,6 +560,47 @@ def delete_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
+@router.post("/{job_id}/transfer", status_code=status.HTTP_200_OK)
+def transfer_job(
+    job_id: str,
+    body: TransferJobRequest,
+    current_user: User = Depends(get_current_user),
+    manager: JobManager = Depends(get_job_manager),
+    auth_db: DBSession = Depends(get_auth_db),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """
+    將任務移交給其他使用者。
+
+    Args:
+        job_id (str): 欲移交的任務 ID。
+        body (TransferJobRequest): 包含目標使用者信箱的請求內容。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+        auth_db (DBSession): Auth DB Session。
+        _csrf (None): CSRF 防禦標記。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 目標使用者不存在或狀態異常時拋出。
+    """
+    target_user = auth_db.query(User).filter(User.email == body.target_email).first()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="目標使用者不存在。")
+    if target_user.status != "active":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="目標使用者帳號狀態異常，無法接收任務。")
+    if target_user.id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="不能將任務移交給自己。")
+
+    try:
+        job_service.transfer_job(manager, job_id, current_user.id, target_user.id)
+        return {"message": f"任務已成功移交給 {body.target_email}。"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
 class ResultsQueryArgs:
     """任務結果查詢參數。"""
 
@@ -636,6 +693,44 @@ def get_results_summary(
     """
     try:
         return job_service.get_results_summary(db, job_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+
+@router.get("/{job_id}/diff", status_code=status.HTTP_200_OK)
+def get_job_diff(
+    job_id: str,
+    compare_with: str = Query(..., description="要比對的新任務 ID (對照組)"),
+    exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_crawler_db),
+) -> dict[str, object]:
+    """
+    比對兩個任務的外連結果差異 (支援排除網域)。
+
+    以 job_id 作為基準 (舊任務)，compare_with 作為對照 (新任務)。
+
+    Args:
+        job_id (str): 基準任務 ID。
+        compare_with (str): 對照任務 ID。
+        exclude (str | None): 要排除的目標網域。
+        current_user (User): 當前登入的使用者。
+        db (DBSession): Crawler DB Session。
+
+    Returns:
+        dict[str, object]: 差異比對報表。
+
+    Raises:
+        HTTPException 404: 找不到任務時拋出。
+    """
+    try:
+        return job_service.get_job_diff(
+            db,
+            base_job_id=job_id,
+            compare_job_id=compare_with,
+            user_id=current_user.id,
+            exclude=exclude,
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 

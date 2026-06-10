@@ -4,17 +4,17 @@
  * 全域 Toast 通知工具，提供 success / warning / error / info 四種類型。
  */
 
-let _container = null;
+let _containerEl = null;
 
 function getContainer() {
-    if (!_container) {
-        _container = document.createElement('div');
-        _container.className = 'toast-container';
-        _container.setAttribute('aria-live', 'polite');
-        _container.setAttribute('aria-atomic', 'false');
-        document.body.appendChild(_container);
+    if (!_containerEl) {
+        _containerEl = document.createElement('div');
+        _containerEl.className = 'toast-container';
+        _containerEl.setAttribute('aria-live', 'polite');
+        _containerEl.setAttribute('aria-atomic', 'false');
+        document.body.appendChild(_containerEl);
     }
-    return _container;
+    return _containerEl;
 }
 
 /**
@@ -24,7 +24,7 @@ function getContainer() {
  * @param {number} duration - 自動消失時間（毫秒），0 表示不自動消失
  */
 export function showToast(message, type = 'info', duration = 4000) {
-    const container = getContainer();
+    const containerEl = getContainer();
 
     const toastEl = document.createElement('div');
     toastEl.className = `toast toast-${type}`;
@@ -49,7 +49,7 @@ export function showToast(message, type = 'info', duration = 4000) {
     };
 
     closeBtn.addEventListener('click', remove);
-    container.appendChild(toastEl);
+    containerEl.appendChild(toastEl);
 
     if (duration > 0) {
         setTimeout(remove, duration);

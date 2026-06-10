@@ -45,7 +45,25 @@
                 <path stroke-linecap="round" stroke-linejoin="round"
                   d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
               </svg>
-              所有任務
+              我的任務
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-compare" href="#/compare" data-view="compare">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
+              </svg>
+              比對任務
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-transfer" href="#/transfer" data-view="transfer">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+              </svg>
+              移交任務
             </a>
           </li>
           <li>
@@ -123,15 +141,64 @@
             </div>
           </div>
           <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none" title="開始或繼續執行爬蟲任務">▶
-              啟動</button>
+            <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none" title="開始或繼續執行爬蟲任務">
+              <svg viewBox="0 0 20 20" fill="currentColor"
+                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                <path
+                  d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+              </svg>
+              啟動
+            </button>
             <button class="btn btn-secondary btn-sm" id="btn-pause-job" style="display:none"
-              title="暫停執行中的任務（將在完成當下頁面後停止）">⏸ 暫停</button>
+              title="暫停執行中的任務（將在完成當下頁面後停止）">
+              <svg viewBox="0 0 20 20" fill="currentColor"
+                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                <path
+                  d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
+              </svg>
+              暫停
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-goto-compare" style="display:none"
+              title="跳轉至比對視圖，並將此任務設為基準">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
+              </svg>
+              比對任務
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-transfer-job" style="display:none" title="將此任務移交給其他帳號">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+              </svg>
+              移交
+            </button>
             <button class="btn btn-secondary btn-sm" id="btn-reset-job" style="display:none"
-              title="清除所有紀錄與外連結果，將任務退回初始狀態">↺ 重置</button>
-            <button class="btn btn-secondary btn-sm" id="btn-retry-failed-job" style="display:none"
-              title="重試爬取失敗的內部網頁">⟳ 失敗重試</button>
-            <button class="btn btn-danger btn-sm" id="btn-delete-job" title="永久刪除此任務及其所有關聯資料">🗑 刪除</button>
+              title="清除所有紀錄與外連結果，將任務退回初始狀態">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+              </svg>
+              重置
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-retry-failed-job" style="display:none" title="重試爬取失敗的內部網頁">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              失敗重試
+            </button>
+            <button class="btn btn-danger btn-sm" id="btn-delete-job" title="永久刪除此任務及其所有關聯資料">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+              刪除
+            </button>
           </div>
         </div>
 
@@ -166,7 +233,15 @@
               <span class="card-title">爬取進度</span>
               <div style="display:flex; gap:0.75rem; align-items:center;">
                 <span class="text-sm font-mono text-muted" id="job-progress-text">0%</span>
-                <button class="btn btn-secondary btn-sm" id="btn-export-full" title="匯出完整報表 (ZIP 壓縮檔)">⬇ 完整報表</button>
+                <button class="btn btn-secondary btn-sm" id="btn-export-full" title="匯出完整報表 (ZIP 壓縮檔)">
+                  <svg viewBox="0 0 20 20" fill="currentColor"
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                    <path fill-rule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  完整報表
+                </button>
               </div>
             </div>
             <div class="progress-bar" style="margin-bottom:1.25rem">
@@ -230,8 +305,24 @@
           <div class="card-header" style="padding:1.25rem 1.5rem">
             <span class="card-title">外部連結結果</span>
             <div style="display:flex;gap:0.75rem">
-              <button class="btn btn-secondary btn-sm" id="btn-export-csv">⬇ CSV</button>
-              <button class="btn btn-secondary btn-sm" id="btn-export-json">⬇ JSON</button>
+              <button class="btn btn-secondary btn-sm" id="btn-export-csv">
+                <svg viewBox="0 0 20 20" fill="currentColor"
+                  style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                  <path fill-rule="evenodd"
+                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                    clip-rule="evenodd" />
+                </svg>
+                CSV
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btn-export-json">
+                <svg viewBox="0 0 20 20" fill="currentColor"
+                  style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                  <path fill-rule="evenodd"
+                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                    clip-rule="evenodd" />
+                </svg>
+                JSON
+              </button>
             </div>
           </div>
 
@@ -252,13 +343,11 @@
               </div>
               <button class="btn btn-secondary btn-icon" id="btn-open-exclude-modal" title="設定排除網域"
                 style="flex-shrink:0;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M13.875 18.825A10.05 10.05 0 0112 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M3 3l18 18M9.878 9.878a3 3 0 004.244 4.244m-2.122-2.122l-2.122-2.122z" />
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M15.362 15.362A10.066 10.066 0 0021.963 12c-1.39-4.17-5.325-7.178-9.963-7.178-1.503 0-2.923.33-4.204.92" />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
+                  <path d="m22 3-5 5" />
+                  <path d="m17 3 5 5" />
                 </svg>
               </button>
             </div>
@@ -598,6 +687,171 @@
         </div>
       </div>
 
+      <!-- ── 比對任務視圖 ────────────────────────────────────── -->
+      <div id="view-compare" style="display:none">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">比對任務</h1>
+            <p class="page-subtitle">比對兩個不同時期的歷史任務，找出外連健康度與資安狀態變化。</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display:flex; flex-wrap:wrap; gap:1.5rem; align-items:flex-end;">
+            <div class="form-group" style="flex:1; margin-bottom:0;">
+              <label class="form-label" for="compare-base-select">基準任務 (舊) <span class="required">*</span></label>
+              <select id="compare-base-select" class="form-input"></select>
+            </div>
+            <div class="form-group" style="flex:1; margin-bottom:0;">
+              <label class="form-label" for="compare-target-select">對照任務 (新) <span class="required">*</span></label>
+              <select id="compare-target-select" class="form-input"></select>
+            </div>
+            <div style="flex-shrink:0; display:flex; gap:0.5rem;">
+              <button class="btn btn-primary" id="btn-run-compare">開始比對</button>
+            </div>
+          </div>
+          <div id="compare-error" class="text-danger text-sm" style="margin-top:0.75rem"></div>
+        </div>
+
+        <div id="compare-results-area" style="display:none; flex-direction:column; gap:1.5rem;">
+          <style>
+            .diff-tab-card {
+              cursor: pointer;
+              transition: all 0.2s ease;
+            }
+
+            .diff-tab-card:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+
+            .diff-tab-card.active {
+              border-color: var(--color-brand-500);
+              box-shadow: 0 0 0 3px hsla(221, 83%, 53%, 0.15);
+            }
+          </style>
+
+          <!-- Stats Grid as Tabs -->
+          <div class="grid-stats" style="grid-template-columns:repeat(6,1fr);gap:0.75rem;">
+            <div class="stat-card diff-tab-card active" data-diff-tab="ip_changed" style="padding:0.75rem">
+              <div class="stat-label text-danger">🚨 IP 異動</div>
+              <div class="stat-value text-danger" id="diff-stat-ip">0</div>
+            </div>
+            <div class="stat-card diff-tab-card" data-diff-tab="degraded" style="padding:0.75rem">
+              <div class="stat-label text-warning">⚠️ 狀態劣化</div>
+              <div class="stat-value text-warning" id="diff-stat-degraded">0</div>
+            </div>
+            <div class="stat-card diff-tab-card" data-diff-tab="recovered" style="padding:0.75rem">
+              <div class="stat-label text-success">🟢 狀態復原</div>
+              <div class="stat-value text-success" id="diff-stat-recovered">0</div>
+            </div>
+            <div class="stat-card diff-tab-card" data-diff-tab="security_downgraded" style="padding:0.75rem">
+              <div class="stat-label text-warning">🔓 安全降級</div>
+              <div class="stat-value text-warning" id="diff-stat-sec">0</div>
+            </div>
+            <div class="stat-card diff-tab-card" data-diff-tab="new_links" style="padding:0.75rem">
+              <div class="stat-label text-info">➕ 新增外連</div>
+              <div class="stat-value text-info" id="diff-stat-new">0</div>
+            </div>
+            <div class="stat-card diff-tab-card" data-diff-tab="removed_links" style="padding:0.75rem">
+              <div class="stat-label text-muted">➖ 消失外連</div>
+              <div class="stat-value text-muted" id="diff-stat-removed">0</div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:0; overflow:hidden;">
+            <div class="card-header" style="padding:1.25rem 1.5rem">
+              <span class="card-title">比對結果明細</span>
+              <div style="display:flex;gap:0.75rem">
+                <button class="btn btn-secondary btn-sm" id="btn-compare-export-csv">
+                  <svg viewBox="0 0 20 20" fill="currentColor"
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                    <path fill-rule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  CSV
+                </button>
+                <button class="btn btn-secondary btn-sm" id="btn-compare-export-json">
+                  <svg viewBox="0 0 20 20" fill="currentColor"
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                    <path fill-rule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  JSON
+                </button>
+              </div>
+            </div>
+            <!-- 篩選列 -->
+            <div class="filter-bar"
+              style="padding:0 1.5rem 1rem; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
+              <!-- 左側：搜尋與排除 -->
+              <div style="display:flex; gap:0.5rem; align-items:center; flex:1; min-width:280px; max-width:400px;">
+                <div class="search-bar" style="flex:1;">
+                  <svg class="search-bar-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                      d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
+                      clip-rule="evenodd" />
+                  </svg>
+                  <input class="form-input" type="search" id="compare-search" placeholder="搜尋 URL..."
+                    style="padding-left:2.25rem" />
+                </div>
+                <button class="btn btn-secondary btn-icon" id="btn-compare-exclude-modal" title="設定排除網域"
+                  style="flex-shrink:0;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
+                    <path d="m22 3-5 5" />
+                    <path d="m17 3 5 5" />
+                  </svg>
+                </button>
+              </div>
+              <!-- 右側：提示文字 -->
+              <div
+                style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem; justify-content:flex-end; flex:2; min-width:300px;">
+                <span class="text-sm text-muted" id="compare-tab-description">目標 IP 改變，需防範網域遭搶註或劫持</span>
+              </div>
+            </div>
+            <div id="compare-details-container"
+              style="padding:0 0 1rem; max-height:60vh; overflow-y:auto; background:var(--surface-base);">
+              <!-- Details rendered here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 移交任務視圖 ────────────────────────────────────── -->
+      <div id="view-transfer" style="display:none">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">移交任務</h1>
+            <p class="page-subtitle">將您的任務擁有權移交給系統內的其他使用者。</p>
+          </div>
+        </div>
+
+        <div class="card" style="max-width: 600px; margin: 0 auto;">
+          <form id="transfer-view-form">
+            <div class="form-group" style="margin-bottom:1.5rem">
+              <label class="form-label" for="transfer-job-select">選擇欲移交的任務 <span class="required">*</span></label>
+              <select id="transfer-job-select" class="form-input" required></select>
+            </div>
+            <div class="form-group" style="margin-bottom:1.5rem">
+              <label class="form-label" for="transfer-target-email">接收任務的使用者 Email <span
+                  class="required">*</span></label>
+              <input class="form-input" type="email" id="transfer-target-email" required
+                placeholder="user@example.com" />
+              <div class="form-hint" style="margin-top:0.5rem">移交成功後，您將無法再看到或管理此任務。此操作無法撤銷。</div>
+            </div>
+            <div id="transfer-view-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
+            </div>
+            <div style="display:flex; justify-content:flex-end;">
+              <button type="submit" class="btn btn-primary" id="btn-run-transfer">確定移交</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -606,15 +860,15 @@
     style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
     <div class="modal-content card"
       style="width:100%; max-width:600px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <div class="d-flex justify-between align-center mb-6">
         <h2 style="font-size:1.25rem; font-weight:600; margin:0">任務設定參數 (唯讀)</h2>
         <button id="job-config-close"
           style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
       </div>
-      <div class="form-group" style="margin-bottom:1.5rem;">
+      <div class="form-group mb-6">
         <div id="job-config-display-container" style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem;"></div>
       </div>
-      <div style="display:flex; justify-content:flex-end;">
+      <div class="d-flex justify-end">
         <button type="button" class="btn btn-primary" id="job-config-ok">確定</button>
       </div>
     </div>
@@ -625,16 +879,16 @@
     style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
     <div class="modal-content card"
       style="width:100%; max-width:500px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <div class="d-flex justify-between align-center mb-6">
         <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="default-list-title">預設清單</h2>
         <button id="default-list-close"
           style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
       </div>
-      <div class="form-group" style="margin-bottom:1.5rem;">
+      <div class="form-group mb-6">
         <textarea class="form-textarea" id="default-list-display" rows="12" readonly
           style="font-family:monospace; font-size:0.875rem; line-height:1.4; background:var(--surface-raised); color:var(--text-primary); cursor:default;"></textarea>
       </div>
-      <div style="display:flex; justify-content:flex-end;">
+      <div class="d-flex justify-end">
         <button type="button" class="btn btn-primary" id="default-list-ok">確定</button>
       </div>
     </div>
@@ -645,13 +899,13 @@
     style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
     <div class="modal-content card"
       style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <div class="d-flex justify-between align-center mb-6">
         <h2 style="font-size:1.25rem; font-weight:600; margin:0">修改密碼</h2>
         <button id="change-pwd-close"
           style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
       </div>
       <form id="change-pwd-form">
-        <div style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+        <div class="d-flex flex-col gap-4 mb-6">
           <div class="form-group">
             <label class="form-label" for="current-password">現有密碼 <span class="required">*</span></label>
             <input class="form-input" type="password" id="current-password" required />
@@ -685,7 +939,7 @@
           </div>
           <div id="change-pwd-error" style="color:var(--color-danger-400);font-size:0.875rem"></div>
         </div>
-        <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+        <div class="d-flex justify-end gap-3">
           <button type="button" class="btn btn-ghost" id="change-pwd-cancel">取消</button>
           <button type="submit" class="btn btn-primary" id="change-pwd-submit">儲存修改</button>
         </div>
@@ -698,14 +952,14 @@
     style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
     <div class="modal-content card"
       style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <div class="d-flex justify-between align-center mb-4">
         <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
         <button id="confirm-modal-close"
           style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
       </div>
-      <div style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
+      <div class="mb-6" style="color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
         id="confirm-modal-message"></div>
-      <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+      <div class="d-flex justify-end gap-3">
         <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
         <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
       </div>
@@ -717,18 +971,18 @@
     style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
     <div class="modal-content card"
       style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <div class="d-flex justify-between align-center mb-6">
         <h2 style="font-size:1.25rem; font-weight:600; margin:0">排除指定網域</h2>
         <button id="exclude-domains-close"
           style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
       </div>
-      <div class="form-group" style="margin-bottom:1.5rem;">
+      <div class="form-group mb-6">
         <label class="form-label" for="exclude-domains-textarea">網域清單 (每行一個)</label>
         <textarea class="form-textarea" id="exclude-domains-textarea" rows="6"
           placeholder="facebook.com&#10;youtube.com"></textarea>
         <div class="form-hint" style="margin-top:0.5rem">這些網域將從結果列表中隱藏，並自動儲存在您的瀏覽器中。</div>
       </div>
-      <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+      <div class="d-flex justify-end gap-3">
         <button type="button" class="btn btn-ghost" id="exclude-domains-cancel">取消</button>
         <button type="button" class="btn btn-primary" id="exclude-domains-submit">確定儲存</button>
       </div>
@@ -743,6 +997,8 @@
     import { logout, getCurrentUser, initPasswordStrength } from '/static/js/auth.js';
     import { renderJobList } from '/static/js/jobs.js';
     import { initJobDetailPage, destroyJobDetailPage } from '/static/js/job-detail.js';
+    import { initComparePage } from '/static/js/compare.js';
+    import { initTransferPage } from '/static/js/transfer.js';
 
     // ── 共用確認 Modal 邏輯 ───────────────────────────────────
     function showConfirm(title, message, confirmText = '確定', isDanger = false) {
@@ -815,9 +1071,13 @@
     const viewDetail = document.getElementById('view-job-detail');
     const viewCreate = document.getElementById('view-create-job');
     const viewHelp = document.getElementById('view-help');
+    const viewCompare = document.getElementById('view-compare');
+    const viewTransfer = document.getElementById('view-transfer');
     const navJobs = document.getElementById('nav-jobs');
     const navNewJob = document.getElementById('nav-new-job');
     const navHelp = document.getElementById('nav-help');
+    const navCompare = document.getElementById('nav-compare');
+    const navTransfer = document.getElementById('nav-transfer');
 
     async function loadJobsList() {
       try {
@@ -938,15 +1198,39 @@
       viewDetail.style.display = 'none';
       if (viewCreate) viewCreate.style.display = 'none';
       if (viewHelp) viewHelp.style.display = 'none';
+      if (viewCompare) viewCompare.style.display = 'none';
+      if (viewTransfer) viewTransfer.style.display = 'none';
       if (navJobs) navJobs.classList.remove('active');
       if (navNewJob) navNewJob.classList.remove('active');
       if (navHelp) navHelp.classList.remove('active');
+      if (navCompare) navCompare.classList.remove('active');
+      if (navTransfer) navTransfer.classList.remove('active');
 
       if (hash === '#/help') {
         if (viewHelp) viewHelp.style.display = '';
         if (navHelp) navHelp.classList.add('active');
         _currentView = 'help';
         destroyJobDetailPage();
+      } else if (hash.startsWith('#/compare')) {
+        if (viewCompare) viewCompare.style.display = '';
+        if (navCompare) navCompare.classList.add('active');
+        _currentView = 'compare';
+        destroyJobDetailPage();
+
+        const params = new URLSearchParams(hash.split('?')[1] || '');
+        const baseId = params.get('base');
+
+        await initComparePage(baseId);
+      } else if (hash.startsWith('#/transfer')) {
+        if (viewTransfer) viewTransfer.style.display = '';
+        if (navTransfer) navTransfer.classList.add('active');
+        _currentView = 'transfer';
+        destroyJobDetailPage();
+
+        const params = new URLSearchParams(hash.split('?')[1] || '');
+        const jobId = params.get('job');
+
+        await initTransferPage(jobId);
       } else if (hash === '#/new') {
         if (viewCreate) viewCreate.style.display = '';
         if (navNewJob) navNewJob.classList.add('active');

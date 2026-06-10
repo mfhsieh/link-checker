@@ -13,29 +13,35 @@ const STATUS_LABELS = {
   error: '錯誤',
 };
 
-export function renderJobList(jobs, container) {
-  container.replaceChildren();
+/**
+ * 渲染任務列表表格
+ * @param {Array<Object>} jobs - 任務資料陣列
+ * @param {HTMLElement} containerEl - 欲渲染的容器元素
+ * @returns {void} 無回傳值
+ */
+export function renderJobList(jobs, containerEl) {
+  containerEl.replaceChildren();
   if (!jobs || jobs.length === 0) {
-    const emptyState = document.createElement('div');
-    emptyState.className = 'empty-state';
+    const emptyStateEl = document.createElement('div');
+    emptyStateEl.className = 'empty-state';
 
     const svgDoc = new DOMParser().parseFromString(
       '<svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>',
       'image/svg+xml'
     );
-    emptyState.appendChild(svgDoc.documentElement);
+    emptyStateEl.appendChild(svgDoc.documentElement);
 
     const titleEl = document.createElement('div');
     titleEl.className = 'empty-state-title';
     titleEl.textContent = '尚無任務';
-    emptyState.appendChild(titleEl);
+    emptyStateEl.appendChild(titleEl);
 
     const descEl = document.createElement('div');
     descEl.className = 'empty-state-desc';
-    descEl.textContent = '點擊右上角「新增任務」開始建立您的第一個外連掃描任務';
-    emptyState.appendChild(descEl);
+    descEl.textContent = '點擊左側選單「新增任務」開始建立您的第一個外連掃描任務';
+    emptyStateEl.appendChild(descEl);
 
-    container.appendChild(emptyState);
+    containerEl.appendChild(emptyStateEl);
     return;
   }
 
@@ -62,7 +68,7 @@ export function renderJobList(jobs, container) {
   });
   tableEl.appendChild(tbodyEl);
   wrapperEl.appendChild(tableEl);
-  container.appendChild(wrapperEl);
+  containerEl.appendChild(wrapperEl);
 }
 
 function renderJobRow(job) {

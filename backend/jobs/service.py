@@ -165,6 +165,19 @@ def _cleanup_finished_processes() -> None:
             _is_job_running(job_id)
 
 
+def _cleanup_zombie_jobs(manager: JobManager) -> None:
+    """
+    巡檢並清理假死任務 (Zombie Jobs)。
+    若資料庫中狀態為 running，但本地已無對應的 PID 或進程，則將其標記為 error。
+    """
+    running_jobs = manager.get_all_jobs(status="running")
+    for j in running_jobs:
+        job_id = j["id"]
+        if not _is_job_running(job_id):
+            logger.warning("偵測到任務 %s 假死 (進程已不存在)，將狀態標記為 error", job_id)
+            manager.mark_job_error(job_id, "任務進程意外終止 (可能因系統 OOM 或伺服器重啟)")
+
+
 @dataclass
 class JobCreateConfig:
     """建立任務的設定封裝。"""
@@ -243,6 +256,7 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError(f"任務目前狀態為 {job.status}，無法啟動。")
 
     _cleanup_finished_processes()
+    _cleanup_zombie_jobs(manager)
     if _is_job_running(job_id):
         raise ValueError("任務已在執行中。")
 
@@ -305,6 +319,7 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
         dict[str, object]: 任務詳情與進度。
     """
     _cleanup_finished_processes()
+    _cleanup_zombie_jobs(manager)
 
     job = manager.get_job(job_id)
     if not job:
@@ -380,6 +395,7 @@ def list_jobs(manager: JobManager, user_id: str, status: str | None = None) -> l
         list[dict[str, object]]: 任務摘要清單。
     """
     _cleanup_finished_processes()
+    _cleanup_zombie_jobs(manager)
 
     return manager.get_all_jobs(user_id=user_id, status=status)
 
@@ -403,6 +419,35 @@ def delete_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError("無權限刪除此任務。")
 
     return manager.delete_job(job_id)
+
+
+def transfer_job(manager: JobManager, job_id: str, user_id: str, target_user_id: str) -> bool:
+    """
+    移交任務給指定使用者。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        job_id (str): 欲移交的任務 ID。
+        user_id (str): 請求操作的使用者 ID。
+        target_user_id (str): 接收任務的使用者 ID。
+
+    Returns:
+        bool: 成功回傳 True。
+
+    Raises:
+        ValueError: 無權限、任務不存在或任務正在執行中時拋出。
+    """
+    job = manager.get_job(job_id)
+    if not job:
+        raise ValueError(f"找不到任務 ID: {job_id}")
+    if job.user_id != user_id:
+        raise ValueError("無權限操作此任務。")
+    if job.status == "running":
+        raise ValueError("任務正在執行中，無法移交。請先暫停任務。")
+    result = manager.transfer_job(job_id, target_user_id)
+    if not result:
+        raise ValueError("移交任務失敗，請確認任務狀態後再試。")
+    return result
 
 
 def reset_job(manager: JobManager, job_id: str, user_id: str) -> bool:
@@ -487,7 +532,7 @@ def _group_by_target(links: list[ExternalLink]) -> list[dict[str, object]]:
         d["target_url"] = lnk.target_url
         d["occurrence_count"] += 1
         d["source_urls"].add(lnk.source_url)
-        d["is_secure"] = lnk.is_secure
+        d["is_secure"] = d["is_secure"] and lnk.is_secure
         if not d["ip_address"] and lnk.ip_address:
             d["ip_address"] = lnk.ip_address
         if d["http_status_code"] is None and lnk.http_status_code is not None:
@@ -752,6 +797,189 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
     }
 
 
+def _build_target_dict_for_diff(db: DBSession, job_id: str, exclude: str | None = None) -> dict[str, dict[str, object]]:
+    """
+    為指定任務建立目標網址的聚合字典，以供 Diff 比對使用。
+
+    Args:
+        db (DBSession): Crawler DB Session。
+        job_id (str): 任務 ID。
+        exclude (str | None): 要排除的目標網域。
+
+    Returns:
+        dict[str, dict[str, object]]: 聚合後的外連字典。
+    """
+    agg: dict[str, dict[str, object]] = defaultdict(
+        lambda: {
+            "ip": None,
+            "is_secure": True,
+            "status_code": None,
+            "error": None,
+            "sources": set(),
+        }
+    )
+    query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
+
+    if exclude:
+        excludes = [e.strip() for e in exclude.split(",") if e.strip()]
+        for exc in excludes:
+            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
+
+    cursor = query.yield_per(2000)
+    for lnk in cursor:
+        d = agg[lnk.target_url]
+        d["sources"].add(lnk.source_url)  # pylint: disable=no-member
+        d["is_secure"] = d["is_secure"] and lnk.is_secure
+        if not d["ip"] and lnk.ip_address:
+            d["ip"] = lnk.ip_address
+        if d["status_code"] is None and lnk.http_status_code is not None:
+            d["status_code"] = lnk.http_status_code
+        if not d["error"] and lnk.error_message:
+            d["error"] = lnk.error_message
+    return dict(agg)
+
+
+def get_job_diff(
+    db: DBSession,
+    base_job_id: str,
+    compare_job_id: str,
+    user_id: str,
+    exclude: str | None = None,
+) -> dict[str, object]:
+    """
+    比對兩個任務的外部連結差異 (支援排除網域)。
+
+    Args:
+        db (DBSession): Crawler DB Session。
+        base_job_id (str): 基準任務 ID (舊)。
+        compare_job_id (str): 對照任務 ID (新)。
+        user_id (str): 請求查詢的使用者 ID。
+        exclude (str | None): 要排除的目標網域。
+
+    Returns:
+        dict[str, object]: 差異比對結果字典。
+
+    Raises:
+        ValueError: 找不到任務或無權限存取時拋出。
+    """
+    job_a = db.query(Job).filter(Job.id == base_job_id).first()
+    job_b = db.query(Job).filter(Job.id == compare_job_id).first()
+
+    if not job_a or job_a.user_id != user_id:
+        raise ValueError(f"找不到基準任務 ID: {base_job_id}")
+    if not job_b or job_b.user_id != user_id:
+        raise ValueError(f"找不到對照任務 ID: {compare_job_id}")
+
+    dict_a = _build_target_dict_for_diff(db, base_job_id, exclude)
+    dict_b = _build_target_dict_for_diff(db, compare_job_id, exclude)
+
+    set_a = set(dict_a.keys())
+    set_b = set(dict_b.keys())
+
+    added_urls = set_b - set_a
+    removed_urls = set_a - set_b
+    common_urls = set_a & set_b
+
+    ip_changed = []
+    degraded = []
+    security_downgraded = []
+    recovered = []
+
+    def is_bad(item: dict[str, object]) -> bool:
+        if not item["ip"]:
+            return True
+        status_code = item["status_code"]
+        if status_code is not None and int(str(status_code)) >= 400:
+            return True
+        if item["error"]:
+            return True
+        return False
+
+    # pylint: disable=not-an-iterable
+    for url in common_urls:
+        item_a = dict_a[url]
+        item_b = dict_b[url]
+
+        # 1. IP Changed
+        if item_a["ip"] and item_b["ip"] and item_a["ip"] != item_b["ip"]:
+            ip_changed.append({
+                "target_url": url,
+                "old_ip": item_a["ip"],
+                "new_ip": item_b["ip"],
+                "sources": sorted(list(item_b["sources"])),
+            })
+
+        # 2. Security Downgraded
+        if item_a["is_secure"] and not item_b["is_secure"]:
+            security_downgraded.append({"target_url": url, "sources": sorted(list(item_b["sources"]))})
+
+        # 3. Health status changed
+        a_bad = is_bad(item_a)
+        b_bad = is_bad(item_b)
+
+        if not a_bad and b_bad:
+            degraded.append({
+                "target_url": url,
+                "old_status": item_a["status_code"],
+                "old_error": item_a["error"],
+                "new_status": item_b["status_code"],
+                "new_error": item_b["error"],
+                "sources": sorted(list(item_b["sources"])),
+            })
+        elif a_bad and not b_bad:
+            recovered.append({
+                "target_url": url,
+                "old_status": item_a["status_code"],
+                "old_error": item_a["error"],
+                "new_status": item_b["status_code"],
+                "new_error": item_b["error"],
+                "sources": sorted(list(item_b["sources"])),
+            })
+
+    new_links = []
+    for url in added_urls:
+        item = dict_b[url]
+        new_links.append({
+            "target_url": url,
+            "ip": item["ip"],
+            "status_code": item["status_code"],
+            "error": item["error"],
+            "sources": sorted(list(item["sources"])),
+        })
+
+    removed_links = []
+    for url in removed_urls:
+        item = dict_a[url]
+        removed_links.append({
+            "target_url": url,
+            "old_ip": item["ip"],
+            "old_status_code": item["status_code"],
+            "old_error": item["error"],
+            "sources": sorted(list(item["sources"])),
+        })
+
+    return {
+        "base_job": {"id": job_a.id, "created_at": job_a.created_at.isoformat()},
+        "compare_job": {"id": job_b.id, "created_at": job_b.created_at.isoformat()},
+        "summary": {
+            "ip_changed": len(ip_changed),
+            "degraded": len(degraded),
+            "security_downgraded": len(security_downgraded),
+            "new_links": len(new_links),
+            "removed_links": len(removed_links),
+            "recovered": len(recovered),
+        },
+        "details": {
+            "ip_changed": ip_changed,
+            "degraded": degraded,
+            "security_downgraded": security_downgraded,
+            "new_links": new_links,
+            "removed_links": removed_links,
+            "recovered": recovered,
+        },
+    }
+
+
 def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[dict[str, object]]:
     """
     查詢任務的外連結果，並以 yield 串流回傳以節省記憶體。
@@ -822,7 +1050,7 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[di
             d["target_url"] = lnk.target_url
             d["occurrence_count"] += 1
             d["source_urls"].add(lnk.source_url)
-            d["is_secure"] = lnk.is_secure
+            d["is_secure"] = d["is_secure"] and lnk.is_secure
             if not d["ip_address"] and lnk.ip_address:
                 d["ip_address"] = lnk.ip_address
             if d["http_status_code"] is None and lnk.http_status_code is not None:

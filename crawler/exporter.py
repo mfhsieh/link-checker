@@ -101,7 +101,7 @@ def _aggregate_by_target(
         d = agg_data[tgt]
         d["count"] += 1
         d["sources"].add(link.source_url)
-        d["is_secure"] = link.is_secure
+        d["is_secure"] = d["is_secure"] and link.is_secure
         if link.ip_address and not d["ip"]:
             d["ip"] = link.ip_address
         if link.http_status_code is not None and d["status_code"] is None:

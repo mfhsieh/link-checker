@@ -122,8 +122,15 @@ if os.path.isdir(_frontend_dir):
         nonce = getattr(request.state, "nonce", "")
         if nonce:
             # 替換 script 與 style 標籤以動態注入 nonce
-            content = re.sub(r"<script\b", f'<script nonce="{nonce}"', content, flags=re.IGNORECASE)
-            content = re.sub(r"<style\b", f'<style nonce="{nonce}"', content, flags=re.IGNORECASE)
+            # 使用更精確的正則匹配完整的開頭標籤，避免替換到屬性內文，並防範重複注入
+            def _inject_nonce(match: re.Match) -> str:
+                tag = match.group(1)
+                attrs = match.group(2)
+                if "nonce=" in attrs.lower():
+                    return match.group(0)
+                return f'<{tag} nonce="{nonce}"{attrs}>'
+
+            content = re.sub(r"<(script|style)\b([^>]*)>", _inject_nonce, content, flags=re.IGNORECASE)
 
         return HTMLResponse(content=content)
 

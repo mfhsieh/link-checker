@@ -210,6 +210,10 @@ class CrawlerCore:
         Returns:
             tuple[str | None, int | None, str, str, bool, str | None]: 回傳 (HTML字串, HTTP狀態碼, 狀態, 最終網址, 是否發送請求, 錯誤或警告訊息)。
                 狀態字串為 'completed', 'warning' 或 'skip'。
+
+        Raises:
+            httpx.HTTPStatusError: 若 HTTP 回應狀態碼非 2xx 時拋出（預設由外層捕捉）。
+            httpx.RequestError: 發生網路連線層級錯誤時拋出（預設由外層捕捉）。
         """
         max_redirects = self.max_redirects
         current_url = url
@@ -456,9 +460,8 @@ class CrawlerCore:
                     return response.status_code, None
 
                 # 針對可能阻擋 HEAD 的大型社群/特定網域或狀態碼 (如 400, 403, 405) 進行 GET 降級試探
-                domain = get_domain(current_url)
                 # 使用精確的子網域比對（防止 notfacebook.com 被誤判為社群網域）
-                is_social_media = domain and is_in_domain_list(domain.lower(), self.social_domains)
+                is_social_media = tgt_dom and is_in_domain_list(tgt_dom.lower(), self.social_domains)
 
                 if response.status_code in (400, 403, 405) or (response.status_code >= 400 and is_social_media):
                     # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案

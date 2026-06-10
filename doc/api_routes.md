@@ -23,6 +23,7 @@
 | `POST` | `/api/jobs/{job_id}/start` | 啟動任務 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/pause` | 暫停任務 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/resume` | 恢復任務 | 已登入（僅限自身任務） |
+| `POST` | `/api/jobs/{job_id}/transfer` | 將任務移交給其他使用者 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/reset` | 重置任務 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/retry-failed` | 局部重試任務的失敗項目 | 已登入（僅限自身任務） |
 | `DELETE` | `/api/jobs/{job_id}` | 刪除任務及所有結果 | 已登入（僅限自身任務） |
@@ -33,6 +34,7 @@
 |------|------|------|------|
 | `GET` | `/api/jobs/{job_id}/results` | 列出外連結果（支援篩選、排除網域、分頁） | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/summary` | 取得任務統計摘要 | 已登入（僅限自身任務） |
+| `GET` | `/api/jobs/{job_id}/diff?compare_with={id}` | 任務結果差異比對 (Diff Engine) | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/export` | 匯出結果（CSV / JSON，支援篩選、排除網域） | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/export/full` | 匯出完整報表大禮包 (ZIP 壓縮檔) | 已登入（僅限自身任務） |
 

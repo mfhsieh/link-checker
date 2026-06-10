@@ -377,20 +377,20 @@
     style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
     <div class="modal-content card"
       style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <div class="d-flex justify-between align-center mb-6">
         <h2 style="font-size:1.25rem; font-weight:600; margin:0">邀請新使用者</h2>
         <button id="invite-user-close"
           style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
       </div>
       <form id="invite-user-form">
-        <div style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+        <div class="d-flex flex-col gap-4 mb-6">
           <div class="form-group">
             <label class="form-label" for="invite-email">受邀者的電子郵件 <span class="required">*</span></label>
             <input class="form-input" type="email" id="invite-email" required placeholder="user@example.com" />
           </div>
           <div id="invite-user-error" style="color:var(--color-danger-400);font-size:0.875rem"></div>
         </div>
-        <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+        <div class="d-flex justify-end gap-3">
           <button type="button" class="btn btn-ghost" id="invite-user-cancel">取消</button>
           <button type="submit" class="btn btn-primary" id="invite-user-submit">送出邀請</button>
         </div>
@@ -403,14 +403,14 @@
     style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
     <div class="modal-content card"
       style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <div class="d-flex justify-between align-center mb-4">
         <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
         <button id="confirm-modal-close"
           style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
       </div>
-      <div style="margin-bottom:1.5rem; color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
+      <div class="mb-6" style="color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
         id="confirm-modal-message"></div>
-      <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+      <div class="d-flex justify-end gap-3">
         <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
         <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
       </div>
@@ -481,40 +481,93 @@
       const container = document.getElementById('users-table-container');
       try {
         const users = await api.get('/api/admin/users');
+        container.replaceChildren();
         if (!users || users.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-state-title">尚無使用者</div></div>';
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          const title = document.createElement('div');
+          title.className = 'empty-state-title';
+          title.textContent = '尚無使用者';
+          empty.appendChild(title);
+          container.appendChild(empty);
           return;
         }
-        container.innerHTML = `
-        <div class="table-wrapper">
-          <table class="table">
-            <thead><tr><th>電子郵件</th><th>角色</th><th>狀態</th><th>建立時間</th><th>最後登入</th><th>操作</th></tr></thead>
-            <tbody>
-              ${users.map(u => `
-                <tr>
-                  <td>${escapeHtml(u.email)}</td>
-                  <td><span class="badge badge-${u.role === 'admin' ? 'admin' : 'pending'}">${u.role === 'admin' ? '管理員' : '使用者'}</span></td>
-                  <td><span class="badge badge-${u.status}">${{ pending: '待設密', active: '正常', suspended: '已停用', expired: '已過期' }[u.status] || u.status}</span></td>
-                  <td class="text-sm text-muted">${u.created_at ? new Date(u.created_at).toLocaleString('zh-TW') : '-'}</td>
-                  <td class="text-sm text-muted">${u.last_login_at ? new Date(u.last_login_at).toLocaleString('zh-TW') : '-'}</td>
-                  <td>
-                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-                      ${u.id !== user.id && u.role === 'user' && u.status !== 'suspended' ? `<button class="btn btn-sm btn-secondary user-action-btn" data-action="promote" data-id="${u.id}" data-email="${escapeHtml(u.email)}">設為管理員</button>` : ''}
-                      ${u.id !== user.id && u.role === 'admin' ? `<button class="btn btn-sm btn-danger user-action-btn" data-action="demote" data-id="${u.id}" data-email="${escapeHtml(u.email)}">取消管理員</button>` : ''}
-                      ${u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger user-action-btn" data-action="suspend" data-id="${u.id}">停用</button>` : ''}
-                      ${u.status === 'suspended' ? `<button class="btn btn-sm btn-secondary user-action-btn" data-action="activate" data-id="${u.id}" data-email="${escapeHtml(u.email)}">啟用</button>` : ''}
-                      ${['pending', 'expired'].includes(u.status) ? `<button class="btn btn-sm btn-secondary user-action-btn" data-action="resend" data-id="${u.id}" data-email="${escapeHtml(u.email)}">重寄邀請</button>` : ''}
-                      ${u.id !== user.id && u.role !== 'admin' ? `<button class="btn btn-sm btn-danger user-action-btn" data-action="delete" data-id="${u.id}" data-email="${escapeHtml(u.email)}">刪除</button>` : ''}
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-wrapper';
+        const table = document.createElement('table');
+        table.className = 'table';
+        const thead = document.createElement('thead');
+        const trHead = document.createElement('tr');
+        ['電子郵件', '角色', '狀態', '建立時間', '最後登入', '操作'].forEach(t => {
+          const th = document.createElement('th');
+          th.textContent = t;
+          trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        users.forEach(u => {
+          const trBody = document.createElement('tr');
+          const tdEmail = document.createElement('td');
+          tdEmail.textContent = u.email;
+          trBody.appendChild(tdEmail);
+          const tdRole = document.createElement('td');
+          const roleBadge = document.createElement('span');
+          roleBadge.className = `badge badge-${u.role === 'admin' ? 'admin' : 'pending'}`;
+          roleBadge.textContent = u.role === 'admin' ? '管理員' : '使用者';
+          tdRole.appendChild(roleBadge);
+          trBody.appendChild(tdRole);
+          const tdStatus = document.createElement('td');
+          const statusBadge = document.createElement('span');
+          statusBadge.className = `badge badge-${u.status}`;
+          const statusMap = { pending: '待設密', active: '正常', suspended: '已停用', expired: '已過期' };
+          statusBadge.textContent = statusMap[u.status] || u.status;
+          tdStatus.appendChild(statusBadge);
+          trBody.appendChild(tdStatus);
+          const tdCreated = document.createElement('td');
+          tdCreated.className = 'text-sm text-muted';
+          tdCreated.textContent = u.created_at ? new Date(u.created_at).toLocaleString('zh-TW') : '-';
+          trBody.appendChild(tdCreated);
+          const tdLogin = document.createElement('td');
+          tdLogin.className = 'text-sm text-muted';
+          tdLogin.textContent = u.last_login_at ? new Date(u.last_login_at).toLocaleString('zh-TW') : '-';
+          trBody.appendChild(tdLogin);
+          const tdActions = document.createElement('td');
+          const actionDiv = document.createElement('div');
+          actionDiv.style.display = 'flex';
+          actionDiv.style.gap = '0.5rem';
+          actionDiv.style.flexWrap = 'wrap';
+          const addBtn = (text, btnClass, action) => {
+            const btn = document.createElement('button');
+            btn.className = `btn btn-sm ${btnClass} user-action-btn`;
+            btn.dataset.action = action;
+            btn.dataset.id = u.id;
+            btn.dataset.email = u.email;
+            btn.textContent = text;
+            actionDiv.appendChild(btn);
+          };
+          if (u.id !== user.id && u.role === 'user' && u.status !== 'suspended') addBtn('設為管理員', 'btn-secondary', 'promote');
+          if (u.id !== user.id && u.role === 'admin') addBtn('取消管理員', 'btn-danger', 'demote');
+          if (u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin') addBtn('停用', 'btn-danger', 'suspend');
+          if (u.status === 'suspended') addBtn('啟用', 'btn-secondary', 'activate');
+          if (['pending', 'expired'].includes(u.status)) addBtn('重寄邀請', 'btn-secondary', 'resend');
+          if (u.id !== user.id && u.role !== 'admin') addBtn('刪除', 'btn-danger', 'delete');
+          tdActions.appendChild(actionDiv);
+          trBody.appendChild(tdActions);
+          tbody.appendChild(trBody);
+        });
+        table.appendChild(tbody);
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
       } catch (err) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-desc text-danger">${escapeHtml(err.message)}</div></div>`;
+        container.replaceChildren();
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        const desc = document.createElement('div');
+        desc.className = 'empty-state-desc text-danger';
+        desc.textContent = err.message;
+        empty.appendChild(desc);
+        container.appendChild(empty);
       }
     }
 
@@ -779,24 +832,44 @@
       try {
         const smtp = await api.get('/api/admin/smtp');
         const container = document.getElementById('smtp-info-container');
-        container.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
-          ${[
-            ['Host', smtp.host], ['Port', smtp.port],
-            ['TLS', smtp.use_tls ? '✓ 啟用' : '✗ 停用'],
-            ['Username', smtp.username || '(未設定)'],
-            ['From Name', smtp.from_name], ['From Email', smtp.from_email]
-          ].map(([k, v]) => `
-            <div>
-              <div class="text-xs text-muted">${escapeHtml(k)}</div>
-              <div class="text-sm font-mono">${escapeHtml(String(v))}</div>
-            </div>
-          `).join('')}
-        </div>
-        <div style="margin-top:1rem;padding:0.75rem;background:var(--surface-overlay);border-radius:0.375rem;font-size:0.8125rem;color:var(--text-muted)">
-          💡 ${escapeHtml(smtp.note)}
-        </div>
-      `;
+        container.replaceChildren();
+
+        const grid = document.createElement('div');
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(auto-fit,minmax(200px,1fr))';
+        grid.style.gap = '1rem';
+
+        const items = [
+          ['Host', smtp.host], ['Port', smtp.port],
+          ['TLS', smtp.use_tls ? '✓ 啟用' : '✗ 停用'],
+          ['Username', smtp.username || '(未設定)'],
+          ['From Name', smtp.from_name], ['From Email', smtp.from_email]
+        ];
+
+        items.forEach(([k, v]) => {
+          const div = document.createElement('div');
+          const lbl = document.createElement('div');
+          lbl.className = 'text-xs text-muted';
+          lbl.textContent = k;
+          const val = document.createElement('div');
+          val.className = 'text-sm font-mono';
+          val.textContent = String(v);
+          div.appendChild(lbl);
+          div.appendChild(val);
+          grid.appendChild(div);
+        });
+
+        const note = document.createElement('div');
+        note.style.marginTop = '1rem';
+        note.style.padding = '0.75rem';
+        note.style.background = 'var(--surface-overlay)';
+        note.style.borderRadius = '0.375rem';
+        note.style.fontSize = '0.8125rem';
+        note.style.color = 'var(--text-muted)';
+        note.textContent = `💡 ${smtp.note}`;
+
+        container.appendChild(grid);
+        container.appendChild(note);
       } catch (err) { toast.error('載入 SMTP 設定失敗。'); }
     }
 
@@ -830,28 +903,61 @@
       try {
         const res = await api.get('/api/admin/logs', { page, page_size: 50 });
         const items = res.items || [];
+        container.replaceChildren();
         if (!items.length) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-state-title">無日誌記錄</div></div>';
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          const title = document.createElement('div');
+          title.className = 'empty-state-title';
+          title.textContent = '無日誌記錄';
+          empty.appendChild(title);
+          container.appendChild(empty);
           return;
         }
-        container.innerHTML = `
-        <div class="table-wrapper">
-          <table class="table">
-            <thead><tr><th>時間</th><th>事件類型</th><th>使用者 ID</th><th>IP</th><th>詳情</th></tr></thead>
-            <tbody>
-              ${items.map(log => `
-                <tr>
-                  <td class="text-xs font-mono text-muted">${log.created_at ? new Date(log.created_at).toLocaleString('zh-TW') : '-'}</td>
-                  <td><code style="font-size:0.75rem;color:var(--color-brand-400)">${escapeHtml(log.event_type)}</code></td>
-                  <td class="text-xs font-mono text-muted">${escapeHtml(log.user_id || '-')}</td>
-                  <td class="text-xs font-mono">${escapeHtml(log.ip_address || '-')}</td>
-                  <td class="text-xs text-muted">${escapeHtml(log.detail || '-')}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-wrapper';
+        const table = document.createElement('table');
+        table.className = 'table';
+        const thead = document.createElement('thead');
+        const trHead = document.createElement('tr');
+        ['時間', '事件類型', '使用者 ID', 'IP', '詳情'].forEach(t => {
+          const th = document.createElement('th');
+          th.textContent = t;
+          trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        items.forEach(log => {
+          const tr = document.createElement('tr');
+          const tdTime = document.createElement('td');
+          tdTime.className = 'text-xs font-mono text-muted';
+          tdTime.textContent = log.created_at ? new Date(log.created_at).toLocaleString('zh-TW') : '-';
+          tr.appendChild(tdTime);
+          const tdType = document.createElement('td');
+          const code = document.createElement('code');
+          code.style.fontSize = '0.75rem';
+          code.style.color = 'var(--color-brand-400)';
+          code.textContent = log.event_type;
+          tdType.appendChild(code);
+          tr.appendChild(tdType);
+          const tdUser = document.createElement('td');
+          tdUser.className = 'text-xs font-mono text-muted';
+          tdUser.textContent = log.user_id || '-';
+          tr.appendChild(tdUser);
+          const tdIp = document.createElement('td');
+          tdIp.className = 'text-xs font-mono';
+          tdIp.textContent = log.ip_address || '-';
+          tr.appendChild(tdIp);
+          const tdDetail = document.createElement('td');
+          tdDetail.className = 'text-xs text-muted';
+          tdDetail.textContent = log.detail || '-';
+          tr.appendChild(tdDetail);
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
       } catch (err) { toast.error('載入日誌失敗：' + err.message); }
     }
 
@@ -861,52 +967,106 @@
       const container = document.getElementById('jobs-table-container');
       try {
         const jobs = await api.get('/api/admin/jobs');
+        container.replaceChildren();
         if (!jobs || jobs.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-state-title">目前無任何任務</div></div>';
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          const title = document.createElement('div');
+          title.className = 'empty-state-title';
+          title.textContent = '目前無任何任務';
+          empty.appendChild(title);
+          container.appendChild(empty);
           return;
         }
-        container.innerHTML = `
-        <div class="table-wrapper">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>任務 ID / 擁有者</th>
-                <th>起始網址</th>
-                <th>狀態</th>
-                <th>建立時間</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${jobs.map(j => `
-                <tr>
-                  <td>
-                    <div style="font-weight:500;font-size:0.875rem">${escapeHtml(j.id)}</div>
-                    <div class="text-xs text-muted" style="margin-top:0.25rem">擁有者 ID: ${escapeHtml(j.user_id || '匿名')}</div>
-                  </td>
-                  <td>
-                    ${j.user_id === user.id ? `<a href="/app.html#/jobs/${j.id}" class="text-link" style="word-break:break-all" title="查看任務詳情">${escapeHtml(j.start_url)}</a>` : `<div style="word-break:break-all">${escapeHtml(j.start_url)}</div>`}
-                  </td>
-                  <td>
-                    <span class="badge badge-${j.status}">
-                      ${{ pending: '等待中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' }[j.status] || j.status}
-                    </span>
-                  </td>
-                  <td class="text-sm text-muted">${escapeHtml(j.created_at || '-')}</td>
-                  <td>
-                    <div style="display:flex;gap:0.5rem">
-                      ${j.status === 'running' ? `<button class="btn btn-sm btn-secondary job-action-btn" data-action="takeover" data-id="${j.id}">強制接管 (暫停)</button>` : ''}
-                      <button class="btn btn-sm btn-danger job-action-btn" data-action="delete" data-id="${j.id}">刪除</button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-wrapper';
+        const table = document.createElement('table');
+        table.className = 'table';
+        const thead = document.createElement('thead');
+        const trHead = document.createElement('tr');
+        ['任務 ID / 擁有者', '起始網址', '狀態', '建立時間', '操作'].forEach(t => {
+          const th = document.createElement('th');
+          th.textContent = t;
+          trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        jobs.forEach(j => {
+          const tr = document.createElement('tr');
+          const tdId = document.createElement('td');
+          const divId = document.createElement('div');
+          divId.style.fontWeight = '500';
+          divId.style.fontSize = '0.875rem';
+          divId.textContent = j.id;
+          const divOwner = document.createElement('div');
+          divOwner.className = 'text-xs text-muted';
+          divOwner.style.marginTop = '0.25rem';
+          divOwner.textContent = `擁有者 ID: ${j.user_id || '匿名'}`;
+          tdId.appendChild(divId);
+          tdId.appendChild(divOwner);
+          tr.appendChild(tdId);
+          const tdUrl = document.createElement('td');
+          if (j.user_id === user.id) {
+            const aUrl = document.createElement('a');
+            aUrl.href = `/app.html#/jobs/${j.id}`;
+            aUrl.className = 'text-link';
+            aUrl.style.wordBreak = 'break-all';
+            aUrl.title = '查看任務詳情';
+            aUrl.textContent = j.start_url;
+            tdUrl.appendChild(aUrl);
+          } else {
+            const divUrl = document.createElement('div');
+            divUrl.style.wordBreak = 'break-all';
+            divUrl.textContent = j.start_url;
+            tdUrl.appendChild(divUrl);
+          }
+          tr.appendChild(tdUrl);
+          const tdStatus = document.createElement('td');
+          const spanStatus = document.createElement('span');
+          spanStatus.className = `badge badge-${j.status}`;
+          const statusMap = { pending: '等待中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' };
+          spanStatus.textContent = statusMap[j.status] || j.status;
+          tdStatus.appendChild(spanStatus);
+          tr.appendChild(tdStatus);
+          const tdCreated = document.createElement('td');
+          tdCreated.className = 'text-sm text-muted';
+          tdCreated.textContent = j.created_at || '-';
+          tr.appendChild(tdCreated);
+          const tdActions = document.createElement('td');
+          const divActions = document.createElement('div');
+          divActions.style.display = 'flex';
+          divActions.style.gap = '0.5rem';
+          if (j.status === 'running') {
+            const btnTakeover = document.createElement('button');
+            btnTakeover.className = 'btn btn-sm btn-secondary job-action-btn';
+            btnTakeover.dataset.action = 'takeover';
+            btnTakeover.dataset.id = j.id;
+            btnTakeover.textContent = '強制接管 (暫停)';
+            divActions.appendChild(btnTakeover);
+          }
+          const btnDel = document.createElement('button');
+          btnDel.className = 'btn btn-sm btn-danger job-action-btn';
+          btnDel.dataset.action = 'delete';
+          btnDel.dataset.id = j.id;
+          btnDel.textContent = '刪除';
+          divActions.appendChild(btnDel);
+          tdActions.appendChild(divActions);
+          tr.appendChild(tdActions);
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
       } catch (err) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-desc text-danger">${escapeHtml(err.message)}</div></div>`;
+        container.replaceChildren();
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        const desc = document.createElement('div');
+        desc.className = 'empty-state-desc text-danger';
+        desc.textContent = err.message;
+        empty.appendChild(desc);
+        container.appendChild(empty);
       }
     }
 

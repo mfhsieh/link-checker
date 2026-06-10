@@ -12,6 +12,7 @@ import urllib.parse
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+
 def get_domain(url: str) -> str:
     """
     從給定的網址中擷取網域 (Domain) 名稱。
@@ -24,10 +25,11 @@ def get_domain(url: str) -> str:
     """
     try:
         parsed_uri: urllib.parse.ParseResult = urllib.parse.urlparse(url)
-        return parsed_uri.netloc.split(':')[0]  # 移除可能存在的通訊埠
+        return parsed_uri.netloc.split(":")[0]  # 移除可能存在的通訊埠
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("解析網址 %s 時發生錯誤: %s", url, e)
         return ""
+
 
 def is_in_domain_list(domain: str, domain_list: list[str]) -> bool:
     """
@@ -45,9 +47,10 @@ def is_in_domain_list(domain: str, domain_list: list[str]) -> bool:
     domain = domain.lower()
     for d in domain_list:
         d = d.lower()
-        if domain == d or domain.endswith('.' + d):
+        if domain == d or domain.endswith("." + d):
             return True
     return False
+
 
 def resolve_ip(domain: str) -> str | None:
     """
@@ -69,6 +72,7 @@ def resolve_ip(domain: str) -> str | None:
         logger.error("解析 %s IP 時發生未預期錯誤: %s", domain, e)
         return None
 
+
 def is_safe_ip(ip_str: str) -> bool:
     """
     檢查 IP 是否為安全的外部 IP（阻擋 SSRF 攻擊）。
@@ -87,23 +91,16 @@ def is_safe_ip(ip_str: str) -> bool:
     try:
         ip = ipaddress.ip_address(ip_str)
         # 阻擋本機、私有網段、鏈結本地端、多播網段，以及未指定位置
-        if (
-            ip.is_loopback
-            or ip.is_private
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_unspecified
-        ):
-            return False
-        if str(ip) == "0.0.0.0":
+        if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_multicast or ip.is_unspecified:
             return False
         return True
     except ValueError:
         return False
 
+
 def normalize_url(url: str, base_url: str) -> str:
     """
-    正規化網址，會將相對路徑與基準網址 (Base URL) 進行合併解析。
+    正規化網址，會將相對路徑與基準網址 (Base URL) 進行合併解析，並剝離片段 (Fragment, #)。
 
     Args:
         url (str): 欲正規化的網址 (可以是相對路徑或絕對路徑)。
@@ -112,4 +109,6 @@ def normalize_url(url: str, base_url: str) -> str:
     Returns:
         str: 完整的絕對網址字串。
     """
-    return urllib.parse.urljoin(base_url, url)
+    joined_url = urllib.parse.urljoin(base_url, url)
+    parsed, _ = urllib.parse.urldefrag(joined_url)
+    return parsed

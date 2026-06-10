@@ -46,23 +46,14 @@
 
 ## 1.5 全域設定檔說明 (config_global.yaml)
 
-系統使用 `config/config_global.yaml` 作為預設的全域設定檔，用以定義資料庫連線、日誌層級，以及爬蟲引擎的安全上下限閥值：
+系統使用 `config/config_global.yaml` 作為預設的全域設定檔，用以定義爬蟲引擎的安全上下限閥值與預設行為（資料庫連線與系統日誌已全面改由 `.env` 環境變數控管）：
 
 ```yaml
-# 全域資料庫連線字串
-db_url: "sqlite:///db/crawler.db"
-
-# 全域 Logging 設定
-logging:
-  console_level: "INFO"       # 輸出到畫面的日誌層級
-  file_level: "DEBUG"         # 儲存到檔案的日誌層級
-  log_file: "log/crawler.log" # 日誌儲存的路徑
-
 # 爬蟲引擎的全域限制與預設值
 crawler:
   # 安全上下限限制（個別任務若超出此範圍將被強制修正，以防負載過大或逾時失效）
-  min_timeout: 15             # 逾時時間最小值限制 (秒)
-  max_timeout: 120            # 逾時時間最大值限制 (秒)
+  min_timeout: 10             # 逾時時間最小值限制 (秒)
+  max_timeout: 60             # 逾時時間最大值限制 (秒)
   min_connect_timeout: 1.0    # 建立連線逾時最小值限制 (秒)
   max_connect_timeout: 30.0   # 建立連線逾時最大值限制 (秒)
   min_external_check_timeout: 1.0  # 外連探測逾時最小值限制 (秒)
@@ -71,6 +62,12 @@ crawler:
   max_delay: 10.0             # 請求延遲時間最大值限制 (秒)
   min_retries: 0              # 錯誤重試次數最小值限制 (次)
   max_retries: 5              # 錯誤重試次數最大值限制 (次)
+  max_max_depth: null         # 任務可設定之最大探索深度的全域上限
+  max_max_pages: null         # 任務可設定之最大抓取頁數的全域上限
+
+  # 爬蟲硬性資源限制（僅限全域配置，個別任務無法覆寫）
+  max_content_length: 10485760 # 爬蟲最大網頁讀取容量上限 (預設 10MB)
+  max_redirects: 10           # HTTP 重導向追蹤次數上限
 
   # 預設瀏覽器 User-Agent（防範 WAF 阻擋）
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"

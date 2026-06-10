@@ -9,7 +9,7 @@
 /* ── CSS Custom Properties (Design Tokens) ────────────────── */
 :root {
   /* Color Palette — Primary */
-  --color-brand-50:  hsl(221, 83%, 97%);
+  --color-brand-50: hsl(221, 83%, 97%);
   --color-brand-100: hsl(221, 83%, 93%);
   --color-brand-200: hsl(221, 83%, 85%);
   --color-brand-400: hsl(221, 83%, 65%);
@@ -30,7 +30,7 @@
   --color-neutral-300: hsl(218, 10%, 74%);
   --color-neutral-200: hsl(218, 10%, 86%);
   --color-neutral-100: hsl(218, 10%, 94%);
-  --color-neutral-50:  hsl(218, 15%, 97%);
+  --color-neutral-50: hsl(218, 15%, 97%);
 
   /* Color Palette — Semantic */
   --color-success-500: hsl(145, 63%, 42%);
@@ -39,45 +39,45 @@
   --color-warning-500: hsl(38, 92%, 50%);
   --color-warning-400: hsl(38, 92%, 62%);
   --color-warning-900: hsl(38, 50%, 12%);
-  --color-danger-500:  hsl(0, 72%, 51%);
-  --color-danger-400:  hsl(0, 72%, 65%);
-  --color-danger-900:  hsl(0, 40%, 12%);
-  --color-info-500:    hsl(197, 71%, 52%);
-  --color-info-400:    hsl(197, 71%, 65%);
+  --color-danger-500: hsl(0, 72%, 51%);
+  --color-danger-400: hsl(0, 72%, 65%);
+  --color-danger-900: hsl(0, 40%, 12%);
+  --color-info-500: hsl(197, 71%, 52%);
+  --color-info-400: hsl(197, 71%, 65%);
 
   /* Surfaces */
-  --surface-bg:       var(--color-neutral-950);
-  --surface-base:     var(--color-neutral-900);
-  --surface-raised:   var(--color-neutral-850);
-  --surface-overlay:  var(--color-neutral-800);
-  --surface-border:   var(--color-neutral-700);
+  --surface-bg: var(--color-neutral-950);
+  --surface-base: var(--color-neutral-900);
+  --surface-raised: var(--color-neutral-850);
+  --surface-overlay: var(--color-neutral-800);
+  --surface-border: var(--color-neutral-700);
   --surface-border-subtle: var(--color-neutral-750);
 
   /* Text */
-  --text-primary:   var(--color-neutral-100);
+  --text-primary: var(--color-neutral-100);
   --text-secondary: var(--color-neutral-400);
-  --text-muted:     var(--color-neutral-500);
-  --text-inverse:   var(--color-neutral-950);
-  --text-brand:     var(--color-brand-400);
+  --text-muted: var(--color-neutral-500);
+  --text-inverse: var(--color-neutral-950);
+  --text-brand: var(--color-brand-400);
 
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 
-  --text-xs:   0.75rem;
-  --text-sm:   0.875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
   --text-base: 1rem;
-  --text-lg:   1.125rem;
-  --text-xl:   1.25rem;
-  --text-2xl:  1.5rem;
-  --text-3xl:  1.875rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
 
-  --font-weight-normal:   400;
-  --font-weight-medium:   500;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
   --font-weight-semibold: 600;
-  --font-weight-bold:     700;
+  --font-weight-bold: 700;
 
-  --leading-tight:  1.25;
+  --leading-tight: 1.25;
   --leading-normal: 1.5;
   --leading-relaxed: 1.75;
 
@@ -96,34 +96,36 @@
 
   /* Border Radius */
   --radius-sm: 0.25rem;
-  --radius:    0.5rem;
+  --radius: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
-  --shadow:    0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
-  --shadow-xl: 0 16px 48px rgba(0,0,0,0.6);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
   --shadow-glow: 0 0 0 3px hsla(221, 83%, 53%, 0.3);
 
   /* Transitions */
-  --transition-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base:   250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow:   400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Z-index layers */
   --z-dropdown: 100;
-  --z-sticky:   200;
-  --z-overlay:  300;
-  --z-modal:    400;
-  --z-toast:    500;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
 }
 
 /* ── CSS Reset ────────────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -146,16 +148,27 @@ body {
   min-height: 100vh;
 }
 
-img, svg, video {
+img,
+svg,
+video {
   display: block;
   max-width: 100%;
 }
 
-input, button, textarea, select {
+input,
+button,
+textarea,
+select {
   font: inherit;
 }
 
-p, h1, h2, h3, h4, h5, h6 {
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   overflow-wrap: break-word;
 }
 
@@ -169,7 +182,8 @@ a:hover {
   color: var(--color-brand-200);
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
@@ -181,26 +195,158 @@ ul, ol {
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0,0,0,0);
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
 }
 
-.text-xs      { font-size: var(--text-xs); }
-.text-sm      { font-size: var(--text-sm); }
-.text-lg      { font-size: var(--text-lg); }
-.text-xl      { font-size: var(--text-xl); }
-.text-2xl     { font-size: var(--text-2xl); }
-.text-muted   { color: var(--text-muted); }
-.text-secondary { color: var(--text-secondary); }
-.text-brand   { color: var(--text-brand); }
-.text-success { color: var(--color-success-400); }
-.text-warning { color: var(--color-warning-400); }
-.text-danger  { color: var(--color-danger-400); }
-.font-mono    { font-family: var(--font-mono); }
-.font-medium  { font-weight: var(--font-weight-medium); }
-.font-semibold { font-weight: var(--font-weight-semibold); }
-.font-bold    { font-weight: var(--font-weight-bold); }
+.text-xs {
+  font-size: var(--text-xs);
+}
+
+.text-sm {
+  font-size: var(--text-sm);
+}
+
+.text-lg {
+  font-size: var(--text-lg);
+}
+
+.text-xl {
+  font-size: var(--text-xl);
+}
+
+.text-2xl {
+  font-size: var(--text-2xl);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-brand {
+  color: var(--text-brand);
+}
+
+.text-success {
+  color: var(--color-success-400);
+}
+
+.text-warning {
+  color: var(--color-warning-400);
+}
+
+.text-danger {
+  color: var(--color-danger-400);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.font-medium {
+  font-weight: var(--font-weight-medium);
+}
+
+.font-semibold {
+  font-weight: var(--font-weight-semibold);
+}
+
+.font-bold {
+  font-weight: var(--font-weight-bold);
+}
+
+.d-flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.align-start {
+  align-items: flex-start;
+}
+
+.align-end {
+  align-items: flex-end;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.gap-1 {
+  gap: var(--space-1);
+}
+
+.gap-2 {
+  gap: var(--space-2);
+}
+
+.gap-3 {
+  gap: var(--space-3);
+}
+
+.gap-4 {
+  gap: var(--space-4);
+}
+
+.gap-6 {
+  gap: var(--space-6);
+}
+
+.w-full {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.mb-2 {
+  margin-bottom: var(--space-2);
+}
+
+.mb-3 {
+  margin-bottom: var(--space-3);
+}
+
+.mb-4 {
+  margin-bottom: var(--space-4);
+}
+
+.mb-6 {
+  margin-bottom: var(--space-6);
+}
+
+.mt-2 {
+  margin-top: var(--space-2);
+}
 
 .truncate {
   overflow: hidden;
@@ -209,13 +355,23 @@ ul, ol {
 }
 
 /* ── Scrollbar Styling ────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--surface-base); }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-base);
+}
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-neutral-600);
   border-radius: var(--radius-full);
 }
-::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-500); }
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-500);
+}
 
 /* ── Selection ────────────────────────────────────────────── */
 ::selection {

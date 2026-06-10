@@ -52,7 +52,25 @@ element.innerHTML = `<div>${escapeHtml(user.name)}</div>`;
 * **私有/內部變數**：不對外 export 或僅限內部狀態使用的變數，應以底線開頭 (`_privateVar`)。
 * **DOM 元素選取**：儲存 DOM 元素的變數建議以 `El` (Element) 或 `Btn` / `Input` 等明確後綴結尾，例如 `const submitBtn = document.getElementById('submit');`。
 
-## 6. 第三方套件引入原則
+## 6. 註解與 JSDoc 規範 (Comments & JSDoc)
+
+* **JSDoc 註解**：所有的重要函式（特別是對外 `export` 的 API、工具函式或共用邏輯），都必須加上符合 JSDoc 標準的註解塊。
+* **型別標註**：透過 `@param` 與 `@returns` 明確標示傳入參數與回傳值的資料型別與用途，以彌補 Vanilla JS 缺乏靜態型別檢查的不足，並大幅提升編輯器（如 VSCode）的 IntelliSense 自動完成提示體驗。
+
+**範例：**
+```javascript
+/**
+ * 顯示 Toast 通知
+ * @param {string} message - 訊息內容
+ * @param {'success'|'warning'|'error'|'info'} [type='info'] - 通知類型
+ * @param {number} [duration=4000] - 自動消失時間（毫秒），0 表示不自動消失
+ */
+export function showToast(message, type = 'info', duration = 4000) {
+    // ...
+}
+```
+
+## 7. 第三方套件引入原則
 
 * 原則上**不引入任何第三方前端套件**。
 * 若確有業務需求（如複雜圖表渲染），必須經架構審查同意，且禁止透過公共 CDN 動態載入未鎖定版本之資源，以防堵供應鏈攻擊。若要使用 CDN，必須明確綁定版本號並加入 `integrity` (SRI Hash) 屬性。

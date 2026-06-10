@@ -57,7 +57,7 @@ ext-link-checker/
 ## 核心技術選型與設計理念
 
 * **系統架構解耦 (CLI-First)**：
-  爬蟲核心 (`crawler/`) 與後台網頁系統 (`backend/`) 徹底解耦。在沒有啟動 Web 伺服器的情況下，依然能單獨透過 `cli.py` 命令列程式完整運行與管理爬蟲任務。近期更進一步將「報表匯出」與「發信通知」剝離至獨立模組 (`exporter.py`, `notifier.py`)，嚴格遵守單一職責原則 (SRP)。
+  爬蟲核心 (`crawler/`)、後台網頁系統 (`backend/`) 與前台使用者介面 (`frontend/`) 三者徹底解耦。在沒有啟動 Web 伺服器的情況下，依然能單獨透過 `cli.py` 命令列程式完整運行與管理爬蟲任務。各模組應遵守單一職責原則 (SRP) 開發。
 * **資料庫實體分離**：
   系統維護兩個獨立的資料庫：`crawler.db` (爬蟲業務資料) 與 `auth.db` (帳號與身分驗證資料)，兩者不共用連線池與 Schema，確保業務邏輯邊界清晰。針對高頻寫入的 SQLite，全域啟用了 **WAL (Write-Ahead Logging)**、**NORMAL** 同步模式與大容量快取 (`PRAGMA cache_size`) 以防 I/O 阻塞。
 * **後端 Web API Server**：

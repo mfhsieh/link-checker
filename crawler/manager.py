@@ -549,9 +549,9 @@ class JobManager:
                     session.commit()
                     send_job_status_notification(self.SessionLocal, job_id, "error")
             finally:
+                executor.shutdown(wait=True)
                 if crawler:
                     crawler.close()
-            executor.shutdown(wait=False)
 
     def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
         """
@@ -669,6 +669,49 @@ class JobManager:
                 logger.error("找不到指定的任務 ID: %s", job_id)
                 return False
             session.delete(job)
+            session.commit()
+            return True
+
+    def mark_job_error(self, job_id: str, error_msg: str) -> bool:
+        """
+        將任務強制標記為異常 (error)，用於處理假死任務 (Zombie Job)。
+
+        Args:
+            job_id (str): 任務 ID。
+            error_msg (str): 錯誤原因說明 (供後續除錯參考)。
+
+        Returns:
+            bool: 成功回傳 True。
+        """
+        with self.SessionLocal() as session:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if not job:
+                logger.error("找不到指定的任務 ID: %s", job_id)
+                return False
+            if job.status == "running":
+                logger.error("任務 %s 被標記為異常: %s", job_id, error_msg)
+                job.status = "error"
+                session.commit()
+                send_job_status_notification(self.SessionLocal, job_id, "error")
+            return True
+
+    def transfer_job(self, job_id: str, new_user_id: str) -> bool:
+        """
+        將任務移交給新的使用者。
+
+        Args:
+            job_id (str): 欲移交的任務 ID。
+            new_user_id (str): 接收任務的新使用者 ID。
+
+        Returns:
+            bool: 成功移交回傳 True，若任務不存在則回傳 False。
+        """
+        with self.SessionLocal() as session:
+            job = session.query(Job).filter(Job.id == job_id).first()
+            if not job:
+                logger.error("找不到指定的任務 ID: %s", job_id)
+                return False
+            job.user_id = new_user_id
             session.commit()
             return True
 

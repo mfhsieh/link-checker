@@ -46,11 +46,10 @@ class User(AuthBase):
         created_at (datetime): 建立時間。
         last_login_at (datetime | None): 最後一次成功登入時間。
     """
+
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email: Mapped[str] = mapped_column(String(254), nullable=False, unique=True)
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)
@@ -70,21 +69,20 @@ class Invitation(AuthBase):
 
     Attributes:
         id (str): 主鍵，UUID v4 字串。
-        user_id (str): 關聯的使用者 ID。
+        user_id (str): 關聯的使用者 ID（刻意不設 ForeignKey，以免跨庫或跨表 cascade 刪除帶來複雜度，於應用層手動控制）。
         token (str): 邀請 UUID（唯一）。
         expires_at (datetime): 連結有效期限。
         used_at (datetime | None): 使用時間（None 代表尚未使用）。
         created_at (datetime): 建立時間。
     """
+
     __tablename__ = "invitations"
     __table_args__ = (
         UniqueConstraint("token", name="uq_invitations_token"),
         Index("ix_invitations_user_id", "user_id"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     token: Mapped[str] = mapped_column(String(36), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -102,7 +100,7 @@ class Session(AuthBase):
     Attributes:
         id (str): 主鍵，UUID v4 字串。
         token_hash (str): Session Token 的 SHA-256 雜湊值（唯一）。
-        user_id (str): 關聯的使用者 ID。
+        user_id (str): 關聯的使用者 ID（刻意不設 ForeignKey，以免跨表 cascade 刪除帶來複雜度，於應用層手動控制）。
         is_first_login (bool): 是否為首次登入 Session（設密完成前的暫態）。
         expires_at (datetime): 滑動有效期（每次請求後重置）。
         absolute_expires_at (datetime): 最大絕對有效期（不受滑動影響）。
@@ -110,15 +108,14 @@ class Session(AuthBase):
         ip_address (str | None): 建立 Session 時的客戶端 IP。
         user_agent (str | None): 建立 Session 時的 User-Agent 字串。
     """
+
     __tablename__ = "sessions"
     __table_args__ = (
         UniqueConstraint("token_hash", name="uq_sessions_token_hash"),
         Index("ix_sessions_user_id", "user_id"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False)
     is_first_login: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -137,13 +134,14 @@ class AuthLog(AuthBase):
 
     Attributes:
         id (int): 主鍵，自動遞增。
-        user_id (str | None): 相關使用者 ID（部分事件可能無法確定使用者）。
+        user_id (str | None): 相關使用者 ID（刻意不設 ForeignKey，保留歷史日誌或免去 cascade 複雜度）。
         event_type (str): 事件類型（login_success, login_failed, logout, locked,
                           password_set, password_changed, invitation_sent 等）。
         ip_address (str | None): 事件發生時的客戶端 IP。
         detail (str | None): 附加描述（如失敗原因）。
         created_at (datetime): 事件時間。
     """
+
     __tablename__ = "auth_logs"
     __table_args__ = (
         Index("ix_auth_logs_user_id", "user_id"),

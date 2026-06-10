@@ -256,3 +256,36 @@ http://<您的 VM 外部 IP>/
 7. 第一次連線時會出現安全警告，點擊 **Accept (是)** 即可成功連入您的 VM！
 
 > **提示**：若透過 PuTTY 連入，您的家目錄會是 `/home/<您的登入帳號名稱>/`。如果您先前將專案放在 `/opt/ext-link-checker`，請記得執行 `cd /opt/ext-link-checker` 進入專案資料夾。
+
+---
+
+## 維護與更新：如何更新系統程式碼
+
+當專案程式碼有更新，或者您修復了某些 Bug 需要部署至伺服器時，請依照以下標準流程在 GCP VM 上拉取最新程式碼並重啟服務：
+
+1. **進入專案目錄**：
+   ```bash
+   cd /opt/ext-link-checker
+   ```
+2. **停止背景服務**：
+   ```bash
+   sudo systemctl stop ext-link-checker
+   ```
+3. **拉取最新程式碼**：
+   ```bash
+   git pull
+   ```
+4. **更新 Python 依賴套件 (防範 requirements.txt 有變更)**：
+   ```bash
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+5. **重新啟動背景服務**：
+   ```bash
+   sudo systemctl start ext-link-checker
+   ```
+6. **確認服務狀態**：
+   ```bash
+   sudo systemctl status ext-link-checker
+   ```
+   若看到綠色的 `active (running)` 字樣，即代表系統更新並重啟成功！

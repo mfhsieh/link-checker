@@ -21,6 +21,10 @@ let _currentGroupBy = 'none';
 let _currentPage = 1;
 let _eventsBound = false;
 let _pollInterval = 5000;
+let _detailSort = { key: null, asc: true };
+let _detailColFilters = {};
+let _currentDetailHeaders = [];
+let _currentResultItems = [];
 
 function startPolling(jobId) {
     if (_pollTimer) clearTimeout(_pollTimer);
@@ -64,6 +68,11 @@ function showConfirm(title, message, confirmText = '確定', isDanger = false) {
     });
 }
 
+/**
+ * 初始化任務詳情頁面邏輯
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>} 無回傳值
+ */
 export async function initJobDetailPage(jobId) {
     _currentJobId = jobId;
     _currentFilter = null;
@@ -74,13 +83,15 @@ export async function initJobDetailPage(jobId) {
 
     _currentGroupBy = 'none';
     _currentPage = 1;
+    _detailSort = { key: null, asc: true };
+    _detailColFilters = {};
 
     // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
     document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
     const searchInput = document.getElementById('results-search');
     if (searchInput) searchInput.value = '';
-    const groupSelect = document.getElementById('results-group-select');
-    if (groupSelect) groupSelect.value = 'none';
+    const groupSelectEl = document.getElementById('results-group-select');
+    if (groupSelectEl) groupSelectEl.value = 'none';
 
     // 依照是否有排除設定來改變按鈕的視覺呈現
     const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
@@ -100,6 +111,10 @@ export async function initJobDetailPage(jobId) {
     await loadResults(jobId);
 }
 
+/**
+ * 銷毀任務詳情頁面邏輯，停止輪詢
+ * @returns {void} 無回傳值
+ */
 export function destroyJobDetailPage() {
     stopPolling();
 }
@@ -163,10 +178,10 @@ function renderJobInfo(job) {
     const done = (progress.completed || 0) + (progress.skipped || 0) + (progress.failed || 0);
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-    const progressFill = el('job-progress-fill');
-    const progressText = el('job-progress-text');
-    if (progressFill) progressFill.style.width = pct + '%';
-    if (progressText) progressText.textContent = `${pct}% (${done} / ${total})`;
+    const progressFillEl = el('job-progress-fill');
+    const progressTextEl = el('job-progress-text');
+    if (progressFillEl) progressFillEl.style.width = pct + '%';
+    if (progressTextEl) progressTextEl.textContent = `${pct}% (${done} / ${total})`;
 
     setTextContent('stat-total', total);
     setTextContent('stat-completed', progress.completed || 0);
@@ -176,12 +191,16 @@ function renderJobInfo(job) {
 
     const canStart = ['pending', 'paused'].includes(job.status) && !job.is_running;
     const canPause = isActuallyRunning && !isPausing;
+    const canCompare = job.status === 'completed';
+    const canTransfer = !isActuallyRunning;
     const canReset = ['completed', 'error', 'paused'].includes(job.status) && !job.is_running;
     const canRetry = ['completed', 'error'].includes(job.status) && !job.is_running;
 
     toggleDisplay('btn-start-job', canStart);
     toggleDisplay('btn-resume-job', false);
     toggleDisplay('btn-pause-job', canPause);
+    toggleDisplay('btn-goto-compare', canCompare);
+    toggleDisplay('btn-transfer-job', canTransfer);
     toggleDisplay('btn-reset-job', canReset);
     toggleDisplay('btn-retry-failed-job', canRetry);
 }
@@ -233,6 +252,15 @@ function bindControlButtons() {
         window.location.hash = '#/jobs';
     });
 
+    bindBtn('btn-goto-compare', () => {
+        window.location.hash = `#/compare?base=${_currentJobId}`;
+    });
+
+    // ── 移交任務跳轉邏輯 ──────────────────────────────────────────
+    bindBtn('btn-transfer-job', () => {
+        window.location.hash = `#/transfer?job=${_currentJobId}`;
+    });
+
     bindBtn('btn-export-full', async () => {
         await download(`/api/jobs/${_currentJobId}/export/full`);
     });
@@ -243,54 +271,109 @@ function bindControlButtons() {
         viewConfigBtn.addEventListener('click', () => {
             const container = document.getElementById('job-config-display-container');
             if (container) {
+                container.replaceChildren();
                 if (!_currentJobConfig) {
-                    container.innerHTML = '<div class="text-muted" style="text-align:center;padding:2rem">無設定資料</div>';
+                    const empty = document.createElement('div');
+                    empty.className = 'text-muted';
+                    empty.style.textAlign = 'center';
+                    empty.style.padding = '2rem';
+                    empty.textContent = '無設定資料';
+                    container.appendChild(empty);
                 } else {
                     const c = _currentJobConfig;
-                    const esc = (s) => {
-                        const d = document.createElement('div');
-                        d.textContent = String(s || '');
-                        return d.innerHTML;
-                    };
-                    const formatList = (list) => {
-                        if (!Array.isArray(list) || list.length === 0) return '<span class="text-muted">-</span>';
-                        return list.map(item => `<span style="display:inline-block; background:var(--surface-overlay); border:1px solid var(--surface-border); border-radius:4px; padding:2px 6px; margin:2px 2px 2px 0; font-size:0.75rem;">${esc(item)}</span>`).join('');
+
+                    const formatList = (list, parentNode) => {
+                        if (!Array.isArray(list) || list.length === 0) {
+                            const span = document.createElement('span');
+                            span.className = 'text-muted';
+                            span.textContent = '-';
+                            parentNode.appendChild(span);
+                            return;
+                        }
+                        list.forEach(item => {
+                            const span = document.createElement('span');
+                            span.style.display = 'inline-block';
+                            span.style.background = 'var(--surface-overlay)';
+                            span.style.border = '1px solid var(--surface-border)';
+                            span.style.borderRadius = '4px';
+                            span.style.padding = '2px 6px';
+                            span.style.margin = '2px 2px 2px 0';
+                            span.style.fontSize = '0.75rem';
+                            span.textContent = item;
+                            parentNode.appendChild(span);
+                        });
                     };
 
-                    container.innerHTML = `
-            <div style="display:flex; flex-direction:column; gap:1.5rem;">
-              <div>
-                <div style="font-weight:600; border-bottom:1px solid var(--surface-border); padding-bottom:0.5rem; margin-bottom:0.75rem;">🌐 網域設定</div>
-                <div style="display:grid; grid-template-columns: 110px 1fr; gap:0.75rem 0.5rem; font-size:0.875rem;">
-                  <div class="text-muted">目標網域</div><div>${formatList(c.target_domains)}</div>
-                  <div class="text-muted">信任網域</div><div>${formatList(c.trusted_domains)}</div>
-                </div>
-              </div>
-              <div>
-                <div style="font-weight:600; border-bottom:1px solid var(--surface-border); padding-bottom:0.5rem; margin-bottom:0.75rem;">⚙️ 資源與限制</div>
-                <div style="display:grid; grid-template-columns: 110px 1fr; gap:0.75rem 0.5rem; font-size:0.875rem;">
-                  <div class="text-muted">最大爬取深度</div><div>${c.max_depth === null ? '不限制' : esc(c.max_depth)}</div>
-                  <div class="text-muted">最大抓取頁數</div><div>${c.max_pages === null ? '不限制' : esc(c.max_pages)}</div>
-                  <div class="text-muted">請求延遲</div><div>${c.delay ?? '-'} 秒</div>
-                  <div class="text-muted">連線逾時</div><div>${c.timeout ?? '-'} 秒</div>
-                  <div class="text-muted">TCP連線逾時</div><div>${c.connect_timeout ?? '-'} 秒</div>
-                  <div class="text-muted">外連探測逾時</div><div>${c.external_check_timeout ?? '-'} 秒</div>
-                  <div class="text-muted">失敗重試</div><div>${c.retries ?? '-'} 次</div>
-                  ${c.proxy_url !== undefined ? `<div class="text-muted">代理伺服器</div><div class="font-mono text-xs" style="word-break:break-all">${esc(c.proxy_url) || '-'}</div>` : ''}
-                </div>
-              </div>
-              <div>
-                <div style="font-weight:600; border-bottom:1px solid var(--surface-border); padding-bottom:0.5rem; margin-bottom:0.75rem;">🛡️ 過濾與排除</div>
-                <div style="display:grid; grid-template-columns: 110px 1fr; gap:0.75rem 0.5rem; font-size:0.875rem;">
-                  <div class="text-muted">忽略路徑規則</div><div>${formatList(c.ignore_regexes)}</div>
-                  <div class="text-muted">忽略副檔名</div>
-                  <div style="max-height:160px; overflow-y:auto; padding-right:4px;">
-                    ${formatList(c.ignore_extensions)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
+                    const createSection = (title, items) => {
+                        const section = document.createElement('div');
+
+                        const titleEl = document.createElement('div');
+                        titleEl.style.fontWeight = '600';
+                        titleEl.style.borderBottom = '1px solid var(--surface-border)';
+                        titleEl.style.paddingBottom = '0.5rem';
+                        titleEl.style.marginBottom = '0.75rem';
+                        titleEl.textContent = title;
+                        section.appendChild(titleEl);
+
+                        const grid = document.createElement('div');
+                        grid.style.display = 'grid';
+                        grid.style.gridTemplateColumns = '110px 1fr';
+                        grid.style.gap = '0.75rem 0.5rem';
+                        grid.style.fontSize = '0.875rem';
+
+                        items.forEach(item => {
+                            if (!item) return;
+                            const lbl = document.createElement('div');
+                            lbl.className = 'text-muted';
+                            lbl.textContent = item.label;
+                            grid.appendChild(lbl);
+
+                            const val = document.createElement('div');
+                            if (typeof item.value === 'function') {
+                                item.value(val);
+                            } else {
+                                val.textContent = item.value;
+                            }
+                            if (item.valStyle) {
+                                Object.assign(val.style, item.valStyle);
+                            }
+                            if (item.valClass) {
+                                val.className = item.valClass;
+                            }
+                            grid.appendChild(val);
+                        });
+
+                        section.appendChild(grid);
+                        return section;
+                    };
+
+                    const wrapper = document.createElement('div');
+                    wrapper.style.display = 'flex';
+                    wrapper.style.flexDirection = 'column';
+                    wrapper.style.gap = '1.5rem';
+
+                    wrapper.appendChild(createSection('🌐 網域設定', [
+                        { label: '目標網域', value: el => formatList(c.target_domains, el) },
+                        { label: '信任網域', value: el => formatList(c.trusted_domains, el) }
+                    ]));
+
+                    wrapper.appendChild(createSection('⚙️ 資源與限制', [
+                        { label: '最大爬取深度', value: c.max_depth === null ? '不限制' : c.max_depth },
+                        { label: '最大抓取頁數', value: c.max_pages === null ? '不限制' : c.max_pages },
+                        { label: '請求延遲', value: `${c.delay ?? '-'} 秒` },
+                        { label: '連線逾時', value: `${c.timeout ?? '-'} 秒` },
+                        { label: 'TCP連線逾時', value: `${c.connect_timeout ?? '-'} 秒` },
+                        { label: '外連探測逾時', value: `${c.external_check_timeout ?? '-'} 秒` },
+                        { label: '失敗重試', value: `${c.retries ?? '-'} 次` },
+                        c.proxy_url !== undefined ? { label: '代理伺服器', value: c.proxy_url || '-', valClass: 'font-mono text-xs', valStyle: { wordBreak: 'break-all' } } : null
+                    ]));
+
+                    wrapper.appendChild(createSection('🛡️ 過濾與排除', [
+                        { label: '忽略路徑規則', value: el => formatList(c.ignore_regexes, el) },
+                        { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } }
+                    ]));
+
+                    container.appendChild(wrapper);
                 }
             }
             configModalEl.style.display = 'flex';
@@ -301,8 +384,8 @@ function bindControlButtons() {
 }
 
 async function loadResults(jobId) {
-    const container = document.getElementById('results-container');
-    if (!container) return;
+    const containerEl = document.getElementById('results-container');
+    if (!containerEl) return;
 
     try {
         const summary = await api.get(`/api/jobs/${jobId}/results/summary`);
@@ -313,15 +396,15 @@ async function loadResults(jobId) {
 }
 
 async function loadResultsPage(jobId) {
-    const container = document.getElementById('results-container');
-    if (!container) return;
+    const containerEl = document.getElementById('results-container');
+    if (!containerEl) return;
 
-    container.replaceChildren();
-    const skeleton = document.createElement('div');
-    skeleton.className = 'skeleton';
-    skeleton.style.height = '200px';
-    skeleton.style.borderRadius = '0.5rem';
-    container.appendChild(skeleton);
+    containerEl.replaceChildren();
+    const skeletonEl = document.createElement('div');
+    skeletonEl.className = 'skeleton';
+    skeletonEl.style.height = '200px';
+    skeletonEl.style.borderRadius = '0.5rem';
+    containerEl.appendChild(skeletonEl);
 
     try {
         const params = {
@@ -333,17 +416,17 @@ async function loadResultsPage(jobId) {
             page_size: 50,
         };
         const res = await api.get(`/api/jobs/${jobId}/results`, params);
-        renderResultsTable(res, container);
+        renderResultsTable(res, containerEl);
         renderPagination(res, jobId);
     } catch (err) {
-        container.replaceChildren();
-        const emptyState = document.createElement('div');
-        emptyState.className = 'empty-state';
-        const desc = document.createElement('div');
-        desc.className = 'empty-state-desc text-danger';
-        desc.textContent = err.message;
-        emptyState.appendChild(desc);
-        container.appendChild(emptyState);
+        containerEl.replaceChildren();
+        const emptyStateEl = document.createElement('div');
+        emptyStateEl.className = 'empty-state';
+        const descEl = document.createElement('div');
+        descEl.className = 'empty-state-desc text-danger';
+        descEl.textContent = err.message;
+        emptyStateEl.appendChild(descEl);
+        containerEl.appendChild(emptyStateEl);
     }
 }
 
@@ -355,57 +438,178 @@ function renderResultsSummary(summary) {
     setTextContent('summary-insecure', summary.insecure_count ?? 0);
 }
 
-function renderResultsTable(res, container) {
-    const items = res.items || [];
-    container.replaceChildren();
-    if (items.length === 0) {
-        const emptyState = document.createElement('div');
-        emptyState.className = 'empty-state';
-        const title = document.createElement('div');
-        title.className = 'empty-state-title';
-        title.textContent = '無結果';
-        const desc = document.createElement('div');
-        desc.className = 'empty-state-desc';
-        desc.textContent = '目前沒有符合條件的外連結果';
-        emptyState.appendChild(title);
-        emptyState.appendChild(desc);
-        container.appendChild(emptyState);
+function renderResultsTable(res, containerEl) {
+    _currentResultItems = res.items || [];
+
+    if (_currentResultItems.length === 0) {
+        containerEl.replaceChildren();
+        const emptyStateEl = document.createElement('div');
+        emptyStateEl.className = 'empty-state';
+        const titleEl = document.createElement('div');
+        titleEl.className = 'empty-state-title';
+        titleEl.textContent = '無結果';
+        const descEl = document.createElement('div');
+        descEl.className = 'empty-state-desc';
+        descEl.textContent = '目前沒有符合條件的外連結果';
+        emptyStateEl.appendChild(titleEl);
+        emptyStateEl.appendChild(descEl);
+        containerEl.appendChild(emptyStateEl);
+        delete containerEl.dataset.renderedGroup;
         return;
     }
 
     const isGroupTarget = _currentGroupBy === 'target';
     const isGroupSource = _currentGroupBy === 'source';
     const isGroupDomain = _currentGroupBy === 'domain';
-    let headers;
 
     if (isGroupTarget) {
-        headers = ['目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '來源數', '錯誤訊息'];
+        _currentDetailHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: '安全', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '來源數', key: 'occurrence_count' }, { label: '錯誤訊息', key: 'error_message' }];
     } else if (isGroupSource) {
-        headers = ['來源頁面', '外連數量', '詳細連結清單'];
+        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '外連數量', key: 'occurrence_count' }, { label: '詳細連結清單', key: 'targets', sortable: false, filterable: false }];
     } else if (isGroupDomain) {
-        headers = ['外部網域', '總出現次數', '不重複網址數', '包含網址清單'];
+        _currentDetailHeaders = [{ label: '外部網域', key: 'domain' }, { label: '總出現次數', key: 'occurrence_count' }, { label: '不重複網址數', key: 'unique_urls_count' }, { label: '包含網址清單', key: 'unique_urls', sortable: false, filterable: false }];
     } else {
-        headers = ['來源頁面', '目標 URL', 'IP 位址', '安全', 'HTTP 狀態', '錯誤訊息'];
+        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: '安全', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '錯誤訊息', key: 'error_message' }];
     }
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'table-wrapper';
+    let tableEl = containerEl.querySelector('.table');
+    if (!tableEl || containerEl.dataset.renderedGroup !== _currentGroupBy) {
+        containerEl.replaceChildren();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-wrapper';
+        tableEl = document.createElement('table');
+        tableEl.className = 'table';
+        const thead = document.createElement('thead');
+        const trHead = document.createElement('tr');
 
-    const table = document.createElement('table');
-    table.className = 'table';
+        _currentDetailHeaders.forEach(h => {
+            const th = document.createElement('th');
+            th.style.verticalAlign = 'top';
+            const headerTop = document.createElement('div');
+            headerTop.style.display = 'flex';
+            headerTop.style.justifyContent = 'space-between';
+            headerTop.style.alignItems = 'center';
+            if (h.sortable !== false) headerTop.style.cursor = 'pointer';
 
-    const thead = document.createElement('thead');
-    const trHead = document.createElement('tr');
-    headers.forEach(h => {
-        const th = document.createElement('th');
-        th.textContent = h;
-        trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
-    table.appendChild(thead);
+            const label = document.createElement('span');
+            label.textContent = h.label;
+            headerTop.appendChild(label);
 
-    const tbody = document.createElement('tbody');
-    items.forEach(item => {
+            if (h.sortable !== false) {
+                const sortIcon = document.createElement('span');
+                sortIcon.className = 'sort-icon';
+                sortIcon.dataset.key = h.key;
+                sortIcon.style.color = 'var(--text-muted)';
+                sortIcon.style.fontSize = '0.75rem';
+                sortIcon.style.marginLeft = '0.25rem';
+                sortIcon.textContent = _detailSort.key === h.key ? (_detailSort.asc ? '▲' : '▼') : '⇅';
+                if (_detailSort.key === h.key) sortIcon.style.color = 'var(--color-brand-500)';
+                headerTop.appendChild(sortIcon);
+
+                headerTop.addEventListener('click', () => {
+                    if (_detailSort.key === h.key) _detailSort.asc = !_detailSort.asc;
+                    else { _detailSort.key = h.key; _detailSort.asc = true; }
+
+                    trHead.querySelectorAll('.sort-icon').forEach(icon => {
+                        if (icon.dataset.key === _detailSort.key) {
+                            icon.textContent = _detailSort.asc ? '▲' : '▼';
+                            icon.style.color = 'var(--color-brand-500)';
+                        } else {
+                            icon.textContent = '⇅';
+                            icon.style.color = 'var(--text-muted)';
+                        }
+                    });
+                    renderResultsTbody(tableEl);
+                });
+            }
+            th.appendChild(headerTop);
+
+            if (h.filterable !== false) {
+                const filterInput = document.createElement('input');
+                filterInput.type = 'text';
+                filterInput.className = 'form-input text-xs';
+                filterInput.placeholder = '篩選...';
+                filterInput.style.marginTop = '0.5rem';
+                filterInput.style.padding = '0.25rem 0.5rem';
+                filterInput.style.height = 'auto';
+                filterInput.style.fontWeight = 'normal';
+                filterInput.value = _detailColFilters[h.key] || '';
+
+                filterInput.addEventListener('input', (e) => {
+                    _detailColFilters[h.key] = e.target.value.toLowerCase();
+                    renderResultsTbody(tableEl);
+                });
+                filterInput.addEventListener('click', e => e.stopPropagation());
+                th.appendChild(filterInput);
+            }
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        tableEl.appendChild(thead);
+        tableEl.appendChild(document.createElement('tbody'));
+        wrapper.appendChild(tableEl);
+        containerEl.appendChild(wrapper);
+        containerEl.dataset.renderedGroup = _currentGroupBy;
+
+        const paginationContainerEl = document.createElement('div');
+        paginationContainerEl.id = 'results-pagination';
+        containerEl.appendChild(paginationContainerEl);
+    }
+
+    renderResultsTbody(tableEl);
+}
+
+function renderResultsTbody(tableEl) {
+    let data = [..._currentResultItems];
+
+    for (const [k, v] of Object.entries(_detailColFilters)) {
+        if (!v) continue;
+        data = data.filter(item => {
+            let val = item[k];
+            if (k === 'is_secure') val = val ? '✓' : '✗';
+            return String(val || '').toLowerCase().includes(v);
+        });
+    }
+
+    if (_detailSort.key) {
+        data.sort((a, b) => {
+            let valA = a[_detailSort.key];
+            let valB = b[_detailSort.key];
+            if (_detailSort.key === 'is_secure') {
+                valA = valA ? 1 : 0;
+                valB = valB ? 1 : 0;
+            }
+            if (valA === undefined || valA === null) valA = '';
+            if (valB === undefined || valB === null) valB = '';
+            if (typeof valA === 'number' && typeof valB === 'number') return _detailSort.asc ? valA - valB : valB - valA;
+            valA = String(valA).toLowerCase();
+            valB = String(valB).toLowerCase();
+            if (valA < valB) return _detailSort.asc ? -1 : 1;
+            if (valA > valB) return _detailSort.asc ? 1 : -1;
+            return 0;
+        });
+    }
+
+    let tbody = tableEl.querySelector('tbody');
+    tbody.replaceChildren();
+
+    if (data.length === 0) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = _currentDetailHeaders.length;
+        td.className = 'text-center text-muted';
+        td.style.padding = '1rem';
+        td.textContent = '本頁無符合篩選條件的結果';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+    }
+
+    const isGroupTarget = _currentGroupBy === 'target';
+    const isGroupSource = _currentGroupBy === 'source';
+    const isGroupDomain = _currentGroupBy === 'domain';
+
+    data.forEach(item => {
         if (isGroupDomain) {
             const tr = document.createElement('tr');
 
@@ -440,7 +644,13 @@ function renderResultsTable(res, container) {
                 li.style.maxWidth = '360px';
                 li.style.marginBottom = '0.25rem';
                 li.title = u;
-                li.textContent = u;
+                const aU = document.createElement('a');
+                aU.href = u;
+                aU.target = '_blank';
+                aU.rel = 'noopener noreferrer';
+                aU.className = 'text-link';
+                aU.textContent = u;
+                li.appendChild(aU);
                 ul.appendChild(li);
             });
             divUrls.appendChild(ul);
@@ -458,11 +668,20 @@ function renderResultsTable(res, container) {
             tdSource.className = 'truncate';
             tdSource.style.maxWidth = '300px';
             tdSource.title = item.source_url;
-            tdSource.innerHTML = `<a href="${escapeHtml(item.source_url)}" target="_blank" class="text-link">${escapeHtml(item.source_url)}</a>`;
+            const aSource = document.createElement('a');
+            aSource.href = item.source_url;
+            aSource.target = '_blank';
+            aSource.rel = 'noopener noreferrer';
+            aSource.className = 'text-link';
+            aSource.textContent = item.source_url;
+            tdSource.appendChild(aSource);
             tr.appendChild(tdSource);
 
             const tdCount = document.createElement('td');
-            tdCount.innerHTML = `<span class="badge badge-danger">${item.occurrence_count}</span>`;
+            const countBadge = document.createElement('span');
+            countBadge.className = 'badge badge-danger';
+            countBadge.textContent = item.occurrence_count;
+            tdCount.appendChild(countBadge);
             tr.appendChild(tdCount);
 
             const tdTargets = document.createElement('td');
@@ -482,10 +701,43 @@ function renderResultsTable(res, container) {
                 let badgeClass = 'badge-pending';
                 if (t.status.includes('404') || t.status.includes('500') || t.status === 'Error' || t.status === 'DNS Failed') badgeClass = 'badge-danger';
 
-                const badge = `<span class="badge ${badgeClass}" style="padding:0.125rem 0.375rem; font-size:0.7rem; margin-right:0.5rem; display:inline-block; min-width:3.5rem; text-align:center">${escapeHtml(t.status)}</span>`;
-                const secBadge = t.is_secure ? '' : `<span class="text-danger" style="margin-right:0.25rem" title="非 HTTPS">🔓</span>`;
+                const badge = document.createElement('span');
+                badge.className = `badge ${badgeClass}`;
+                badge.style.padding = '0.125rem 0.375rem';
+                badge.style.fontSize = '0.7rem';
+                badge.style.marginRight = '0.5rem';
+                badge.style.display = 'inline-block';
+                badge.style.minWidth = '3.5rem';
+                badge.style.textAlign = 'center';
+                badge.textContent = t.status;
+                li.appendChild(badge);
 
-                li.innerHTML = `${badge}${secBadge}<span class="truncate" style="display:inline-block; max-width:400px; vertical-align:bottom" title="${escapeHtml(t.url)}">${escapeHtml(t.url)}</span>`;
+                if (!t.is_secure) {
+                    const secBadge = document.createElement('span');
+                    secBadge.className = 'text-danger';
+                    secBadge.style.marginRight = '0.25rem';
+                    secBadge.title = '非 HTTPS';
+                    secBadge.textContent = '🔓';
+                    li.appendChild(secBadge);
+                }
+
+                const spanTargetWrapper = document.createElement('span');
+                spanTargetWrapper.className = 'truncate';
+                spanTargetWrapper.style.display = 'inline-block';
+                spanTargetWrapper.style.maxWidth = '400px';
+                spanTargetWrapper.style.verticalAlign = 'bottom';
+                spanTargetWrapper.title = t.url;
+
+                const aTarget = document.createElement('a');
+                aTarget.href = t.url;
+                aTarget.target = '_blank';
+                aTarget.rel = 'noopener noreferrer';
+                aTarget.className = 'text-link';
+                aTarget.style.color = 'inherit';
+                aTarget.textContent = t.url;
+
+                spanTargetWrapper.appendChild(aTarget);
+                li.appendChild(spanTargetWrapper);
                 ul.appendChild(li);
             });
             divTargets.appendChild(ul);
@@ -507,7 +759,13 @@ function renderResultsTable(res, container) {
             tdSource.className = 'truncate text-xs text-muted';
             tdSource.style.maxWidth = '200px';
             tdSource.title = item.source_url;
-            tdSource.textContent = item.source_url;
+            const aSource = document.createElement('a');
+            aSource.href = item.source_url;
+            aSource.target = '_blank';
+            aSource.rel = 'noopener noreferrer';
+            aSource.style.color = 'inherit';
+            aSource.textContent = item.source_url;
+            tdSource.appendChild(aSource);
             tr.appendChild(tdSource);
         }
 
@@ -515,7 +773,14 @@ function renderResultsTable(res, container) {
         tdTarget.className = 'truncate';
         tdTarget.style.maxWidth = '260px';
         tdTarget.title = item.target_url;
-        tdTarget.textContent = item.target_url;
+        const aTarget = document.createElement('a');
+        aTarget.href = item.target_url;
+        aTarget.target = '_blank';
+        aTarget.rel = 'noopener noreferrer';
+        aTarget.className = 'text-link';
+        aTarget.style.color = 'inherit';
+        aTarget.textContent = item.target_url;
+        tdTarget.appendChild(aTarget);
         tr.appendChild(tdTarget);
 
         const tdIp = document.createElement('td');
@@ -549,14 +814,6 @@ function renderResultsTable(res, container) {
 
         tbody.appendChild(tr);
     });
-    table.appendChild(tbody);
-    wrapper.appendChild(table);
-
-    container.appendChild(wrapper);
-
-    const paginationContainer = document.createElement('div');
-    paginationContainer.id = 'results-pagination';
-    container.appendChild(paginationContainer);
 }
 
 function renderPagination(res, jobId) {
@@ -567,8 +824,8 @@ function renderPagination(res, jobId) {
     const { page, total_pages } = res;
     if (total_pages <= 1) return;
 
-    const paginationDiv = document.createElement('div');
-    paginationDiv.className = 'pagination';
+    const paginationDivEl = document.createElement('div');
+    paginationDivEl.className = 'pagination';
 
     const prevBtn = document.createElement('button');
     prevBtn.className = 'page-btn';
@@ -581,7 +838,7 @@ function renderPagination(res, jobId) {
             await loadResultsPage(jobId);
         });
     }
-    paginationDiv.appendChild(prevBtn);
+    paginationDivEl.appendChild(prevBtn);
 
     const delta = 2;
     const start = Math.max(1, page - delta);
@@ -598,7 +855,7 @@ function renderPagination(res, jobId) {
                 await loadResultsPage(jobId);
             });
         }
-        paginationDiv.appendChild(pageBtn);
+        paginationDivEl.appendChild(pageBtn);
     }
 
     const nextBtn = document.createElement('button');
@@ -612,9 +869,9 @@ function renderPagination(res, jobId) {
             await loadResultsPage(jobId);
         });
     }
-    paginationDiv.appendChild(nextBtn);
+    paginationDivEl.appendChild(nextBtn);
 
-    paginationEl.appendChild(paginationDiv);
+    paginationEl.appendChild(paginationDivEl);
 }
 
 function bindResultsControls() {
@@ -664,6 +921,8 @@ function bindResultsControls() {
         excludeCancelBtn.addEventListener('click', closeExcludeModal);
 
         excludeSubmitBtn.addEventListener('click', async () => {
+            if (document.getElementById('view-job-detail').style.display === 'none') return;
+
             const lines = excludeTextareaInput.value.split('\n').map(s => s.trim()).filter(Boolean);
             _currentExclude = lines.join(',');
             localStorage.setItem('ext-link-checker-exclude-domains', _currentExclude);
@@ -678,11 +937,13 @@ function bindResultsControls() {
         });
     }
 
-    const groupSelect = document.getElementById('results-group-select');
-    if (groupSelect) {
-        groupSelect.addEventListener('change', async () => {
-            _currentGroupBy = groupSelect.value;
+    const groupSelectEl = document.getElementById('results-group-select');
+    if (groupSelectEl) {
+        groupSelectEl.addEventListener('change', async () => {
+            _currentGroupBy = groupSelectEl.value;
             _currentPage = 1;
+            _detailSort = { key: null, asc: true };
+            _detailColFilters = {};
             await loadResultsPage(_currentJobId);
         });
     }

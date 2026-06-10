@@ -86,7 +86,12 @@ async function request(path, options = {}) {
 
 // ── Public API ────────────────────────────────────────────────
 
-/** GET 請求 */
+/**
+ * GET 請求
+ * @param {string} path - API 路徑
+ * @param {Object} [params] - 查詢參數字典
+ * @returns {Promise<any>} 解析後的 JSON 回應
+ */
 export function get(path, params) {
     let url = path;
     if (params) {
@@ -98,7 +103,12 @@ export function get(path, params) {
     return request(url, { method: 'GET' });
 }
 
-/** POST 請求（JSON body）*/
+/**
+ * POST 請求（JSON body）
+ * @param {string} path - API 路徑
+ * @param {Object} [body] - 請求主體字典
+ * @returns {Promise<any>} 解析後的 JSON 回應
+ */
 export function post(path, body) {
     return request(path, {
         method: 'POST',
@@ -106,7 +116,12 @@ export function post(path, body) {
     });
 }
 
-/** PATCH 請求（JSON body）*/
+/**
+ * PATCH 請求（JSON body）
+ * @param {string} path - API 路徑
+ * @param {Object} [body] - 請求主體字典
+ * @returns {Promise<any>} 解析後的 JSON 回應
+ */
 export function patch(path, body) {
     return request(path, {
         method: 'PATCH',
@@ -114,7 +129,11 @@ export function patch(path, body) {
     });
 }
 
-/** DELETE 請求 */
+/**
+ * DELETE 請求
+ * @param {string} path - API 路徑
+ * @returns {Promise<any>} 解析後的 JSON 回應
+ */
 export function del(path) {
     return request(path, { method: 'DELETE' });
 }
@@ -122,6 +141,7 @@ export function del(path) {
 /**
  * 下載請求（用於 CSV/JSON 匯出，觸發瀏覽器下載）
  * @param {string} path - 下載路徑
+ * @returns {Promise<void>} 無回傳值
  */
 export async function download(path) {
     const response = await fetch(BASE_URL + path, {

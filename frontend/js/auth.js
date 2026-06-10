@@ -48,6 +48,7 @@ export function initPasswordStrength(input, barEl, labelEl) {
 /**
  * 初始化登入頁面邏輯
  * 從 URL query params 解析首次登入用的 email + token
+ * @returns {Promise<void>} 無回傳值
  */
 export async function initLoginPage() {
     // 若已登入，直接跳轉主頁
@@ -152,6 +153,10 @@ export async function initLoginPage() {
 
 // ── 首次設密頁面 ──────────────────────────────────────────────
 
+/**
+ * 初始化首次設密頁面邏輯
+ * @returns {Promise<void>} 無回傳值
+ */
 export async function initSetPasswordPage() {
     // 確認是首次登入 Session
     try {
@@ -213,6 +218,10 @@ export async function initSetPasswordPage() {
 
 // ── 登出 ───────────────────────────────────────────────────────
 
+/**
+ * 登出當前使用者並清除 Session，跳轉回首頁
+ * @returns {Promise<void>} 無回傳值
+ */
 export async function logout() {
     try {
         await api.post('/api/auth/logout');
@@ -227,6 +236,11 @@ export async function logout() {
 /** 取得當前使用者資訊（快取版本）*/
 let _cachedUser = null;
 
+/**
+ * 取得當前使用者資訊（快取版本）
+ * @param {boolean} [forceRefresh=false] - 是否強制重新發送 API 請求
+ * @returns {Promise<Object|null>} 使用者物件或 null（未登入）
+ */
 export async function getCurrentUser(forceRefresh = false) {
     if (_cachedUser && !forceRefresh) return _cachedUser;
     try {
@@ -237,6 +251,10 @@ export async function getCurrentUser(forceRefresh = false) {
     }
 }
 
+/**
+ * 清除當前使用者的快取資訊
+ * @returns {void} 無回傳值
+ */
 export function clearUserCache() {
     _cachedUser = null;
 }
