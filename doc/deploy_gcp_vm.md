@@ -289,3 +289,24 @@ http://<您的 VM 外部 IP>/
    sudo systemctl status ext-link-checker
    ```
    若看到綠色的 `active (running)` 字樣，即代表系統更新並重啟成功！
+
+---
+
+## 進階維護：資料庫空間釋放 (VACUUM)
+
+在系統長期運行過程中，當您刪除了大量的爬蟲任務或歷史日誌後，SQLite 資料庫檔案的大小預設並不會自動縮小。為了釋放未使用的實體磁碟空間，建議定期手動執行 `VACUUM` 指令。
+
+1. **進入專案目錄**：
+   ```bash
+   cd /opt/ext-link-checker
+   ```
+2. **執行 VACUUM 壓縮資料庫**：
+   ```bash
+   # 壓縮爬蟲資料庫
+   sqlite3 db/crawler.db "VACUUM;"
+
+   # 壓縮帳號資料庫
+   sqlite3 db/auth.db "VACUUM;"
+   ```
+
+> **💡 建議時機**：執行 `VACUUM` 期間會產生較高的磁碟 I/O 負載並短暫鎖定資料庫，建議在系統的離峰時間，或是在您剛從後台刪除了大量舊任務後手動執行。您也可以將這兩行指令寫入 Linux 的 Cronjob 進行每週或每月的定期排程維護。
