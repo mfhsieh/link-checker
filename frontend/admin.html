@@ -1036,7 +1036,7 @@
             btnTakeover.className = 'btn btn-sm btn-secondary job-action-btn';
             btnTakeover.dataset.action = 'takeover';
             btnTakeover.dataset.id = j.id;
-            btnTakeover.textContent = '強制接管 (暫停)';
+            btnTakeover.textContent = '強制暫停';
             divActions.appendChild(btnTakeover);
           }
           const btnDel = document.createElement('button');
@@ -1065,11 +1065,11 @@
     }
 
     async function takeoverJob(jobId) {
-      const confirmed = await showConfirm('⚠️ 強制接管任務', '確定要強制接管該任務？任務將被強制暫停。', '強制接管', true);
+      const confirmed = await showConfirm('⚠️ 強制暫停任務', '確定要強制暫停該任務嗎？', '強制暫停', true);
       if (!confirmed) return;
       try {
         await api.post(`/api/admin/jobs/${jobId}/takeover`);
-        toast.success('已強制接管任務，任務已暫停。');
+        toast.success('任務已強制暫停。');
         await loadAllJobs();
       } catch (err) {
         toast.error(err.message);

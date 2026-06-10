@@ -676,6 +676,8 @@ def get_results(
 @router.get("/{job_id}/results/summary", status_code=status.HTTP_200_OK)
 def get_results_summary(
     job_id: str,
+    exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
+    group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> dict[str, object]:
@@ -684,6 +686,8 @@ def get_results_summary(
 
     Args:
         job_id (str): 任務 ID。
+        exclude (str | None): 要排除的目標網域。
+        group_by (str): 聚合方式。
         current_user (User): 當前登入的使用者。
         db (DBSession): Crawler DB Session。
 
@@ -694,7 +698,7 @@ def get_results_summary(
         HTTPException 404: 找不到任務時拋出。
     """
     try:
-        return job_service.get_results_summary(db, job_id, current_user.id)
+        return job_service.get_results_summary(db, job_id, current_user.id, exclude, group_by)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 

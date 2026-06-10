@@ -735,7 +735,9 @@ def get_job_results(
     }
 
 
-def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, object]:
+def get_results_summary(
+    db: DBSession, job_id: str, user_id: str, exclude: str | None = None, group_by: str = "none"
+) -> dict[str, object]:
     """
     取得任務結果的統計摘要。
 
@@ -743,6 +745,8 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
         db (DBSession): Crawler DB Session。
         job_id (str): 任務 ID。
         user_id (str): 請求查詢的使用者 ID。
+        exclude (str | None): 要排除的目標網域。
+        group_by (str): 聚合方式。
 
     Returns:
         dict[str, object]: 統計摘要字典。
@@ -750,6 +754,7 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
     Raises:
         ValueError: 找不到任務或無權限存取時拋出。
     """
+    # pylint: disable=too-many-locals,too-many-branches
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
@@ -758,11 +763,10 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
 
     total_queue = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
 
-    # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
-    # pylint: disable=not-callable
-    stats = (
-        db
-        .query(
+    if group_by == "none":
+        # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
+        # pylint: disable=not-callable
+        query = db.query(
             func.count(ExternalLink.id).label("total"),
             func.sum(
                 case(
@@ -788,18 +792,69 @@ def get_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, o
                 )
             ).label("http_errors"),
             func.sum(case((ExternalLink.is_secure.is_(False), 1), else_=0)).label("insecure"),
-        )
-        .filter(ExternalLink.job_id == job_id)
-        .first()
-    )
-    # pylint: enable=not-callable
+        ).filter(ExternalLink.job_id == job_id)
 
-    total_external = int(stats.total) if stats and stats.total else 0
-    dns_failed = int(stats.dns_failed) if stats and stats.dns_failed else 0
-    http_errors = int(stats.http_errors) if stats and stats.http_errors else 0
-    insecure = int(stats.insecure) if stats and stats.insecure else 0
+        if exclude:
+            excludes = [e.strip() for e in exclude.split(",") if e.strip()]
+            for exc in excludes:
+                query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
 
-    healthy_count = total_external - dns_failed - http_errors
+        stats = query.first()
+        # pylint: enable=not-callable
+
+        total_external = int(stats.total) if stats and stats.total else 0
+        dns_failed = int(stats.dns_failed) if stats and stats.dns_failed else 0
+        http_errors = int(stats.http_errors) if stats and stats.http_errors else 0
+        insecure = int(stats.insecure) if stats and stats.insecure else 0
+
+        healthy_count = total_external - dns_failed - http_errors
+
+    else:
+        query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
+        if exclude:
+            excludes = [e.strip() for e in exclude.split(",") if e.strip()]
+            for exc in excludes:
+                query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
+
+        set_all = set()
+        set_dns_failed = set()
+        set_http_errors = set()
+        set_insecure = set()
+        set_healthy = set()
+
+        for lnk in query.yield_per(2000):
+            if group_by == "target":
+                key = lnk.target_url
+            elif group_by == "source":
+                key = lnk.source_url
+            elif group_by == "domain":
+                key = get_domain(lnk.target_url) or "unknown"
+            else:
+                key = lnk.id
+
+            set_all.add(key)
+
+            is_dns_failed = not lnk.ip_address
+            is_http_error = (lnk.http_status_code is not None and lnk.http_status_code >= 400) or (
+                lnk.http_status_code is None and bool(lnk.ip_address)
+            )
+            is_insecure = not lnk.is_secure
+            is_healthy = bool(lnk.ip_address) and lnk.http_status_code is not None and lnk.http_status_code < 400
+
+            if is_dns_failed:
+                set_dns_failed.add(key)
+            if is_http_error:
+                set_http_errors.add(key)
+            if is_insecure:
+                set_insecure.add(key)
+            if is_healthy:
+                set_healthy.add(key)
+
+        total_external = len(set_all)
+        dns_failed = len(set_dns_failed)
+        http_errors = len(set_http_errors)
+        insecure = len(set_insecure)
+        healthy_count = len(set_healthy)
 
     return {
         "job_id": job_id,

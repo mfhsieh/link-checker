@@ -290,25 +290,30 @@
 
         <!-- 外連結果摘要 -->
         <div class="grid-stats" style="grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:1.5rem">
-          <div class="stat-card filter-card" data-filter="all" title="點擊過濾：全部">
+          <div class="stat-card filter-card" data-filter="all" style="padding:0.75rem">
             <div class="stat-label">外部連結總數</div>
             <div class="stat-value" id="summary-total">0</div>
+            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">不重複的外部連結總數量</div>
           </div>
-          <div class="stat-card filter-card" data-filter="healthy" title="點擊過濾：正常">
+          <div class="stat-card filter-card" data-filter="healthy" style="padding:0.75rem">
             <div class="stat-label text-success">正常</div>
             <div class="stat-value text-success" id="summary-healthy">0</div>
+            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">成功連線且 HTTP 狀態碼正常的健康連結</div>
           </div>
-          <div class="stat-card filter-card" data-filter="dead" title="點擊過濾：DNS 解析失敗">
+          <div class="stat-card filter-card" data-filter="dead" style="padding:0.75rem">
             <div class="stat-label text-danger">DNS 解析失敗</div>
             <div class="stat-value text-danger" id="summary-dns-failed">0</div>
+            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">主機網域找不到，代表網站關閉或遭釋出</div>
           </div>
-          <div class="stat-card filter-card" data-filter="broken" title="點擊過濾：HTTP / 連線錯誤">
+          <div class="stat-card filter-card" data-filter="broken" style="padding:0.75rem">
             <div class="stat-label text-danger">HTTP / 連線錯誤</div>
             <div class="stat-value text-danger" id="summary-http-error">0</div>
+            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器回傳錯誤 (如 404) 或發生連線異常</div>
           </div>
-          <div class="stat-card filter-card" data-filter="insecure" title="點擊過濾：非 HTTPS">
+          <div class="stat-card filter-card" data-filter="insecure" style="padding:0.75rem">
             <div class="stat-label text-warning">非 HTTPS</div>
             <div class="stat-value text-warning" id="summary-insecure">0</div>
+            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">使用明文 HTTP 傳輸的不安全連結</div>
           </div>
         </div>
 
@@ -746,32 +751,50 @@
             <div class="stat-card diff-tab-card active" data-diff-tab="ip_changed" style="padding:0.75rem">
               <div class="stat-label text-danger">🚨 IP 異動</div>
               <div class="stat-value text-danger" id="diff-stat-ip">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">目標 IP 改變，需防範網域遭搶註或劫持</div>
             </div>
             <div class="stat-card diff-tab-card" data-diff-tab="degraded" style="padding:0.75rem">
               <div class="stat-label text-warning">⚠️ 狀態劣化</div>
               <div class="stat-value text-warning" id="diff-stat-degraded">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">原本正常的連結變成失效或發生連線錯誤</div>
             </div>
             <div class="stat-card diff-tab-card" data-diff-tab="recovered" style="padding:0.75rem">
               <div class="stat-label text-success">🟢 狀態復原</div>
               <div class="stat-value text-success" id="diff-stat-recovered">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">原本失效的連結已修復或恢復正常連線</div>
             </div>
             <div class="stat-card diff-tab-card" data-diff-tab="security_downgraded" style="padding:0.75rem">
               <div class="stat-label text-warning">🔓 安全降級</div>
               <div class="stat-value text-warning" id="diff-stat-sec">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">連線從安全的 HTTPS 降級為明文 HTTP 傳輸</div>
             </div>
             <div class="stat-card diff-tab-card" data-diff-tab="new_links" style="padding:0.75rem">
               <div class="stat-label text-info">➕ 新增外連</div>
               <div class="stat-value text-info" id="diff-stat-new">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">新出現的外部連結，需防範未經授權之植入</div>
             </div>
             <div class="stat-card diff-tab-card" data-diff-tab="removed_links" style="padding:0.75rem">
               <div class="stat-label text-muted">➖ 消失外連</div>
               <div class="stat-value text-muted" id="diff-stat-removed">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">過去存在但本次掃描已移除的外部連結</div>
             </div>
           </div>
 
           <div class="card" style="padding:0; overflow:hidden;">
-            <div class="card-header" style="padding:1.25rem 1.5rem">
-              <span class="card-title">比對結果明細</span>
+            <div class="card-header"
+              style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+              <div style="display:flex; align-items:center; gap:0.75rem">
+                <span class="card-title">比對結果</span>
+                <button class="btn btn-secondary btn-icon" id="btn-compare-exclude-modal" title="設定排除網域"
+                  style="flex-shrink:0;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
+                    <path d="m22 3-5 5" />
+                    <path d="m17 3 5 5" />
+                  </svg>
+                </button>
+              </div>
               <div style="display:flex;gap:0.75rem">
                 <button class="btn btn-secondary btn-sm" id="btn-compare-export-csv">
                   <svg viewBox="0 0 20 20" fill="currentColor"
@@ -791,36 +814,6 @@
                   </svg>
                   JSON
                 </button>
-              </div>
-            </div>
-            <!-- 篩選列 -->
-            <div class="filter-bar"
-              style="padding:0 1.5rem 1rem; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
-              <!-- 左側：搜尋與排除 -->
-              <div style="display:flex; gap:0.5rem; align-items:center; flex:1; min-width:280px; max-width:400px;">
-                <div class="search-bar" style="flex:1;">
-                  <svg class="search-bar-icon" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd"
-                      d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-                      clip-rule="evenodd" />
-                  </svg>
-                  <input class="form-input" type="search" id="compare-search" placeholder="搜尋 URL..."
-                    style="padding-left:2.25rem" />
-                </div>
-                <button class="btn btn-secondary btn-icon" id="btn-compare-exclude-modal" title="設定排除網域"
-                  style="flex-shrink:0;">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
-                    <path d="m22 3-5 5" />
-                    <path d="m17 3 5 5" />
-                  </svg>
-                </button>
-              </div>
-              <!-- 右側：提示文字 -->
-              <div
-                style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem; justify-content:flex-end; flex:2; min-width:300px;">
-                <span class="text-sm text-muted" id="compare-tab-description">目標 IP 改變，需防範網域遭搶註或劫持</span>
               </div>
             </div>
             <div id="compare-details-container"
@@ -985,6 +978,12 @@
         <h2 style="font-size:1.25rem; font-weight:600; margin:0">排除指定網域</h2>
         <button id="exclude-domains-close"
           style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div class="form-group" style="margin-bottom:0.5rem">
+        <label
+          style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
+          <input type="checkbox" id="exclude-domains-enabled" checked /> 啟用排除過濾
+        </label>
       </div>
       <div class="form-group mb-6">
         <label class="form-label" for="exclude-domains-textarea">網域清單 (每行一個)</label>

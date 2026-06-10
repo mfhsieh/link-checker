@@ -15,8 +15,8 @@ let _pollTimer = null;
 let _currentJobId = null;
 let _currentJobConfig = null;
 let _currentFilter = null;
-let _currentSearch = '';
 let _currentExclude = '';
+let _currentExcludeEnabled = true;
 let _currentGroupBy = 'none';
 let _currentPage = 1;
 let _eventsBound = false;
@@ -76,10 +76,10 @@ function showConfirm(title, message, confirmText = '確定', isDanger = false) {
 export async function initJobDetailPage(jobId) {
     _currentJobId = jobId;
     _currentFilter = null;
-    _currentSearch = '';
 
     // 初始化時載入儲存在 localStorage 的排除清單
     _currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
+    _currentExcludeEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
 
     _currentGroupBy = 'none';
     _currentPage = 1;
@@ -90,17 +90,16 @@ export async function initJobDetailPage(jobId) {
     document.querySelectorAll('.filter-card[data-filter]').forEach(c => {
         c.classList.toggle('active', c.dataset.filter === 'all');
     });
-    const searchInput = document.getElementById('results-search');
-    if (searchInput) searchInput.value = '';
     const groupSelectEl = document.getElementById('results-group-select');
     if (groupSelectEl) groupSelectEl.value = 'none';
 
     // 依照是否有排除設定來改變按鈕的視覺呈現
     const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
     if (openExcludeBtn) {
-        openExcludeBtn.style.color = _currentExclude ? 'var(--color-brand-500)' : '';
-        openExcludeBtn.style.borderColor = _currentExclude ? 'var(--color-brand-500)' : '';
-        openExcludeBtn.style.background = _currentExclude ? 'hsla(221, 83%, 53%, 0.1)' : '';
+        const isActive = _currentExcludeEnabled && _currentExclude;
+        openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';
+        openExcludeBtn.style.borderColor = isActive ? 'var(--color-brand-500)' : '';
+        openExcludeBtn.style.background = isActive ? 'hsla(221, 83%, 53%, 0.1)' : '';
     }
 
     if (!_eventsBound) {
@@ -390,7 +389,14 @@ async function loadResults(jobId) {
     if (!containerEl) return;
 
     try {
-        const summary = await api.get(`/api/jobs/${jobId}/results/summary`);
+        const params = {};
+        if (_currentExcludeEnabled && _currentExclude) {
+            params.exclude = _currentExclude;
+        }
+        if (_currentGroupBy && _currentGroupBy !== 'none') {
+            params.group_by = _currentGroupBy;
+        }
+        const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
         renderResultsSummary(summary);
     } catch (_) { /* 忽略 */ }
 
@@ -411,8 +417,7 @@ async function loadResultsPage(jobId) {
     try {
         const params = {
             filter: _currentFilter || undefined,
-            search: _currentSearch || undefined,
-            exclude: _currentExclude || undefined,
+            exclude: (_currentExcludeEnabled && _currentExclude) ? _currentExclude : undefined,
             group_by: _currentGroupBy,
             page: _currentPage,
             page_size: 50,
@@ -890,23 +895,11 @@ function bindResultsControls() {
         });
     });
 
-    const searchInput = document.getElementById('results-search');
-    if (searchInput) {
-        let debounceTimer;
-        searchInput.addEventListener('input', () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(async () => {
-                _currentSearch = searchInput.value.trim();
-                _currentPage = 1;
-                await loadResultsPage(_currentJobId);
-            }, 400);
-        });
-    }
-
     // ── 綁定排除網域 Modal 邏輯 ──────────────────────────────────────────
     const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
     const excludeModalEl = document.getElementById('exclude-domains-modal');
     const excludeTextareaInput = document.getElementById('exclude-domains-textarea');
+    const excludeEnabledCheckbox = document.getElementById('exclude-domains-enabled');
     const excludeSubmitBtn = document.getElementById('exclude-domains-submit');
     const excludeCloseBtn = document.getElementById('exclude-domains-close');
     const excludeCancelBtn = document.getElementById('exclude-domains-cancel');
@@ -916,6 +909,7 @@ function bindResultsControls() {
 
         openExcludeBtn.addEventListener('click', () => {
             excludeTextareaInput.value = _currentExclude.split(',').filter(Boolean).join('\n');
+            if (excludeEnabledCheckbox) excludeEnabledCheckbox.checked = _currentExcludeEnabled;
             excludeModalEl.style.display = 'flex';
             setTimeout(() => excludeTextareaInput.focus(), 50);
         });
@@ -926,17 +920,23 @@ function bindResultsControls() {
         excludeSubmitBtn.addEventListener('click', async () => {
             if (document.getElementById('view-job-detail').style.display === 'none') return;
 
+            if (excludeEnabledCheckbox) {
+                _currentExcludeEnabled = excludeEnabledCheckbox.checked;
+                localStorage.setItem('ext-link-checker-exclude-enabled', _currentExcludeEnabled);
+            }
+
             const lines = excludeTextareaInput.value.split('\n').map(s => s.trim()).filter(Boolean);
             _currentExclude = lines.join(',');
             localStorage.setItem('ext-link-checker-exclude-domains', _currentExclude);
 
-            openExcludeBtn.style.color = _currentExclude ? 'var(--color-brand-500)' : '';
-            openExcludeBtn.style.borderColor = _currentExclude ? 'var(--color-brand-500)' : '';
-            openExcludeBtn.style.background = _currentExclude ? 'hsla(221, 83%, 53%, 0.1)' : '';
+            const isActive = _currentExcludeEnabled && _currentExclude;
+            openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';
+            openExcludeBtn.style.borderColor = isActive ? 'var(--color-brand-500)' : '';
+            openExcludeBtn.style.background = isActive ? 'hsla(221, 83%, 53%, 0.1)' : '';
 
             closeExcludeModal();
             _currentPage = 1;
-            await loadResultsPage(_currentJobId);
+            await loadResults(_currentJobId);
         });
     }
 
@@ -947,21 +947,21 @@ function bindResultsControls() {
             _currentPage = 1;
             _detailSort = { key: null, asc: true };
             _detailColFilters = {};
-            await loadResultsPage(_currentJobId);
+            await loadResults(_currentJobId);
         });
     }
 
     bindBtn('btn-export-csv', async () => {
         const params = new URLSearchParams({ fmt: 'csv', group_by: _currentGroupBy });
         if (_currentFilter) params.set('filter', _currentFilter);
-        if (_currentExclude) params.set('exclude', _currentExclude);
+        if (_currentExcludeEnabled && _currentExclude) params.set('exclude', _currentExclude);
         await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
     });
 
     bindBtn('btn-export-json', async () => {
         const params = new URLSearchParams({ fmt: 'json', group_by: _currentGroupBy });
         if (_currentFilter) params.set('filter', _currentFilter);
-        if (_currentExclude) params.set('exclude', _currentExclude);
+        if (_currentExcludeEnabled && _currentExclude) params.set('exclude', _currentExclude);
         await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
     });
 }
