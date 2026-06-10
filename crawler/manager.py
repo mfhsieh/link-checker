@@ -86,7 +86,9 @@ class JobManager:
 
         self.engine: Engine = create_engine(
             db_url,
-            connect_args={"check_same_thread": False} if db_url.startswith("sqlite") else {},
+            connect_args={"check_same_thread": False, "timeout": int(os.environ.get("SQLITE_TIMEOUT", "30"))}
+            if db_url.startswith("sqlite")
+            else {},
         )
         if db_url.startswith("sqlite:"):
 
@@ -477,6 +479,8 @@ class JobManager:
                             crawled_count += 1
 
                     except Exception as e:  # pylint: disable=broad-exception-caught
+                        # 發生資料庫寫入或預期外的錯誤時，必須先 Rollback 重置事務，避免後續操作觸發 TransactionRollbackError
+                        session.rollback()
                         # 嘗試擷取 HTTP 狀態碼
                         status_code = None
                         is_permanent_error = False
@@ -538,12 +542,14 @@ class JobManager:
 
             except KeyboardInterrupt:
                 logger.info("任務 %s 已由使用者強制中斷。暫停任務中...", job_id)
+                session.rollback()
                 job = session.query(Job).filter(Job.id == job_id).first()
                 if job and job.status == "running":
                     job.status = "paused"
                     session.commit()
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("任務 %s 發生未預期例外: %s", job_id, e)
+                session.rollback()
                 job = session.query(Job).filter(Job.id == job_id).first()
                 if job:
                     job.status = "error"

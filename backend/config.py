@@ -36,6 +36,7 @@ class Settings:
         # ── 資料庫設定 ─────────────────────────────────────────────────────────────
         self.AUTH_DB_URL: str = os.environ.get("AUTH_DB_URL", "sqlite:///db/auth.db")
         self.CRAWLER_DB_URL: str = os.environ.get("CRAWLER_DB_URL", "sqlite:///db/crawler.db")
+        self.SQLITE_TIMEOUT: int = int(os.environ.get("SQLITE_TIMEOUT", "30"))
 
         # ── Session 安全設定 ───────────────────────────────────────────────────────
         self.SESSION_COOKIE_NAME: str = os.environ.get("SESSION_COOKIE_NAME", "session_token")

@@ -39,7 +39,7 @@ def _create_auth_engine() -> Engine:
     # 允許多執行緒共用 (FastAPI / Celery)
     engine = create_engine(
         db_url,
-        connect_args={"check_same_thread": False}
+        connect_args={"check_same_thread": False, "timeout": settings.SQLITE_TIMEOUT}
         if db_url.startswith("sqlite")
         else {},
     )
@@ -47,9 +47,7 @@ def _create_auth_engine() -> Engine:
     if db_url.startswith("sqlite"):
 
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(
-            dbapi_connection: object, _connection_record: object
-        ) -> None:
+        def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
             """
             設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。
 
@@ -97,7 +95,5 @@ def get_auth_session_local() -> sessionmaker[Session]:
     """
     global _SESSION_LOCAL  # pylint: disable=global-statement
     if _SESSION_LOCAL is None:
-        _SESSION_LOCAL = sessionmaker(
-            bind=get_auth_engine(), autocommit=False, autoflush=False
-        )
+        _SESSION_LOCAL = sessionmaker(bind=get_auth_engine(), autocommit=False, autoflush=False)
     return _SESSION_LOCAL
