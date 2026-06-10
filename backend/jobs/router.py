@@ -982,3 +982,33 @@ def export_full_report(
         media_type="application/zip",
         filename=filename,
     )
+
+
+@router.get("/{job_id}/internal-errors", status_code=status.HTTP_200_OK)
+def get_internal_errors(
+    job_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_crawler_db),
+) -> dict[str, object]:
+    """
+    取得內部網頁爬取失敗的紀錄列表（支援分頁）。
+
+    Args:
+        job_id (str): 任務 ID。
+        page (int): 頁碼。
+        page_size (int): 每頁筆數。
+        current_user (User): 當前登入的使用者。
+        db (DBSession): Crawler DB Session。
+
+    Returns:
+        dict[str, object]: 包含失敗紀錄列表與分頁資訊的字典。
+
+    Raises:
+        HTTPException 404: 找不到任務或無權限存取時拋出。
+    """
+    try:
+        return job_service.get_internal_errors(db, job_id, current_user.id, page, page_size)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e

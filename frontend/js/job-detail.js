@@ -21,6 +21,9 @@ let _currentGroupBy = 'none';
 let _currentPage = 1;
 let _eventsBound = false;
 let _pollInterval = 5000;
+let _currentTab = 'external';
+let _internalCurrentPage = 1;
+let _internalResultItems = [];
 let _detailSort = { key: null, asc: true };
 let _detailColFilters = {};
 let _currentDetailHeaders = [];
@@ -77,6 +80,8 @@ export async function initJobDetailPage(jobId) {
     _currentJobId = jobId;
     _currentFilter = null;
 
+    _currentTab = 'external';
+    _internalCurrentPage = 1;
     // 初始化時載入儲存在 localStorage 的排除清單
     _currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
     _currentExcludeEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
@@ -92,6 +97,13 @@ export async function initJobDetailPage(jobId) {
     });
     const groupSelectEl = document.getElementById('results-group-select');
     if (groupSelectEl) groupSelectEl.value = 'none';
+
+    // 重置 Tab UI 狀態
+    document.querySelectorAll('#job-detail-tabs .tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === 'external');
+    });
+    document.getElementById('tab-content-external').style.display = 'block';
+    document.getElementById('tab-content-internal').style.display = 'none';
 
     // 依照是否有排除設定來改變按鈕的視覺呈現
     const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
@@ -149,6 +161,180 @@ async function refreshJobDetail(jobId) {
             stopPolling();
         }
     }
+}
+
+async function loadInternalResultsPage(jobId) {
+    const containerEl = document.getElementById('internal-results-container');
+    if (!containerEl) return;
+
+    containerEl.replaceChildren();
+    const skeletonEl = document.createElement('div');
+    skeletonEl.className = 'skeleton';
+    skeletonEl.style.height = '200px';
+    skeletonEl.style.borderRadius = '0.5rem';
+    containerEl.appendChild(skeletonEl);
+
+    try {
+        const res = await api.get(`/api/jobs/${jobId}/internal-errors`, { page: _internalCurrentPage, page_size: 50 });
+        renderInternalResultsTable(res, containerEl);
+        renderInternalPagination(res, jobId);
+    } catch (err) {
+        containerEl.replaceChildren();
+        const emptyStateEl = document.createElement('div');
+        emptyStateEl.className = 'empty-state';
+        const descEl = document.createElement('div');
+        descEl.className = 'empty-state-desc text-danger';
+        descEl.textContent = err.message;
+        emptyStateEl.appendChild(descEl);
+        containerEl.appendChild(emptyStateEl);
+    }
+}
+
+function renderInternalResultsTable(res, containerEl) {
+    _internalResultItems = res.items || [];
+
+    if (_internalResultItems.length === 0) {
+        containerEl.replaceChildren();
+        const emptyStateEl = document.createElement('div');
+        emptyStateEl.className = 'empty-state';
+        const titleEl = document.createElement('div');
+        titleEl.className = 'empty-state-title';
+        titleEl.textContent = '太棒了！';
+        const descEl = document.createElement('div');
+        descEl.className = 'empty-state-desc';
+        descEl.textContent = '您的網站內部沒有任何失效連結 (404/500 等錯誤)。';
+        emptyStateEl.appendChild(titleEl);
+        emptyStateEl.appendChild(descEl);
+        containerEl.appendChild(emptyStateEl);
+        return;
+    }
+
+    containerEl.replaceChildren();
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-wrapper';
+    const tableEl = document.createElement('table');
+    tableEl.className = 'table';
+    const thead = document.createElement('thead');
+    const trHead = document.createElement('tr');
+
+    ['失效網址 (URL)', '來源頁面 (Source)', 'HTTP 狀態', '錯誤訊息'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    tableEl.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    _internalResultItems.forEach(item => {
+        const tr = document.createElement('tr');
+
+        const tdUrl = document.createElement('td');
+        tdUrl.className = 'truncate';
+        tdUrl.style.maxWidth = '300px';
+        tdUrl.title = item.URL;
+        const aUrl = document.createElement('a');
+        aUrl.href = item.URL;
+        aUrl.target = '_blank';
+        aUrl.rel = 'noopener noreferrer';
+        aUrl.className = 'text-link text-danger';
+        aUrl.textContent = item.URL;
+        tdUrl.appendChild(aUrl);
+        tr.appendChild(tdUrl);
+
+        const tdSource = document.createElement('td');
+        tdSource.className = 'truncate text-xs text-muted';
+        tdSource.style.maxWidth = '260px';
+        tdSource.title = item['Source URL'] || '-';
+        if (item['Source URL']) {
+            const aSource = document.createElement('a');
+            aSource.href = item['Source URL'];
+            aSource.target = '_blank';
+            aSource.rel = 'noopener noreferrer';
+            aSource.style.color = 'inherit';
+            aSource.textContent = item['Source URL'];
+            tdSource.appendChild(aSource);
+        } else {
+            tdSource.textContent = '-';
+        }
+        tr.appendChild(tdSource);
+
+        const tdStatus = document.createElement('td');
+        tdStatus.className = 'text-danger';
+        tdStatus.textContent = item['HTTP Status Code'] || '-';
+        tr.appendChild(tdStatus);
+
+        const tdError = document.createElement('td');
+        tdError.className = 'text-xs text-muted truncate';
+        tdError.style.maxWidth = '200px';
+        tdError.title = item['Error Message'] || '-';
+        tdError.textContent = item['Error Message'] || '-';
+        tr.appendChild(tdError);
+
+        tbody.appendChild(tr);
+    });
+    tableEl.appendChild(tbody);
+    wrapper.appendChild(tableEl);
+    containerEl.appendChild(wrapper);
+
+    const paginationContainerEl = document.createElement('div');
+    paginationContainerEl.id = 'internal-results-pagination';
+    containerEl.appendChild(paginationContainerEl);
+}
+
+function renderInternalPagination(res, jobId) {
+    const paginationEl = document.getElementById('internal-results-pagination');
+    if (!paginationEl) return;
+
+    paginationEl.replaceChildren();
+    const { page, total_pages } = res;
+    if (total_pages <= 1) return;
+
+    const paginationDivEl = document.createElement('div');
+    paginationDivEl.className = 'pagination';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'page-btn';
+    prevBtn.textContent = '‹';
+    if (page <= 1) prevBtn.disabled = true;
+    else {
+        prevBtn.addEventListener('click', async () => {
+            _internalCurrentPage = page - 1;
+            await loadInternalResultsPage(jobId);
+        });
+    }
+    paginationDivEl.appendChild(prevBtn);
+
+    const delta = 2;
+    const start = Math.max(1, page - delta);
+    const end = Math.min(total_pages, page + delta);
+
+    for (let i = start; i <= end; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.className = i === page ? 'page-btn active' : 'page-btn';
+        pageBtn.textContent = i;
+        if (i !== page) {
+            pageBtn.addEventListener('click', async () => {
+                _internalCurrentPage = i;
+                await loadInternalResultsPage(jobId);
+            });
+        }
+        paginationDivEl.appendChild(pageBtn);
+    }
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'page-btn';
+    nextBtn.textContent = '›';
+    if (page >= total_pages) nextBtn.disabled = true;
+    else {
+        nextBtn.addEventListener('click', async () => {
+            _internalCurrentPage = page + 1;
+            await loadInternalResultsPage(jobId);
+        });
+    }
+    paginationDivEl.appendChild(nextBtn);
+
+    paginationEl.appendChild(paginationDivEl);
 }
 
 function renderJobInfo(job) {
@@ -400,7 +586,11 @@ async function loadResults(jobId) {
         renderResultsSummary(summary);
     } catch (_) { /* 忽略 */ }
 
-    await loadResultsPage(jobId);
+    if (_currentTab === 'external') {
+        await loadResultsPage(jobId);
+    } else {
+        await loadInternalResultsPage(jobId);
+    }
 }
 
 async function loadResultsPage(jobId) {
@@ -892,6 +1082,19 @@ function bindResultsControls() {
                 c.classList.toggle('active', isActive);
             });
             await loadResultsPage(_currentJobId);
+        });
+    });
+
+    document.querySelectorAll('#job-detail-tabs .tab-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            document.querySelectorAll('#job-detail-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            _currentTab = btn.dataset.tab;
+
+            document.getElementById('tab-content-external').style.display = _currentTab === 'external' ? 'block' : 'none';
+            document.getElementById('tab-content-internal').style.display = _currentTab === 'internal' ? 'block' : 'none';
+
+            await loadResults(_currentJobId);
         });
     });
 

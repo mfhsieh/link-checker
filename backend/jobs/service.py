@@ -1218,3 +1218,45 @@ def stream_internal_results(db: DBSession, job_id: str, user_id: str) -> Iterato
     cursor = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).yield_per(2000)
     for q in cursor:
         yield format_crawl_queue_item(q)
+
+
+def get_internal_errors(
+    db: DBSession, job_id: str, user_id: str, page: int = 1, page_size: int = 50
+) -> dict[str, object]:
+    """
+    取得任務內部網頁爬取失敗的紀錄列表。
+
+    Args:
+        db (DBSession): Crawler DB Session。
+        job_id (str): 任務 ID。
+        user_id (str): 請求查詢的使用者 ID。
+        page (int): 頁碼。
+        page_size (int): 每頁筆數。
+
+    Returns:
+        dict[str, object]: 查詢結果的字典。
+
+    Raises:
+        ValueError: 找不到任務或無權限存取時拋出。
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job or job.user_id != user_id:
+        raise ValueError("無權限存取此任務。")
+
+    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    items = query.order_by(CrawlQueue.id).offset(offset).limit(page_size).all()
+
+    items_list = [format_crawl_queue_item(q) for q in items]
+
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+
+    return {
+        "items": items_list,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+    }
