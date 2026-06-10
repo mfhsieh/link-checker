@@ -17,6 +17,8 @@
 - GET    /api/jobs/{id}/results/export    — 匯出 CSV / JSON
 """
 
+# pylint: disable=duplicate-code
+
 import csv
 import io
 import json
@@ -922,6 +924,7 @@ def export_full_report(
     Raises:
         HTTPException 404: 找不到任務時拋出。
     """
+    # pylint: disable=too-many-locals
     try:
         job = db.query(Job).filter(Job.id == job_id).first()
         if not job or job.user_id != current_user.id:

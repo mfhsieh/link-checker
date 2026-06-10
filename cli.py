@@ -5,6 +5,8 @@
 並透過 JobManager 啟動全新的任務或是恢復先前中斷的任務。
 """
 
+# pylint: disable=duplicate-code
+
 import argparse
 import json
 import logging
@@ -449,6 +451,7 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
     Returns:
         bool: 如果處理了其中一個指令，則回傳 True；若皆未符合則回傳 False。
     """
+    # pylint: disable=too-many-branches
     handled = True
     if args.list_jobs:
         _handle_list_jobs(manager, args)
@@ -498,6 +501,7 @@ def _handle_resume_or_create(manager: JobManager, args: argparse.Namespace, glob
     Raises:
         SystemExit: 當讀取設定失敗、驗證不通過或啟動爬蟲失敗時，終止程式並回傳錯誤碼 1。
     """
+    # pylint: disable=too-many-branches,too-many-statements
     if args.resume is not None:
         logging.info("正在恢復執行任務 %s...", args.resume)
         if args.config:

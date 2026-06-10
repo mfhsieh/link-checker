@@ -11,6 +11,8 @@
 - 暫停透過更新 DB 狀態為 paused 觸發（爬蟲迴圈偵測後安全終止）
 """
 
+# pylint: disable=too-many-lines
+
 import json
 import logging
 import os
@@ -194,6 +196,8 @@ class JobCreateConfig:
 @dataclass
 class JobResultQuery:
     """查詢任務結果的參數封裝。"""
+
+    # pylint: disable=too-many-instance-attributes
 
     job_id: str
     user_id: str
@@ -865,6 +869,7 @@ def get_job_diff(
     Raises:
         ValueError: 找不到任務或無權限存取時拋出。
     """
+    # pylint: disable=too-many-locals
     job_a = db.query(Job).filter(Job.id == base_job_id).first()
     job_b = db.query(Job).filter(Job.id == compare_job_id).first()
 
@@ -1006,6 +1011,7 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[di
     Raises:
         ValueError: 無權限存取此任務。
     """
+    # pylint: disable=too-many-branches
     job = db.query(Job).filter(Job.id == query_args.job_id).first()
     if not job or job.user_id != query_args.user_id:
         raise ValueError("無權限存取此任務。")
@@ -1097,8 +1103,7 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[di
                 "unique_urls": sorted(list(v["unique_urls"])),
             })
         result.sort(key=lambda x: x["occurrence_count"], reverse=True)
-        for item in result:
-            yield item
+        yield from result
     elif query_args.group_by == "source":
         agg = defaultdict(lambda: {"source_url": "", "occurrence_count": 0, "targets": []})
         for lnk in cursor:
@@ -1116,8 +1121,7 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[di
                 "is_secure": lnk.is_secure,
                 "error_message": lnk.error_message,
             })
-        for v in agg.values():
-            yield v
+        yield from agg.values()
 
 
 def stream_internal_results(db: DBSession, job_id: str, user_id: str) -> Iterator[dict[str, object]]:

@@ -37,6 +37,7 @@ def send_job_status_notification(session_factory: sessionmaker[Session], job_id:
     Returns:
         None
     """
+    # pylint: disable=too-many-locals
     if not _BACKEND_AVAILABLE:
         logger.warning("[Email Notification] 因無法載入後端模組，跳過通知信發送。")
         return

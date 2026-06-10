@@ -190,7 +190,14 @@ function renderCompareTab(tabName) {
     }
 
     if (data.length === 0) {
-        containerEl.innerHTML = '<div class="empty-state"><div class="empty-state-desc">此項目無差異或查無結果</div></div>';
+        containerEl.replaceChildren();
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-state';
+        const descDiv = document.createElement('div');
+        descDiv.className = 'empty-state-desc';
+        descDiv.textContent = '此項目無差異或查無結果';
+        emptyDiv.appendChild(descDiv);
+        containerEl.appendChild(emptyDiv);
         return;
     }
 
@@ -472,15 +479,19 @@ export async function initComparePage(baseJobId = null) {
         searchInput.value = '';
     }
 
-    baseSelectEl.innerHTML = '<option value="">載入中...</option>';
-    targetSelectEl.innerHTML = '<option value="">載入中...</option>';
+    baseSelectEl.options.length = 0;
+    baseSelectEl.options.add(new Option('載入中...', ''));
+    targetSelectEl.options.length = 0;
+    targetSelectEl.options.add(new Option('載入中...', ''));
     runBtn.disabled = true;
 
     try {
         const jobs = await api.get('/api/jobs?status=completed');
         if (jobs.length === 0) {
-            baseSelectEl.innerHTML = '<option value="">無已完成任務</option>';
-            targetSelectEl.innerHTML = '<option value="">無已完成任務</option>';
+            baseSelectEl.options.length = 0;
+            baseSelectEl.options.add(new Option('無已完成任務', ''));
+            targetSelectEl.options.length = 0;
+            targetSelectEl.options.add(new Option('無已完成任務', ''));
             return;
         }
 

@@ -25,6 +25,7 @@ _original_getaddrinfo: Callable = socket.getaddrinfo
 _dns_override: threading.local = threading.local()
 
 
+# pylint: disable=too-many-arguments
 def _patched_getaddrinfo(
     host: str | bytes | None,
     port: str | int | None,
@@ -93,7 +94,7 @@ class CrawlerCore:
             exempt_client (httpx.Client): 用於發送免除 SSL 驗證的 HTTPX 客戶端物件。
     """
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(
         self,
         timeout: int = 30,
@@ -200,6 +201,7 @@ class CrawlerCore:
             return self.exempt_client
         return self.client
 
+    # pylint: disable=too-many-locals,too-many-return-statements
     def fetch(self, url: str) -> tuple[str | None, int | None, str, str, bool, str | None]:
         """
         抓取給定網址的 HTML 內容。
@@ -316,6 +318,7 @@ class CrawlerCore:
         logger.warning("網址 %s 超過最大重導向次數", url)
         return None, None, "skip", current_url, request_sent, "超過最大重導向次數"
 
+    # pylint: disable=too-many-branches
     def extract_links(self, html: str, base_url: str) -> list[str]:
         """
         從給定的 HTML 內容中擷取所有有效且絕對路徑的連結與外連資源（如超連結、script、stylesheet、iframe、img、embed、form、object 等）。
@@ -419,6 +422,7 @@ class CrawlerCore:
 
         return internal_links, external_target_links, status_code, status, request_sent, err_msg
 
+    # pylint: disable=too-many-return-statements
     def check_external_link(self, url: str) -> tuple[int | None, str | None]:
         """
         對外部連結進行存活檢查。

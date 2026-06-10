@@ -64,7 +64,8 @@ export async function initTransferPage(preselectedJobId = null) {
 
     errorEl.textContent = '';
     emailInputEl.value = '';
-    jobSelectEl.innerHTML = '<option value="">載入中...</option>';
+    jobSelectEl.options.length = 0;
+    jobSelectEl.options.add(new Option('載入中...', ''));
     runBtn.disabled = true;
 
     try {
@@ -72,7 +73,8 @@ export async function initTransferPage(preselectedJobId = null) {
         const transferableJobs = jobs.filter(j => j.status !== 'running');
 
         if (transferableJobs.length === 0) {
-            jobSelectEl.innerHTML = '<option value="">無可移交的任務 (執行中的任務無法移交)</option>';
+            jobSelectEl.options.length = 0;
+            jobSelectEl.options.add(new Option('無可移交的任務 (執行中的任務無法移交)', ''));
             return;
         }
 

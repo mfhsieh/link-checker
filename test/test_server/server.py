@@ -187,7 +187,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 content = content.replace("localhost", f"localhost:{port}")
                 self.wfile.write(content.encode("utf-8"))
                 return
-            elif local_path.endswith(".pdf"):
+            if local_path.endswith(".pdf"):
                 self.send_header("Content-Type", "application/pdf")
             else:
                 self.send_header("Content-Type", "application/octet-stream")

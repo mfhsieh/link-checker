@@ -84,6 +84,7 @@ def _sanitize_crawler_types(config: dict[str, object]) -> None:
     Args:
         config (dict[str, object]): 需要進行型別檢查與清理的爬蟲設定字典。
     """
+    # pylint: disable=too-many-branches,too-many-statements,too-many-nested-blocks
     numeric_types = {
         "timeout": (int, float),
         "connect_timeout": (int, float),
@@ -281,6 +282,7 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
         crawler_config (dict[str, object]): 個別任務的爬蟲設定。
         global_crawler_config (dict[str, object]): 全域爬蟲限制設定。
     """
+    # pylint: disable=too-many-branches
     limits = [
         ("timeout", "min_timeout", "max_timeout", 10, 60),
         ("connect_timeout", "min_connect_timeout", "max_connect_timeout", 1.0, 30.0),

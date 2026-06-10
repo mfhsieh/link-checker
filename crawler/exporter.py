@@ -5,6 +5,7 @@
 """
 
 # pylint: disable=unsubscriptable-object
+# pylint: disable=duplicate-code
 
 import csv
 import io
@@ -293,6 +294,7 @@ def export_job_results(
     Returns:
         bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
     """
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     with session_factory() as session:
         job = session.query(Job).filter(Job.id == job_id).first()
         if not job:
@@ -368,6 +370,7 @@ def export_full_report(session_factory: sessionmaker[Session], job_id: str, outp
     Returns:
         bool: 匯出成功回傳 True，發生錯誤或任務不存在回傳 False。
     """
+    # pylint: disable=too-many-locals
     with session_factory() as session:
         job = session.query(Job).filter(Job.id == job_id).first()
         if not job:

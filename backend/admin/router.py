@@ -5,6 +5,8 @@
 使用者管理、任務監控、全域配置、SMTP 測試、操作日誌查閱。
 """
 
+# pylint: disable=duplicate-code
+
 import copy
 import json
 import logging
@@ -808,6 +810,7 @@ def get_logs(
     Returns:
         dict[str, object]: 包含日誌項目列表與分頁資訊的字典。
     """
+    # pylint: disable=too-many-arguments
     query = auth_db.query(AuthLog).order_by(AuthLog.created_at.desc())
 
     if event_type:
