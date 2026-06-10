@@ -173,7 +173,7 @@ function renderCompareTab(tabName) {
         return;
     }
 
-    if (tabName === 'ip_changed') _currentCompareHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: '舊 IP 位址', key: 'old_ip' }, { label: '新 IP 位址', key: 'new_ip' }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
+    if (tabName === 'ip_changed') _currentCompareHeaders = [{ label: '網域', key: 'domain' }, { label: '舊 IP 位址', key: 'old_ip' }, { label: '新 IP 位址', key: 'new_ip' }, { label: '影響 URL 數', key: 'url_count' }, { label: '目標 URL 清單', key: 'target_urls', sortable: false, filterable: false }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
     else if (tabName === 'degraded' || tabName === 'recovered') _currentCompareHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: '原狀態', key: 'old_status' }, { label: '新狀態', key: 'new_status' }, { label: '新錯誤訊息', key: 'new_error' }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
     else if (tabName === 'security_downgraded') _currentCompareHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: '安全狀態變化', key: 'status', sortable: false, filterable: false }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
     else if (tabName === 'new_links') _currentCompareHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip' }, { label: 'HTTP 狀態', key: 'status_code' }, { label: '錯誤訊息', key: 'error' }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
@@ -284,21 +284,14 @@ function renderCompareTbody(tableEl, tabName) {
     data.forEach(item => {
         const tr = document.createElement('tr');
 
-        const tdTarget = document.createElement('td');
-        tdTarget.className = 'truncate';
-        tdTarget.style.maxWidth = '260px';
-        tdTarget.title = item.target_url;
-        const aTarget = document.createElement('a');
-        aTarget.href = item.target_url;
-        aTarget.target = '_blank';
-        aTarget.rel = 'noopener noreferrer';
-        aTarget.className = 'text-link';
-        aTarget.style.color = 'inherit';
-        aTarget.textContent = item.target_url;
-        tdTarget.appendChild(aTarget);
-        tr.appendChild(tdTarget);
-
         if (tabName === 'ip_changed') {
+            const tdDomain = document.createElement('td');
+            tdDomain.className = 'font-mono font-medium truncate';
+            tdDomain.style.maxWidth = '200px';
+            tdDomain.title = item.domain;
+            tdDomain.textContent = item.domain;
+            tr.appendChild(tdDomain);
+
             const tdOld = document.createElement('td');
             tdOld.className = 'font-mono text-xs text-muted';
             tdOld.textContent = item.old_ip || '-';
@@ -309,103 +302,192 @@ function renderCompareTbody(tableEl, tabName) {
             tdNew.textContent = item.new_ip || '-';
             tr.appendChild(tdNew);
 
-        } else if (tabName === 'degraded' || tabName === 'recovered') {
-            const isDegraded = tabName === 'degraded';
+            const tdCount = document.createElement('td');
+            tdCount.style.fontWeight = '600';
+            tdCount.textContent = item.url_count;
+            tr.appendChild(tdCount);
 
-            const tdOld = document.createElement('td');
-            tdOld.className = isDegraded ? 'text-success' : 'text-danger';
-            tdOld.textContent = item.old_status || '連線失敗';
-            tr.appendChild(tdOld);
+            const tdUrls = document.createElement('td');
+            if (item.target_urls && item.target_urls.length > 0) {
+                const divUrls = document.createElement('div');
+                divUrls.style.maxHeight = '150px';
+                divUrls.style.overflowY = 'auto';
+                divUrls.style.paddingRight = '4px';
+                const ul = document.createElement('ul');
+                ul.style.margin = '0';
+                ul.style.paddingLeft = '0';
+                ul.style.listStyle = 'none';
+                ul.style.fontSize = '0.8125rem';
+                item.target_urls.forEach(u => {
+                    const li = document.createElement('li');
+                    li.className = 'truncate';
+                    li.style.maxWidth = '360px';
+                    li.style.marginBottom = '0.25rem';
+                    li.title = u;
+                    const aU = document.createElement('a');
+                    aU.href = u;
+                    aU.target = '_blank';
+                    aU.rel = 'noopener noreferrer';
+                    aU.className = 'text-link';
+                    aU.textContent = u;
+                    li.appendChild(aU);
+                    ul.appendChild(li);
+                });
+                divUrls.appendChild(ul);
+                tdUrls.appendChild(divUrls);
+            } else {
+                tdUrls.className = 'text-muted';
+                tdUrls.textContent = '-';
+            }
+            tr.appendChild(tdUrls);
 
-            const tdNew = document.createElement('td');
-            tdNew.className = isDegraded ? 'text-danger' : 'text-success';
-            tdNew.textContent = item.new_status || '連線失敗';
-            tr.appendChild(tdNew);
+            const tdSources = document.createElement('td');
+            if (item.sources && item.sources.length > 0) {
+                const divSources = document.createElement('div');
+                divSources.style.maxHeight = '150px';
+                divSources.style.overflowY = 'auto';
+                divSources.style.paddingRight = '4px';
+                const ul = document.createElement('ul');
+                ul.style.margin = '0';
+                ul.style.paddingLeft = '0';
+                ul.style.listStyle = 'none';
+                ul.style.fontSize = '0.8125rem';
+                item.sources.forEach(src => {
+                    const li = document.createElement('li');
+                    li.className = 'truncate text-muted';
+                    li.style.maxWidth = '250px';
+                    li.style.marginBottom = '0.25rem';
+                    li.title = src;
+                    const aSrc = document.createElement('a');
+                    aSrc.href = src;
+                    aSrc.target = '_blank';
+                    aSrc.rel = 'noopener noreferrer';
+                    aSrc.style.color = 'inherit';
+                    aSrc.textContent = src;
+                    li.appendChild(aSrc);
+                    ul.appendChild(li);
+                });
+                divSources.appendChild(ul);
+                tdSources.appendChild(divSources);
+            } else {
+                tdSources.className = 'text-muted';
+                tdSources.textContent = '-';
+            }
+            tr.appendChild(tdSources);
 
-            const tdErr = document.createElement('td');
-            tdErr.className = 'text-xs text-muted truncate';
-            tdErr.style.maxWidth = '160px';
-            tdErr.title = item.new_error || '';
-            tdErr.textContent = item.new_error || '-';
-            tr.appendChild(tdErr);
-
-        } else if (tabName === 'new_links') {
-            const tdIp = document.createElement('td');
-            tdIp.className = 'font-mono text-xs';
-            tdIp.textContent = item.ip || '-';
-            tr.appendChild(tdIp);
-
-            const status = item.status_code;
-            const tdStatus = document.createElement('td');
-            tdStatus.className = !status ? 'text-muted' : (status >= 400 ? 'text-danger' : 'text-success');
-            tdStatus.textContent = status || '-';
-            tr.appendChild(tdStatus);
-
-            const tdErr = document.createElement('td');
-            tdErr.className = 'text-xs text-muted truncate';
-            tdErr.style.maxWidth = '160px';
-            tdErr.title = item.error || '';
-            tdErr.textContent = item.error || '-';
-            tr.appendChild(tdErr);
-
-        } else if (tabName === 'removed_links') {
-            const tdIp = document.createElement('td');
-            tdIp.className = 'font-mono text-xs text-muted';
-            tdIp.textContent = item.old_ip || '-';
-            tr.appendChild(tdIp);
-
-            const tdStatus = document.createElement('td');
-            tdStatus.className = 'text-muted';
-            tdStatus.textContent = item.old_status_code || '-';
-            tr.appendChild(tdStatus);
-
-            const tdErr = document.createElement('td');
-            tdErr.className = 'text-xs text-muted truncate';
-            tdErr.style.maxWidth = '160px';
-            tdErr.title = item.old_error || '';
-            tdErr.textContent = item.old_error || '-';
-            tr.appendChild(tdErr);
-
-        } else if (tabName === 'security_downgraded') {
-            const tdSec = document.createElement('td');
-            tdSec.className = 'text-warning text-sm';
-            tdSec.textContent = 'HTTPS ➔ HTTP';
-            tr.appendChild(tdSec);
-        }
-
-        const tdSources = document.createElement('td');
-        if (item.sources && item.sources.length > 0) {
-            const divSources = document.createElement('div');
-            divSources.style.maxHeight = '150px';
-            divSources.style.overflowY = 'auto';
-            divSources.style.paddingRight = '4px';
-            const ul = document.createElement('ul');
-            ul.style.margin = '0';
-            ul.style.paddingLeft = '0';
-            ul.style.listStyle = 'none';
-            ul.style.fontSize = '0.8125rem';
-            item.sources.forEach(src => {
-                const li = document.createElement('li');
-                li.className = 'truncate text-muted';
-                li.style.maxWidth = '250px';
-                li.style.marginBottom = '0.25rem';
-                li.title = src;
-                const aSrc = document.createElement('a');
-                aSrc.href = src;
-                aSrc.target = '_blank';
-                aSrc.rel = 'noopener noreferrer';
-                aSrc.style.color = 'inherit';
-                aSrc.textContent = src;
-                li.appendChild(aSrc);
-                ul.appendChild(li);
-            });
-            divSources.appendChild(ul);
-            tdSources.appendChild(divSources);
         } else {
-            tdSources.className = 'text-muted';
-            tdSources.textContent = '-';
+            const tdTarget = document.createElement('td');
+            tdTarget.className = 'truncate';
+            tdTarget.style.maxWidth = '260px';
+            tdTarget.title = item.target_url;
+            const aTarget = document.createElement('a');
+            aTarget.href = item.target_url;
+            aTarget.target = '_blank';
+            aTarget.rel = 'noopener noreferrer';
+            aTarget.className = 'text-link';
+            aTarget.style.color = 'inherit';
+            aTarget.textContent = item.target_url;
+            tdTarget.appendChild(aTarget);
+            tr.appendChild(tdTarget);
+
+            if (tabName === 'degraded' || tabName === 'recovered') {
+                const isDegraded = tabName === 'degraded';
+
+                const tdOld = document.createElement('td');
+                tdOld.className = isDegraded ? 'text-success' : 'text-danger';
+                tdOld.textContent = item.old_status || '連線失敗';
+                tr.appendChild(tdOld);
+
+                const tdNew = document.createElement('td');
+                tdNew.className = isDegraded ? 'text-danger' : 'text-success';
+                tdNew.textContent = item.new_status || '連線失敗';
+                tr.appendChild(tdNew);
+
+                const tdErr = document.createElement('td');
+                tdErr.className = 'text-xs text-muted truncate';
+                tdErr.style.maxWidth = '160px';
+                tdErr.title = item.new_error || '';
+                tdErr.textContent = item.new_error || '-';
+                tr.appendChild(tdErr);
+
+            } else if (tabName === 'new_links') {
+                const tdIp = document.createElement('td');
+                tdIp.className = 'font-mono text-xs';
+                tdIp.textContent = item.ip || '-';
+                tr.appendChild(tdIp);
+
+                const status = item.status_code;
+                const tdStatus = document.createElement('td');
+                tdStatus.className = !status ? 'text-muted' : (status >= 400 ? 'text-danger' : 'text-success');
+                tdStatus.textContent = status || '-';
+                tr.appendChild(tdStatus);
+
+                const tdErr = document.createElement('td');
+                tdErr.className = 'text-xs text-muted truncate';
+                tdErr.style.maxWidth = '160px';
+                tdErr.title = item.error || '';
+                tdErr.textContent = item.error || '-';
+                tr.appendChild(tdErr);
+
+            } else if (tabName === 'removed_links') {
+                const tdIp = document.createElement('td');
+                tdIp.className = 'font-mono text-xs text-muted';
+                tdIp.textContent = item.old_ip || '-';
+                tr.appendChild(tdIp);
+
+                const tdStatus = document.createElement('td');
+                tdStatus.className = 'text-muted';
+                tdStatus.textContent = item.old_status_code || '-';
+                tr.appendChild(tdStatus);
+
+                const tdErr = document.createElement('td');
+                tdErr.className = 'text-xs text-muted truncate';
+                tdErr.style.maxWidth = '160px';
+                tdErr.title = item.old_error || '';
+                tdErr.textContent = item.old_error || '-';
+                tr.appendChild(tdErr);
+
+            } else if (tabName === 'security_downgraded') {
+                const tdSec = document.createElement('td');
+                tdSec.className = 'text-warning text-sm';
+                tdSec.textContent = 'HTTPS ➔ HTTP';
+                tr.appendChild(tdSec);
+            }
+
+            const tdSources = document.createElement('td');
+            if (item.sources && item.sources.length > 0) {
+                const divSources = document.createElement('div');
+                divSources.style.maxHeight = '150px';
+                divSources.style.overflowY = 'auto';
+                divSources.style.paddingRight = '4px';
+                const ul = document.createElement('ul');
+                ul.style.margin = '0';
+                ul.style.paddingLeft = '0';
+                ul.style.listStyle = 'none';
+                ul.style.fontSize = '0.8125rem';
+                item.sources.forEach(src => {
+                    const li = document.createElement('li');
+                    li.className = 'truncate text-muted';
+                    li.style.maxWidth = '250px';
+                    li.style.marginBottom = '0.25rem';
+                    li.title = src;
+                    const aSrc = document.createElement('a');
+                    aSrc.href = src;
+                    aSrc.target = '_blank';
+                    aSrc.rel = 'noopener noreferrer';
+                    aSrc.style.color = 'inherit';
+                    aSrc.textContent = src;
+                    li.appendChild(aSrc);
+                    ul.appendChild(li);
+                });
+                divSources.appendChild(ul);
+                tdSources.appendChild(divSources);
+            } else {
+                tdSources.className = 'text-muted';
+                tdSources.textContent = '-';
+            }
+            tr.appendChild(tdSources);
         }
-        tr.appendChild(tdSources);
 
         tbody.appendChild(tr);
     });
@@ -414,6 +496,39 @@ function renderCompareTbody(tableEl, tabName) {
 function _getFilteredData() {
     if (!_currentDiffData || !_currentDiffData.details[_currentTab]) return [];
     let data = [..._currentDiffData.details[_currentTab]];
+
+    if (_currentTab === 'ip_changed') {
+        const grouped = {};
+        data.forEach(item => {
+            let domain = '';
+            try {
+                domain = new URL(item.target_url).hostname;
+            } catch (e) {
+                domain = item.target_url;
+            }
+            const key = `${domain}|${item.old_ip}|${item.new_ip}`;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    domain: domain,
+                    old_ip: item.old_ip,
+                    new_ip: item.new_ip,
+                    url_count: 0,
+                    target_urls: new Set(),
+                    sources: new Set()
+                };
+            }
+            grouped[key].url_count += 1;
+            grouped[key].target_urls.add(item.target_url);
+            if (item.sources) {
+                item.sources.forEach(src => grouped[key].sources.add(src));
+            }
+        });
+        data = Object.values(grouped).map(g => ({
+            ...g,
+            target_urls: Array.from(g.target_urls).sort(),
+            sources: Array.from(g.sources).sort()
+        }));
+    }
 
     for (const [k, v] of Object.entries(_compareColFilters)) {
         if (!v) continue;
@@ -436,6 +551,8 @@ function _getFilteredData() {
             if (valA > valB) return _compareSort.asc ? 1 : -1;
             return 0;
         });
+    } else if (_currentTab === 'ip_changed') {
+        data.sort((a, b) => b.url_count - a.url_count);
     }
 
     return data;
@@ -472,7 +589,7 @@ function exportCompareCsv() {
 
     let headers = [];
     const tabName = _currentTab;
-    if (tabName === 'ip_changed') headers = ['目標 URL', '舊 IP 位址', '新 IP 位址', '來源頁面'];
+    if (tabName === 'ip_changed') headers = ['網域', '舊 IP 位址', '新 IP 位址', '影響 URL 數', '目標 URL 清單', '來源頁面'];
     else if (tabName === 'degraded' || tabName === 'recovered') headers = ['目標 URL', '原狀態', '新狀態', '新錯誤訊息', '來源頁面'];
     else if (tabName === 'security_downgraded') headers = ['目標 URL', '安全狀態變化', '來源頁面'];
     else if (tabName === 'new_links') headers = ['目標 URL', 'IP 位址', 'HTTP 狀態', '錯誤訊息', '來源頁面'];
@@ -483,29 +600,36 @@ function exportCompareCsv() {
 
     data.forEach(item => {
         let row = [];
-        row.push(_sanitizeCsv(item.target_url));
 
         if (tabName === 'ip_changed') {
+            row.push(_sanitizeCsv(item.domain));
             row.push(_sanitizeCsv(item.old_ip || ''));
             row.push(_sanitizeCsv(item.new_ip || ''));
-        } else if (tabName === 'degraded' || tabName === 'recovered') {
-            row.push(_sanitizeCsv(item.old_status || '連線失敗'));
-            row.push(_sanitizeCsv(item.new_status || '連線失敗'));
-            row.push(_sanitizeCsv(item.new_error || ''));
-        } else if (tabName === 'security_downgraded') {
-            row.push('HTTPS ➔ HTTP');
-        } else if (tabName === 'new_links') {
-            row.push(_sanitizeCsv(item.ip || ''));
-            row.push(_sanitizeCsv(item.status_code || ''));
-            row.push(_sanitizeCsv(item.error || ''));
-        } else if (tabName === 'removed_links') {
-            row.push(_sanitizeCsv(item.old_ip || ''));
-            row.push(_sanitizeCsv(item.old_status_code || ''));
-            row.push(_sanitizeCsv(item.old_error || ''));
-        }
+            row.push(item.url_count);
+            row.push(_sanitizeCsv((item.target_urls || []).join('\n')));
+            row.push(_sanitizeCsv((item.sources || []).join('\n')));
+        } else {
+            row.push(_sanitizeCsv(item.target_url));
 
-        const sourcesStr = (item.sources || []).join('\n');
-        row.push(_sanitizeCsv(sourcesStr));
+            if (tabName === 'degraded' || tabName === 'recovered') {
+                row.push(_sanitizeCsv(item.old_status || '連線失敗'));
+                row.push(_sanitizeCsv(item.new_status || '連線失敗'));
+                row.push(_sanitizeCsv(item.new_error || ''));
+            } else if (tabName === 'security_downgraded') {
+                row.push('HTTPS ➔ HTTP');
+            } else if (tabName === 'new_links') {
+                row.push(_sanitizeCsv(item.ip || ''));
+                row.push(_sanitizeCsv(item.status_code || ''));
+                row.push(_sanitizeCsv(item.error || ''));
+            } else if (tabName === 'removed_links') {
+                row.push(_sanitizeCsv(item.old_ip || ''));
+                row.push(_sanitizeCsv(item.old_status_code || ''));
+                row.push(_sanitizeCsv(item.old_error || ''));
+            }
+
+            const sourcesStr = (item.sources || []).join('\n');
+            row.push(_sanitizeCsv(sourcesStr));
+        }
 
         csvContent += row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',') + '\n';
     });
