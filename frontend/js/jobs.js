@@ -127,6 +127,16 @@ function renderJobRow(job) {
   btn.textContent = '詳情';
   btn.addEventListener('click', () => { window.viewJob(job.id); });
   divActions.appendChild(btn);
+
+  const btnDup = document.createElement('button');
+  btnDup.className = 'btn btn-sm btn-secondary';
+  btnDup.textContent = '複製';
+  btnDup.addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.location.hash = `#/new?clone=${job.id}`;
+  });
+  divActions.appendChild(btnDup);
+
   td5.appendChild(divActions);
   tr.appendChild(td5);
 

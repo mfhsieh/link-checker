@@ -202,12 +202,15 @@ class CrawlerCore:
         return self.client
 
     # pylint: disable=too-many-locals,too-many-return-statements
-    def fetch(self, url: str) -> tuple[str | None, int | None, str, str, bool, str | None]:
+    def fetch(
+        self, url: str, target_domains: list[str] | None = None
+    ) -> tuple[str | None, int | None, str, str, bool, str | None]:
         """
         抓取給定網址的 HTML 內容。
 
         Args:
             url (str): 欲抓取的網址字串。
+            target_domains (list[str] | None): 目標網域清單，用於防止重導向跨出邊界。
 
         Returns:
             tuple[str | None, int | None, str, str, bool, str | None]: 回傳 (HTML字串, HTTP狀態碼, 狀態, 最終網址, 是否發送請求, 錯誤或警告訊息)。
@@ -264,7 +267,24 @@ class CrawlerCore:
                                 request_sent,
                                 "重導向但無 Location 標頭",
                             )
-                        current_url = urljoin(current_url, location)
+                        next_url = urljoin(current_url, location)
+
+                        # 防止重導向跨出目標網域，進而爬取外部網站的所有內容
+                        if target_domains:
+                            next_domain = get_domain(next_url)
+                            if next_domain and not is_in_domain_list(next_domain, target_domains):
+                                logger.info("網址 %s 重導向至外部網域 %s，停止深入抓取", current_url, next_url)
+                                fake_html = f'<a href="{next_url}"></a>'
+                                return (
+                                    fake_html,
+                                    response.status_code,
+                                    "completed",
+                                    current_url,
+                                    request_sent,
+                                    f"重導向至外部網域: {next_domain}",
+                                )
+
+                        current_url = next_url
                         continue
 
                     response.raise_for_status()
@@ -397,7 +417,7 @@ class CrawlerCore:
                 - request_sent: 是否發送了 HTTP 請求。
                 - err_msg: 擷取過程的警告或錯誤訊息 (若有)。
         """
-        html, status_code, status, final_url, request_sent, err_msg = self.fetch(url)
+        html, status_code, status, final_url, request_sent, err_msg = self.fetch(url, target_domains=target_domains)
 
         if not html:
             return [], [], status_code, status, request_sent, err_msg

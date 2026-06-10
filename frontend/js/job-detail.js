@@ -388,6 +388,7 @@ function renderJobInfo(job) {
     toggleDisplay('btn-pause-job', canPause);
     toggleDisplay('btn-goto-compare', canCompare);
     toggleDisplay('btn-transfer-job', canTransfer);
+    toggleDisplay('btn-duplicate-job', true);
     toggleDisplay('btn-reset-job', canReset);
     toggleDisplay('btn-retry-failed-job', canRetry);
 }
@@ -446,6 +447,10 @@ function bindControlButtons() {
     // ── 移交任務跳轉邏輯 ──────────────────────────────────────────
     bindBtn('btn-transfer-job', () => {
         window.location.hash = `#/transfer?job=${_currentJobId}`;
+    });
+
+    bindBtn('btn-duplicate-job', () => {
+        window.location.hash = `#/new?clone=${_currentJobId}`;
     });
 
     bindBtn('btn-export-full', async () => {

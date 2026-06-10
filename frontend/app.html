@@ -49,6 +49,15 @@
             </a>
           </li>
           <li>
+            <a class="sidebar-item" id="nav-duplicate" href="#/duplicate" data-view="duplicate">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              </svg>
+              複製任務
+            </a>
+          </li>
+          <li>
             <a class="sidebar-item" id="nav-compare" href="#/compare" data-view="compare">
               <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -153,6 +162,14 @@
             </div>
           </div>
           <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" id="btn-duplicate-job" style="display:none" title="複製此任務的設定並建立新任務">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              </svg>
+              複製
+            </button>
             <button class="btn btn-secondary btn-sm" id="btn-goto-compare" style="display:none"
               title="跳轉至比對視圖，並將此任務設為基準">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -718,6 +735,28 @@
         </div>
       </div>
 
+      <!-- ── 複製任務視圖 ────────────────────────────────────── -->
+      <div id="view-duplicate" style="display:none">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">複製任務</h1>
+            <p class="page-subtitle">選擇歷史任務，複製其設定參數並快速建立新任務。</p>
+          </div>
+        </div>
+
+        <div class="card" style="max-width: 600px; margin: 0 auto;">
+          <form id="duplicate-view-form">
+            <div class="form-group" style="margin-bottom:1.5rem">
+              <label class="form-label" for="duplicate-job-select">選擇欲複製的任務 <span class="required">*</span></label>
+              <select id="duplicate-job-select" class="form-input" required></select>
+            </div>
+            <div style="display:flex; justify-content:flex-end;">
+              <button type="submit" class="btn btn-primary" id="btn-run-duplicate">載入設定並前往新增</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <!-- ── 比對任務視圖 ────────────────────────────────────── -->
       <div id="view-compare" style="display:none">
         <div class="page-header">
@@ -1024,6 +1063,7 @@
     import { initJobDetailPage, destroyJobDetailPage } from '/static/js/job-detail.js';
     import { initComparePage } from '/static/js/compare.js';
     import { initTransferPage } from '/static/js/transfer.js';
+    import { initDuplicatePage } from '/static/js/duplicate.js';
 
     // ── 共用確認 Modal 邏輯 ───────────────────────────────────
     function showConfirm(title, message, confirmText = '確定', isDanger = false) {
@@ -1084,11 +1124,13 @@
     const viewHelp = document.getElementById('view-help');
     const viewCompare = document.getElementById('view-compare');
     const viewTransfer = document.getElementById('view-transfer');
+    const viewDuplicate = document.getElementById('view-duplicate');
     const navJobs = document.getElementById('nav-jobs');
     const navNewJob = document.getElementById('nav-new-job');
     const navHelp = document.getElementById('nav-help');
     const navCompare = document.getElementById('nav-compare');
     const navTransfer = document.getElementById('nav-transfer');
+    const navDuplicate = document.getElementById('nav-duplicate');
 
     async function loadJobsList() {
       try {
@@ -1211,11 +1253,13 @@
       if (viewHelp) viewHelp.style.display = 'none';
       if (viewCompare) viewCompare.style.display = 'none';
       if (viewTransfer) viewTransfer.style.display = 'none';
+      if (viewDuplicate) viewDuplicate.style.display = 'none';
       if (navJobs) navJobs.classList.remove('active');
       if (navNewJob) navNewJob.classList.remove('active');
       if (navHelp) navHelp.classList.remove('active');
       if (navCompare) navCompare.classList.remove('active');
       if (navTransfer) navTransfer.classList.remove('active');
+      if (navDuplicate) navDuplicate.classList.remove('active');
 
       if (hash === '#/help') {
         if (viewHelp) viewHelp.style.display = '';
@@ -1242,12 +1286,68 @@
         const jobId = params.get('job');
 
         await initTransferPage(jobId);
-      } else if (hash === '#/new') {
+      } else if (hash.startsWith('#/duplicate')) {
+        if (viewDuplicate) viewDuplicate.style.display = '';
+        if (navDuplicate) navDuplicate.classList.add('active');
+        _currentView = 'duplicate';
+        destroyJobDetailPage();
+
+        await initDuplicatePage();
+      } else if (hash.startsWith('#/new')) {
         if (viewCreate) viewCreate.style.display = '';
         if (navNewJob) navNewJob.classList.add('active');
         _currentView = 'new';
         destroyJobDetailPage();
         await loadJobDefaults();
+
+        const params = new URLSearchParams(hash.split('?')[1] || '');
+        const cloneId = params.get('clone');
+        if (cloneId) {
+          try {
+            const job = await api.get(`/api/jobs/${cloneId}`);
+            const c = job.config || {};
+            const setVal = (id, val) => {
+              const el = document.getElementById(id);
+              if (el && val !== undefined && val !== null) {
+                el.value = Array.isArray(val) ? val.join('\n') : val;
+              }
+            };
+            setVal('job-url', job.start_url);
+            setVal('job-target-domains', c.target_domains);
+            setVal('job-trusted-domains', c.trusted_domains);
+            setVal('job-ignore-exts', c.ignore_extensions);
+            setVal('job-ignore-regexes', c.ignore_regexes);
+            setVal('job-ssl-exempt', c.ssl_exempt_domains);
+            setVal('job-user-agent', c.user_agent);
+            if (c.proxy_url && !c.proxy_url.includes('***')) {
+              setVal('job-proxy-url', c.proxy_url);
+            } else if (c.proxy_url) {
+              setVal('job-proxy-url', '');
+              toast.warning('已隱藏原始任務的 Proxy 密碼，請重新輸入代理伺服器位址 (若需要)。');
+            } else {
+              setVal('job-proxy-url', '');
+            }
+            setVal('job-timeout', c.timeout);
+            setVal('job-connect-timeout', c.connect_timeout);
+            setVal('job-ext-check-timeout', c.external_check_timeout);
+            setVal('job-delay', c.delay);
+            setVal('job-retries', c.retries);
+            setVal('job-max-depth', c.max_depth);
+            setVal('job-max-pages', c.max_pages);
+
+            if (c.domain_delays) {
+              const ddLines = Object.entries(c.domain_delays).map(([k, v]) => `${k}: ${v}`);
+              setVal('job-domain-delays', ddLines);
+            } else {
+              setVal('job-domain-delays', '');
+            }
+          } catch (err) {
+            toast.error('無法載入欲複製的任務：' + err.message);
+          }
+        } else {
+          const form = document.getElementById('create-job-form');
+          if (form) form.reset();
+        }
       } else if (jobMatch) {
         const jobId = jobMatch[1];
         viewDetail.style.display = '';
