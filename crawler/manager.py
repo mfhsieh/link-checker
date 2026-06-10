@@ -186,6 +186,7 @@ class JobManager:
             crawler_config (dict[str, object] | None): 爬蟲相關的設定參數。
             force (bool): 是否強制接管卡在 running 狀態的任務。
         """
+        max_workers = int(os.environ.get("CRAWLER_MAX_WORKERS", "5"))
         with self.SessionLocal() as session:
             job: Job | None = session.query(Job).filter(Job.id == job_id).first()
             if not job:
@@ -263,7 +264,7 @@ class JobManager:
                     )
 
             # 建立共用的執行緒池，避免每個網頁都重新建立與銷毀執行緒而產生額外開銷
-            executor = ThreadPoolExecutor(max_workers=5)
+            executor = ThreadPoolExecutor(max_workers=max_workers)
 
             crawler = None
             try:

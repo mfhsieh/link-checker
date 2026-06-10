@@ -471,12 +471,6 @@
 
     // ── 使用者管理 ────────────────────────────────────────────
 
-    function escapeHtml(s) {
-      const d = document.createElement('div');
-      d.textContent = String(s || '');
-      return d.innerHTML;
-    }
-
     async function loadUsers() {
       const container = document.getElementById('users-table-container');
       try {

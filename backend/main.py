@@ -124,6 +124,15 @@ if os.path.isdir(_frontend_dir):
             # 替換 script 與 style 標籤以動態注入 nonce
             # 使用更精確的正則匹配完整的開頭標籤，避免替換到屬性內文，並防範重複注入
             def _inject_nonce(match: re.Match) -> str:
+                """
+                替換正則匹配的 HTML 標籤，動態注入 CSP nonce。
+
+                Args:
+                    match (re.Match): 正規表示式的匹配物件。
+
+                Returns:
+                    str: 注入 nonce 屬性後的新標籤字串。
+                """
                 tag = match.group(1)
                 attrs = match.group(2)
                 if "nonce=" in attrs.lower():

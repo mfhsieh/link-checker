@@ -989,9 +989,3 @@ function bindBtn(id, handler) {
         }
     });
 }
-
-function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = String(s || '');
-    return d.innerHTML;
-}

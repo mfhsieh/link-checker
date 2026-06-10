@@ -169,6 +169,9 @@ def _cleanup_zombie_jobs(manager: JobManager) -> None:
     """
     巡檢並清理假死任務 (Zombie Jobs)。
     若資料庫中狀態為 running，但本地已無對應的 PID 或進程，則將其標記為 error。
+
+    Args:
+        manager (JobManager): JobManager 實例。
     """
     running_jobs = manager.get_all_jobs(status="running")
     for j in running_jobs:
@@ -886,6 +889,15 @@ def get_job_diff(
     recovered = []
 
     def is_bad(item: dict[str, object]) -> bool:
+        """
+        判斷給定的外連項目是否處於異常/失效狀態。
+
+        Args:
+            item (dict[str, object]): 單筆外連統計項目字典。
+
+        Returns:
+            bool: 若 IP 解析失敗、HTTP 狀態碼異常或存在錯誤訊息，回傳 True。
+        """
         if not item["ip"]:
             return True
         status_code = item["status_code"]

@@ -7,12 +7,6 @@ import { toast } from './toast.js';
 
 let _eventsBound = false;
 
-function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = String(s || '');
-    return d.innerHTML;
-}
-
 function bindTransferEvents() {
     const runBtn = document.getElementById('btn-run-transfer');
     const formEl = document.getElementById('transfer-view-form');

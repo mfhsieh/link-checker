@@ -13,12 +13,6 @@ let _compareSort = { key: null, asc: true };
 let _compareColFilters = {};
 let _currentCompareHeaders = [];
 
-function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = String(s || '');
-    return d.innerHTML;
-}
-
 function setTextContent(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value ?? '-';
