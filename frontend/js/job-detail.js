@@ -87,7 +87,9 @@ export async function initJobDetailPage(jobId) {
     _detailColFilters = {};
 
     // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
-    document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.filter-card[data-filter]').forEach(c => {
+        c.classList.toggle('active', c.dataset.filter === 'all');
+    });
     const searchInput = document.getElementById('results-search');
     if (searchInput) searchInput.value = '';
     const groupSelectEl = document.getElementById('results-group-select');
@@ -875,13 +877,14 @@ function renderPagination(res, jobId) {
 }
 
 function bindResultsControls() {
-    document.querySelectorAll('.filter-chip[data-filter]').forEach(chip => {
+    document.querySelectorAll('.filter-card[data-filter]').forEach(chip => {
         chip.addEventListener('click', async () => {
-            const filter = chip.dataset.filter || null;
-            _currentFilter = _currentFilter === filter ? null : filter;
+            const filter = chip.dataset.filter;
+            _currentFilter = (_currentFilter === filter || filter === 'all') ? null : filter;
             _currentPage = 1;
-            document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
-                c.classList.toggle('active', c.dataset.filter === _currentFilter);
+            document.querySelectorAll('.filter-card[data-filter]').forEach(c => {
+                const isActive = _currentFilter === c.dataset.filter || (_currentFilter === null && c.dataset.filter === 'all');
+                c.classList.toggle('active', isActive);
             });
             await loadResultsPage(_currentJobId);
         });

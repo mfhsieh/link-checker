@@ -290,23 +290,23 @@
 
         <!-- 外連結果摘要 -->
         <div class="grid-stats" style="grid-template-columns:repeat(5,1fr);gap:0.75rem;margin-bottom:1.5rem">
-          <div class="stat-card">
+          <div class="stat-card filter-card" data-filter="all" title="點擊過濾：全部">
             <div class="stat-label">外部連結總數</div>
             <div class="stat-value" id="summary-total">0</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card filter-card" data-filter="healthy" title="點擊過濾：正常">
             <div class="stat-label text-success">正常</div>
             <div class="stat-value text-success" id="summary-healthy">0</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card filter-card" data-filter="dead" title="點擊過濾：DNS 解析失敗">
             <div class="stat-label text-danger">DNS 解析失敗</div>
             <div class="stat-value text-danger" id="summary-dns-failed">0</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card filter-card" data-filter="broken" title="點擊過濾：HTTP / 連線錯誤">
             <div class="stat-label text-danger">HTTP / 連線錯誤</div>
             <div class="stat-value text-danger" id="summary-http-error">0</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card filter-card" data-filter="insecure" title="點擊過濾：非 HTTPS">
             <div class="stat-label text-warning">非 HTTPS</div>
             <div class="stat-value text-warning" id="summary-insecure">0</div>
           </div>
@@ -314,8 +314,27 @@
 
         <!-- 外連結果 -->
         <div class="card" style="padding:0;overflow:hidden">
-          <div class="card-header" style="padding:1.25rem 1.5rem">
-            <span class="card-title">外部連結結果</span>
+          <div class="card-header"
+            style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div style="display:flex; align-items:center; gap:0.75rem">
+              <span class="card-title" style="margin-right:0.5rem">外部連結</span>
+              <select id="results-group-select" class="form-input"
+                style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
+                <option value="none">平鋪列表 (預設)</option>
+                <option value="target">依外連目標聚合 (重複合併)</option>
+                <option value="source">依自家網頁聚合 (修補視角)</option>
+                <option value="domain">依外部網域統計 (資安盤點)</option>
+              </select>
+              <button class="btn btn-secondary btn-icon" id="btn-open-exclude-modal" title="設定排除網域"
+                style="flex-shrink:0;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
+                  <path d="m22 3-5 5" />
+                  <path d="m17 3 5 5" />
+                </svg>
+              </button>
+            </div>
             <div style="display:flex;gap:0.75rem">
               <button class="btn btn-secondary btn-sm" id="btn-export-csv">
                 <svg viewBox="0 0 20 20" fill="currentColor"
@@ -335,51 +354,6 @@
                 </svg>
                 JSON
               </button>
-            </div>
-          </div>
-
-          <!-- 篩選列 -->
-          <div class="filter-bar"
-            style="padding:0 1.5rem 1rem; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
-
-            <!-- 左側：搜尋與排除 -->
-            <div style="display:flex; gap:0.5rem; align-items:center; flex:1; min-width:280px; max-width:400px;">
-              <div class="search-bar" style="flex:1;">
-                <svg class="search-bar-icon" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd"
-                    d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-                    clip-rule="evenodd" />
-                </svg>
-                <input class="form-input" type="search" id="results-search" placeholder="搜尋 URL..."
-                  style="padding-left:2.25rem" />
-              </div>
-              <button class="btn btn-secondary btn-icon" id="btn-open-exclude-modal" title="設定排除網域"
-                style="flex-shrink:0;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
-                  stroke-linejoin="round">
-                  <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
-                  <path d="m22 3-5 5" />
-                  <path d="m17 3 5 5" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- 右側：過濾與檢視模式 -->
-            <div
-              style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem; justify-content:flex-end; flex:2; min-width:300px;">
-              <button class="filter-chip" data-filter="dead">💀 DNS 失敗</button>
-              <button class="filter-chip" data-filter="broken">⚠ HTTP / 連線錯誤</button>
-              <button class="filter-chip" data-filter="insecure">🔓 非 HTTPS</button>
-              <div style="display:flex;align-items:center;gap:0.5rem;margin-left:0.5rem;">
-                <!-- <label for="results-group-select" class="text-sm text-muted" style="white-space:nowrap">檢視模式:</label> -->
-                <select id="results-group-select" class="form-input"
-                  style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
-                  <option value="none">平鋪列表 (預設)</option>
-                  <option value="target">依外連目標聚合 (重複合併)</option>
-                  <option value="source">依自家網頁聚合 (修補視角)</option>
-                  <option value="domain">依外部網域統計 (資安盤點)</option>
-                </select>
-              </div>
             </div>
           </div>
 

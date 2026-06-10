@@ -676,6 +676,14 @@ def get_job_results(
     elif query_args.status_filter == "insecure":
         # insecure：非 HTTPS (HTTP 明文傳輸)
         query = query.filter(ExternalLink.is_secure.is_(False))
+    elif query_args.status_filter == "healthy":
+        # healthy：解析成功且 HTTP 狀態碼小於 400
+        query = query.filter(
+            (ExternalLink.ip_address.isnot(None))
+            & (ExternalLink.ip_address != "")
+            & (ExternalLink.http_status_code.isnot(None))
+            & (ExternalLink.http_status_code < 400)
+        )
 
     if query_args.group_by == "target":
         links = query.order_by(ExternalLink.created_at).all()
@@ -1031,6 +1039,13 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[di
         )
     elif query_args.status_filter == "insecure":
         query = query.filter(ExternalLink.is_secure.is_(False))
+    elif query_args.status_filter == "healthy":
+        query = query.filter(
+            (ExternalLink.ip_address.isnot(None))
+            & (ExternalLink.ip_address != "")
+            & (ExternalLink.http_status_code.isnot(None))
+            & (ExternalLink.http_status_code < 400)
+        )
 
     if query_args.exclude:
         excludes = [e.strip() for e in query_args.exclude.split(",") if e.strip()]

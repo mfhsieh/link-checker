@@ -446,6 +446,19 @@
   box-shadow: var(--shadow);
 }
 
+.filter-card {
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--transition-base);
+}
+
+.filter-card.active {
+  border-color: var(--color-brand-500) !important;
+  background: hsla(221, 83%, 53%, 0.1) !important;
+  box-shadow: 0 0 0 3px hsla(221, 83%, 53%, 0.25) !important;
+  transform: translateY(-2px);
+}
+
 .stat-label {
   font-size: var(--text-xs);
   color: var(--text-muted);

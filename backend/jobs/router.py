@@ -609,7 +609,7 @@ class ResultsQueryArgs:
     # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
-        status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure)$"),
+        status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure|healthy|all)$"),
         search: str | None = Query(None),
         exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
@@ -743,7 +743,7 @@ class ExportQueryArgs:
     # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
-        status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure)$"),
+        status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure|healthy|all)$"),
         exclude: str | None = Query(None),
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
         fmt: str = Query("csv", pattern="^(csv|json)$"),
