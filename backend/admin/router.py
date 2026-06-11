@@ -132,6 +132,7 @@ class CrawlerConfigUpdate(BaseModel):
     max_pages: int | None = Field(None, ge=1)
     max_content_length: int | None = Field(None, ge=1024)
     max_redirects: int | None = Field(None, ge=0)
+    jitter_ratio: float | None = Field(None, ge=0.0, le=1.0)
     user_agent: str | None = None
     proxy_url: str | None = None
     ssl_exempt_domains: list[str] | None = None

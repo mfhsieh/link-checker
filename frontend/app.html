@@ -501,8 +501,8 @@
                 </div>
                 <div class="form-group" style="margin-bottom:1.5rem">
                   <label class="form-label" for="job-user-agent">自訂 User-Agent</label>
-                  <input class="form-input" type="text" id="job-user-agent" placeholder="載入中..." />
-                  <div class="form-hint">留空自動套用全域預設值；若有填寫將完全取代全域設定 <strong>【完全覆寫】</strong>。</div>
+                  <input class="form-input" type="text" id="job-user-agent" placeholder="預設：啟動 fake-useragent 隨機輪替" />
+                  <div class="form-hint">留空將自動套用全域預設值（預設為啟動隨機輪替）；若有填寫將完全取代全域設定，並<strong>強制鎖定單一特徵</strong> <strong>【完全覆寫】</strong>。</div>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="job-proxy-url">代理伺服器 (Proxy URL)</label>
@@ -1199,7 +1199,12 @@
           });
         }
 
-        setField('job-user-agent', config.user_agent);
+        const uaEl = document.getElementById('job-user-agent');
+        if (uaEl) {
+          uaEl.value = '';
+          uaEl.defaultValue = '';
+          uaEl.placeholder = config.user_agent ? config.user_agent : '預設啟動 fake-useragent 隨機輪替';
+        }
 
         const sslEl = document.getElementById('job-ssl-exempt');
         if (sslEl) sslEl.placeholder = 'example.com';

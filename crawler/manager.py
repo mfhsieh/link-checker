@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
 import os
+import random
 import time
 
 import httpx
@@ -241,6 +242,7 @@ class JobManager:
             max_pages = crawler_config.get("max_pages", None)
             max_content_length = crawler_config.get("max_content_length", 10485760)
             max_redirects = crawler_config.get("max_redirects", 10)
+            jitter_ratio = crawler_config.get("jitter_ratio", 0.2)
             social_domains = crawler_config.get("social_domains", []) or []
 
             # 統計該任務已發送實質請求的頁面數量
@@ -527,7 +529,12 @@ class JobManager:
                                     f"{backoff_delay:.1f}",
                                 )
                                 session.commit()
-                                time.sleep(backoff_delay)
+                                actual_delay = (
+                                    backoff_delay * random.uniform(1.0 - jitter_ratio, 1.0 + jitter_ratio)
+                                    if jitter_ratio > 0
+                                    else backoff_delay
+                                )
+                                time.sleep(actual_delay)
                             else:
                                 logger.error("處理網址 %s 時發生錯誤且已達重試上限", current_url)
                                 queue_item.status = "failed"
@@ -538,7 +545,12 @@ class JobManager:
                     # 避免頻繁請求，加入短暫的延遲
                     if should_delay:
                         current_domain_delay = _get_domain_delay(current_url, domain_delays, delay)
-                        time.sleep(current_domain_delay)
+                        actual_delay = (
+                            current_domain_delay * random.uniform(1.0 - jitter_ratio, 1.0 + jitter_ratio)
+                            if jitter_ratio > 0
+                            else current_domain_delay
+                        )
+                        time.sleep(actual_delay)
 
             except KeyboardInterrupt:
                 logger.info("任務 %s 已由使用者強制中斷。暫停任務中...", job_id)

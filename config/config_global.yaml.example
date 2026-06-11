@@ -39,10 +39,17 @@ crawler:
   # 為安全起見，僅限管理員於全域設定，個別任務無法覆寫
   max_redirects: 10
 
+  # 預設的延遲抖動比例 (Jitter Ratio)
+  # 用於進階反爬蟲機制，讓爬蟲請求的延遲時間產生隨機波動，讓行為更像真人。
+  # 允許值範圍 0.0 ~ 1.0，例如 0.2 代表實際延遲時間會隨機增加或減少最多 20%。個別任務無法覆寫。
+  jitter_ratio: 0.2
+
   # 預設的 HTTP 請求標頭 User-Agent
-  # 用於模擬瀏覽器行為以防範目標網站直接封鎖預設爬蟲標頭。
+  # 預設為 null。當設定為 null 時，系統會自動啟用 fake-useragent 機制，
+  # 在每次發送請求前動態隨機產生一組瀏覽器特徵，以極大化反封鎖能力。
+  # 若有特定目標網站會封鎖隨機標頭，或需要偽裝成特定的搜尋引擎爬蟲，才在此填寫固定字串。
   # 合併規則：【完全覆寫】若個別任務有指定，將完全取代此預設值。
-  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  user_agent: null
 
   # 代理伺服器 URL (例如 "http://user:password@proxy.example.com:8080")
   # 預設為 null。當設定時，所有 HTTP 請求都會透過此代理伺服器發送。

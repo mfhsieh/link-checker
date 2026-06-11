@@ -70,7 +70,7 @@ crawler:
   max_redirects: 10           # HTTP 重導向追蹤次數上限
 
   # 預設瀏覽器 User-Agent（防範 WAF 阻擋）
-  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  user_agent: null
 
   # MIME 類型過濾器（防止爬蟲下載非網頁媒體資源）
   mime_type_filter:
@@ -186,7 +186,7 @@ crawler:
     - "my-partner-api.com"
 
   # 自訂此任務的 User-Agent 標頭，用以偽裝瀏覽器 (選填)
-  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  user_agent: null
   
   # 額外要略過解析的副檔名 (會與全域設定檔中的清單聯集)
   ignore_extensions:

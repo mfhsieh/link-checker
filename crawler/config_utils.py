@@ -23,10 +23,8 @@ DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
         "max_max_pages": None,
         "max_content_length": 10485760,
         "max_redirects": 10,
-        "user_agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        ),
+        "jitter_ratio": 0.2,
+        "user_agent": None,
         "proxy_url": None,
         "timeout": 30,
         "connect_timeout": 5.0,
@@ -107,6 +105,7 @@ def _sanitize_crawler_types(config: dict[str, object]) -> None:
         "max_max_pages": int,
         "max_content_length": int,
         "max_redirects": int,
+        "jitter_ratio": (int, float),
     }
     string_types = {"user_agent", "proxy_url"}
     dict_types = {"mime_type_filter", "domain_delays"}
@@ -201,6 +200,7 @@ def _apply_crawler_defaults(crawler_config: dict[str, object], global_crawler_co
         "mime_type_filter",
         "max_content_length",
         "max_redirects",
+        "jitter_ratio",
     ]
     for key in non_nullable_keys:
         if crawler_config.get(key) is None:

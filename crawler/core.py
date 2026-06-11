@@ -16,6 +16,7 @@ from urllib.parse import urlparse, ParseResult, urljoin
 import httpx
 from bs4 import BeautifulSoup
 from crawler.utils import normalize_url, get_domain, is_in_domain_list, resolve_ip, is_safe_ip
+from crawler.profiles import get_random_profile
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -149,6 +150,7 @@ class CrawlerCore:
                 self.ignore_regex_compiled.append(re.compile(p))
             except re.error as e:
                 logger.warning("略過無效的正則表達式 '%s': %s", p, e)
+        self.enable_dynamic_headers: bool = user_agent is None
         self.user_agent: str = user_agent or (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -252,7 +254,8 @@ class CrawlerCore:
                         return None, None, "skip", current_url, request_sent, f"SSRF 防禦攔截：目標 IP ({ip}) 不安全"
 
             with dns_override(domain, ip) if domain and ip else nullcontext():
-                with client.stream("GET", current_url) as response:
+                headers = get_random_profile() if self.enable_dynamic_headers else None
+                with client.stream("GET", current_url, headers=headers) as response:
                     request_sent = True
 
                     # 處理重導向
@@ -473,7 +476,8 @@ class CrawlerCore:
                 with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
                     # 優先使用 HEAD 請求以節省流量與時間，並套用精細化超時配置
                     head_timeout = httpx.Timeout(self.external_check_timeout, connect=self.connect_timeout)
-                    response = client.request("HEAD", current_url, timeout=head_timeout)
+                    headers = get_random_profile() if self.enable_dynamic_headers else None
+                    response = client.request("HEAD", current_url, timeout=head_timeout, headers=headers)
 
                 # 處理重導向
                 if response.status_code in (301, 302, 303, 307, 308):
@@ -490,6 +494,8 @@ class CrawlerCore:
                 if response.status_code in (400, 403, 405) or (response.status_code >= 400 and is_social_media):
                     # 改用微量 GET stream 試探，並加上 Range 標頭避免下載大檔案
                     headers = {"Range": "bytes=0-1023"}
+                    if self.enable_dynamic_headers:
+                        headers.update(get_random_profile())
                     stream_timeout = httpx.Timeout(self.external_check_timeout, connect=self.connect_timeout)
                     with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
                         with client.stream("GET", current_url, headers=headers, timeout=stream_timeout) as resp:

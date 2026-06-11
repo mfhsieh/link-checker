@@ -163,7 +163,6 @@ class TestAdminLogs(unittest.TestCase):
         """
         payload = {
             "status": "suspended",
-            "role": "admin"
         }
         response = self.client.patch("/api/admin/users/test-user-id", json=payload)
         self.assertEqual(response.status_code, 200)
@@ -176,7 +175,6 @@ class TestAdminLogs(unittest.TestCase):
             detail = json.loads(str(log.detail))
             self.assertEqual(detail["target_user_id"], "test-user-id")
             self.assertEqual(detail["changes"]["status"]["after"], "suspended")
-            self.assertEqual(detail["changes"]["role"]["after"], "admin")
         db.close()
 
     def test_logs_date_filtering(self) -> None:

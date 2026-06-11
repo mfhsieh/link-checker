@@ -151,55 +151,75 @@
                   <div class="form-group">
                     <label class="form-label" for="cfg-timeout">預設逾時 (秒)</label>
                     <input class="form-input" type="number" id="cfg-timeout" placeholder="載入中..." required />
+                    <div class="form-hint">網頁請求等待回應的最大秒數預設值。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-connect-timeout">TCP 連線逾時 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-connect-timeout" placeholder="載入中..."
                       required />
+                    <div class="form-hint">TCP 建立連線等待時間預設值。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-ext-check-timeout">外連探測逾時 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-ext-check-timeout" placeholder="載入中..."
                       required />
+                    <div class="form-hint">外連存活檢查等待時間預設值。</div>
                   </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
                   <div class="form-group">
                     <label class="form-label" for="cfg-delay">預設延遲 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-delay" placeholder="載入中..." required />
+                    <div class="form-hint">每次發送請求前的等待預設值。</div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="cfg-jitter-ratio">延遲抖動 (0~1)</label>
+                    <input class="form-input" type="number" step="0.01" min="0" max="1" id="cfg-jitter-ratio" placeholder="載入中..." />
+                    <div class="form-hint">實際延遲時間隨機增減的比例（個別任務無法覆寫）。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-retries">預設重試次數</label>
                     <input class="form-input" type="number" id="cfg-retries" placeholder="載入中..." required />
+                    <div class="form-hint">發生暫時性錯誤時的重試次數預設值。</div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-depth">最大深度</label>
                     <input class="form-input" type="number" id="cfg-max-depth" placeholder="載入中..." />
+                    <div class="form-hint">從起點開始點擊的最大層數預設值（留空代表無限制）。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-pages">最大頁數</label>
                     <input class="form-input" type="number" id="cfg-max-pages" placeholder="載入中..." />
+                    <div class="form-hint">單一任務總抓取頁數預設值（留空代表無限制）。</div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-content-length">最大下載容量 (Bytes)</label>
                     <input class="form-input" type="number" id="cfg-max-content-length" placeholder="載入中..." required />
+                    <div class="form-hint">保護記憶體的硬性容量限制（個別任務無法覆寫）。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-redirects">最大重導向次數</label>
                     <input class="form-input" type="number" id="cfg-max-redirects" placeholder="載入中..." required />
+                    <div class="form-hint">跟隨 HTTP 重導向的最大次數限制（個別任務無法覆寫）。</div>
                   </div>
                 </div>
                 <div class="form-group" style="margin-bottom:1rem">
                   <label class="form-label" for="cfg-user-agent">User-Agent</label>
-                  <input class="form-input" type="text" id="cfg-user-agent" placeholder="載入中..." />
+                  <input class="form-input" type="text" id="cfg-user-agent" placeholder="預設：啟動 fake-useragent 隨機輪替" />
+                  <div class="form-hint">
+                    全域預設 HTTP 請求身分特徵標頭。<br>
+                    <strong>留空：</strong>自動啟用隨機輪替 (fake-useragent) 偽裝身分防封鎖。<br>
+                    <strong>填寫：</strong>全局強制鎖定為該特定身分。若個別任務有填寫將完全取代此設定 <strong>【完全覆寫】</strong>。
+                  </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="cfg-proxy-url">Proxy URL</label>
-                  <input class="form-input" type="text" id="cfg-proxy-url" placeholder="http://..." />
+                  <input class="form-input" type="text" id="cfg-proxy-url" placeholder="http://user:password@proxy.example.com:8080" />
+                  <div class="form-hint">全域預設代理伺服器（Proxy）連線位址。若個別任務有填寫將取代此設定 <strong>【條件覆寫】</strong>。注意：伺服器環境變數具有最高強制覆寫優先權。</div>
                 </div>
               </div>
 
@@ -210,10 +230,12 @@
                   <div class="form-group">
                     <label class="form-label" for="cfg-min-timeout">最小逾時 (秒)</label>
                     <input class="form-input" type="number" id="cfg-min-timeout" placeholder="載入中..." required />
+                    <div class="form-hint">個別任務可設定的下限值。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-timeout">最大逾時 (秒)</label>
                     <input class="form-input" type="number" id="cfg-max-timeout" placeholder="載入中..." required />
+                    <div class="form-hint">個別任務可設定的上限值。</div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -221,11 +243,13 @@
                     <label class="form-label" for="cfg-min-connect-timeout">最小 TCP 連線逾時 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-min-connect-timeout" placeholder="載入中..."
                       required />
+                    <div class="form-hint">個別任務可設定的下限值。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-connect-timeout">最大 TCP 連線逾時 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-max-connect-timeout" placeholder="載入中..."
                       required />
+                    <div class="form-hint">個別任務可設定的上限值。</div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -233,11 +257,13 @@
                     <label class="form-label" for="cfg-min-ext-check-timeout">最小外連探測逾時 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-min-ext-check-timeout"
                       placeholder="載入中..." required />
+                    <div class="form-hint">個別任務可設定的下限值。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-ext-check-timeout">最大外連探測逾時 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-max-ext-check-timeout"
                       placeholder="載入中..." required />
+                    <div class="form-hint">個別任務可設定的上限值。</div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -245,31 +271,37 @@
                     <label class="form-label" for="cfg-min-delay">最小延遲 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-min-delay" placeholder="載入中..."
                       required />
+                    <div class="form-hint">個別任務可設定的下限值。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-delay">最大延遲 (秒)</label>
                     <input class="form-input" type="number" step="0.1" id="cfg-max-delay" placeholder="載入中..."
                       required />
+                    <div class="form-hint">個別任務可設定的上限值。</div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
                   <div class="form-group">
                     <label class="form-label" for="cfg-min-retries">最小重試次數</label>
                     <input class="form-input" type="number" id="cfg-min-retries" placeholder="載入中..." required />
+                    <div class="form-hint">個別任務可設定的下限值。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-retries">最大重試次數</label>
                     <input class="form-input" type="number" id="cfg-max-retries" placeholder="載入中..." required />
+                    <div class="form-hint">個別任務可設定的上限值。</div>
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-max-depth">最大爬取深度限制</label>
                     <input class="form-input" type="number" id="cfg-max-max-depth" placeholder="載入中..." />
+                    <div class="form-hint">系統全域強制的最大深度天花板。</div>
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-max-max-pages">最大抓取頁數限制</label>
                     <input class="form-input" type="number" id="cfg-max-max-pages" placeholder="載入中..." />
+                    <div class="form-hint">系統全域強制的最大抓取頁數天花板。</div>
                   </div>
                 </div>
               </div>
@@ -293,32 +325,38 @@
                     <label class="form-label" for="cfg-mime-types">允許的 MIME 類型</label>
                     <textarea class="form-textarea" id="cfg-mime-types" rows="2"
                       placeholder="text/html&#10;每行一個"></textarea>
+                    <div class="form-hint">指定允許爬取的 MIME 類型，開啟後僅會爬取符合條件的檔案。</div>
                   </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom:1rem">
                   <label class="form-label" for="cfg-ignore-exts">略過副檔名 (ignore_extensions)</label>
                   <textarea class="form-textarea" id="cfg-ignore-exts" rows="2" placeholder=".pdf&#10;每行一個"></textarea>
+                  <div class="form-hint">這些副檔名將作為全域預設略過名單。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
                 </div>
                 <div class="form-group" style="margin-bottom:1rem">
                   <label class="form-label" for="cfg-ignore-regexes">排除的路徑規則 (ignore_regexes)</label>
                   <textarea class="form-textarea" id="cfg-ignore-regexes" rows="2"
                     placeholder="^https://...&#10;每行一個"></textarea>
+                  <div class="form-hint">符合正則表示式的路徑將被預設排除。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
                 </div>
                 <div class="form-group" style="margin-bottom:1rem">
                   <label class="form-label" for="cfg-domain-delays">網域特定延遲 (domain_delays)</label>
                   <textarea class="form-textarea" id="cfg-domain-delays" rows="2"
                     placeholder="example.com: 5.0&#10;每行一個 (網域: 秒數)"></textarea>
+                  <div class="form-hint">特定網域的自訂延遲秒數，格式為「網域: 秒數」。將與任務設定合併，衝突時以任務為準 <strong>【字典合併與優先覆寫】</strong>。</div>
                 </div>
                 <div class="form-group" style="margin-bottom:1rem">
                   <label class="form-label" for="cfg-ssl-exempt">自簽憑證豁免網域 (ssl_exempt_domains)</label>
                   <textarea class="form-textarea" id="cfg-ssl-exempt" rows="2"
                     placeholder="example.com&#10;每行一個"></textarea>
+                  <div class="form-hint">全域預設不驗證 SSL 憑證的目標網域。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
                 </div>
                 <div class="form-group" style="margin-bottom:0">
                   <label class="form-label" for="cfg-social-domains">社群與反爬蟲網域 (social_domains)</label>
                   <textarea class="form-textarea" id="cfg-social-domains" rows="2"
                     placeholder="facebook.com&#10;每行一個"></textarea>
+                  <div class="form-hint">被標示為社群平台的網域（例如 Facebook），可被特別過濾或保護。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
                 </div>
               </div>
 
@@ -687,12 +725,15 @@
         document.getElementById('cfg-connect-timeout').value = c.connect_timeout ?? '';
         document.getElementById('cfg-ext-check-timeout').value = c.external_check_timeout ?? '';
         document.getElementById('cfg-delay').value = c.delay ?? '';
+        document.getElementById('cfg-jitter-ratio').value = c.jitter_ratio ?? '';
         document.getElementById('cfg-retries').value = c.retries ?? '';
         document.getElementById('cfg-max-depth').value = c.max_depth ?? '';
         document.getElementById('cfg-max-pages').value = c.max_pages ?? '';
         document.getElementById('cfg-max-content-length').value = c.max_content_length ?? '';
         document.getElementById('cfg-max-redirects').value = c.max_redirects ?? '';
-        document.getElementById('cfg-user-agent').value = c.user_agent ?? '';
+        const cfgUaEl = document.getElementById('cfg-user-agent');
+        cfgUaEl.value = c.user_agent ?? '';
+        cfgUaEl.placeholder = '預設啟動 fake-useragent 隨機輪替';
         document.getElementById('cfg-proxy-url').value = c.proxy_url ?? '';
 
         document.getElementById('cfg-min-timeout').value = c.min_timeout ?? '';
@@ -708,10 +749,10 @@
         document.getElementById('cfg-max-max-depth').value = c.max_max_depth ?? '';
         document.getElementById('cfg-max-max-pages').value = c.max_max_pages ?? '';
 
-        ['cfg-timeout', 'cfg-connect-timeout', 'cfg-ext-check-timeout', 'cfg-delay', 'cfg-retries',
+        ['cfg-timeout', 'cfg-connect-timeout', 'cfg-ext-check-timeout', 'cfg-delay', 'cfg-jitter-ratio', 'cfg-retries',
           'cfg-min-timeout', 'cfg-max-timeout', 'cfg-min-connect-timeout', 'cfg-max-connect-timeout',
           'cfg-min-ext-check-timeout', 'cfg-max-ext-check-timeout', 'cfg-min-delay', 'cfg-max-delay',
-          'cfg-min-retries', 'cfg-max-retries', 'cfg-max-content-length', 'cfg-user-agent'].forEach(id => {
+          'cfg-min-retries', 'cfg-max-retries', 'cfg-max-content-length'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.placeholder = '';
           });
@@ -762,6 +803,7 @@
           connect_timeout: getFloat('cfg-connect-timeout'),
           external_check_timeout: getFloat('cfg-ext-check-timeout'),
           delay: getFloat('cfg-delay'),
+          jitter_ratio: getFloat('cfg-jitter-ratio'),
           retries: getInt('cfg-retries'),
           max_depth: getInt('cfg-max-depth'),
           max_pages: getInt('cfg-max-pages'),
