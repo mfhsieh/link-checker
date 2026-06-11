@@ -13,15 +13,26 @@ const STATUS_LABELS = {
   error: '錯誤',
 };
 
+let _currentJobs = [];
+let _jobSort = { key: 'created_at', asc: false };
+let _listContainerEl = null;
+
 /**
  * 渲染任務列表表格
- * @param {Array<Object>} jobs - 任務資料陣列
- * @param {HTMLElement} containerEl - 欲渲染的容器元素
+ * @param {Array<Object>|null} jobs - 任務資料陣列
+ * @param {HTMLElement} [containerEl] - 欲渲染的容器元素
  * @returns {void} 無回傳值
  */
 export function renderJobList(jobs, containerEl) {
-  containerEl.replaceChildren();
-  if (!jobs || jobs.length === 0) {
+  if (containerEl) _listContainerEl = containerEl;
+  if (!_listContainerEl) return;
+
+  if (jobs !== undefined && jobs !== null) {
+    _currentJobs = [...jobs];
+  }
+
+  _listContainerEl.replaceChildren();
+  if (_currentJobs.length === 0) {
     const emptyStateEl = document.createElement('div');
     emptyStateEl.className = 'empty-state';
 
@@ -41,9 +52,28 @@ export function renderJobList(jobs, containerEl) {
     descEl.textContent = '點擊左側選單「新增任務」開始建立您的第一個外連掃描任務';
     emptyStateEl.appendChild(descEl);
 
-    containerEl.appendChild(emptyStateEl);
+    _listContainerEl.appendChild(emptyStateEl);
     return;
   }
+
+  _currentJobs.sort((a, b) => {
+    let valA = a[_jobSort.key];
+    let valB = b[_jobSort.key];
+    if (valA === undefined || valA === null) valA = '';
+    if (valB === undefined || valB === null) valB = '';
+
+    if (_jobSort.key === 'created_at') {
+      valA = new Date(valA).getTime() || 0;
+      valB = new Date(valB).getTime() || 0;
+      return _jobSort.asc ? valA - valB : valB - valA;
+    }
+
+    valA = String(valA).toLowerCase();
+    valB = String(valB).toLowerCase();
+    if (valA < valB) return _jobSort.asc ? -1 : 1;
+    if (valA > valB) return _jobSort.asc ? 1 : -1;
+    return 0;
+  });
 
   const wrapperEl = document.createElement('div');
   wrapperEl.className = 'table-wrapper';
@@ -54,21 +84,65 @@ export function renderJobList(jobs, containerEl) {
 
   const theadEl = document.createElement('thead');
   const headRowEl = document.createElement('tr');
-  ['任務 ID', '起始 URL', '狀態', '建立時間', '操作'].forEach(text => {
+
+  const headers = [
+    { label: '任務 ID', key: 'id' },
+    { label: '起始 URL', key: 'start_url' },
+    { label: '狀態', key: 'status' },
+    { label: '建立時間', key: 'created_at' },
+    { label: '操作', key: null }
+  ];
+
+  headers.forEach(h => {
     const th = document.createElement('th');
-    th.textContent = text;
+    if (!h.key) {
+      th.textContent = h.label;
+    } else {
+      const div = document.createElement('div');
+      div.style.display = 'flex';
+      div.style.alignItems = 'center';
+      div.style.cursor = 'pointer';
+
+      const span = document.createElement('span');
+      span.textContent = h.label;
+      div.appendChild(span);
+
+      const icon = document.createElement('span');
+      icon.className = 'sort-icon';
+      icon.style.fontSize = '0.75rem';
+      icon.style.marginLeft = '0.25rem';
+      if (_jobSort.key === h.key) {
+        icon.textContent = _jobSort.asc ? '▲' : '▼';
+        icon.style.color = 'var(--color-brand-500)';
+      } else {
+        icon.textContent = '⇅';
+        icon.style.color = 'var(--text-muted)';
+      }
+      div.appendChild(icon);
+
+      div.addEventListener('click', () => {
+        if (_jobSort.key === h.key) {
+          _jobSort.asc = !_jobSort.asc;
+        } else {
+          _jobSort.key = h.key;
+          _jobSort.asc = true;
+        }
+        renderJobList(null, _listContainerEl);
+      });
+      th.appendChild(div);
+    }
     headRowEl.appendChild(th);
   });
   theadEl.appendChild(headRowEl);
   tableEl.appendChild(theadEl);
 
   const tbodyEl = document.createElement('tbody');
-  jobs.forEach(job => {
+  _currentJobs.forEach(job => {
     tbodyEl.appendChild(renderJobRow(job));
   });
   tableEl.appendChild(tbodyEl);
   wrapperEl.appendChild(tableEl);
-  containerEl.appendChild(wrapperEl);
+  _listContainerEl.appendChild(wrapperEl);
 }
 
 function renderJobRow(job) {
