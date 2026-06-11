@@ -20,6 +20,8 @@ from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth import service as auth_service
+from backend.auth.models import Session as AuthSession
+from backend.auth.models import User
 from backend.config import get_settings
 from backend.deps import (
     get_auth_db,
@@ -27,7 +29,6 @@ from backend.deps import (
     get_current_user,
     require_csrf,
 )
-from backend.auth.models import User, Session as AuthSession
 
 logger: logging.Logger = logging.getLogger(__name__)
 

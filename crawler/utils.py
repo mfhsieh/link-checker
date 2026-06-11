@@ -26,7 +26,7 @@ def get_domain(url: str) -> str:
     try:
         parsed_uri: urllib.parse.ParseResult = urllib.parse.urlparse(url)
         return parsed_uri.netloc.split(":")[0]  # 移除可能存在的通訊埠
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except ValueError as e:
         logger.error("解析網址 %s 時發生錯誤: %s", url, e)
         return ""
 

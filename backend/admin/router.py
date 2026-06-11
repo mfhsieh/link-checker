@@ -22,7 +22,6 @@ from sqlalchemy.orm import Session as DBSession
 from backend.auth import service as auth_service
 from backend.auth.models import AuthLog, Invitation, User
 from backend.config import get_settings
-from backend.email_sender import send_test_email
 from backend.deps import (
     get_auth_db,
     get_crawler_db,
@@ -30,6 +29,7 @@ from backend.deps import (
     require_admin,
     require_csrf,
 )
+from backend.email_sender import send_test_email
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 from crawler.manager import JobManager
 from crawler.models import Job

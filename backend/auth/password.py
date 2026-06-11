@@ -6,6 +6,7 @@
 """
 
 import re
+
 import bcrypt
 
 # 密碼強度規則

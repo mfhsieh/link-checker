@@ -5,24 +5,24 @@
 管理爬取佇列 (Queue)、處理中斷例外，以及執行主要的爬蟲迴圈。
 """
 
-from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
 import os
 import random
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
-from sqlalchemy import create_engine, Engine, event
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.orm import Session, sessionmaker
 
 from crawler.core import CrawlerCore
-from crawler.models import Base, Job, CrawlQueue, ExternalLink
-from crawler.utils import (
-    resolve_ip,
-    get_domain,
-)
+from crawler.models import Base, CrawlQueue, ExternalLink, Job
 from crawler.notifier import send_job_status_notification
+from crawler.utils import (
+    get_domain,
+    resolve_ip,
+)
 
 
 def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: float) -> float:
@@ -247,8 +247,7 @@ class JobManager:
 
             # 統計該任務已發送實質請求的頁面數量
             crawled_count = (
-                session
-                .query(CrawlQueue)
+                session.query(CrawlQueue)
                 .filter(
                     CrawlQueue.job_id == job_id,
                     (CrawlQueue.status.in_(["completed", "failed", "warning"]))
@@ -312,8 +311,7 @@ class JobManager:
 
                     # 從佇列中取得下一個等待處理的網址，依據 ID 排序以保障 FIFO 的 BFS 順序
                     queue_item: CrawlQueue | None = (
-                        session
-                        .query(CrawlQueue)
+                        session.query(CrawlQueue)
                         .filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "pending")
                         .order_by(CrawlQueue.id)
                         .first()
@@ -368,8 +366,7 @@ class JobManager:
                         if max_depth is None or next_depth <= max_depth:
                             for link in internal_links:
                                 exists = (
-                                    session
-                                    .query(CrawlQueue)
+                                    session.query(CrawlQueue)
                                     .filter(
                                         CrawlQueue.job_id == job_id,
                                         CrawlQueue.url == link,
@@ -394,8 +391,7 @@ class JobManager:
                         for link in unique_external_links:
                             # 檢查資料庫中是否已存在相同的 (job_id, source_url, target_url) 紀錄
                             exists = (
-                                session
-                                .query(ExternalLink)
+                                session.query(ExternalLink)
                                 .filter(
                                     ExternalLink.job_id == job_id,
                                     ExternalLink.source_url == current_url,
@@ -450,8 +446,7 @@ class JobManager:
                                 checked_links_cache[link] = (ip, status_code, err_msg)
                                 # 再次防禦性檢查以防並行環境下重複寫入
                                 exists = (
-                                    session
-                                    .query(ExternalLink)
+                                    session.query(ExternalLink)
                                     .filter(
                                         ExternalLink.job_id == job_id,
                                         ExternalLink.source_url == current_url,

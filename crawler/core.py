@@ -9,14 +9,15 @@ import logging
 import re
 import socket
 import threading
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, nullcontext
-from collections.abc import Iterator
-from collections.abc import Callable
-from urllib.parse import urlparse, ParseResult, urljoin
+from urllib.parse import ParseResult, urljoin, urlparse
+
 import httpx
 from bs4 import BeautifulSoup
-from crawler.utils import normalize_url, get_domain, is_in_domain_list, resolve_ip, is_safe_ip
+
 from crawler.profiles import get_random_profile
+from crawler.utils import get_domain, is_in_domain_list, is_safe_ip, normalize_url, resolve_ip
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ class CrawlerCore:
             return self.exempt_client
         return self.client
 
-    # pylint: disable=too-many-locals,too-many-return-statements
+    # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches
     def fetch(
         self, url: str, target_domains: list[str] | None = None
     ) -> tuple[str | None, int | None, str, str, bool, str | None]:

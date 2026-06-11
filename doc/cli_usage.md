@@ -69,7 +69,10 @@ crawler:
   max_content_length: 10485760 # 爬蟲最大網頁讀取容量上限 (預設 10MB)
   max_redirects: 10           # HTTP 重導向追蹤次數上限
 
-  # 預設瀏覽器 User-Agent（防範 WAF 阻擋）
+  # 隨機延遲抖動比例 (Jitter) (防範行為分析，預設 0.2 代表 ±20% 抖動)
+  jitter_ratio: 0.2
+
+  # 預設瀏覽器 User-Agent（若為 null 則自動啟用高擬真動態瀏覽器特徵與標頭輪替，防範 WAF 阻擋）
   user_agent: null
 
   # MIME 類型過濾器（防止爬蟲下載非網頁媒體資源）
@@ -164,6 +167,9 @@ crawler:
   
   # 遇到暫時性錯誤時的重試次數
   retries: 2
+
+  # 請求延遲的隨機抖動比例 (選填，預設為 0.2)
+  jitter_ratio: 0.2
 
   # 最大爬取深度限制 (選填，預設為無限制)
   # 1 代表僅爬起始網頁；2 代表向下延伸一層內部連結，依此類推。

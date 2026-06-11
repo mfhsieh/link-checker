@@ -9,19 +9,19 @@ import logging
 import os
 import re
 import secrets
+from collections.abc import Awaitable, Callable
 
-from collections.abc import Callable, Awaitable
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.auth.router import router as auth_router
-from backend.jobs.router import router as jobs_router
 from backend.admin.router import router as admin_router
-from backend.config import get_settings, Settings
+from backend.auth.router import router as auth_router
+from backend.config import Settings, get_settings
+from backend.jobs.router import router as jobs_router
 
 logger: logging.Logger = logging.getLogger(__name__)
 

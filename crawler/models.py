@@ -6,9 +6,10 @@
 """
 # pylint: disable=unsubscriptable-object
 
-from datetime import datetime, timezone
 import uuid
-from sqlalchemy import String, Text, ForeignKey, DateTime, Index, UniqueConstraint
+from datetime import datetime, timezone
+
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 

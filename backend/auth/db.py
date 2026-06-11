@@ -8,8 +8,9 @@ Auth DB 的資料庫連線設定。
 # pylint: disable=unsubscriptable-object
 
 import os
+
 from sqlalchemy import Engine, create_engine, event
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from backend.auth.models import AuthBase
 from backend.config import get_settings

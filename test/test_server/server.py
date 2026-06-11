@@ -6,10 +6,10 @@ Mock HTTP 伺服器模組。
 """
 
 import http.server
-import time
 import os
-import threading
 import sys
+import threading
+import time
 
 # 全域計數器與鎖，用以安全記錄請求次數
 request_counter: dict[str, int] = {"/temporary-error": 0, "/flaky_internal": 0}

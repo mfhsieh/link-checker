@@ -12,7 +12,8 @@ Auth DB 的 SQLAlchemy ORM 模型。
 
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Text, DateTime, Boolean, Integer, Index, UniqueConstraint
+
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

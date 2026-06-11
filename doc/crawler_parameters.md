@@ -22,6 +22,7 @@
 * **`connect_timeout`** (浮點數)：建立 TCP 連線的超時時間，專門防禦惡意不回應的伺服器 (預設 5.0 秒)。
 * **`external_check_timeout`** (浮點數)：外部連結存活探測 (HEAD/GET) 的總超時時間 (預設 10.0 秒)。
 * **`delay`** (浮點數)：每次發送 HTTP 請求前的等待延遲時間，避免對目標伺服器造成 DDoS (預設 3.0 秒)。
+* **`jitter_ratio`** (浮點數)：請求延遲與退避的隨機抖動比例，用以防範行為分析 (預設 0.2，代表 ±20% 抖動)。
 * **`domain_delays`** (字典)：針對「特定網域」客製化的專屬延遲時間。支援最長匹配優先原則 (例如要求遇到 `google.com` 時延遲 5 秒)。
 * **`retries`** (整數)：遇到暫時性錯誤 (如 HTTP 503 或 Timeout) 時的最大重試次數，內建指數退避演算法 (預設 3 次)。
 
@@ -52,8 +53,8 @@
 
 提高爬蟲存活率與降低被目標網站的 WAF (網頁應用程式防火牆) 阻擋的機率。
 
-* **`user_agent`** (字串)：自訂 HTTP 請求的 User-Agent 標頭，用以偽裝成一般瀏覽器。
-* **`proxy_url`** (字串 | null)：代理伺服器網址 (例如 `http://user:pass@proxy.example.com:8080`)。若需隱藏爬蟲真實 IP 時設定。
+* **`user_agent`** (字串 | null)：自訂 HTTP 請求的 User-Agent 標頭。若未設定 (null)，系統將自動啟用高擬真動態瀏覽器特徵產生器，隨機配置真實的現代 User-Agent 與專屬 HTTP 標頭。
+* **`proxy_url`** (字串 | null)：代理伺服器網址 (例如 `http://user:pass@proxy.example.com:8080`)。若需隱藏爬蟲真實 IP 時設定。基於機密保護，強烈建議將此帶有密碼之設定置於環境變數 `CRAWLER_PROXY_URL` 中。
 * **`ssl_exempt_domains`** (字串陣列)：豁免 SSL 憑證驗證的網域清單。對於使用「自簽憑證」的內部測試網域，加入此清單可避免因憑證無效而誤判為失效連結。
 * **`social_domains`** (字串陣列)：允許降級為帶有 Range 標頭之 GET 請求的社群或反爬蟲網域清單。用以避免大型社群平台誤判為失效連結 (預設包含 facebook.com, youtube.com 等)。
 

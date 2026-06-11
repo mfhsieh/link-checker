@@ -7,6 +7,7 @@
 
 import os
 from functools import lru_cache
+
 from dotenv import load_dotenv
 
 # 嘗試讀取 .env 檔案（如果存在的話）

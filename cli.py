@@ -10,12 +10,13 @@
 import argparse
 import json
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import re
-import sys
 import secrets
 import string
+import sys
+from logging.handlers import RotatingFileHandler
+
 import yaml
 from dotenv import load_dotenv
 

@@ -68,6 +68,8 @@ ext-link-checker/
   堅持採用**輕量原生技術棧 (Vanilla JS + ESM / Vanilla CSS)**，不引入 React、Vue 等框架與打包工具，大幅降低供應鏈風險與長期維護成本。實作了基於 `hashchange` 的無刷新 SPA 路由，以及具備網路波動韌性 (Resilience) 與動態間隔的狀態輪詢機制。
 * **網路連線與網頁解析**：
   採用 **HTTPX** 處理同步 HTTP/HTTPS 連線，並搭配 **BeautifulSoup 4** 進行 HTML 樹狀結構解析。針對外部連結的存活探測，引入 **`ThreadPoolExecutor`** 進行多執行緒並發處理，最大化診斷效能。
+* **進階反爬蟲與隱匿機制 (Anti-Bot Bypass)**：
+  爬蟲核心內建高擬真動態瀏覽器指紋與 HTTP 標頭輪替產生器，並支援隨機延遲抖動 (Jitter) 與 HTTP Proxy 環境變數優先覆寫，以最大程度隱藏自動化存取行為並繞過進階 WAF 防護。
 * **任務級快取與頻寬節約 (Job-level Cache)**：
   於爬蟲核心調度層 (`manager.py`) 實作了記憶體快取。同一個爬蟲任務中若多次遇到相同的外部連結，系統會直接複用初次的 DNS 解析與 HTTP 存活探測結果，不僅大幅提升掃描速度，更能避免對外部目標網站造成 DDoS 風險與節約頻寬。
 * **任務狀態驅動**：

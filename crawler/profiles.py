@@ -5,8 +5,9 @@
 提高繞過基礎反爬蟲機制的成功率。
 """
 
-import re
 import logging
+import re
+
 from fake_useragent import UserAgent
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ def get_random_profile() -> dict[str, str]:
     """
     try:
         user_agent = _ua.random
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.warning("fake_useragent 取得 UA 失敗，退回預設值: %s", e)
         user_agent = (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -60,7 +61,9 @@ def get_random_profile() -> dict[str, str]:
         version = _extract_chrome_version(user_agent)
         headers["Sec-Ch-Ua"] = f'"Not_A Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
         headers["Sec-Ch-Ua-Mobile"] = "?0"
-        headers["Sec-Ch-Ua-Platform"] = '"Windows"' if "Windows" in user_agent else '"macOS"' if "Mac OS" in user_agent else '"Linux"'
+        headers["Sec-Ch-Ua-Platform"] = (
+            '"Windows"' if "Windows" in user_agent else '"macOS"' if "Mac OS" in user_agent else '"Linux"'  # pylint: disable=line-too-long
+        )
     elif "Edg" in user_agent:
         version = _extract_edge_version(user_agent)
         headers["Sec-Ch-Ua"] = f'"Not_A Brand";v="8", "Chromium";v="{version}", "Microsoft Edge";v="{version}"'

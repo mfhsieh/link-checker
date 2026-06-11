@@ -235,8 +235,7 @@ def authenticate_with_invitation(
         raise ValueError("此帳號已完成設定，請使用密碼登入。")
 
     invitation = (
-        db
-        .query(Invitation)
+        db.query(Invitation)
         .filter(
             Invitation.user_id == user.id,
             Invitation.token == token,
@@ -412,8 +411,7 @@ def get_session_by_token(db: DBSession, raw_token: str) -> Session | None:
     token_hash = _hash_token(raw_token)
     now = _utc_now()
     return (
-        db
-        .query(Session)
+        db.query(Session)
         .filter(
             Session.token_hash == token_hash,
             Session.expires_at > now,

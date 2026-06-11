@@ -4,12 +4,12 @@
 驗證全域配置修改、使用者狀態變更以及日誌篩選功能是否正確記錄與回傳。
 """
 
+import json
 import os
 import sys
-import json
 import unittest
-from datetime import datetime, timedelta
 from collections.abc import Generator
+from datetime import datetime, timedelta
 
 # 將專案路徑加入 path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -17,20 +17,19 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # pylint: disable=wrong-import-position
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from backend.main import app
-from backend.deps import get_auth_db, require_admin, require_csrf
 from backend.auth.models import AuthBase, AuthLog, User
+from backend.deps import get_auth_db, require_admin, require_csrf
+from backend.main import app
 
 # 測試用 SQLite DSN
 TEST_AUTH_DB_URL: str = "sqlite:///tmp/auth_test.db"
 
 # 建立 Engine
-engine: Engine = create_engine(
-    TEST_AUTH_DB_URL, connect_args={"check_same_thread": False}
-)
+engine: Engine = create_engine(TEST_AUTH_DB_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 # 覆寫 get_auth_db 依賴
 def override_get_auth_db() -> Generator[Session, None, None]:
@@ -49,10 +48,9 @@ def override_get_auth_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
+
 # 模擬的管理員物件
-mock_admin: User = User(
-    id="admin-id", email="admin@test.com", role="admin", status="active"
-)
+mock_admin: User = User(id="admin-id", email="admin@test.com", role="admin", status="active")
 
 # 設定 dependency overrides
 app.dependency_overrides[get_auth_db] = override_get_auth_db
@@ -184,12 +182,8 @@ class TestAdminLogs(unittest.TestCase):
         db = TestingSessionLocal()
         # 建立幾個不同時間點的日誌
         now = datetime.now()
-        log1 = AuthLog(
-            user_id="admin-id", event_type="test_event", created_at=now - timedelta(days=5)
-        )
-        log2 = AuthLog(
-            user_id="admin-id", event_type="test_event", created_at=now - timedelta(days=2)
-        )
+        log1 = AuthLog(user_id="admin-id", event_type="test_event", created_at=now - timedelta(days=5))
+        log2 = AuthLog(user_id="admin-id", event_type="test_event", created_at=now - timedelta(days=2))
         log3 = AuthLog(user_id="admin-id", event_type="test_event", created_at=now)
         db.add_all([log1, log2, log3])
         db.commit()
@@ -213,9 +207,7 @@ class TestAdminLogs(unittest.TestCase):
         self.assertEqual(response.json()["total"], 2)  # log1, log2
 
         # 4. 用區間查詢
-        response = self.client.get(
-            f"/api/admin/logs?start_date={three_days_ago}&end_date={one_day_ago}"
-        )
+        response = self.client.get(f"/api/admin/logs?start_date={three_days_ago}&end_date={one_day_ago}")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["total"], 1)  # log2
 

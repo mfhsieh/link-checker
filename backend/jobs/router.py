@@ -17,7 +17,7 @@
 - GET    /api/jobs/{id}/results/export    — 匯出 CSV / JSON
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,too-many-lines
 
 import csv
 import io
@@ -51,8 +51,8 @@ from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
     merge_and_validate_crawler_config,
 )
-from crawler.manager import JobManager
 from crawler.exporter import _sanitize_csv_value
+from crawler.manager import JobManager
 from crawler.models import Job
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -226,7 +226,7 @@ def get_default_config(
                 data = yaml.safe_load(f)
                 if data and "crawler" in data:
                     crawler_config = data["crawler"]
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, yaml.YAMLError) as e:
             logger.warning("讀取全域設定檔失敗: %s", e)
 
     # 僅提取前端有使用到的欄位，過濾掉不需要暴露的敏感或內部配置

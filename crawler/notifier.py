@@ -8,8 +8,10 @@
 # pylint: disable=unsubscriptable-object
 
 import logging
+import smtplib
 
-from sqlalchemy.orm import sessionmaker, Session
+import sqlalchemy.exc
+from sqlalchemy.orm import Session, sessionmaker
 
 from crawler.models import ExternalLink, Job
 
@@ -64,7 +66,7 @@ def send_job_status_notification(session_factory: sessionmaker[Session], job_id:
                     )
                     return
                 to_email = user.email
-        except Exception as ex:  # pylint: disable=broad-exception-caught
+        except sqlalchemy.exc.SQLAlchemyError as ex:
             logger.error(
                 "[Email Notification] 自 Auth DB 查詢使用者 %s 的信箱時發生錯誤: %s",
                 user_id,
@@ -74,8 +76,7 @@ def send_job_status_notification(session_factory: sessionmaker[Session], job_id:
 
         # 統計外部連結狀態
         dead_count = (
-            session
-            .query(ExternalLink)
+            session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
                 (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
@@ -83,8 +84,7 @@ def send_job_status_notification(session_factory: sessionmaker[Session], job_id:
             .count()
         )
         broken_count = (
-            session
-            .query(ExternalLink)
+            session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
                 (ExternalLink.http_status_code >= 400)
@@ -135,5 +135,5 @@ def send_job_status_notification(session_factory: sessionmaker[Session], job_id:
 
         try:
             send_notification_email(to_email, subject, plain_text, html_body)
-        except Exception as ex:  # pylint: disable=broad-exception-caught
+        except smtplib.SMTPException as ex:
             logger.error("[Email Notification] 寄送任務通知信失敗: %s", ex)

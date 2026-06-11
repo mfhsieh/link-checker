@@ -9,8 +9,8 @@ import socket
 import sqlite3
 import subprocess
 import sys
-import zipfile
 import time
+import zipfile
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

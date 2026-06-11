@@ -19,7 +19,8 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session as DBSession  # pylint: disable=unused-import
 
 from backend.auth.db import get_auth_session_local  # pylint: disable=unused-import
-from backend.auth.models import Session as AuthSession, User
+from backend.auth.models import Session as AuthSession
+from backend.auth.models import User
 from backend.config import get_settings
 from crawler.manager import JobManager
 
