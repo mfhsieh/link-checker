@@ -6,7 +6,6 @@ Auth DB 的資料庫連線設定。
 """
 
 import os
-
 from collections.abc import Callable
 
 from sqlalchemy import Engine, create_engine, event

@@ -9,7 +9,6 @@ import copy
 import json
 import logging
 import os
-import re
 from datetime import datetime
 
 import yaml
@@ -28,7 +27,11 @@ from backend.deps import (
     require_csrf,
 )
 from backend.email_sender import send_test_email
-from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
+from crawler.config_utils import (
+    DEFAULT_GLOBAL_CONFIG,
+    validate_domain_delays,
+    validate_ignore_regexes,
+)
 from crawler.manager import JobManager
 from crawler.models import Job
 
@@ -159,6 +162,12 @@ class CrawlerConfigUpdate(BaseModel):
     def clean_string_lists(cls, v: list[str] | None) -> list[str] | None:
         """
         移除清單中的前後空白與空字串。
+
+        Args:
+            v (list[str] | None): 原始字串列表。
+
+        Returns:
+            list[str] | None: 清理後的字串列表。
         """
         if v is not None:
             return [item.strip() for item in v if item.strip()]
@@ -179,20 +188,15 @@ class CrawlerConfigUpdate(BaseModel):
         Raises:
             ValueError: 若有任何正則表達式編譯失敗時拋出。
         """
-        if v is not None:
-            cleaned = [pattern.strip() for pattern in v if pattern.strip()]
-            for pattern in cleaned:
-                try:
-                    re.compile(pattern)
-                except re.error as e:
-                    raise ValueError(f"無效的正則表達式 '{pattern}': {e}") from e
-            return cleaned
-        return v
+        return validate_ignore_regexes(v)
 
     @model_validator(mode="after")
     def validate_min_max_pairs(self) -> "CrawlerConfigUpdate":
         """
         確保各項安全上下限設定的最小值不大於最大值。
+
+        Returns:
+            CrawlerConfigUpdate: 驗證後的模型本身。
         """
         pairs = [
             ("min_timeout", "max_timeout", "逾時時間"),
@@ -223,11 +227,7 @@ class CrawlerConfigUpdate(BaseModel):
         Raises:
             ValueError: 若有任何延遲時間小於 0 時拋出。
         """
-        if v is not None:
-            for domain, delay in v.items():
-                if delay < 0:
-                    raise ValueError(f"網域 {domain} 的延遲時間不可小於 0")
-        return v
+        return validate_domain_delays(v)
 
 
 class UpdateConfigRequest(BaseModel):
@@ -782,14 +782,51 @@ def test_smtp(
 # ── 操作日誌查閱 ───────────────────────────────────────────────────────────────
 
 
+class DateQueryArgs:  # pylint: disable=too-few-public-methods
+    """日期範圍查詢參數。"""
+
+    def __init__(
+        self,
+        start_date: str | None = Query(None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"),
+        end_date: str | None = Query(None, description="結束日期 (YYYY-MM-DD 或 ISO 格式)"),
+    ):
+        self.start_date = start_date
+        self.end_date = end_date
+
+
+class PaginationArgs:  # pylint: disable=too-few-public-methods
+    """分頁查詢參數。"""
+
+    def __init__(
+        self,
+        page: int = Query(1, ge=1),
+        page_size: int = Query(50, ge=1, le=200),
+    ):
+        self.page = page
+        self.page_size = page_size
+
+
+class LogQueryArgs:  # pylint: disable=too-few-public-methods
+    """日誌查詢參數封裝。"""
+
+    def __init__(
+        self,
+        event_type: str | None = Query(None),
+        user_id: str | None = Query(None),
+        dates: DateQueryArgs = Depends(),
+        pagination: PaginationArgs = Depends(),
+    ):
+        self.event_type = event_type
+        self.user_id = user_id
+        self.start_date = dates.start_date
+        self.end_date = dates.end_date
+        self.page = pagination.page
+        self.page_size = pagination.page_size
+
+
 @router.get("/logs", status_code=status.HTTP_200_OK)
-def get_logs(  # pylint: disable=too-many-arguments
-    event_type: str | None = Query(None),
-    user_id: str | None = Query(None),
-    start_date: str | None = Query(None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"),
-    end_date: str | None = Query(None, description="結束日期 (YYYY-MM-DD 或 ISO 格式)"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+def get_logs(
+    query_args: LogQueryArgs = Depends(),
     auth_db: DBSession = Depends(get_auth_db),
     _admin: User = Depends(require_admin),
 ) -> dict[str, object]:
@@ -797,12 +834,7 @@ def get_logs(  # pylint: disable=too-many-arguments
     查閱系統操作日誌（支援事件類型、使用者 ID 及時間範圍篩選）。
 
     Args:
-        event_type (str | None): 欲篩選的事件類型。
-        user_id (str | None): 欲篩選的操作者 ID。
-        start_date (str | None): 開始日期字串。
-        end_date (str | None): 結束日期字串。
-        page (int): 欲查詢的頁碼，預設為 1。
-        page_size (int): 每頁顯示筆數，預設為 50。
+        query_args (LogQueryArgs): 日誌查詢參數。
         auth_db (DBSession): Auth DB Session。
         _admin (User): 當前管理員物件。
 
@@ -811,17 +843,17 @@ def get_logs(  # pylint: disable=too-many-arguments
     """
     query = auth_db.query(AuthLog).order_by(AuthLog.created_at.desc())
 
-    if event_type:
-        query = query.filter(AuthLog.event_type == event_type)
-    if user_id:
-        query = query.filter(AuthLog.user_id == user_id)
+    if query_args.event_type:
+        query = query.filter(AuthLog.event_type == query_args.event_type)
+    if query_args.user_id:
+        query = query.filter(AuthLog.user_id == query_args.user_id)
 
-    if start_date:
+    if query_args.start_date:
         try:
-            if "T" in start_date:
-                start_dt = datetime.fromisoformat(start_date)
+            if "T" in query_args.start_date:
+                start_dt = datetime.fromisoformat(query_args.start_date)
             else:
-                start_dt = datetime.strptime(start_date.strip(), "%Y-%m-%d")
+                start_dt = datetime.strptime(query_args.start_date.strip(), "%Y-%m-%d")
             query = query.filter(AuthLog.created_at >= start_dt)
         except ValueError as e:
             raise HTTPException(
@@ -829,12 +861,12 @@ def get_logs(  # pylint: disable=too-many-arguments
                 detail=f"start_date 格式不正確，需為 YYYY-MM-DD 或 ISO 格式。錯誤: {e}",
             ) from e
 
-    if end_date:
+    if query_args.end_date:
         try:
-            if "T" in end_date:
-                end_dt = datetime.fromisoformat(end_date)
+            if "T" in query_args.end_date:
+                end_dt = datetime.fromisoformat(query_args.end_date)
             else:
-                end_dt = datetime.strptime(end_date.strip(), "%Y-%m-%d").replace(
+                end_dt = datetime.strptime(query_args.end_date.strip(), "%Y-%m-%d").replace(
                     hour=23, minute=59, second=59, microsecond=999999
                 )
             query = query.filter(AuthLog.created_at <= end_dt)
@@ -845,8 +877,8 @@ def get_logs(  # pylint: disable=too-many-arguments
             ) from e
 
     total = query.count()
-    offset = (page - 1) * page_size
-    logs = query.offset(offset).limit(page_size).all()
+    offset = (query_args.page - 1) * query_args.page_size
+    logs = query.offset(offset).limit(query_args.page_size).all()
 
     return {
         "items": [
@@ -861,7 +893,7 @@ def get_logs(  # pylint: disable=too-many-arguments
             for log in logs
         ],
         "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
+        "page": query_args.page,
+        "page_size": query_args.page_size,
+        "total_pages": (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1,
     }

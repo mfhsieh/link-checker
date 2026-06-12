@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from crawler.models import CrawlQueue, ExternalLink, Job
+from crawler.models import CrawlQueue, ExternalLink, Job, apply_job_result_filters
 from crawler.utils import get_domain
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -303,24 +303,7 @@ def _build_export_query(
     """
     query = session.query(ExternalLink).filter(ExternalLink.job_id == job_id)
 
-    if status_filter == "dead":
-        query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
-    elif status_filter == "broken":
-        query = query.filter(
-            (ExternalLink.http_status_code >= 400)
-            | (
-                (ExternalLink.http_status_code.is_(None))
-                & (ExternalLink.ip_address.isnot(None))
-                & (ExternalLink.ip_address != "")
-            )
-        )
-    elif status_filter == "insecure":
-        query = query.filter(ExternalLink.is_secure.is_(False))
-
-    if exclude:
-        excludes = [e.strip() for e in exclude.split(",") if e.strip()]
-        for exc in excludes:
-            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
+    query = apply_job_result_filters(query, exclude=exclude, status_filter=status_filter)
 
     return query.order_by(ExternalLink.created_at).yield_per(2000)
 

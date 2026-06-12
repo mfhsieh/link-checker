@@ -142,7 +142,7 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
 
         logger.info("邀請郵件已成功寄送至 %s", to_email)
         return True
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except (smtplib.SMTPException, OSError) as e:
         logger.error("寄送邀請郵件至 %s 時發生錯誤: %s", to_email, e)
         return False
 
@@ -175,7 +175,7 @@ def send_test_email(to_email: str) -> bool:
 
         logger.info("SMTP 測試郵件已成功寄送至 %s", to_email)
         return True
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except (smtplib.SMTPException, OSError) as e:
         logger.error("SMTP 測試郵件寄送失敗: %s", e)
         return False
 
@@ -221,6 +221,6 @@ def send_notification_email(
 
         logger.info("通知郵件已成功寄送至 %s", to_email)
         return True
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except (smtplib.SMTPException, OSError) as e:
         logger.error("寄送通知郵件至 %s 時發生錯誤: %s", to_email, e)
         return False

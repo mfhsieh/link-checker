@@ -61,16 +61,15 @@ socket.getaddrinfo = _patched_getaddrinfo
 
 @contextmanager
 def dns_override(host: str, ip: str) -> Iterator[None]:
-    """Thread-safe Context Manager，用以強制替換指定網域的 DNS 解析結果。
+    """
+    Thread-safe Context Manager，用以強制替換指定網域的 DNS 解析結果。
 
     Args:
-      host(str): 欲攔截的網域名稱。
-      ip(str): 強制對應的 IP 位址。
-      host: str:
-      ip: str:
+        host (str): 欲攔截的網域名稱。
+        ip (str): 強制對應的 IP 位址。
 
-    Returns:
-
+    Yields:
+        None: 此 Context Manager 不回傳特定值。
     """
     if not hasattr(_dns_override, "overrides"):
         _dns_override.overrides = {}

@@ -49,7 +49,7 @@ if settings.DEBUG:
 
 
 # ── 安全性標頭 (Security Headers) ──────────────────────────────────────────────
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-public-methods
     """
     實作安全性標頭的 Middleware。
     設定 CSP、X-Frame-Options、X-Content-Type-Options 以防禦常見攻擊。

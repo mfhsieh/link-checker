@@ -4,8 +4,48 @@
 
 import logging
 import os
+import re
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+def validate_ignore_regexes(regexes: list[str] | None) -> list[str] | None:
+    """
+    驗證正則表達式列表是否合法。
+
+    Args:
+        regexes (list[str] | None): 原始的正則表達式字串列表。
+
+    Returns:
+        list[str] | None: 去除空白後的正則表達式列表，若輸入為 None 則回傳 None。
+    """
+    if regexes is not None:
+        cleaned = [pattern.strip() for pattern in regexes if pattern.strip()]
+        for pattern in cleaned:
+            try:
+                re.compile(pattern)
+            except re.error as e:
+                raise ValueError(f"無效的正則表達式 '{pattern}': {e}") from e
+        return cleaned
+    return regexes
+
+
+def validate_domain_delays(delays: dict[str, float] | None) -> dict[str, float] | None:
+    """
+    驗證網域延遲時間是否合法。
+
+    Args:
+        delays (dict[str, float] | None): 網域對應的延遲時間字典。
+
+    Returns:
+        dict[str, float] | None: 驗證後的延遲時間字典，若輸入為 None 則回傳 None。
+    """
+    if delays is not None:
+        for domain, delay in delays.items():
+            if delay < 0:
+                raise ValueError(f"網域 {domain} 的延遲時間不可小於 0")
+    return delays
+
 
 DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
     "crawler": {

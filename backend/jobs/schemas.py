@@ -1,0 +1,261 @@
+"""
+任務相關的 Pydantic 模型與 FastAPI 依賴注入類別。
+"""
+
+from dataclasses import dataclass
+
+from fastapi import (
+    Depends,
+    Query,
+)
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from crawler.config_utils import validate_domain_delays, validate_ignore_regexes
+
+
+class CreateJobRequest(BaseModel):
+    """建立任務請求的 Schema。"""
+
+    model_config = {"extra": "forbid"}
+
+    start_url: str
+    target_domains: list[str]
+    trusted_domains: list[str] = []
+    ignore_extensions: list[str] = []
+    ignore_regexes: list[str] = []
+    max_depth: int | None = Field(None, ge=1)
+    max_pages: int | None = Field(None, ge=1)
+    delay: float | None = Field(None, ge=0.0)
+    timeout: int | None = Field(None, ge=1)
+    connect_timeout: float | None = Field(None, ge=1.0)
+    external_check_timeout: float | None = Field(None, ge=1.0)
+    retries: int | None = Field(None, ge=0)
+    proxy_url: str | None = None
+    user_agent: str | None = None
+    ssl_exempt_domains: list[str] = []
+    domain_delays: dict[str, float] | None = None
+
+    @field_validator("start_url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        """
+        驗證 URL 格式。
+
+        Args:
+            v (str): 原始網址字串。
+
+        Returns:
+            str: 驗證後的網址字串。
+
+        Raises:
+            ValueError: 若網址不以 http:// 或 https:// 開頭時拋出。
+        """
+        v = v.strip()
+        if not (v.startswith("http://") or v.startswith("https://")):
+            raise ValueError("起始 URL 必須以 http:// 或 https:// 開頭。")
+        return v
+
+    @field_validator("target_domains")
+    @classmethod
+    def validate_domains(cls, v: list[str]) -> list[str]:
+        """
+        確保至少有一個目標網域。
+
+        Args:
+            v (list[str]): 原始網域列表。
+
+        Returns:
+            list[str]: 驗證後的網域列表。
+
+        Raises:
+            ValueError: 若列表為空時拋出。
+        """
+        cleaned = [d.strip() for d in v if d.strip()]
+        if not cleaned:
+            raise ValueError("至少需要指定一個目標網域。")
+        return cleaned
+
+    @field_validator("trusted_domains", "ssl_exempt_domains", "ignore_extensions")
+    @classmethod
+    def clean_string_lists(cls, v: list[str]) -> list[str]:
+        """
+        移除清單中的前後空白與空字串。
+
+        Args:
+            v (list[str]): 原始字串列表。
+
+        Returns:
+            list[str]: 清理後的字串列表。
+        """
+        return [item.strip() for item in v if item.strip()]
+
+    @field_validator("ignore_regexes")
+    @classmethod
+    def validate_regexes(cls, v: list[str]) -> list[str]:
+        """
+        驗證正則表達式列表是否合法。
+
+        Args:
+            v (list[str]): 欲驗證的正則表達式列表。
+
+        Returns:
+            list[str]: 驗證後的正則表達式列表。
+
+        Raises:
+            ValueError: 若有任何正則表達式編譯失敗時拋出。
+        """
+        return validate_ignore_regexes(v)
+
+    @field_validator("domain_delays")
+    @classmethod
+    def validate_domain_delays(cls, v: dict[str, float] | None) -> dict[str, float] | None:
+        """
+        驗證特定網域延遲時間是否合法。
+
+        Args:
+            v (dict[str, float] | None): 欲驗證的網域延遲時間字典。
+
+        Returns:
+            dict[str, float] | None: 驗證後的網域延遲時間字典。
+
+        Raises:
+            ValueError: 若有任何延遲時間小於 0 時拋出。
+        """
+        return validate_domain_delays(v)
+
+
+class TransferJobRequest(BaseModel):
+    """移交任務請求的 Schema。"""
+
+    model_config = {"extra": "forbid"}
+
+    target_email: EmailStr
+
+    @field_validator("target_email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        """
+        將信箱轉為小寫去空白。
+
+        Args:
+            v (str): 原始信箱字串。
+
+        Returns:
+            str: 格式化後的信箱字串。
+        """
+        return v.strip().lower()
+
+
+class PaginationArgs:  # pylint: disable=too-few-public-methods
+    """分頁查詢參數。"""
+
+    def __init__(
+        self,
+        page: int = Query(1, ge=1),
+        page_size: int = Query(50, ge=1, le=200),
+    ):
+        self.page = page
+        self.page_size = page_size
+
+
+class ResultsFilterArgs:  # pylint: disable=too-few-public-methods
+    """任務結果篩選參數。"""
+
+    def __init__(
+        self,
+        status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure|healthy|all)$"),
+        search: str | None = Query(None),
+        exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
+        group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
+    ):
+        self.status_filter = status_filter
+        self.search = search
+        self.exclude = exclude
+        self.group_by = group_by
+
+
+class ResultsQueryArgs:  # pylint: disable=too-few-public-methods
+    """任務結果查詢參數。"""
+
+    def __init__(
+        self,
+        filters: ResultsFilterArgs = Depends(),
+        pagination: PaginationArgs = Depends(),
+    ) -> None:
+        """
+        初始化結果查詢參數。
+
+        Args:
+            filters (ResultsFilterArgs): 篩選與分組參數。
+            pagination (PaginationArgs): 分頁參數。
+        """
+        self.status_filter = filters.status_filter
+        self.search = filters.search
+        self.exclude = filters.exclude
+        self.group_by = filters.group_by
+        self.page = pagination.page
+        self.page_size = pagination.page_size
+
+
+class ExportQueryArgs:  # pylint: disable=too-few-public-methods
+    """匯出結果查詢參數。"""
+
+    def __init__(
+        self,
+        status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure|healthy|all)$"),
+        exclude: str | None = Query(None),
+        group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
+        fmt: str = Query("csv", pattern="^(csv|json)$"),
+    ) -> None:
+        """
+        初始化匯出查詢參數。
+
+        Args:
+            status_filter (str | None): 狀態過濾條件。
+            exclude (str | None): 要排除的網域。
+            group_by (str): 聚合方式。
+            fmt (str): 輸出格式 (csv 或 json)。
+        """
+        self.status_filter = status_filter
+        self.exclude = exclude
+        self.group_by = group_by
+        self.fmt = fmt
+
+
+class JobCreateConfig:  # pylint: disable=too-few-public-methods
+    """建立任務的設定封裝。"""
+
+    start_url: str
+    target_domains: list[str]
+    trusted_domains: list[str]
+    crawler_config: dict[str, object]
+
+
+@dataclass
+class JobResultQuery:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
+    """查詢任務結果的參數封裝。"""
+
+    job_id: str
+    user_id: str
+    status_filter: str | None = None
+    search: str | None = None
+    exclude: str | None = None
+    group_by: str = "none"
+    page: int = 1
+    page_size: int = 50
+
+    @classmethod
+    def from_query_args(cls, job_id: str, user_id: str, query_args: BaseModel) -> "JobResultQuery":
+        """
+        從 Pydantic 查詢參數建立。
+
+        Args:
+            job_id (str): 任務 ID。
+            user_id (str): 使用者 ID。
+            query_args (BaseModel): FastAPI 接收到的查詢參數模型。
+
+        Returns:
+            JobResultQuery: 建立的查詢封裝物件。
+        """
+        kwargs = query_args.model_dump(exclude_unset=True)
+        return cls(job_id=job_id, user_id=user_id, **kwargs)

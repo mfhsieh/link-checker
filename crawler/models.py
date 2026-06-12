@@ -5,12 +5,14 @@
 以及探索到的外部連結，並採用 SQLAlchemy 2.0 的 Type Hinting 宣告風格。
 """
 
+from __future__ import annotations
+
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, Query, mapped_column, relationship
 
 
 class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
@@ -181,6 +183,7 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
     job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id"), nullable=False)
     source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     target_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     is_secure: Mapped[bool] = mapped_column(default=True)
     http_status_code: Mapped[int | None] = mapped_column(nullable=True)
@@ -188,3 +191,55 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
 
     job: Mapped["Job"] = relationship(back_populates="external_links")
+
+
+def apply_job_result_filters(
+    query: Query,
+    search: str | None = None,
+    exclude: str | None = None,
+    status_filter: str | None = None,
+) -> Query:
+    """
+    套用共用的外連過濾條件。
+
+    Args:
+        query (Query): SQLAlchemy 查詢物件 (基於 ExternalLink)。
+        search (str | None): 搜尋關鍵字。
+        exclude (str | None): 要排除的關鍵字 (以逗號分隔)。
+        status_filter (str | None): 狀態篩選條件。
+
+    Returns:
+        Query: 加上過濾條件後的 SQLAlchemy 查詢物件。
+    """
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            ExternalLink.target_url.like(search_pattern) | ExternalLink.source_url.like(search_pattern)
+        )
+
+    if exclude:
+        excludes = [e.strip() for e in exclude.split(",") if e.strip()]
+        for exc in excludes:
+            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
+
+    if status_filter == "dead":
+        query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
+    elif status_filter == "broken":
+        query = query.filter(
+            (ExternalLink.http_status_code >= 400)
+            | (
+                (ExternalLink.http_status_code.is_(None))
+                & (ExternalLink.ip_address.isnot(None))
+                & (ExternalLink.ip_address != "")
+            )
+        )
+    elif status_filter == "insecure":
+        query = query.filter(ExternalLink.is_secure.is_(False))
+    elif status_filter == "healthy":
+        query = query.filter(
+            (ExternalLink.ip_address.isnot(None))
+            & (ExternalLink.ip_address != "")
+            & (ExternalLink.http_status_code.isnot(None))
+            & (ExternalLink.http_status_code < 400)
+        )
+    return query
