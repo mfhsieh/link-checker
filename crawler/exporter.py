@@ -361,7 +361,7 @@ def export_job_results(
     將指定任務收集到的外部連結匯出為 CSV 或 JSON 格式。
 
     Args:
-        session_factory (sessionmaker[Session]): 資料庫 Session 工廠。
+        session_factory (Callable[[], Session]): 資料庫 Session 工廠。
         job_id (str): 欲匯出結果的任務 ID。
         output_path (str): 匯出檔案的目的地路徑。
         options (ExportOptions | None): (選填) 進階匯出選項。
@@ -501,7 +501,7 @@ def export_full_report(
     匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。
 
     Args:
-        session_factory (sessionmaker[Session]): 資料庫 Session 工廠。
+        session_factory (Callable[[], Session]): 資料庫 Session 工廠。
         job_id (str): 欲匯出完整報表的任務 ID。
         output_path (str): 輸出的 ZIP 檔案路徑。
 

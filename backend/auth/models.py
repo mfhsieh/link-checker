@@ -7,7 +7,6 @@ Auth DB 的 SQLAlchemy ORM 模型。
 - sessions：有效的 Session Token（以雜湊值儲存）
 - auth_logs：身分驗證事件日誌
 
-此模組完全獨立於 crawler/models.py，兩者不得混用同一 Base 或 engine。
 """
 
 import uuid
@@ -17,7 +16,7 @@ from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, UniqueCo
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-class AuthBase(DeclarativeBase):
+class AuthBase(DeclarativeBase):  # pylint: disable=too-few-public-methods
     """Auth DB 所有模型的基底類別（獨立於 Crawler DB 的 Base）。"""
 
 
@@ -31,7 +30,7 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-class User(AuthBase):
+class User(AuthBase):  # pylint: disable=too-few-public-methods
     """
     使用者帳號資料表。
 
@@ -60,7 +59,7 @@ class User(AuthBase):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
-class Invitation(AuthBase):
+class Invitation(AuthBase):  # pylint: disable=too-few-public-methods
     """
     邀請憑證資料表。
 
@@ -90,7 +89,7 @@ class Invitation(AuthBase):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
 
 
-class Session(AuthBase):
+class Session(AuthBase):  # pylint: disable=too-few-public-methods
     """
     Session 資料表。
 
@@ -126,7 +125,7 @@ class Session(AuthBase):
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-class AuthLog(AuthBase):
+class AuthLog(AuthBase):  # pylint: disable=too-few-public-methods
     """
     身分驗證事件日誌資料表。
 

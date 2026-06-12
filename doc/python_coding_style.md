@@ -77,8 +77,6 @@ def stream_pages(urls: list[str]) -> Generator[str, None, None]:
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("發生非預期錯誤: %s", e)
     ```
-    
-* **型別推斷誤判 (False Positives)**：針對 Pylint 尚未完全支援的現代泛型語法（如 `sessionmaker[Session]` 觸發的 `unsubscriptable-object`），允許在模組最上方（Docstring 之後、Import 之前）加上 `# pylint: disable=unsubscriptable-object` 進行全域忽略，以保持滿分標準。
 
 ## 4. 程式碼排版風格 (Ruff Formatter)
 

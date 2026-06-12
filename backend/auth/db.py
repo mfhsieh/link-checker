@@ -7,6 +7,8 @@ Auth DB 的資料庫連線設定。
 
 import os
 
+from collections.abc import Callable
+
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -69,7 +71,7 @@ def _create_auth_engine() -> Engine:
 
 # 模組層級的變數（單例模式）
 _ENGINE: Engine | None = None
-_SESSION_LOCAL: sessionmaker[Session] | None = None  # pylint: disable=unsubscriptable-object
+_SESSION_LOCAL: Callable[[], Session] | None = None
 
 
 def get_auth_engine() -> Engine:
@@ -85,12 +87,12 @@ def get_auth_engine() -> Engine:
     return _ENGINE
 
 
-def get_auth_session_local() -> sessionmaker[Session]:  # pylint: disable=unsubscriptable-object
+def get_auth_session_local() -> Callable[[], Session]:
     """
     取得 Auth DB SessionLocal 的單例。
 
     Returns:
-        sessionmaker[Session]: SessionLocal 工廠。
+        Callable[[], Session]: SessionLocal 工廠。
     """
     global _SESSION_LOCAL  # pylint: disable=global-statement
     if _SESSION_LOCAL is None:

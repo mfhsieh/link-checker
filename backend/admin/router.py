@@ -5,8 +5,6 @@
 使用者管理、任務監控、全域配置、SMTP 測試、操作日誌查閱。
 """
 
-# pylint: disable=too-many-lines
-
 import copy
 import json
 import logging
@@ -785,7 +783,7 @@ def test_smtp(
 
 
 @router.get("/logs", status_code=status.HTTP_200_OK)
-def get_logs(
+def get_logs(  # pylint: disable=too-many-arguments
     event_type: str | None = Query(None),
     user_id: str | None = Query(None),
     start_date: str | None = Query(None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"),
