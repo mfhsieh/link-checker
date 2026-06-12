@@ -5,7 +5,7 @@
 使用者管理、任務監控、全域配置、SMTP 測試、操作日誌查閱。
 """
 
-# pylint: disable=duplicate-code
+# pylint: disable=too-many-lines
 
 import copy
 import json
@@ -643,7 +643,7 @@ def get_config(
         with open(config_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
             return data if data else DEFAULT_GLOBAL_CONFIG
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"讀取設定檔失敗: {e}",
@@ -718,7 +718,7 @@ def update_config(
         auth_db.commit()
 
         return {"message": "全域配置已更新。"}
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"寫入設定檔失敗: {e}",
@@ -811,7 +811,6 @@ def get_logs(
     Returns:
         dict[str, object]: 包含日誌項目列表與分頁資訊的字典。
     """
-    # pylint: disable=too-many-arguments
     query = auth_db.query(AuthLog).order_by(AuthLog.created_at.desc())
 
     if event_type:

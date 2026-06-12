@@ -76,8 +76,9 @@ def run_test() -> None:
     # 1. 執行 Unit Test 驗證雙 Client 網域 SSL 豁免機制
     print("\nRunning Unit Test: SSL Exempt Domains Client Check...")
     from crawler.core import CrawlerCore
+    from crawler.models import CrawlerConfig
 
-    crawler_instance = CrawlerCore(ssl_exempt_domains=["badssl.com", "self-signed.org"])
+    crawler_instance = CrawlerCore(config=CrawlerConfig(ssl_exempt_domains=["badssl.com", "self-signed.org"]))
     client_normal = crawler_instance._get_client("https://www.google.com")
     client_exempt = crawler_instance._get_client("https://badssl.com/index.html")
     client_exempt2 = crawler_instance._get_client("https://sub.self-signed.org/test")
@@ -90,7 +91,7 @@ def run_test() -> None:
 
     # 2. 執行 Unit Test 驗證 domain_delays 匹配邏輯
     print("\nRunning Unit Test: Domain Delays Matching...")
-    from crawler.manager import _get_domain_delay
+    from crawler.runner import _get_domain_delay
 
     domain_delays = {"example.com": 5.0, "sub.example.com": 10.0}
     assert _get_domain_delay("http://example.com/a", domain_delays, 3.0) == 5.0
@@ -184,6 +185,9 @@ crawler:
   timeout: 30
 """)
 
+        # Allow local IPs for testing SSRF bypass
+        os.environ["CRAWLER_ALLOW_LOCAL_IPS"] = "true"
+
         crawler_cmd = [sys.executable, "cli.py", "-c", YAML_CONFIG]
         print(f"Running Crawler: {' '.join(crawler_cmd)}")
         crawler_proc = subprocess.run(crawler_cmd, capture_output=True, text=True)
@@ -240,7 +244,7 @@ crawler:
         google_url = "https://www.google.com"
         assert google_url in ext_dict, "Google link not found in DB"
         assert ext_dict[google_url]["status_code"] == 200, (
-            f"Google status code should be 200, got {ext_dict[google_url]['status_code']}"
+            f"Google status code should be 200, got {ext_dict[google_url]['status_code']}. Error: {ext_dict[google_url]['error']}"
         )
         assert ext_dict[google_url]["ip"] is not None, "Google IP should not be None"
         assert ext_dict[google_url]["is_secure"] == 1, "Google is_secure should be 1 (True)"

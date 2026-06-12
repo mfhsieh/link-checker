@@ -10,14 +10,16 @@ import logging
 import os
 import random
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 
 import httpx
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from crawler.core import CrawlerCore
-from crawler.models import Base, CrawlQueue, ExternalLink, Job
+from crawler.models import Base, CrawlQueue, ExternalLink, Job, CrawlerConfig
 from crawler.notifier import send_job_status_notification
 from crawler.utils import (
     get_domain,
@@ -63,13 +65,22 @@ def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
+@dataclass
+class JobCreateOptions:
+    """任務建立選項。"""
+    start_url: str
+    target_domains: list[str]
+    trusted_domains: list[str]
+    crawler_config: dict[str, object] | None = None
+    user_id: str | None = None
+
 class JobManager:
     """
     負責在資料庫中管理爬蟲任務與佇列狀態的管理器。
 
     Attributes:
         engine (Engine): SQLAlchemy 的資料庫引擎物件。
-        SessionLocal (sessionmaker): 用來建立新 SQLAlchemy Session 的工廠 (Factory)。
+        session_factory (Callable[[], Session]): 用來建立新 SQLAlchemy Session 的工廠 (Factory)。
     """
 
     def __init__(self, db_url: str = "sqlite:///db/crawler.db") -> None:
@@ -110,39 +121,29 @@ class JobManager:
                 cursor.close()
 
         Base.metadata.create_all(self.engine)
-        # pylint: disable=invalid-name, unsubscriptable-object
-        self.SessionLocal: sessionmaker[Session] = sessionmaker(bind=self.engine)
+        self.session_factory: Callable[[], Session] = sessionmaker(bind=self.engine)
 
-    # pylint: disable=too-many-arguments
     def create_job(
         self,
-        start_url: str,
-        target_domains: list[str],
-        trusted_domains: list[str],
-        crawler_config: dict[str, object] | None = None,
-        user_id: str | None = None,
+        options: JobCreateOptions,
     ) -> str:
         """
         建立一個全新的爬蟲任務，並將起始網址加入到佇列中。
 
         Args:
-            start_url (str): 準備進行爬取的起始網址。
-            target_domains (list[str]): 允許爬蟲深入遍歷的網域陣列。
-            trusted_domains (list[str]): 被視為信任網站的網域陣列。
-            crawler_config (dict[str, object] | None): (選填) 要寫入資料庫鎖定的爬蟲設定。
-            user_id (str | None): (選填) 該任務的擁有者 ID。
+            options (JobCreateOptions): 任務建立的設定選項。
 
         Returns:
             str: 新建立任務的 ID。
         """
-        config_str: str | None = json.dumps(crawler_config) if crawler_config is not None else None
+        config_str: str | None = json.dumps(options.crawler_config) if options.crawler_config is not None else None
 
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job: Job = Job(
-                user_id=user_id,
-                start_url=start_url,
-                target_domains=",".join(target_domains),
-                trusted_domains=",".join(trusted_domains),
+                user_id=options.user_id,
+                start_url=options.start_url,
+                target_domains=",".join(options.target_domains),
+                trusted_domains=",".join(options.trusted_domains),
                 status="pending",
                 config_json=config_str,
             )
@@ -151,7 +152,7 @@ class JobManager:
 
             # 將起始網址加入佇列
             queue_item: CrawlQueue = CrawlQueue(
-                job_id=job.id, url=start_url, source_url=None, status="pending", depth=0
+                job_id=job.id, url=options.start_url, source_url=None, status="pending", depth=0
             )
             session.add(queue_item)
             session.commit()
@@ -168,7 +169,7 @@ class JobManager:
         Returns:
             Job | None: 若找到對應的任務物件則回傳，否則回傳 None。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
             if job:
                 session.expunge(job)
@@ -190,7 +191,7 @@ class JobManager:
             force (bool): 是否強制接管卡在 running 狀態的任務。
         """
         max_workers = int(os.environ.get("CRAWLER_MAX_WORKERS", "5"))
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job: Job | None = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
@@ -272,7 +273,7 @@ class JobManager:
             crawler = None
             try:
                 # 建立爬蟲核心實例 (傳入包含 max_redirects 的完整設定)
-                crawler = CrawlerCore(
+                crawler_config = CrawlerConfig(
                     timeout=timeout,
                     connect_timeout=connect_timeout,
                     external_check_timeout=external_check_timeout,
@@ -286,6 +287,7 @@ class JobManager:
                     max_redirects=max_redirects,
                     social_domains=social_domains,
                 )
+                crawler = CrawlerCore(config=crawler_config)
 
                 while True:
                     # 協同暫停檢查：確認任務狀態是否在外部被更改
@@ -306,7 +308,7 @@ class JobManager:
                         )
                         job.status = "completed"
                         session.commit()
-                        send_job_status_notification(self.SessionLocal, job_id, "completed")
+                        send_job_status_notification(self.session_factory, job_id, "completed")
                         break
 
                     # 從佇列中取得下一個等待處理的網址，依據 ID 排序以保障 FIFO 的 BFS 順序
@@ -321,7 +323,7 @@ class JobManager:
                         logger.info("任務 %s 已無等待中的網址。任務完成。", job_id)
                         job.status = "completed"
                         session.commit()
-                        send_job_status_notification(self.SessionLocal, job_id, "completed")
+                        send_job_status_notification(self.session_factory, job_id, "completed")
                         break
 
                     current_url: str = queue_item.url
@@ -561,7 +563,7 @@ class JobManager:
                 if job:
                     job.status = "error"
                     session.commit()
-                    send_job_status_notification(self.SessionLocal, job_id, "error")
+                    send_job_status_notification(self.session_factory, job_id, "error")
             finally:
                 executor.shutdown(wait=True)
                 if crawler:
@@ -578,7 +580,7 @@ class JobManager:
         Returns:
             list[dict[str, object]]: 包含任務基本資訊的字典陣列。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             query = session.query(Job)
             if user_id:
                 query = query.filter(Job.user_id == user_id)
@@ -606,7 +608,7 @@ class JobManager:
         Returns:
             dict[str, object] | None: 任務的詳細統計資料。若任務不存在則回傳 None。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 return None
@@ -655,7 +657,7 @@ class JobManager:
         Returns:
             bool: 成功暫停回傳 True，否則回傳 False。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
@@ -677,7 +679,7 @@ class JobManager:
         Returns:
             bool: 成功刪除回傳 True，若任務不存在則回傳 False。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
@@ -697,7 +699,7 @@ class JobManager:
         Returns:
             bool: 成功回傳 True。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
@@ -706,7 +708,7 @@ class JobManager:
                 logger.error("任務 %s 被標記為異常: %s", job_id, error_msg)
                 job.status = "error"
                 session.commit()
-                send_job_status_notification(self.SessionLocal, job_id, "error")
+                send_job_status_notification(self.session_factory, job_id, "error")
             return True
 
     def transfer_job(self, job_id: str, new_user_id: str) -> bool:
@@ -720,7 +722,7 @@ class JobManager:
         Returns:
             bool: 成功移交回傳 True，若任務不存在則回傳 False。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
@@ -739,7 +741,7 @@ class JobManager:
         Returns:
             bool: 成功重設回傳 True，若任務不存在則回傳 False。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
@@ -787,7 +789,7 @@ class JobManager:
         Returns:
             bool: 成功發出重試指令回傳 True，若無法重試則回傳 False。
         """
-        with self.SessionLocal() as session:
+        with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)

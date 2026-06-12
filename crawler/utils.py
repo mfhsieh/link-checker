@@ -68,7 +68,7 @@ def resolve_ip(domain: str) -> str | None:
     except socket.gaierror:
         logger.warning("無法解析此網域的 IP 位址: %s", domain)
         return None
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except OSError as e:
         logger.error("解析 %s IP 時發生未預期錯誤: %s", domain, e)
         return None
 

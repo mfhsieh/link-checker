@@ -11,7 +11,7 @@
 - 暫停透過更新 DB 狀態為 paused 觸發（爬蟲迴圈偵測後安全終止）
 """
 
-# pylint: disable=too-many-lines,too-many-branches,too-many-statements
+# pylint: disable=too-many-lines
 
 import json
 import logging
@@ -27,7 +27,7 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session as DBSession
 
 from crawler.exporter import format_crawl_queue_item
-from crawler.manager import JobManager
+from crawler.manager import JobManager, JobCreateOptions
 from crawler.models import CrawlQueue, ExternalLink, Job
 from crawler.utils import (
     get_domain,
@@ -197,8 +197,6 @@ class JobCreateConfig:
 class JobResultQuery:
     """查詢任務結果的參數封裝。"""
 
-    # pylint: disable=too-many-instance-attributes
-
     job_id: str
     user_id: str
     status_filter: str | None = None
@@ -225,13 +223,13 @@ def create_job(
     Returns:
         str: 建立成功的任務 ID。
     """
-    job_id = manager.create_job(
+    job_id = manager.create_job(JobCreateOptions(
         start_url=config.start_url,
         target_domains=config.target_domains,
         trusted_domains=config.trusted_domains,
         crawler_config=config.crawler_config,
         user_id=user_id,
-    )
+    ))
     logger.info("使用者 %s 建立新任務 %s，起始 URL: %s", user_id, job_id, config.start_url)
     return job_id
 
@@ -270,7 +268,7 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     cli_path = os.path.join(PROJECT_ROOT, "cli.py")
 
     try:
-        proc = subprocess.Popen(  # pylint: disable=consider-using-with
+        proc = subprocess.Popen(
             [sys.executable, cli_path, "--resume", job_id],
             cwd=PROJECT_ROOT,
             stdout=subprocess.DEVNULL,
@@ -281,7 +279,7 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         _write_pid(job_id, proc.pid)
         logger.info("任務 %s 已啟動（PID: %d）", job_id, proc.pid)
         return True
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         logger.error("啟動任務 %s 失敗: %s", job_id, e)
         raise ValueError(f"啟動爬蟲子程序時發生錯誤: {e}") from e
 
@@ -576,14 +574,12 @@ def _group_by_domain(links: list[ExternalLink]) -> list[dict[str, object]]:
 
     result = []
     for v in agg.values():
-        result.append(
-            {
-                "domain": v["domain"],
-                "occurrence_count": v["occurrence_count"],
-                "unique_urls_count": len(v["unique_urls"]),
-                "unique_urls": sorted(list(v["unique_urls"])),
-            }
-        )
+        result.append({
+            "domain": v["domain"],
+            "occurrence_count": v["occurrence_count"],
+            "unique_urls_count": len(v["unique_urls"]),
+            "unique_urls": sorted(list(v["unique_urls"])),
+        })
     # 依出現次數降冪排序
     result.sort(key=lambda x: x["occurrence_count"], reverse=True)
     return result
@@ -616,14 +612,12 @@ def _group_by_source(links: list[ExternalLink]) -> list[dict[str, object]]:
             if lnk.http_status_code is not None
             else ("DNS Failed" if not lnk.ip_address else "Error")
         )
-        d["targets"].append(
-            {
-                "url": lnk.target_url,
-                "status": status_str,
-                "is_secure": lnk.is_secure,
-                "error_message": lnk.error_message,
-            }
-        )
+        d["targets"].append({
+            "url": lnk.target_url,
+            "status": status_str,
+            "is_secure": lnk.is_secure,
+            "error_message": lnk.error_message,
+        })
 
     return [{**v} for v in agg.values()]
 
@@ -758,7 +752,6 @@ def get_results_summary(
     Raises:
         ValueError: 找不到任務或無權限存取時拋出。
     """
-    # pylint: disable=too-many-locals,too-many-branches
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
@@ -769,9 +762,8 @@ def get_results_summary(
 
     if group_by == "none":
         # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
-        # pylint: disable=not-callable
         query = db.query(
-            func.count(ExternalLink.id).label("total"),
+            func.count(ExternalLink.id).label("total"),  # pylint: disable=not-callable
             func.sum(
                 case(
                     (
@@ -804,7 +796,6 @@ def get_results_summary(
                 query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
 
         stats = query.first()
-        # pylint: enable=not-callable
 
         total_external = int(stats.total) if stats and stats.total else 0
         dns_failed = int(stats.dns_failed) if stats and stats.dns_failed else 0
@@ -902,7 +893,7 @@ def _build_target_dict_for_diff(db: DBSession, job_id: str, exclude: str | None 
     cursor = query.yield_per(2000)
     for lnk in cursor:
         d = agg[lnk.target_url]
-        d["sources"].add(lnk.source_url)  # pylint: disable=no-member
+        d["sources"].add(lnk.source_url)
         d["is_secure"] = d["is_secure"] and lnk.is_secure
         if not d["ip"] and lnk.ip_address:
             d["ip"] = lnk.ip_address
@@ -936,7 +927,6 @@ def get_job_diff(
     Raises:
         ValueError: 找不到任務或無權限存取時拋出。
     """
-    # pylint: disable=too-many-locals
     job_a = db.query(Job).filter(Job.id == base_job_id).first()
     job_b = db.query(Job).filter(Job.id == compare_job_id).first()
 
@@ -979,21 +969,18 @@ def get_job_diff(
             return True
         return False
 
-    # pylint: disable=not-an-iterable
     for url in common_urls:
         item_a = dict_a[url]
         item_b = dict_b[url]
 
         # 1. IP Changed
         if item_a["ip"] and item_b["ip"] and item_a["ip"] != item_b["ip"]:
-            ip_changed.append(
-                {
-                    "target_url": url,
-                    "old_ip": item_a["ip"],
-                    "new_ip": item_b["ip"],
-                    "sources": sorted(list(item_b["sources"])),
-                }
-            )
+            ip_changed.append({
+                "target_url": url,
+                "old_ip": item_a["ip"],
+                "new_ip": item_b["ip"],
+                "sources": sorted(list(item_b["sources"])),
+            })
 
         # 2. Security Downgraded
         if item_a["is_secure"] and not item_b["is_secure"]:
@@ -1004,53 +991,45 @@ def get_job_diff(
         b_bad = is_bad(item_b)
 
         if not a_bad and b_bad:
-            degraded.append(
-                {
-                    "target_url": url,
-                    "old_status": item_a["status_code"],
-                    "old_error": item_a["error"],
-                    "new_status": item_b["status_code"],
-                    "new_error": item_b["error"],
-                    "sources": sorted(list(item_b["sources"])),
-                }
-            )
+            degraded.append({
+                "target_url": url,
+                "old_status": item_a["status_code"],
+                "old_error": item_a["error"],
+                "new_status": item_b["status_code"],
+                "new_error": item_b["error"],
+                "sources": sorted(list(item_b["sources"])),
+            })
         elif a_bad and not b_bad:
-            recovered.append(
-                {
-                    "target_url": url,
-                    "old_status": item_a["status_code"],
-                    "old_error": item_a["error"],
-                    "new_status": item_b["status_code"],
-                    "new_error": item_b["error"],
-                    "sources": sorted(list(item_b["sources"])),
-                }
-            )
+            recovered.append({
+                "target_url": url,
+                "old_status": item_a["status_code"],
+                "old_error": item_a["error"],
+                "new_status": item_b["status_code"],
+                "new_error": item_b["error"],
+                "sources": sorted(list(item_b["sources"])),
+            })
 
     new_links = []
     for url in added_urls:
         item = dict_b[url]
-        new_links.append(
-            {
-                "target_url": url,
-                "ip": item["ip"],
-                "status_code": item["status_code"],
-                "error": item["error"],
-                "sources": sorted(list(item["sources"])),
-            }
-        )
+        new_links.append({
+            "target_url": url,
+            "ip": item["ip"],
+            "status_code": item["status_code"],
+            "error": item["error"],
+            "sources": sorted(list(item["sources"])),
+        })
 
     removed_links = []
     for url in removed_urls:
         item = dict_a[url]
-        removed_links.append(
-            {
-                "target_url": url,
-                "old_ip": item["ip"],
-                "old_status_code": item["status_code"],
-                "old_error": item["error"],
-                "sources": sorted(list(item["sources"])),
-            }
-        )
+        removed_links.append({
+            "target_url": url,
+            "old_ip": item["ip"],
+            "old_status_code": item["status_code"],
+            "old_error": item["error"],
+            "sources": sorted(list(item["sources"])),
+        })
 
     return {
         "base_job": {"id": job_a.id, "created_at": job_a.created_at.isoformat()},
@@ -1088,7 +1067,6 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[di
     Raises:
         ValueError: 無權限存取此任務。
     """
-    # pylint: disable=too-many-branches
     job = db.query(Job).filter(Job.id == query_args.job_id).first()
     if not job or job.user_id != query_args.user_id:
         raise ValueError("無權限存取此任務。")
@@ -1180,14 +1158,12 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[di
 
         result = []
         for v in agg.values():
-            result.append(
-                {
-                    "domain": v["domain"],
-                    "occurrence_count": v["occurrence_count"],
-                    "unique_urls_count": len(v["unique_urls"]),
-                    "unique_urls": sorted(list(v["unique_urls"])),
-                }
-            )
+            result.append({
+                "domain": v["domain"],
+                "occurrence_count": v["occurrence_count"],
+                "unique_urls_count": len(v["unique_urls"]),
+                "unique_urls": sorted(list(v["unique_urls"])),
+            })
         result.sort(key=lambda x: x["occurrence_count"], reverse=True)
         yield from result
     elif query_args.group_by == "source":
@@ -1201,14 +1177,12 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[di
                 if lnk.http_status_code is not None
                 else ("DNS Failed" if not lnk.ip_address else "Error")
             )
-            d["targets"].append(
-                {
-                    "url": lnk.target_url,
-                    "status": status_str,
-                    "is_secure": lnk.is_secure,
-                    "error_message": lnk.error_message,
-                }
-            )
+            d["targets"].append({
+                "url": lnk.target_url,
+                "status": status_str,
+                "is_secure": lnk.is_secure,
+                "error_message": lnk.error_message,
+            })
         yield from agg.values()
 
 

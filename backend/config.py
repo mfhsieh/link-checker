@@ -22,7 +22,7 @@ class Settings:
     機密項目（如 SMTP_PASSWORD）在生產環境中必須透過環境變數提供。
     """
 
-    # pylint: disable=invalid-name,too-many-instance-attributes,too-few-public-methods
+    # pylint: disable=invalid-name
     def __init__(self) -> None:
         """初始化應用程式設定，並從環境變數載入數值。"""
         # ── 應用程式基本設定 ────────────────────────────────────────────────────────

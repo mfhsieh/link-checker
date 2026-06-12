@@ -4,16 +4,15 @@
 此模組定義了 SQLAlchemy ORM 模型，用於追蹤 Job、爬取佇列 (Queue)
 以及探索到的外部連結，並採用 SQLAlchemy 2.0 的 Type Hinting 宣告風格。
 """
-# pylint: disable=unsubscriptable-object
 
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-# pylint: disable=too-few-public-methods
 class Base(DeclarativeBase):
     """所有 SQLAlchemy 宣告式模型的基底類別 (Base Class)。"""
 
@@ -28,6 +27,54 @@ def get_utc_now() -> datetime:
         datetime: 不含時區的當前 UTC 時間物件。
     """
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+@dataclass
+class CrawlerConfig:
+    """爬蟲引擎的全域與進階配置物件。"""
+
+    timeout: int = 30
+    connect_timeout: float = 5.0
+    external_check_timeout: float = 10.0
+    ignore_extensions: list[str] = field(default_factory=lambda: [".pdf", ".jpg", ".png", ".gif", ".mp4", ".zip"])
+    mime_type_filter: dict[str, object] = field(
+        default_factory=lambda: {"enabled": True, "allowed_types": ["text/html", "application/xhtml+xml"]}
+    )
+    ignore_regexes: list[str] = field(default_factory=list)
+    user_agent: str | None = None
+    ssl_exempt_domains: list[str] = field(default_factory=list)
+    proxy_url: str | None = None
+    max_content_length: int = 10485760
+    max_redirects: int = 10
+    social_domains: list[str] = field(
+        default_factory=lambda: [
+            "facebook.com",
+            "fb.com",
+            "youtube.com",
+            "instagram.com",
+            "twitter.com",
+            "linkedin.com",
+        ]
+    )
+
+    def __post_init__(self) -> None:
+        if self.ignore_extensions is None:
+            self.ignore_extensions = [".pdf", ".jpg", ".png", ".gif", ".mp4", ".zip"]
+        if self.mime_type_filter is None:
+            self.mime_type_filter = {"enabled": True, "allowed_types": ["text/html", "application/xhtml+xml"]}
+        if self.ignore_regexes is None:
+            self.ignore_regexes = []
+        if self.ssl_exempt_domains is None:
+            self.ssl_exempt_domains = []
+        if self.social_domains is None:
+            self.social_domains = [
+                "facebook.com",
+                "fb.com",
+                "youtube.com",
+                "instagram.com",
+                "twitter.com",
+                "linkedin.com",
+            ]
 
 
 class Job(Base):

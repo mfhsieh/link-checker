@@ -25,8 +25,8 @@ load_dotenv()
 # pylint: disable=wrong-import-position
 # isort: off
 from crawler.config_utils import merge_and_validate_crawler_config  # noqa: E402
-from crawler.exporter import export_full_report, export_job_results  # noqa: E402
-from crawler.manager import JobManager  # noqa: E402
+from crawler.exporter import export_full_report, export_job_results, ExportOptions  # noqa: E402
+from crawler.manager import JobManager, JobCreateOptions  # noqa: E402
 # isort: on
 
 # 設定初始的 logging，只輸出到畫面，確保 setup_logging 呼叫前的錯誤能被顯示
@@ -409,12 +409,14 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     group_by = "target" if args.group else args.group_by
     logging.info("準備將任務 %s 匯出至 %s...", args.export, output_path)
     success = export_job_results(
-        manager.SessionLocal,
+        manager.session_factory,
         job_id=args.export,
         output_path=output_path,
-        status_filter=args.filter,
-        group_by=group_by,
-        exclude=args.exclude,
+        options=ExportOptions(
+            status_filter=args.filter,
+            group_by=group_by,
+            exclude=args.exclude,
+        ),
     )
     if success:
         logging.info("匯出成功！")
@@ -434,7 +436,7 @@ def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
     if not output_path.endswith(".zip"):
         output_path += ".zip"
     logging.info("準備將任務 %s 的完整報表匯出至 %s...", args.export_full, output_path)
-    success = export_full_report(manager.SessionLocal, args.export_full, output_path)
+    success = export_full_report(manager.session_factory, args.export_full, output_path)
     if success:
         logging.info("匯出成功！")
     else:
@@ -561,13 +563,13 @@ def _handle_resume_or_create(manager: JobManager, args: argparse.Namespace, glob
             sys.exit(1)
 
         logging.info("準備建立新任務...")
-        job_id: str = manager.create_job(
-            start_url,
-            target_domains,
-            trusted_domains,
+        job_id: str = manager.create_job(JobCreateOptions(
+            start_url=start_url,
+            target_domains=target_domains,
+            trusted_domains=trusted_domains,
             crawler_config=crawler_config,
             user_id=args.user_id,
-        )
+        ))
         logging.info("成功建立任務 %s。爬蟲啟動中...", job_id)
         manager.run_job(job_id, crawler_config=crawler_config)
     except Exception as e:  # pylint: disable=broad-exception-caught

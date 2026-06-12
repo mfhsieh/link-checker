@@ -5,8 +5,6 @@ Auth DB 的資料庫連線設定。
 與爬蟲資料庫（Crawler DB）完全分離，不共用連線池或 Session。
 """
 
-# pylint: disable=unsubscriptable-object
-
 import os
 
 from sqlalchemy import Engine, create_engine, event
@@ -71,7 +69,7 @@ def _create_auth_engine() -> Engine:
 
 # 模組層級的變數（單例模式）
 _ENGINE: Engine | None = None
-_SESSION_LOCAL: sessionmaker[Session] | None = None
+_SESSION_LOCAL: sessionmaker[Session] | None = None  # pylint: disable=unsubscriptable-object
 
 
 def get_auth_engine() -> Engine:
@@ -87,7 +85,7 @@ def get_auth_engine() -> Engine:
     return _ENGINE
 
 
-def get_auth_session_local() -> sessionmaker[Session]:
+def get_auth_session_local() -> sessionmaker[Session]:  # pylint: disable=unsubscriptable-object
     """
     取得 Auth DB SessionLocal 的單例。
 

@@ -4,9 +4,6 @@
 負責處理資料聚合、CSV/JSON 格式化、以及完整任務報表的 ZIP 匯出。
 """
 
-# pylint: disable=unsubscriptable-object
-# pylint: disable=duplicate-code
-
 import csv
 import io
 import json
@@ -14,14 +11,23 @@ import logging
 import os
 import zipfile
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
 from crawler.models import CrawlQueue, ExternalLink, Job
 from crawler.utils import get_domain
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ExportOptions:
+    """匯出結果的進階選項"""
+    status_filter: str | None = None
+    group_by: str = "none"
+    exclude: str | None = None
 
 
 def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
@@ -124,29 +130,25 @@ def _aggregate_by_target(
 
     for tgt, d in agg_data.items():
         sources_list = sorted(list(d["sources"]))
-        json_data.append(
-            {
-                "target_url": tgt,
-                "ip_address": d["ip"] if d["ip"] else None,
-                "is_secure": d["is_secure"],
-                "http_status_code": d["status_code"],
-                "error_message": d["error"] if d["error"] else None,
-                "occurrence_count": d["count"],
-                "source_urls": sources_list,
-            }
-        )
+        json_data.append({
+            "target_url": tgt,
+            "ip_address": d["ip"] if d["ip"] else None,
+            "is_secure": d["is_secure"],
+            "http_status_code": d["status_code"],
+            "error_message": d["error"] if d["error"] else None,
+            "occurrence_count": d["count"],
+            "source_urls": sources_list,
+        })
         csv_rows.append(
-            _sanitize_csv_row(
-                [
-                    tgt,
-                    d["ip"],
-                    d["is_secure"],
-                    d["status_code"] if d["status_code"] is not None else "",
-                    d["error"],
-                    d["count"],
-                    ", ".join(sources_list),
-                ]
-            )
+            _sanitize_csv_row([
+                tgt,
+                d["ip"],
+                d["is_secure"],
+                d["status_code"] if d["status_code"] is not None else "",
+                d["error"],
+                d["count"],
+                ", ".join(sources_list),
+            ])
         )
     return json_data, csv_headers, csv_rows
 
@@ -214,14 +216,12 @@ def _aggregate_by_domain(
 
     for dom, d in sorted_domains:
         urls_sorted = sorted(list(d["urls"]))
-        json_data.append(
-            {
-                "domain": dom,
-                "occurrence_count": d["count"],
-                "unique_urls_count": len(d["urls"]),
-                "unique_urls": urls_sorted,
-            }
-        )
+        json_data.append({
+            "domain": dom,
+            "occurrence_count": d["count"],
+            "unique_urls_count": len(d["urls"]),
+            "unique_urls": urls_sorted,
+        })
         urls_str = "\n".join(urls_sorted)
         csv_rows.append(_sanitize_csv_row([dom, d["count"], len(d["urls"]), urls_str]))
 
@@ -253,41 +253,81 @@ def _format_no_grouping(
         "Found At",
     ]
     for link in links:
-        json_data.append(
-            {
-                "source_url": link.source_url,
-                "target_url": link.target_url,
-                "ip_address": link.ip_address if link.ip_address else None,
-                "is_secure": link.is_secure,
-                "http_status_code": link.http_status_code,
-                "error_message": link.error_message if link.error_message else None,
-                "created_at": link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            }
-        )
+        json_data.append({
+            "source_url": link.source_url,
+            "target_url": link.target_url,
+            "ip_address": link.ip_address if link.ip_address else None,
+            "is_secure": link.is_secure,
+            "http_status_code": link.http_status_code,
+            "error_message": link.error_message if link.error_message else None,
+            "created_at": link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        })
         csv_rows.append(
-            _sanitize_csv_row(
-                [
-                    link.source_url,
-                    link.target_url,
-                    link.ip_address if link.ip_address else "",
-                    link.is_secure,
-                    link.http_status_code if link.http_status_code is not None else "",
-                    link.error_message if link.error_message else "",
-                    link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                ]
-            )
+            _sanitize_csv_row([
+                link.source_url,
+                link.target_url,
+                link.ip_address if link.ip_address else "",
+                link.is_secure,
+                link.http_status_code if link.http_status_code is not None else "",
+                link.error_message if link.error_message else "",
+                link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ])
         )
     return json_data, csv_headers, csv_rows
 
 
+def _build_export_query(
+    session: Session, job_id: str, status_filter: str | None, exclude: str | None
+) -> Iterable[ExternalLink]:
+    """建立過濾後的外部連結查詢物件"""
+    query = session.query(ExternalLink).filter(ExternalLink.job_id == job_id)
+
+    if status_filter == "dead":
+        query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
+    elif status_filter == "broken":
+        query = query.filter(
+            (ExternalLink.http_status_code >= 400)
+            | (
+                (ExternalLink.http_status_code.is_(None))
+                & (ExternalLink.ip_address.isnot(None))
+                & (ExternalLink.ip_address != "")
+            )
+        )
+    elif status_filter == "insecure":
+        query = query.filter(ExternalLink.is_secure.is_(False))
+
+    if exclude:
+        excludes = [e.strip() for e in exclude.split(",") if e.strip()]
+        for exc in excludes:
+            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
+
+    return query.order_by(ExternalLink.created_at).yield_per(2000)
+
+
+def _write_export_data(
+    output_path: str, json_data: list[dict], csv_headers: list[str], csv_rows: list[list[object]]
+) -> None:
+    """將聚合後的資料寫入 JSON 或 CSV 檔案中"""
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    is_json = output_path.lower().endswith(".json")
+    if is_json:
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(json_data, f, ensure_ascii=False, indent=2)
+    else:
+        with open(output_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(csv_headers)
+            writer.writerows(csv_rows)
+
+
 def export_job_results(
-    session_factory: sessionmaker[Session],
+    session_factory: Callable[[], Session],
     job_id: str,
     output_path: str,
-    status_filter: str | None = None,
-    export_group: bool = False,
-    group_by: str = "none",
-    exclude: str | None = None,
+    options: ExportOptions | None = None,
 ) -> bool:
     """
     將指定任務收集到的外部連結匯出為 CSV 或 JSON 格式。
@@ -296,53 +336,23 @@ def export_job_results(
         session_factory (sessionmaker[Session]): 資料庫 Session 工廠。
         job_id (str): 欲匯出結果的任務 ID。
         output_path (str): 匯出檔案的目的地路徑。
-        status_filter (str | None): (選填) 'dead', 'broken' 或 'insecure' 的過濾條件。
-        export_group (bool): (已棄用) 向下相容，請改用 group_by="target"。
-        group_by (str): 聚合模式 ("none", "target", "source", "domain")。
-        exclude (str | None): (選填) 排除指定的目標網域，多個以逗號分隔。
+        options (ExportOptions | None): (選填) 進階匯出選項。
 
     Returns:
         bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
     """
-    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
+    options = options or ExportOptions()
+
     with session_factory() as session:
         job = session.query(Job).filter(Job.id == job_id).first()
         if not job:
             logger.error("找不到指定的任務 ID: %s", job_id)
             return False
 
-        query = session.query(ExternalLink).filter(ExternalLink.job_id == job_id)
-
-        if status_filter == "dead":
-            query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
-        elif status_filter == "broken":
-            query = query.filter(
-                (ExternalLink.http_status_code >= 400)
-                | (
-                    (ExternalLink.http_status_code.is_(None))
-                    & (ExternalLink.ip_address.isnot(None))
-                    & (ExternalLink.ip_address != "")
-                )
-            )
-        elif status_filter == "insecure":
-            query = query.filter(ExternalLink.is_secure.is_(False))
-
-        if exclude:
-            excludes = [e.strip() for e in exclude.split(",") if e.strip()]
-            for exc in excludes:
-                query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
-
-        links = query.order_by(ExternalLink.created_at).yield_per(2000)
-
-        output_dir = os.path.dirname(output_path)
-        if output_dir and not os.path.exists(output_dir):
-            os.makedirs(output_dir, exist_ok=True)
-
-        is_json = output_path.lower().endswith(".json")
+        links = _build_export_query(session, job_id, options.status_filter, options.exclude)
 
         try:
-            if export_group and group_by == "none":
-                group_by = "target"
+            group_by = options.group_by
 
             if group_by == "target":
                 json_data, csv_headers, csv_rows = _aggregate_by_target(links)
@@ -353,22 +363,97 @@ def export_job_results(
             else:
                 json_data, csv_headers, csv_rows = _format_no_grouping(links)
 
-            if is_json:
-                with open(output_path, "w", encoding="utf-8") as f:
-                    json.dump(json_data, f, ensure_ascii=False, indent=2)
-            else:
-                with open(output_path, "w", newline="", encoding="utf-8") as f:
-                    writer = csv.writer(f)
-                    writer.writerow(csv_headers)
-                    writer.writerows(csv_rows)
-
+            _write_export_data(output_path, json_data, csv_headers, csv_rows)
             return True
         except OSError as e:
             logger.error("匯出檔案時發生錯誤: %s", e)
             return False
 
 
-def export_full_report(session_factory: sessionmaker[Session], job_id: str, output_path: str) -> bool:
+def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipFile) -> None:
+    """將爬取紀錄寫入 ZIP 壓縮檔中的 CSV"""
+    q_count = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
+    if q_count == 0:
+        return
+
+    q_items = (
+        session.query(CrawlQueue)
+        .filter(CrawlQueue.job_id == job_id)
+        .order_by(CrawlQueue.id)
+        .yield_per(2000)
+    )
+    with zf.open(f"job_{job_id}_crawl_records.csv", "w") as f:
+        with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
+            cq_writer = csv.writer(text_file)
+            cq_writer.writerow([
+                "URL",
+                "Source URL",
+                "Status",
+                "Depth",
+                "Retry Count",
+                "HTTP Status Code",
+                "Error Message",
+                "Created At",
+            ])
+            for q in q_items:
+                d = format_crawl_queue_item(q)
+                cq_writer.writerow(
+                    _sanitize_csv_row([
+                        d["URL"],
+                        d["Source URL"],
+                        d["Status"],
+                        d["Depth"],
+                        d["Retry Count"],
+                        d["HTTP Status Code"],
+                        d["Error Message"],
+                        d["Created At"],
+                    ])
+                )
+
+
+def _export_external_links_to_zip(session: Session, job_id: str, zf: zipfile.ZipFile) -> None:
+    """將外部連結寫入 ZIP 壓縮檔中的 CSV"""
+    e_count = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
+    if e_count == 0:
+        return
+
+    e_items = (
+        session.query(ExternalLink)
+        .filter(ExternalLink.job_id == job_id)
+        .order_by(ExternalLink.created_at)
+        .yield_per(2000)
+    )
+    with zf.open(f"job_{job_id}_external_links.csv", "w") as f:
+        with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
+            el_writer = csv.writer(text_file)
+            el_writer.writerow([
+                "Source URL",
+                "Target URL",
+                "IP Address",
+                "Is Secure",
+                "HTTP Status Code",
+                "Error Message",
+                "Found At",
+            ])
+            for link in e_items:
+                el_writer.writerow(
+                    _sanitize_csv_row([
+                        link.source_url,
+                        link.target_url,
+                        link.ip_address if link.ip_address else "",
+                        link.is_secure,
+                        link.http_status_code if link.http_status_code is not None else "",
+                        link.error_message if link.error_message else "",
+                        link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    ])
+                )
+
+
+def export_full_report(
+    session_factory: Callable[[], Session],
+    job_id: str,
+    output_path: str,
+) -> bool:
     """
     匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。
 
@@ -380,15 +465,11 @@ def export_full_report(session_factory: sessionmaker[Session], job_id: str, outp
     Returns:
         bool: 匯出成功回傳 True，發生錯誤或任務不存在回傳 False。
     """
-    # pylint: disable=too-many-locals
     with session_factory() as session:
         job = session.query(Job).filter(Job.id == job_id).first()
         if not job:
             logger.error("找不到指定的任務 ID: %s", job_id)
             return False
-
-        q_count = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
-        e_count = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
 
         output_dir = os.path.dirname(output_path)
         if output_dir and not os.path.exists(output_dir):
@@ -396,80 +477,8 @@ def export_full_report(session_factory: sessionmaker[Session], job_id: str, outp
 
         try:
             with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                if q_count > 0:
-                    q_items = (
-                        session.query(CrawlQueue)
-                        .filter(CrawlQueue.job_id == job_id)
-                        .order_by(CrawlQueue.id)
-                        .yield_per(2000)
-                    )
-                    with zf.open(f"job_{job_id}_crawl_records.csv", "w") as f:
-                        with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
-                            cq_writer = csv.writer(text_file)
-                            cq_writer.writerow(
-                                [
-                                    "URL",
-                                    "Source URL",
-                                    "Status",
-                                    "Depth",
-                                    "Retry Count",
-                                    "HTTP Status Code",
-                                    "Error Message",
-                                    "Created At",
-                                ]
-                            )
-                            for q in q_items:
-                                d = format_crawl_queue_item(q)
-                                cq_writer.writerow(
-                                    _sanitize_csv_row(
-                                        [
-                                            d["URL"],
-                                            d["Source URL"],
-                                            d["Status"],
-                                            d["Depth"],
-                                            d["Retry Count"],
-                                            d["HTTP Status Code"],
-                                            d["Error Message"],
-                                            d["Created At"],
-                                        ]
-                                    )
-                                )
-
-                if e_count > 0:
-                    e_items = (
-                        session.query(ExternalLink)
-                        .filter(ExternalLink.job_id == job_id)
-                        .order_by(ExternalLink.created_at)
-                        .yield_per(2000)
-                    )
-                    with zf.open(f"job_{job_id}_external_links.csv", "w") as f:
-                        with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
-                            el_writer = csv.writer(text_file)
-                            el_writer.writerow(
-                                [
-                                    "Source URL",
-                                    "Target URL",
-                                    "IP Address",
-                                    "Is Secure",
-                                    "HTTP Status Code",
-                                    "Error Message",
-                                    "Found At",
-                                ]
-                            )
-                            for link in e_items:
-                                el_writer.writerow(
-                                    _sanitize_csv_row(
-                                        [
-                                            link.source_url,
-                                            link.target_url,
-                                            link.ip_address if link.ip_address else "",
-                                            link.is_secure,
-                                            link.http_status_code if link.http_status_code is not None else "",
-                                            link.error_message if link.error_message else "",
-                                            link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                                        ]
-                                    )
-                                )
+                _export_crawl_records_to_zip(session, job_id, zf)
+                _export_external_links_to_zip(session, job_id, zf)
             return True
         except OSError as e:
             logger.error("匯出完整報表時發生錯誤: %s", e)

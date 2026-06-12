@@ -17,7 +17,7 @@
 - GET    /api/jobs/{id}/results/export    — 匯出 CSV / JSON
 """
 
-# pylint: disable=duplicate-code,too-many-lines
+# pylint: disable=too-many-lines
 
 import csv
 import io
@@ -348,7 +348,7 @@ def create_job(
             crawler_config=final_crawler_config,
         )
         job_id = job_service.create_job(manager, current_user.id, config_obj)
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
     return {"job_id": job_id, "message": "任務已建立。"}
@@ -606,7 +606,6 @@ def transfer_job(
 class ResultsQueryArgs:
     """任務結果查詢參數。"""
 
-    # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
         status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure|healthy|all)$"),
@@ -744,7 +743,6 @@ def get_job_diff(
 class ExportQueryArgs:
     """匯出結果查詢參數。"""
 
-    # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
         status_filter: str | None = Query(None, alias="filter", pattern="^(dead|broken|insecure|healthy|all)$"),
@@ -928,7 +926,6 @@ def export_full_report(
     Raises:
         HTTPException 404: 找不到任務時拋出。
     """
-    # pylint: disable=too-many-locals
     try:
         job = db.query(Job).filter(Job.id == job_id).first()
         if not job or job.user_id != current_user.id:

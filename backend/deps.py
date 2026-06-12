@@ -16,9 +16,9 @@ import threading
 from collections.abc import Generator
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session as DBSession  # pylint: disable=unused-import
+from sqlalchemy.orm import Session as DBSession
 
-from backend.auth.db import get_auth_session_local  # pylint: disable=unused-import
+from backend.auth.db import get_auth_session_local
 from backend.auth.models import Session as AuthSession
 from backend.auth.models import User
 from backend.config import get_settings
@@ -76,7 +76,7 @@ def get_crawler_db() -> Generator[DBSession, None, None]:
         DBSession: Crawler DB SQLAlchemy Session。
     """
     manager = get_job_manager()
-    db = manager.SessionLocal()
+    db = manager.session_factory()
     try:
         yield db
     finally:
@@ -106,8 +106,7 @@ def get_current_session(
     Raises:
         HTTPException 401: 若 Cookie 不存在或 Session 已過期。
     """
-    # pylint: disable=import-outside-toplevel
-    from backend.auth import service as auth_service  # 避免循環匯入
+    from backend.auth import service as auth_service  # 避免循環匯入  # pylint: disable=import-outside-toplevel
 
     settings = get_settings()
     raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)

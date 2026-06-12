@@ -17,7 +17,6 @@ from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, UniqueCo
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-# pylint: disable=too-few-public-methods
 class AuthBase(DeclarativeBase):
     """Auth DB 所有模型的基底類別（獨立於 Crawler DB 的 Base）。"""
 

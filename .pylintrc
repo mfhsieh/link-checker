@@ -19,3 +19,7 @@ output-format=colorized
 [FORMAT]
 # 限制單行最大字元數 (配合 ruff.toml 設為 120)
 max-line-length=120
+
+; [DESIGN]
+; # CrawlerConfig 需要較多屬性，提高預設限制 (預設 7)
+; max-attributes=15

@@ -55,7 +55,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     設定 CSP、X-Frame-Options、X-Content-Type-Options 以防禦常見攻擊。
     """
 
-    # pylint: disable=too-few-public-methods
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         """
         攔截請求並為回應加上安全性標頭，同時生成並注入 CSP Nonce。
