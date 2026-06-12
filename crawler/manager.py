@@ -8,59 +8,15 @@
 import json
 import logging
 import os
-import random
-import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-import httpx
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
-from crawler.core import CrawlerCore
-from crawler.models import Base, CrawlQueue, ExternalLink, Job, CrawlerConfig
+from crawler.models import Base, CrawlQueue, ExternalLink, Job
 from crawler.notifier import send_job_status_notification
-from crawler.utils import (
-    get_domain,
-    resolve_ip,
-)
-
-
-def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: float) -> float:
-    """
-    根據給定網址，取得對應網域的請求延遲時間。
-
-    比對時遵循「最長匹配優先原則」。若無匹配項目，則回傳預設的延遲時間。
-
-    Args:
-        url (str): 目標網址。
-        domain_delays (dict[str, float]): 網域與對應延遲時間的字典。
-        default_delay (float): 預設的延遲時間 (秒)。
-
-    Returns:
-        float: 計算出的延遲時間 (秒)。
-    """
-    domain = get_domain(url)
-    if not domain:
-        return default_delay
-    domain = domain.lower()
-
-    matched_delays = []
-    for d, val in domain_delays.items():
-        d_lower = d.lower()
-        if domain == d_lower or domain.endswith("." + d_lower):
-            try:
-                matched_delays.append((d_lower, float(val)))
-            except (ValueError, TypeError):
-                continue
-
-    if not matched_delays:
-        return default_delay
-
-    matched_delays.sort(key=lambda x: len(x[0]), reverse=True)
-    return matched_delays[0][1]
-
+from crawler.runner import JobRunner
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -68,11 +24,13 @@ logger: logging.Logger = logging.getLogger(__name__)
 @dataclass
 class JobCreateOptions:
     """任務建立選項。"""
+
     start_url: str
     target_domains: list[str]
     trusted_domains: list[str]
     crawler_config: dict[str, object] | None = None
     user_id: str | None = None
+
 
 class JobManager:
     """
@@ -98,9 +56,14 @@ class JobManager:
 
         self.engine: Engine = create_engine(
             db_url,
-            connect_args={"check_same_thread": False, "timeout": int(os.environ.get("SQLITE_TIMEOUT", "30"))}
-            if db_url.startswith("sqlite")
-            else {},
+            connect_args=(
+                {
+                    "check_same_thread": False,
+                    "timeout": int(os.environ.get("SQLITE_TIMEOUT", "30")),
+                }
+                if db_url.startswith("sqlite")
+                else {}
+            ),
         )
         if db_url.startswith("sqlite:"):
 
@@ -152,7 +115,11 @@ class JobManager:
 
             # 將起始網址加入佇列
             queue_item: CrawlQueue = CrawlQueue(
-                job_id=job.id, url=options.start_url, source_url=None, status="pending", depth=0
+                job_id=job.id,
+                url=options.start_url,
+                source_url=None,
+                status="pending",
+                depth=0,
             )
             session.add(queue_item)
             session.commit()
@@ -175,7 +142,6 @@ class JobManager:
                 session.expunge(job)
             return job
 
-    # pylint: disable=too-many-locals, too-many-branches, too-many-statements, too-many-nested-blocks
     def run_job(
         self,
         job_id: str,
@@ -190,384 +156,8 @@ class JobManager:
             crawler_config (dict[str, object] | None): 爬蟲相關的設定參數。
             force (bool): 是否強制接管卡在 running 狀態的任務。
         """
-        max_workers = int(os.environ.get("CRAWLER_MAX_WORKERS", "5"))
-        with self.session_factory() as session:
-            job: Job | None = session.query(Job).filter(Job.id == job_id).first()
-            if not job:
-                logger.error("找不到指定的任務 ID: %s", job_id)
-                return
-
-            if job.status in ["completed", "error"]:
-                logger.warning("任務 %s 的狀態已經是 %s，無法再次執行。", job_id, job.status)
-                return
-
-            if job.status == "running" and not force:
-                logger.error(
-                    "任務 %s 目前正在執行中。如果確定前次程序已經意外終止，請加上 -f 或 --force 參數強制接管任務。",
-                    job_id,
-                )
-                return
-
-            job.status = "running"
-            session.commit()
-
-            target_domains_list: list[str] = job.target_domains.split(",") if job.target_domains else []
-            trusted_domains_list: list[str] = job.trusted_domains.split(",") if job.trusted_domains else []
-
-            if crawler_config is None:
-                # 代表從 Resume 恢復執行，需從資料庫讀取當時的設定檔
-                if job.config_json:
-                    try:
-                        crawler_config = json.loads(job.config_json)
-                        logger.info("已從資料庫成功載入任務 %s 的專屬設定參數。", job_id)
-                    except json.JSONDecodeError:
-                        logger.error("任務 %s 的設定檔解析失敗，將退回使用預設設定。", job_id)
-                        crawler_config = {}
-                else:
-                    crawler_config = {}
-
-            # 合併全域設定與個別任務設定
-            timeout = crawler_config.get("timeout", 30)
-            connect_timeout = crawler_config.get("connect_timeout", 5.0)
-            external_check_timeout = crawler_config.get("external_check_timeout", 10.0)
-            retries = crawler_config.get("retries", 3)
-            delay = crawler_config.get("delay", 1.0)
-            domain_delays = crawler_config.get("domain_delays", {}) or {}
-            ignore_extensions = crawler_config.get("ignore_extensions", None)
-            mime_type_filter = crawler_config.get("mime_type_filter", None)
-            ignore_regexes = crawler_config.get("ignore_regexes", None)
-            user_agent = crawler_config.get("user_agent", None)
-            ssl_exempt_domains = crawler_config.get("ssl_exempt_domains", []) or []
-            proxy_url = crawler_config.get("proxy_url", None)
-            max_depth = crawler_config.get("max_depth", None)
-            max_pages = crawler_config.get("max_pages", None)
-            max_content_length = crawler_config.get("max_content_length", 10485760)
-            max_redirects = crawler_config.get("max_redirects", 10)
-            jitter_ratio = crawler_config.get("jitter_ratio", 0.2)
-            social_domains = crawler_config.get("social_domains", []) or []
-
-            # 統計該任務已發送實質請求的頁面數量
-            crawled_count = (
-                session.query(CrawlQueue)
-                .filter(
-                    CrawlQueue.job_id == job_id,
-                    (CrawlQueue.status.in_(["completed", "failed", "warning"]))
-                    | ((CrawlQueue.status == "skip") & (CrawlQueue.status_code.isnot(None))),
-                )
-                .count()
-            )
-
-            # 預熱外連快取：載入此任務已探測過的外連結果以防重複探測
-            checked_links_cache: dict[str, tuple[str | None, int | None, str | None]] = {}
-            for ext in session.query(ExternalLink).filter(ExternalLink.job_id == job_id).all():
-                if ext.http_status_code is not None or ext.error_message is not None:
-                    checked_links_cache[ext.target_url] = (
-                        ext.ip_address,
-                        ext.http_status_code,
-                        ext.error_message,
-                    )
-
-            # 建立共用的執行緒池，避免每個網頁都重新建立與銷毀執行緒而產生額外開銷
-            executor = ThreadPoolExecutor(max_workers=max_workers)
-
-            crawler = None
-            try:
-                # 建立爬蟲核心實例 (傳入包含 max_redirects 的完整設定)
-                crawler_config = CrawlerConfig(
-                    timeout=timeout,
-                    connect_timeout=connect_timeout,
-                    external_check_timeout=external_check_timeout,
-                    ignore_extensions=ignore_extensions,
-                    mime_type_filter=mime_type_filter,
-                    ignore_regexes=ignore_regexes,
-                    user_agent=user_agent,
-                    ssl_exempt_domains=ssl_exempt_domains,
-                    proxy_url=proxy_url,
-                    max_content_length=max_content_length,
-                    max_redirects=max_redirects,
-                    social_domains=social_domains,
-                )
-                crawler = CrawlerCore(config=crawler_config)
-
-                while True:
-                    # 協同暫停檢查：確認任務狀態是否在外部被更改
-                    session.expire(job)
-                    job = session.query(Job).filter(Job.id == job_id).first()
-                    if not job or job.status != "running":
-                        logger.info(
-                            "偵測到任務狀態變更為 %s，中斷爬取。",
-                            job.status if job else "None",
-                        )
-                        break
-
-                    if max_pages is not None and crawled_count >= max_pages:
-                        logger.info(
-                            "任務 %s 已達到最大抓取頁數限制 (%s)。優雅結束任務。",
-                            job_id,
-                            max_pages,
-                        )
-                        job.status = "completed"
-                        session.commit()
-                        send_job_status_notification(self.session_factory, job_id, "completed")
-                        break
-
-                    # 從佇列中取得下一個等待處理的網址，依據 ID 排序以保障 FIFO 的 BFS 順序
-                    queue_item: CrawlQueue | None = (
-                        session.query(CrawlQueue)
-                        .filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "pending")
-                        .order_by(CrawlQueue.id)
-                        .first()
-                    )
-
-                    if not queue_item:
-                        logger.info("任務 %s 已無等待中的網址。任務完成。", job_id)
-                        job.status = "completed"
-                        session.commit()
-                        send_job_status_notification(self.session_factory, job_id, "completed")
-                        break
-
-                    current_url: str = queue_item.url
-                    logger.info("正在爬取: %s", current_url)
-
-                    should_delay = True
-                    try:
-                        internal_links: list[str]
-                        external_target_links: list[str]
-                        status_code: int | None
-                        status: str
-                        request_sent: bool
-                        err_msg: str | None
-
-                        # 若設定了最大爬取深度，且目前項目的深度已超過該限制，則略過不再往下爬行。
-                        # 註：當 queue_item.depth == max_depth 時，此條件不成立，網頁仍會被爬取並探測外連；
-                        # 但其內連深度為 depth + 1，會因後續 next_depth <= max_depth 判斷而被拒絕加入佇列，
-                        # 從而完美實現「達到最大深度時仍解析外連但不加入內部佇列」的要求。
-                        if max_depth is not None and queue_item.depth > max_depth:
-                            # 即使略過爬行，仍須在佇列標記為已略過
-                            queue_item.status = "skip"
-                            session.commit()
-                            continue
-
-                        (
-                            internal_links,
-                            external_target_links,
-                            status_code,
-                            status,
-                            request_sent,
-                            err_msg,
-                        ) = crawler.process_url(current_url, target_domains_list, trusted_domains_list)
-
-                        # 將狀態與狀態碼寫回佇列項目
-                        queue_item.status_code = status_code
-                        queue_item.status = status
-                        queue_item.error_message = err_msg
-                        session.commit()
-
-                        # 處理內部連結：如果尚未存在佇列中且未超過最大探索深度，則新增為 pending，深度遞增
-                        next_depth = queue_item.depth + 1
-                        if max_depth is None or next_depth <= max_depth:
-                            for link in internal_links:
-                                exists = (
-                                    session.query(CrawlQueue)
-                                    .filter(
-                                        CrawlQueue.job_id == job_id,
-                                        CrawlQueue.url == link,
-                                    )
-                                    .first()
-                                )
-                                if not exists:
-                                    new_item = CrawlQueue(
-                                        job_id=job_id,
-                                        url=link,
-                                        source_url=current_url,
-                                        status="pending",
-                                        depth=next_depth,
-                                    )
-                                    session.add(new_item)
-                        session.commit()
-
-                        # 處理外部連結：如果是目標外部連結，則進行探測並記錄。
-                        # 先對本次頁面發現的外連進行去重，避免同一頁內重複處理相同的外部連結。
-                        unique_external_links = list(set(external_target_links))
-                        links_needing_http_check = []
-                        for link in unique_external_links:
-                            # 檢查資料庫中是否已存在相同的 (job_id, source_url, target_url) 紀錄
-                            exists = (
-                                session.query(ExternalLink)
-                                .filter(
-                                    ExternalLink.job_id == job_id,
-                                    ExternalLink.source_url == current_url,
-                                    ExternalLink.target_url == link,
-                                )
-                                .first()
-                            )
-                            if exists:
-                                continue
-
-                            # 如果之前已經探測過且有快取，則直接複用快取結果寫入資料庫
-                            if link in checked_links_cache:
-                                cached_ip, cached_code, cached_err = checked_links_cache[link]
-                                is_sec = link.startswith("https://")
-                                new_ext = ExternalLink(
-                                    job_id=job_id,
-                                    source_url=current_url,
-                                    target_url=link,
-                                    ip_address=cached_ip,
-                                    is_secure=is_sec,
-                                    http_status_code=cached_code,
-                                    error_message=cached_err,
-                                )
-                                session.add(new_ext)
-                            else:
-                                links_needing_http_check.append(link)
-
-                        if links_needing_http_check:
-                            # 並發處理實際需要進行探測的外部連結，最快提升檢測效能
-                            def check_single_link(
-                                ext_link: str,
-                            ) -> tuple[str, str | None, int | None, str | None]:
-                                """
-                                獨立進行單一外部連結的存活與 IP 解析檢查。
-
-                                Args:
-                                    ext_link (str): 外部連結網址。
-
-                                Returns:
-                                    tuple[str, str | None, int | None, str | None]:
-                                        包含 (網址, IP, HTTP 狀態碼, 錯誤訊息)。
-                                """
-                                tgt_dom = get_domain(ext_link)
-                                ip_res = resolve_ip(tgt_dom) if tgt_dom else None
-                                code_res, err_res = crawler.check_external_link(ext_link)
-                                return ext_link, ip_res, code_res, err_res
-
-                            results = list(executor.map(check_single_link, links_needing_http_check))
-
-                            for link, ip, status_code, err_msg in results:
-                                # 寫入快取供後續網頁共享
-                                checked_links_cache[link] = (ip, status_code, err_msg)
-                                # 再次防禦性檢查以防並行環境下重複寫入
-                                exists = (
-                                    session.query(ExternalLink)
-                                    .filter(
-                                        ExternalLink.job_id == job_id,
-                                        ExternalLink.source_url == current_url,
-                                        ExternalLink.target_url == link,
-                                    )
-                                    .first()
-                                )
-                                if not exists:
-                                    is_sec = link.startswith("https://")
-                                    new_ext = ExternalLink(
-                                        job_id=job_id,
-                                        source_url=current_url,
-                                        target_url=link,
-                                        ip_address=ip,
-                                        is_secure=is_sec,
-                                        http_status_code=status_code,
-                                        error_message=err_msg,
-                                    )
-                                    session.add(new_ext)
-
-                        queue_item.status = status
-                        session.commit()
-
-                        # 根據是否有發出請求決定是否延遲
-                        should_delay = request_sent
-                        if request_sent:
-                            crawled_count += 1
-
-                    except Exception as e:  # pylint: disable=broad-exception-caught
-                        # 發生資料庫寫入或預期外的錯誤時，必須先 Rollback 重置事務，避免後續操作觸發 TransactionRollbackError
-                        session.rollback()
-                        # 嘗試擷取 HTTP 狀態碼
-                        status_code = None
-                        is_permanent_error = False
-
-                        if isinstance(e, httpx.HTTPStatusError):
-                            status_code = e.response.status_code
-                            queue_item.status_code = status_code
-                            logger.error(
-                                "抓取 %s 時發生 HTTP 狀態碼錯誤 %s",
-                                current_url,
-                                status_code,
-                            )
-
-                            # 404 與 403 視為永久性錯誤
-                            if status_code in (404, 403):
-                                is_permanent_error = True
-                        elif isinstance(e, httpx.RequestError):
-                            queue_item.status_code = None
-                            logger.error("抓取 %s 時發生連線請求錯誤: %s", current_url, e)
-                        else:
-                            queue_item.status_code = None
-                            logger.error("抓取 %s 時發生未預期例外: %s", current_url, e)
-
-                        if is_permanent_error:
-                            logger.error(
-                                "網址 %s 遭遇永久性錯誤 (%s)，直接標記為 failed，不進行重試。",
-                                current_url,
-                                status_code,
-                            )
-                            queue_item.status = "failed"
-                            queue_item.error_message = f"永久性錯誤: {e}"
-                            session.commit()
-                            crawled_count += 1
-                        else:
-                            if queue_item.retry_count < retries:
-                                queue_item.retry_count += 1
-                                current_domain_delay = _get_domain_delay(current_url, domain_delays, delay)
-                                backoff_delay = current_domain_delay * (2 ** (queue_item.retry_count - 1))
-                                logger.warning(
-                                    "處理網址 %s 發生暫時性錯誤，將進行重試 (第 %s/%s 次)。啟用指數退避延遲 %s 秒...",
-                                    current_url,
-                                    queue_item.retry_count,
-                                    retries,
-                                    f"{backoff_delay:.1f}",
-                                )
-                                session.commit()
-                                actual_delay = (
-                                    backoff_delay * random.uniform(1.0 - jitter_ratio, 1.0 + jitter_ratio)
-                                    if jitter_ratio > 0
-                                    else backoff_delay
-                                )
-                                time.sleep(actual_delay)
-                            else:
-                                logger.error("處理網址 %s 時發生錯誤且已達重試上限", current_url)
-                                queue_item.status = "failed"
-                                queue_item.error_message = str(e)
-                                session.commit()
-                                crawled_count += 1
-
-                    # 避免頻繁請求，加入短暫的延遲
-                    if should_delay:
-                        current_domain_delay = _get_domain_delay(current_url, domain_delays, delay)
-                        actual_delay = (
-                            current_domain_delay * random.uniform(1.0 - jitter_ratio, 1.0 + jitter_ratio)
-                            if jitter_ratio > 0
-                            else current_domain_delay
-                        )
-                        time.sleep(actual_delay)
-
-            except KeyboardInterrupt:
-                logger.info("任務 %s 已由使用者強制中斷。暫停任務中...", job_id)
-                session.rollback()
-                job = session.query(Job).filter(Job.id == job_id).first()
-                if job and job.status == "running":
-                    job.status = "paused"
-                    session.commit()
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error("任務 %s 發生未預期例外: %s", job_id, e)
-                session.rollback()
-                job = session.query(Job).filter(Job.id == job_id).first()
-                if job:
-                    job.status = "error"
-                    session.commit()
-                    send_job_status_notification(self.session_factory, job_id, "error")
-            finally:
-                executor.shutdown(wait=True)
-                if crawler:
-                    crawler.close()
+        runner = JobRunner(self.session_factory, job_id)
+        runner.execute(crawler_config, force)
 
     def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
         """

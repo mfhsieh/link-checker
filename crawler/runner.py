@@ -3,40 +3,52 @@
 負責封裝單一爬蟲任務的執行邏輯，包含重試、中斷、狀態更新與併發處理外連。
 """
 
-# pylint: disable=too-many-instance-attributes
-
 import json
 import logging
 import os
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 
 import httpx
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
-from crawler.models import CrawlQueue, ExternalLink, Job
 from crawler.core import CrawlerCore
-from crawler.models import CrawlerConfig
+from crawler.models import CrawlerConfig, CrawlQueue, ExternalLink, Job
 from crawler.notifier import send_job_status_notification
 from crawler.utils import get_domain, resolve_ip
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class JobRunnerState:
+    """爬蟲任務狀態追蹤資料類別。"""
+
+    crawled_count: int = 0
+    checked_links_cache: dict[str, tuple[str | None, int | None, str | None]] = field(default_factory=dict)
+    target_domains_list: list[str] = field(default_factory=list)
+    trusted_domains_list: list[str] = field(default_factory=list)
+
+
 def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: float) -> float:
-    """
-    從 domain_delays 中尋找符合目前網域的 delay 數值，若無則回傳預設的 delay。
+    """從 domain_delays 中尋找符合目前網域的 delay 數值，若無則回傳預設的 delay。
     支援以子網域完全匹配。
 
     Args:
-        url (str): 當前網址。
-        domain_delays (dict[str, float]): 網域為 key、延遲秒數為 value 的字典。
-        default_delay (float): 全域預設延遲秒數。
+      url(str): 當前網址。
+      domain_delays(dict[str): 網域為 key、延遲秒數為 value 的字典。
+      default_delay(float): 全域預設延遲秒數。
+      url: str:
+      domain_delays: dict[str:
+      float]:
+      default_delay: float:
 
     Returns:
-        float: 該網域適用的延遲秒數。
+      float: 該網域適用的延遲秒數。
+
     """
     if not domain_delays:
         return default_delay
@@ -61,34 +73,35 @@ def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: 
 
 
 class JobRunner:
-    """
-    封裝並執行單一爬蟲任務，避免 run_job 邏輯過於龐大且變數過多。
-    """
+    """封裝並執行單一爬蟲任務，避免 run_job 邏輯過於龐大且變數過多。"""
 
     def __init__(
         self,
         session_factory,
         job_id: str,
     ):
+        """初始化 JobRunner。
+
+        Args:
+            session_factory: SQLAlchemy Session 工廠。
+            job_id: 目標任務 ID。
+        """
         self.session_factory = session_factory
         self.job_id = job_id
 
         # 以下狀態於 _initialize 中初始化
         self.config: CrawlerConfig | None = None
-        self.target_domains_list: list[str] = []
-        self.trusted_domains_list: list[str] = []
-        self.domain_delays: dict[str, float] = {}
-        self.delay: float = 1.0
-        self.jitter_ratio: float = 0.2
-        self.retries: int = 3
-        self.max_depth: int | None = None
-        self.max_pages: int | None = None
-        self.crawled_count: int = 0
-        self.checked_links_cache: dict[str, tuple[str | None, int | None, str | None]] = {}
+        self.crawler_config_dict: dict[str, object] = {}
+        self.state = JobRunnerState()
         self.executor: ThreadPoolExecutor | None = None
 
     def execute(self, crawler_config_param: dict[str, object] | None = None, force: bool = False) -> None:
-        """開始執行爬蟲任務。"""
+        """開始執行爬蟲任務。
+
+        Args:
+            crawler_config_param (dict[str, object] | None): 爬蟲相關的設定參數。
+            force (bool): 是否強制接管卡在 running 狀態的任務。
+        """
         with self.session_factory() as session:
             job = self._initialize(session, crawler_config_param, force)
             if not job:
@@ -98,7 +111,7 @@ class JobRunner:
             self.executor = ThreadPoolExecutor(max_workers=max_workers)
             crawler = None
             try:
-                crawler = CrawlerCore(config=self.config)
+                crawler = CrawlerCore(self.config)
                 self._run_loop(session, job, crawler)
             except KeyboardInterrupt:
                 logger.info("任務 %s 已由使用者強制中斷。暫停任務中...", self.job_id)
@@ -122,11 +135,30 @@ class JobRunner:
                     crawler.close()
 
     def get_job_id(self) -> str:
-        """取得當前任務 ID。"""
+        """取得當前任務 ID。
+
+        Returns:
+            str: 任務 ID。
+        """
         return self.job_id
 
-    def _initialize(self, session: Session, crawler_config_param: dict[str, object] | None, force: bool) -> Job | None:
-        """載入任務並解析配置。若任務狀態無法執行則回傳 None。"""
+    def _initialize(
+        self,
+        session: Session,
+        crawler_config_param: dict[str, object] | None,
+        force: bool,
+    ) -> Job | None:
+        """載入任務並解析配置。若任務狀態無法執行則回傳 None。
+
+        Args:
+          session: Session:
+          crawler_config_param: dict[str:
+          object] | None:
+          force: bool:
+
+        Returns:
+
+        """
         job: Job | None = session.query(Job).filter(Job.id == self.job_id).first()
         if not job:
             logger.error("找不到指定的任務 ID: %s", self.job_id)
@@ -146,8 +178,8 @@ class JobRunner:
         job.status = "running"
         session.commit()
 
-        self.target_domains_list = job.target_domains.split(",") if job.target_domains else []
-        self.trusted_domains_list = job.trusted_domains.split(",") if job.trusted_domains else []
+        self.state.target_domains_list = job.target_domains.split(",") if job.target_domains else []
+        self.state.trusted_domains_list = job.trusted_domains.split(",") if job.trusted_domains else []
 
         crawler_config = crawler_config_param
         if crawler_config is None:
@@ -160,6 +192,8 @@ class JobRunner:
                     crawler_config = {}
             else:
                 crawler_config = {}
+
+        self.crawler_config_dict = crawler_config
 
         # 建立 config
         self.config = CrawlerConfig(
@@ -177,14 +211,7 @@ class JobRunner:
             social_domains=crawler_config.get("social_domains", []) or [],
         )
 
-        self.retries = crawler_config.get("retries", 3)
-        self.delay = crawler_config.get("delay", 1.0)
-        self.domain_delays = crawler_config.get("domain_delays", {}) or {}
-        self.jitter_ratio = crawler_config.get("jitter_ratio", 0.2)
-        self.max_depth = crawler_config.get("max_depth", None)
-        self.max_pages = crawler_config.get("max_pages", None)
-
-        self.crawled_count = (
+        self.state.crawled_count = (
             session.query(CrawlQueue)
             .filter(
                 CrawlQueue.job_id == self.job_id,
@@ -197,7 +224,7 @@ class JobRunner:
         # 預熱快取
         for ext in session.query(ExternalLink).filter(ExternalLink.job_id == self.job_id).all():
             if ext.http_status_code is not None or ext.error_message is not None:
-                self.checked_links_cache[ext.target_url] = (
+                self.state.checked_links_cache[ext.target_url] = (
                     ext.ip_address,
                     ext.http_status_code,
                     ext.error_message,
@@ -206,7 +233,16 @@ class JobRunner:
         return job
 
     def _run_loop(self, session: Session, job: Job, crawler: CrawlerCore) -> None:
-        """任務的執行主迴圈。"""
+        """任務的執行主迴圈。
+
+        Args:
+          session: Session:
+          job: Job:
+          crawler: CrawlerCore:
+
+        Returns:
+
+        """
         while True:
             session.expire(job)
             job = session.query(Job).filter(Job.id == self.job_id).first()
@@ -214,8 +250,14 @@ class JobRunner:
                 logger.info("偵測到任務狀態變更為 %s，中斷爬取。", job.status if job else "None")
                 break
 
-            if self.max_pages is not None and self.crawled_count >= self.max_pages:
-                logger.info("任務 %s 已達到最大抓取頁數限制 (%s)。優雅結束任務。", self.job_id, self.max_pages)
+            if self.crawler_config_dict.get(
+                "max_pages", None
+            ) is not None and self.state.crawled_count >= self.crawler_config_dict.get("max_pages", None):
+                logger.info(
+                    "任務 %s 已達到最大抓取頁數限制 (%s)。優雅結束任務。",
+                    self.job_id,
+                    self.crawler_config_dict.get("max_pages", None),
+                )
                 self._mark_job_completed(session, job)
                 break
 
@@ -234,6 +276,15 @@ class JobRunner:
             self._process_item(session, queue_item, crawler)
 
     def _mark_job_completed(self, session: Session, job: Job) -> None:
+        """
+
+        Args:
+          session: Session:
+          job: Job:
+
+        Returns:
+
+        """
         job.status = "completed"
         session.commit()
         send_job_status_notification(self.session_factory, self.job_id, "completed")
@@ -244,19 +295,34 @@ class JobRunner:
         queue_item: CrawlQueue,
         crawler: CrawlerCore,
     ) -> None:
-        """處理單一 CrawlQueue 項目。"""
+        """處理單一 CrawlQueue 項目。
+
+        Args:
+          session: Session:
+          queue_item: CrawlQueue:
+          crawler: CrawlerCore:
+
+        Returns:
+
+        """
         current_url: str = queue_item.url
         logger.info("正在爬取: %s", current_url)
 
         should_delay = True
         try:
-            if self.max_depth is not None and queue_item.depth > self.max_depth:
+            if self.crawler_config_dict.get(
+                "max_depth", None
+            ) is not None and queue_item.depth > self.crawler_config_dict.get("max_depth", None):
                 queue_item.status = "skip"
                 session.commit()
                 return
 
             # 呼叫爬蟲核心取得結果 (回傳：internal_links, external_target_links, status_code, status, request_sent, err_msg)
-            result = crawler.process_url(current_url, self.target_domains_list, self.trusted_domains_list)
+            result = crawler.process_url(
+                current_url,
+                self.state.target_domains_list,
+                self.state.trusted_domains_list,
+            )
 
             queue_item.status_code = result[2]
             queue_item.status = result[3]
@@ -271,23 +337,43 @@ class JobRunner:
 
             should_delay = result[4]
             if result[4]:
-                self.crawled_count += 1
+                self.state.crawled_count += 1
 
         except httpx.HTTPError as e:
             self._handle_error(session, queue_item, e)
 
         if should_delay:
-            current_domain_delay = _get_domain_delay(current_url, self.domain_delays, self.delay)
+            current_domain_delay = _get_domain_delay(
+                current_url,
+                self.crawler_config_dict.get("domain_delays", {}),
+                self.crawler_config_dict.get("delay", 1.0),
+            )
             actual_delay = (
-                current_domain_delay * random.uniform(1.0 - self.jitter_ratio, 1.0 + self.jitter_ratio)
-                if self.jitter_ratio > 0
+                current_domain_delay
+                * random.uniform(
+                    1.0 - self.crawler_config_dict.get("jitter_ratio", 0.2),
+                    1.0 + self.crawler_config_dict.get("jitter_ratio", 0.2),
+                )
+                if self.crawler_config_dict.get("jitter_ratio", 0.2) > 0
                 else current_domain_delay
             )
             time.sleep(actual_delay)
 
     def _handle_internal_links(self, session: Session, queue_item: CrawlQueue, internal_links: list[str]) -> None:
+        """
+
+        Args:
+          session: Session:
+          queue_item: CrawlQueue:
+          internal_links: list[str]:
+
+        Returns:
+
+        """
         next_depth = queue_item.depth + 1
-        if self.max_depth is None or next_depth <= self.max_depth:
+        if self.crawler_config_dict.get("max_depth", None) is None or next_depth <= self.crawler_config_dict.get(
+            "max_depth", None
+        ):
             for link in internal_links:
                 exists = (
                     session.query(CrawlQueue)
@@ -314,6 +400,16 @@ class JobRunner:
         current_url: str,
         unique_external_links: list[str],
     ) -> list[str]:
+        """
+
+        Args:
+          session: Session:
+          current_url: str:
+          unique_external_links: list[str]:
+
+        Returns:
+
+        """
         links_needing_http_check = []
         for link in unique_external_links:
             exists = (
@@ -328,8 +424,8 @@ class JobRunner:
             if exists:
                 continue
 
-            if link in self.checked_links_cache:
-                cached_data = self.checked_links_cache[link]
+            if link in self.state.checked_links_cache:
+                cached_data = self.state.checked_links_cache[link]
                 is_sec = link.startswith("https://")
                 new_ext = ExternalLink(
                     job_id=self.job_id,
@@ -352,11 +448,33 @@ class JobRunner:
         external_target_links: list[str],
         crawler: CrawlerCore,
     ) -> None:
+        """
+
+        Args:
+          session: Session:
+          current_url: str:
+          external_target_links: list[str]:
+          crawler: CrawlerCore:
+
+        Returns:
+
+        """
         unique_links = list(set(external_target_links))
         needs_check = self._prepare_external_links(session, current_url, unique_links)
 
         if needs_check and self.executor:
-            def check_single(ext_link: str) -> tuple[str, str | None, int | None, str | None]:
+
+            def check_single(
+                ext_link: str,
+            ) -> tuple[str, str | None, int | None, str | None]:
+                """
+
+                Args:
+                  ext_link: str:
+
+                Returns:
+
+                """
                 return self._check_single_link(ext_link, crawler)
 
             results = list(self.executor.map(check_single, needs_check))
@@ -368,8 +486,21 @@ class JobRunner:
         current_url: str,
         results: list[tuple[str, str | None, int | None, str | None]],
     ) -> None:
+        """
+
+        Args:
+          session: Session:
+          current_url: str:
+          results: list[tuple[str:
+          str | None:
+          int | None:
+          str | None]]:
+
+        Returns:
+
+        """
         for res_link, res_ip, res_code, res_err in results:
-            self.checked_links_cache[res_link] = (res_ip, res_code, res_err)
+            self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
             exists = (
                 session.query(ExternalLink)
                 .filter(
@@ -393,12 +524,31 @@ class JobRunner:
                 session.add(new_ext)
 
     def _check_single_link(self, ext_link: str, crawler: CrawlerCore) -> tuple[str, str | None, int | None, str | None]:
+        """
+
+        Args:
+          ext_link: str:
+          crawler: CrawlerCore:
+
+        Returns:
+
+        """
         tgt_dom = get_domain(ext_link)
         ip_res = resolve_ip(tgt_dom) if tgt_dom else None
         code_res, err_res = crawler.check_external_link(ext_link)
         return ext_link, ip_res, code_res, err_res
 
     def _handle_error(self, session: Session, queue_item: CrawlQueue, e: httpx.HTTPError) -> None:
+        """
+
+        Args:
+          session: Session:
+          queue_item: CrawlQueue:
+          e: httpx.HTTPError:
+
+        Returns:
+
+        """
         session.rollback()
         current_url = queue_item.url
         status_code = None
@@ -415,27 +565,39 @@ class JobRunner:
             logger.error("抓取 %s 時發生連線請求錯誤: %s", current_url, e)
 
         if is_permanent_error:
-            logger.error("網址 %s 遭遇永久性錯誤 (%s)，直接標記為 failed，不進行重試。", current_url, status_code)
+            logger.error(
+                "網址 %s 遭遇永久性錯誤 (%s)，直接標記為 failed，不進行重試。",
+                current_url,
+                status_code,
+            )
             queue_item.status = "failed"
             queue_item.error_message = f"永久性錯誤: {e}"
             session.commit()
-            self.crawled_count += 1
+            self.state.crawled_count += 1
         else:
-            if queue_item.retry_count < self.retries:
+            if queue_item.retry_count < self.crawler_config_dict.get("retries", 3):
                 queue_item.retry_count += 1
-                current_domain_delay = _get_domain_delay(current_url, self.domain_delays, self.delay)
+                current_domain_delay = _get_domain_delay(
+                    current_url,
+                    self.crawler_config_dict.get("domain_delays", {}),
+                    self.crawler_config_dict.get("delay", 1.0),
+                )
                 backoff_delay = current_domain_delay * (2 ** (queue_item.retry_count - 1))
                 logger.warning(
                     "處理網址 %s 發生暫時性錯誤，將進行重試 (第 %s/%s 次)。啟用指數退避延遲 %s 秒...",
                     current_url,
                     queue_item.retry_count,
-                    self.retries,
+                    self.crawler_config_dict.get("retries", 3),
                     f"{backoff_delay:.1f}",
                 )
                 session.commit()
                 actual_delay = (
-                    backoff_delay * random.uniform(1.0 - self.jitter_ratio, 1.0 + self.jitter_ratio)
-                    if self.jitter_ratio > 0
+                    backoff_delay
+                    * random.uniform(
+                        1.0 - self.crawler_config_dict.get("jitter_ratio", 0.2),
+                        1.0 + self.crawler_config_dict.get("jitter_ratio", 0.2),
+                    )
+                    if self.crawler_config_dict.get("jitter_ratio", 0.2) > 0
                     else backoff_delay
                 )
                 time.sleep(actual_delay)
@@ -444,4 +606,4 @@ class JobRunner:
                 queue_item.status = "failed"
                 queue_item.error_message = str(e)
                 session.commit()
-                self.crawled_count += 1
+                self.state.crawled_count += 1

@@ -9,6 +9,7 @@ import logging
 import re
 
 from fake_useragent import UserAgent
+from fake_useragent.errors import FakeUserAgentError
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +18,27 @@ _ua = UserAgent(os=["windows", "macos", "linux"], browsers=["chrome", "firefox",
 
 
 def _extract_chrome_version(ua_string: str) -> str:
-    """從 User-Agent 中擷取 Chrome 主版本號"""
+    """從 User-Agent 中擷取 Chrome 主版本號
+
+    Args:
+        ua_string (str): User-Agent 字串。
+
+    Returns:
+        str: Chrome 主版本號字串。
+    """
     match = re.search(r"Chrome/(\d+)\.", ua_string)
     return match.group(1) if match else "120"
 
 
 def _extract_edge_version(ua_string: str) -> str:
-    """從 User-Agent 中擷取 Edge 主版本號"""
+    """從 User-Agent 中擷取 Edge 主版本號
+
+    Args:
+        ua_string (str): User-Agent 字串。
+
+    Returns:
+        str: Edge 主版本號字串。
+    """
     match = re.search(r"Edg/(\d+)\.", ua_string)
     return match.group(1) if match else "120"
 
@@ -37,7 +52,7 @@ def get_random_profile() -> dict[str, str]:
     """
     try:
         user_agent = _ua.random
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except FakeUserAgentError as e:
         logger.warning("fake_useragent 取得 UA 失敗，退回預設值: %s", e)
         user_agent = (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -62,7 +77,7 @@ def get_random_profile() -> dict[str, str]:
         headers["Sec-Ch-Ua"] = f'"Not_A Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
         headers["Sec-Ch-Ua-Mobile"] = "?0"
         headers["Sec-Ch-Ua-Platform"] = (
-            '"Windows"' if "Windows" in user_agent else '"macOS"' if "Mac OS" in user_agent else '"Linux"'  # pylint: disable=line-too-long
+            '"Windows"' if "Windows" in user_agent else '"macOS"' if "Mac OS" in user_agent else '"Linux"'
         )
     elif "Edg" in user_agent:
         version = _extract_edge_version(user_agent)

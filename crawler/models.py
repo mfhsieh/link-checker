@@ -13,7 +13,7 @@ from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstrai
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-class Base(DeclarativeBase):
+class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
     """所有 SQLAlchemy 宣告式模型的基底類別 (Base Class)。"""
 
 
@@ -30,7 +30,7 @@ def get_utc_now() -> datetime:
 
 
 @dataclass
-class CrawlerConfig:
+class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
     """爬蟲引擎的全域與進階配置物件。"""
 
     timeout: int = 30
@@ -58,6 +58,9 @@ class CrawlerConfig:
     )
 
     def __post_init__(self) -> None:
+        """
+        在初始化後檢查網域陣列是否有提供初始值。
+        """
         if self.ignore_extensions is None:
             self.ignore_extensions = [".pdf", ".jpg", ".png", ".gif", ".mp4", ".zip"]
         if self.mime_type_filter is None:
@@ -77,7 +80,7 @@ class CrawlerConfig:
             ]
 
 
-class Job(Base):
+class Job(Base):  # pylint: disable=too-few-public-methods
     """
     代表一個爬蟲任務 (Job)。
 
@@ -111,7 +114,7 @@ class Job(Base):
     external_links: Mapped[list["ExternalLink"]] = relationship(back_populates="job", cascade="all, delete-orphan")
 
 
-class CrawlQueue(Base):
+class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
     """
     代表特定任務在爬取佇列 (Queue) 中的一筆網址紀錄。
 
@@ -149,7 +152,7 @@ class CrawlQueue(Base):
     job: Mapped["Job"] = relationship(back_populates="queues")
 
 
-class ExternalLink(Base):
+class ExternalLink(Base):  # pylint: disable=too-few-public-methods
     """
     代表在爬蟲任務期間找到的外部連結紀錄。
 
