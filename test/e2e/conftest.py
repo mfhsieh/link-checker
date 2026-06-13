@@ -1,9 +1,16 @@
+"""
+E2E 自動化整合測試的 Pytest Fixture 配置模組。
+
+提供測試伺服器生命週期管理、資料庫初始化，以及 Playwright 相關設定。
+"""
+
 import os
-import sqlite3
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from collections.abc import Generator
+from typing import Any
 
 import httpx
 import pytest
@@ -15,23 +22,27 @@ os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_e2e.db"
 # 將專案路徑加入 path 以便引用 backend
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from backend.auth.db import get_auth_engine, get_auth_session_local
-from backend.auth.models import User
-from backend.auth.password import hash_password
-from backend.deps import get_job_manager
+from backend.auth.db import get_auth_engine, get_auth_session_local  # pylint: disable=wrong-import-position
+from backend.auth.models import User  # pylint: disable=wrong-import-position
+from backend.auth.password import hash_password  # pylint: disable=wrong-import-position
+from backend.deps import get_job_manager  # pylint: disable=wrong-import-position
 
 PORT = 8085
 BASE_URL = f"http://127.0.0.1:{PORT}"
 
 
 def setup_databases() -> None:
-    """清理並初始化 E2E 測試用資料庫。"""
-    import backend.auth.db as auth_db
-    import backend.deps as backend_deps
+    """
+    清理並初始化 E2E 測試用資料庫。
 
-    auth_db._ENGINE = None
-    auth_db._SESSION_LOCAL = None
-    backend_deps._JOB_MANAGER = None
+    此函式會重建 Auth DB 與 Crawler DB 以確保測試環境乾淨。
+    """
+    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
+    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    auth_db._ENGINE = None  # pylint: disable=protected-access
+    auth_db._SESSION_LOCAL = None  # pylint: disable=protected-access
+    backend_deps._JOB_MANAGER = None  # pylint: disable=protected-access
 
     if os.path.exists("db/test_auth_e2e.db"):
         os.remove("db/test_auth_e2e.db")
@@ -43,7 +54,11 @@ def setup_databases() -> None:
 
 
 def create_admin_user() -> None:
-    """建立 E2E 測試用的管理員帳號。"""
+    """
+    建立 E2E 測試用的管理員帳號。
+
+    在 Auth 資料庫中直接插入一筆 admin@test.com 帳號，以利後續 E2E 測試登入。
+    """
     session_factory = get_auth_session_local()
     with session_factory() as db:
         pwd_hash = hash_password("Admin@12345678")
@@ -59,7 +74,16 @@ def create_admin_user() -> None:
 
 
 def wait_for_server(port: int, timeout: int = 10) -> bool:
-    """等待伺服器啟動並回應 HTTP 請求。"""
+    """
+    等待伺服器啟動並回應 HTTP 請求。
+
+    Args:
+        port (int): 伺服器監聽的通訊埠。
+        timeout (int): 最長等待時間（秒），預設為 10。
+
+    Returns:
+        bool: 若伺服器成功啟動並回應，則回傳 True；否則回傳 False。
+    """
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
@@ -73,8 +97,13 @@ def wait_for_server(port: int, timeout: int = 10) -> bool:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def test_server():
-    """在整個 E2E 測試期間啟動 FastAPI 伺服器，並提供乾淨的資料庫。"""
+def test_server() -> Generator[str, None, None]:
+    """
+    在整個 E2E 測試期間啟動 FastAPI 伺服器，並提供乾淨的資料庫。
+
+    Yields:
+        str: 測試伺服器的 Base URL。
+    """
     setup_databases()
     create_admin_user()
 
@@ -102,19 +131,34 @@ def test_server():
 
 
 @pytest.fixture(scope="session")
-def browser_type_launch_args(browser_type_launch_args):
-    """覆寫 Playwright 啟動參數，強制使用系統的 Chromium。"""
+def browser_type_launch_args(browser_type_launch_args: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=redefined-outer-name
+    """
+    覆寫 Playwright 啟動參數，強制使用系統的 Chromium。
+
+    Args:
+        browser_type_launch_args (dict[str, Any]): 原始啟動參數。
+
+    Returns:
+        dict[str, Any]: 覆寫後的啟動參數。
+    """
     return {**browser_type_launch_args, "executable_path": "/usr/bin/chromium"}
 
 
 @pytest.fixture(scope="session")
-def base_url():
-    """Playwright 預設會使用此 base_url 來訪問網頁。"""
+def base_url() -> str:
+    """
+    Playwright 預設會使用此 base_url 來訪問網頁。
+
+    Returns:
+        str: 測試伺服器的 Base URL。
+    """
     return BASE_URL
 
 
 @pytest.fixture(autouse=True)
-def clean_database_state():
-    """每個測試案例前可以清理狀態，但為了 E2E 流暢度，這裡只做示範，
-    真實的狀態分離可以透過 UI 操作或是重建資料庫來達成。"""
-    pass
+def clean_database_state() -> None:
+    """
+    每個測試案例前可以清理狀態。
+
+    為了 E2E 流暢度，這裡只做示範，真實的狀態分離可透過 UI 操作或是重建資料庫來達成。
+    """

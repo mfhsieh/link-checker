@@ -1,10 +1,20 @@
+"""
+E2E 測試：管理員後台操作與設定修改流程。
+"""
+
 import re
 
 from playwright.sync_api import Page, expect
 
 
-def test_admin_config(page: Page, base_url: str):
-    """測試管理員登入後修改全域設定。"""
+def test_admin_config(page: Page, base_url: str) -> None:
+    """
+    測試管理員登入後修改全域設定。
+
+    Args:
+        page (Page): Playwright 的網頁操作物件。
+        base_url (str): 測試伺服器的根網址。
+    """
     page.goto(f"{base_url}/index.html")
     page.fill('input[type="email"]', "admin@test.com")
     page.fill('input[type="password"]', "Admin@12345678")

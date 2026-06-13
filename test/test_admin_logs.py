@@ -14,6 +14,10 @@ from datetime import datetime, timedelta
 # 將專案路徑加入 path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# 必須在載入 backend.main 之前設定，才能讓 background task 取到正確的測試 DB
+os.environ["AUTH_DB_URL"] = "sqlite:///tmp/auth_test.db"
+os.environ["CRAWLER_DB_URL"] = "sqlite:///tmp/crawler_test.db"
+
 # pylint: disable=wrong-import-position
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
@@ -77,7 +81,15 @@ class MockJobManager:
     """模擬的 JobManager 類別，供測試使用。"""
 
     def get_job(self, job_id: str) -> object | None:
-        """模擬取得特定任務狀態。"""
+        """
+        模擬取得特定任務狀態。
+
+        Args:
+            job_id (str): 任務 ID。
+
+        Returns:
+            object | None: 模擬任務物件，若不存在則回傳 None。
+        """
 
         class MockJob:  # pylint: disable=too-few-public-methods
             """模擬的任務物件。"""
@@ -89,15 +101,33 @@ class MockJobManager:
         return MockJob()
 
     def pause_job(self, job_id: str) -> None:  # pylint: disable=unused-argument
-        """模擬暫停任務。"""
+        """
+        模擬暫停任務。
+
+        Args:
+            job_id (str): 任務 ID。
+        """
 
     def delete_job(self, job_id: str) -> bool:  # pylint: disable=unused-argument
-        """模擬刪除任務。"""
+        """
+        模擬刪除任務。
+
+        Args:
+            job_id (str): 任務 ID。
+
+        Returns:
+            bool: 固定回傳 True。
+        """
         return True
 
 
 def override_get_job_manager() -> MockJobManager:
-    """覆寫取得 JobManager 的依賴函式。"""
+    """
+    覆寫取得 JobManager 的依賴函式。
+
+    Returns:
+        MockJobManager: 模擬的 JobManager 實例。
+    """
     return MockJobManager()
 
 
@@ -278,7 +308,8 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db.query(AuthLog)
+            db
+            .query(AuthLog)
             .filter(AuthLog.event_type == "user_deleted", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()
@@ -298,7 +329,8 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db.query(AuthLog)
+            db
+            .query(AuthLog)
             .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()
@@ -319,7 +351,8 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db.query(AuthLog)
+            db
+            .query(AuthLog)
             .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()

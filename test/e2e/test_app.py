@@ -1,10 +1,19 @@
-import re
+"""
+E2E 測試：應用程式主要功能與任務操作流程。
+"""
 
+import re
 from playwright.sync_api import Page, expect
 
 
-def test_create_job(page: Page, base_url: str):
-    """測試登入後建立一個爬蟲任務。"""
+def test_create_job(page: Page, base_url: str) -> None:
+    """
+    測試登入後建立一個爬蟲任務。
+
+    Args:
+        page (Page): Playwright 的網頁操作物件。
+        base_url (str): 測試伺服器的根網址。
+    """
     # 必須先登入
     page.goto(f"{base_url}/index.html")
     page.fill('input[type="email"]', "admin@test.com")

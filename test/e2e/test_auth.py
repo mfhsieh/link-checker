@@ -1,10 +1,19 @@
-import re
+"""
+E2E 測試：使用者身分驗證與登入流程。
+"""
 
+import re
 from playwright.sync_api import Page, expect
 
 
-def test_login_success(page: Page, base_url: str):
-    """測試正常登入流程，應導向至 app.html。"""
+def test_login_success(page: Page, base_url: str) -> None:
+    """
+    測試正常登入流程，應導向至 app.html。
+
+    Args:
+        page (Page): Playwright 的網頁操作物件。
+        base_url (str): 測試伺服器的根網址。
+    """
     page.goto(f"{base_url}/index.html")
 
     # 填寫帳號密碼
@@ -21,8 +30,14 @@ def test_login_success(page: Page, base_url: str):
     expect(page.locator("body")).to_contain_text("任務管理")
 
 
-def test_login_failure(page: Page, base_url: str):
-    """測試錯誤的登入，應顯示錯誤訊息且停留在登入頁。"""
+def test_login_failure(page: Page, base_url: str) -> None:
+    """
+    測試錯誤的登入，應顯示錯誤訊息且停留在登入頁。
+
+    Args:
+        page (Page): Playwright 的網頁操作物件。
+        base_url (str): 測試伺服器的根網址。
+    """
     page.goto(f"{base_url}/index.html")
 
     page.fill('input[type="email"]', "admin@test.com")

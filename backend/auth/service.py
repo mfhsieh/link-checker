@@ -232,11 +232,15 @@ def authenticate_with_invitation(
     if not user:
         raise ValueError("無效的邀請連結，請確認電子郵件與邀請連結正確。")
 
+    if user.status == "deleted":
+        raise ValueError("此帳號已被刪除。")
+
     if user.status not in ("pending", "expired"):
         raise ValueError("此帳號已完成設定，請使用密碼登入。")
 
     invitation = (
-        db.query(Invitation)
+        db
+        .query(Invitation)
         .filter(
             Invitation.user_id == user.id,
             Invitation.token == token,
@@ -321,6 +325,10 @@ def authenticate_with_password(
     if user.status == "suspended":
         _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已停用")
         raise ValueError("此帳號已被停用，請聯繫管理員。")
+
+    if user.status == "deleted":
+        _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已被刪除")
+        raise ValueError("此帳號已被刪除。")
 
     if _is_account_locked(user):
         remaining = int((user.locked_until - _utc_now()).total_seconds() / 60)
@@ -412,7 +420,8 @@ def get_session_by_token(db: DBSession, raw_token: str) -> Session | None:
     token_hash = _hash_token(raw_token)
     now = _utc_now()
     return (
-        db.query(Session)
+        db
+        .query(Session)
         .filter(
             Session.token_hash == token_hash,
             Session.expires_at > now,
@@ -584,13 +593,57 @@ def change_password(
     _log_event(db, "password_changed", user_id=user_id)
 
 
+def cleanup_deleted_user_task(user_id: str) -> None:
+    """
+    背景任務：清理已被軟刪除 (status='deleted') 使用者的跨庫資料，達成最終一致性。
+
+    Args:
+        user_id (str): 欲清理的使用者 ID。
+    """
+    from backend.auth.db import get_auth_session_local  # pylint: disable=import-outside-toplevel
+    from backend.deps import get_job_manager  # pylint: disable=import-outside-toplevel
+    from crawler.models import Job  # pylint: disable=import-outside-toplevel
+
+    auth_session_factory = get_auth_session_local()
+    manager = get_job_manager()
+    crawler_session_factory = manager.session_factory
+
+    # 1. 刪除 Crawler DB 資料
+    try:
+        with crawler_session_factory() as crawler_db:
+            crawler_jobs = crawler_db.query(Job).filter(Job.user_id == user_id).all()
+            for job in crawler_jobs:
+                crawler_db.delete(job)
+            crawler_db.commit()
+            if crawler_jobs:
+                logger.info("已背景清理使用者 %s 的 %d 個爬蟲任務", user_id, len(crawler_jobs))
+    except SQLAlchemyError as e:
+        logger.error("背景清理 Crawler DB 時發生錯誤: %s", e)
+        return
+
+    # 2. 刪除 Auth DB 資料與實體使用者
+    try:
+        with auth_session_factory() as auth_db:
+            user = auth_db.query(User).filter(User.id == user_id, User.status == "deleted").first()
+            if user:
+                auth_db.query(Session).filter(Session.user_id == user_id).delete()
+                auth_db.query(Invitation).filter(Invitation.user_id == user_id).delete()
+                auth_db.delete(user)
+                auth_db.commit()
+                logger.info("已背景實體刪除使用者 %s (%s)", user.email, user_id)
+    except SQLAlchemyError as e:
+        logger.error("背景清理 Auth DB 時發生錯誤: %s", e)
+
+
 def run_session_gc_task() -> None:
     """
     背景任務：清除 Auth DB 中所有已過期的 Session 紀錄 (Garbage Collection)。
+    並同時巡檢是否有處於軟刪除狀態 (status='deleted') 尚未清理乾淨的使用者。
     """
     # 延遲載入以避免與 router / deps 產生循環依賴
     from backend.auth.db import get_auth_session_local  # pylint: disable=import-outside-toplevel
 
+    deleted_user_ids = []
     try:
         session_factory = get_auth_session_local()
         with session_factory() as db:
@@ -601,5 +654,15 @@ def run_session_gc_task() -> None:
             if count > 0:
                 db.commit()
                 logger.info("Session GC: 成功清理了 %d 筆過期的 Session", count)
+
+            # 巡檢軟刪除未完成的帳號
+            deleted_users = db.query(User).filter(User.status == "deleted").all()
+            deleted_user_ids = [u.id for u in deleted_users]
+
     except SQLAlchemyError as e:
         logger.error("Session GC 發生錯誤: %s", e)
+        return
+
+    # 脫離 Auth DB session 範圍再執行跨庫清理，避免長時間鎖定
+    for uid in deleted_user_ids:
+        cleanup_deleted_user_task(uid)

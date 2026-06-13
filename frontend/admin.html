@@ -772,7 +772,7 @@
       if (!confirmed) return;
       try {
         await api.del(`/api/admin/users/${userId}`);
-        toast.success('帳號已刪除。');
+        toast.success('帳號已進入刪除排程，資料將於背景清理。');
         await loadUsers();
       } catch (err) { toast.error(err.message); }
     }

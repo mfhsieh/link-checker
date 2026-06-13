@@ -12,16 +12,15 @@ import os
 from datetime import datetime
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth import service as auth_service
-from backend.auth.models import AuthLog, Invitation, User
+from backend.auth.models import AuthLog, User
 from backend.config import get_settings
 from backend.deps import (
     get_auth_db,
-    get_crawler_db,
     get_job_manager,
     require_admin,
     require_csrf,
@@ -33,7 +32,6 @@ from crawler.config_utils import (
     validate_ignore_regexes,
 )
 from crawler.manager import JobManager
-from crawler.models import Job
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -257,7 +255,7 @@ def list_users(
     Returns:
         list[dict[str, object]]: 系統中所有使用者的資訊陣列。
     """
-    query = auth_db.query(User)
+    query = auth_db.query(User).filter(User.status != "deleted")
     if status_filter:
         query = query.filter(User.status == status_filter)
     users = query.order_by(User.created_at.desc()).all()
@@ -342,7 +340,7 @@ def update_user(
 
     # [安全防護 2] 防止將停用/已過期的帳號設為管理員
     future_status = body.status if body.status else user.status
-    if body.role == "admin" and future_status in ("suspended", "expired"):
+    if body.role == "admin" and future_status in ("suspended", "expired", "deleted"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="無法將停用或已過期的帳號設為管理員。",
@@ -383,8 +381,8 @@ def update_user(
 def delete_user(
     user_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     auth_db: DBSession = Depends(get_auth_db),
-    crawler_db: DBSession = Depends(get_crawler_db),
     current_admin: User = Depends(require_admin),
     _csrf: None = Depends(require_csrf),
 ) -> dict[str, str]:
@@ -396,8 +394,8 @@ def delete_user(
     Args:
         user_id (str): 被刪除使用者的 UUID。
         request (Request): FastAPI Request。
+        background_tasks (BackgroundTasks): 用於發送背景清理任務。
         auth_db (DBSession): Auth 資料庫 Session。
-        crawler_db (DBSession): Crawler 資料庫 Session。
         current_admin (User): 當前操作的管理員使用者物件。
         _csrf (None): CSRF 防禦依賴。
 
@@ -430,6 +428,7 @@ def delete_user(
     log_detail = {
         "deleted_user_id": user_id,
         "deleted_email": user.email,
+        "action": "soft_delete_and_schedule_cleanup",
     }
     auth_log = AuthLog(
         user_id=current_admin.id,
@@ -439,25 +438,16 @@ def delete_user(
     )
     auth_db.add(auth_log)
 
-    # [已知限制] 跨資料庫操作缺乏分散式事務 (Two-Phase Commit) 保護。
-    # 若步驟 1 成功但步驟 2 發生例外，將導致 Crawler DB 資料已刪除，
-    # 但 Auth DB 中使用者帳號仍存在的不一致狀態。
-    # 考量 SQLite commit 失敗機率極低，且任務資料遺失不影響帳號運作，故先以此已知限制記錄。
-
-    # 1. 先刪 Crawler DB 中該 user_id 的所有任務（cascade 刪除隊列與外連）
-    crawler_jobs = crawler_db.query(Job).filter(Job.user_id == user_id).all()
-    for job in crawler_jobs:
-        crawler_db.delete(job)
-    crawler_db.commit()
-    logger.info("已刪除使用者 %s 的 %d 個爬蟲任務", user.email, len(crawler_jobs))
-
-    # 2. 再刪 Auth DB 帳號（Sessions / Invitations 不依賴 FK，手動清除）
+    # 1. 將 Auth DB 帳號標記為軟刪除 (Soft Delete)，以保證跨庫刪除的最終一致性。
+    # 並且使所有 Session 立即失效。
+    user.status = "deleted"
     auth_service.invalidate_all_user_sessions(auth_db, user_id)
-    auth_db.query(Invitation).filter(Invitation.user_id == user_id).delete()
-    auth_db.delete(user)
     auth_db.commit()
 
-    return {"message": f"帳號 {user.email} 及所有關聯資料已刪除。"}
+    # 2. 加入背景任務，執行跨庫清理與實體刪除
+    background_tasks.add_task(auth_service.cleanup_deleted_user_task, user_id)
+
+    return {"message": f"帳號 {user.email} 已進入刪除排程，所有關聯資料將被非同步清理。"}
 
 
 @router.post("/users/{user_id}/resend-invite", status_code=status.HTTP_200_OK)
