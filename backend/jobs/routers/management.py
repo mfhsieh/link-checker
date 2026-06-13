@@ -32,6 +32,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
+@router.get("/default-config")
 def get_default_config(
     _current_user: User = Depends(get_current_user),
 ) -> dict[str, object]:
@@ -87,6 +88,7 @@ def get_default_config(
     return {k: v for k, v in crawler_config.items() if k in allowed_keys}
 
 
+@router.get("")
 def list_jobs(
     status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
     current_user: User = Depends(get_current_user),
@@ -106,6 +108,7 @@ def list_jobs(
     return job_management.list_jobs(manager, current_user.id, status=status_filter)
 
 
+@router.post("")
 def create_job(
     body: CreateJobRequest,
     current_user: User = Depends(get_current_user),
@@ -172,6 +175,7 @@ def create_job(
     return {"job_id": job_id, "message": "任務已建立。"}
 
 
+@router.get("/{job_id}")
 def get_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -197,6 +201,7 @@ def get_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
+@router.post("/{job_id}/start")
 def start_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -225,6 +230,7 @@ def start_job(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
+@router.post("/{job_id}/pause")
 def pause_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -253,6 +259,7 @@ def pause_job(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
+@router.post("/{job_id}/resume")
 def resume_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -289,6 +296,7 @@ def resume_job(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
+@router.post("/{job_id}/reset")
 def reset_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -317,6 +325,7 @@ def reset_job(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
+@router.post("/{job_id}/retry-failed")
 def retry_failed_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -345,6 +354,7 @@ def retry_failed_job(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
+@router.delete("/{job_id}")
 def delete_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
@@ -373,6 +383,7 @@ def delete_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
+@router.post("/{job_id}/transfer")
 def transfer_job(
     job_id: str,
     body: TransferJobRequest,

@@ -18,7 +18,7 @@
 ## 2. 帳號資料庫 (Auth DB)
 
 負責帳號管理、身分驗證與安全稽核日誌。
-預設路徑：`db/auth.db`
+系統預設路徑為 `db/auth.db`，也可透過 `.env` 檔案中的 `AUTH_DB_URL` 環境變數自訂（例如指定為 `sqlite:///db/auth.db`，或於測試時動態切換）。
 
 ### 實體關聯圖 (ER Diagram)
 
@@ -144,7 +144,7 @@ erDiagram
 ## 3. 爬蟲資料庫 (Crawler DB)
 
 負責記錄爬蟲任務設定、待爬取 URL 佇列與所探索到的外部連結結果。
-預設路徑：`db/crawler.db`
+系統預設路徑為 `db/crawler.db`，也可透過 `.env` 檔案中的 `CRAWLER_DB_URL` 環境變數自訂（或於測試時切換至隔離的測試資料庫）。
 
 ### 實體關聯圖 (ER Diagram)
 

@@ -20,7 +20,8 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.auth.models import AuthBase, AuthLog, User
-from backend.deps import get_auth_db, require_admin, require_csrf
+from backend.deps import get_auth_db, get_crawler_db, get_job_manager, require_admin, require_csrf
+from crawler.models import Base as CrawlerBase, Job
 from backend.main import app
 
 # 測試用 SQLite DSN
@@ -52,8 +53,39 @@ def override_get_auth_db() -> Generator[Session, None, None]:
 # 模擬的管理員物件
 mock_admin: User = User(id="admin-id", email="admin@test.com", role="admin", status="active")
 
+# 模擬 Crawler DB 依賴
+def override_get_crawler_db() -> Generator[Session, None, None]:
+    try:
+        db = TestingSessionLocal()
+        yield db
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+# 模擬 JobManager
+class MockJobManager:
+    def get_job(self, job_id: str):
+        class MockJob:
+            status = "running"
+        if job_id == "nonexistent":
+            return None
+        return MockJob()
+
+    def pause_job(self, job_id: str):
+        pass
+
+    def delete_job(self, job_id: str):
+        return True
+
+def override_get_job_manager():
+    return MockJobManager()
+
 # 設定 dependency overrides
 app.dependency_overrides[get_auth_db] = override_get_auth_db
+app.dependency_overrides[get_crawler_db] = override_get_crawler_db
+app.dependency_overrides[get_job_manager] = override_get_job_manager
 app.dependency_overrides[require_admin] = lambda: mock_admin
 app.dependency_overrides[require_csrf] = lambda: None
 
@@ -76,6 +108,7 @@ class TestAdminLogs(unittest.TestCase):
         # 建立所有資料表
         os.makedirs("tmp", exist_ok=True)
         AuthBase.metadata.create_all(bind=engine)
+        CrawlerBase.metadata.create_all(bind=engine)
 
         # 建立一些測試資料
         db = TestingSessionLocal()
@@ -210,6 +243,68 @@ class TestAdminLogs(unittest.TestCase):
         response = self.client.get(f"/api/admin/logs?start_date={three_days_ago}&end_date={one_day_ago}")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["total"], 1)  # log2
+
+    def test_user_deleted_logging(self) -> None:
+        """
+        測試管理員刪除使用者帳號時，是否正確記錄操作日誌。
+        """
+        # 建立測試用的待刪除使用者
+        db = TestingSessionLocal()
+        db.add(User(id="delete-user-id", email="delete@test.com", role="user", status="active"))
+        db.commit()
+        db.close()
+
+        response = self.client.delete("/api/admin/users/delete-user-id")
+        self.assertEqual(response.status_code, 200)
+
+        db = TestingSessionLocal()
+        log = db.query(AuthLog).filter(
+            AuthLog.event_type == "user_deleted",
+            AuthLog.user_id == "admin-id"
+        ).order_by(AuthLog.created_at.desc()).first()
+        self.assertIsNotNone(log)
+        if log:
+            detail = json.loads(str(log.detail))
+            self.assertEqual(detail["deleted_user_id"], "delete-user-id")
+        db.close()
+
+    def test_job_takeover_logging(self) -> None:
+        """
+        測試管理員強制接管任務時，是否正確記錄操作日誌。
+        """
+        response = self.client.post("/api/admin/jobs/test-job-id/takeover")
+        self.assertEqual(response.status_code, 200)
+
+        db = TestingSessionLocal()
+        log = db.query(AuthLog).filter(
+            AuthLog.event_type == "job_force_action",
+            AuthLog.user_id == "admin-id"
+        ).order_by(AuthLog.created_at.desc()).first()
+        self.assertIsNotNone(log)
+        if log:
+            detail = json.loads(str(log.detail))
+            self.assertEqual(detail["job_id"], "test-job-id")
+            self.assertEqual(detail["action"], "takeover")
+        db.close()
+
+    def test_job_deleted_logging(self) -> None:
+        """
+        測試管理員強制刪除任務時，是否正確記錄操作日誌。
+        """
+        response = self.client.delete("/api/admin/jobs/test-job-id-delete")
+        self.assertEqual(response.status_code, 200)
+
+        db = TestingSessionLocal()
+        log = db.query(AuthLog).filter(
+            AuthLog.event_type == "job_force_action",
+            AuthLog.user_id == "admin-id"
+        ).order_by(AuthLog.created_at.desc()).first()
+        self.assertIsNotNone(log)
+        if log:
+            detail = json.loads(str(log.detail))
+            self.assertEqual(detail["job_id"], "test-job-id-delete")
+            self.assertEqual(detail["action"], "delete")
+        db.close()
 
 
 if __name__ == "__main__":

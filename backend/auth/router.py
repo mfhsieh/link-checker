@@ -288,8 +288,9 @@ def logout(
     """
     settings = get_settings()
     raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    client_ip = request.client.host if request.client else None
     if raw_token:
-        auth_service.invalidate_session(db, raw_token)
+        auth_service.invalidate_session(db, raw_token, ip=client_ip)
 
     _clear_auth_cookies(response)
 

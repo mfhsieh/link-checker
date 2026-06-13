@@ -4,17 +4,10 @@
 
 import logging
 import os
-import subprocess
+from datetime import datetime, timezone
 
 from crawler.manager import JobManager
-
-PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PID_DIR: str = os.path.join(PROJECT_ROOT, "log", "pids")
-
-_ACTIVE_PROCESSES: dict[str, subprocess.Popen] = {}
-
-
-from backend.jobs.constants import _ACTIVE_PROCESSES, PID_DIR, PROJECT_ROOT
+from backend.jobs.constants import _ACTIVE_PROCESSES, PID_DIR
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -157,3 +150,16 @@ def _cleanup_zombie_jobs(manager: JobManager) -> None:
         if not _is_job_running(job_id):
             logger.warning("偵測到任務 %s 假死 (進程已不存在)，將狀態標記為 error", job_id)
             manager.mark_job_error(job_id, "任務進程意外終止 (可能因系統 OOM 或伺服器重啟)")
+
+    starting_jobs = manager.get_all_jobs(status="starting")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    for j in starting_jobs:
+        job_id = j["id"]
+        try:
+            updated_time = datetime.strptime(j["updated_at"], "%Y-%m-%d %H:%M:%S")
+            if (now - updated_time).total_seconds() > 30:
+                if not _is_job_running(job_id):
+                    logger.warning("偵測到任務 %s 在啟動階段假死 (進程已不存在)，將狀態標記為 error", job_id)
+                    manager.mark_job_error(job_id, "任務啟動失敗 (子進程意外終止)")
+        except ValueError as e:
+            logger.debug("檢查 starting 任務 %s 時發生日期格式錯誤: %s", job_id, e)

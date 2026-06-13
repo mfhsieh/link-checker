@@ -13,6 +13,7 @@ from backend.jobs.constants import _ACTIVE_PROCESSES, ALLOWED_CRAWLER_CONFIG_KEY
 from backend.jobs.schemas import JobCreateConfig
 from backend.jobs.services.process import _cleanup_finished_processes, _cleanup_zombie_jobs, _is_job_running, _write_pid
 from crawler.manager import JobCreateOptions, JobManager
+from crawler.models import Job
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -77,11 +78,20 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     if _is_job_running(job_id):
         raise ValueError("任務已在執行中。")
 
+    # 將任務狀態設為 starting
+    with manager.session_factory() as session:
+        j = session.query(Job).filter(Job.id == job_id).first()
+        if j and j.status in ("pending", "paused"):
+            j.status = "starting"
+            session.commit()
+        else:
+            raise ValueError(f"任務目前狀態為 {j.status if j else 'None'}，無法啟動。")
+
     cli_path = os.path.join(PROJECT_ROOT, "cli.py")
 
     try:
         proc = subprocess.Popen(  # pylint: disable=consider-using-with
-            [sys.executable, cli_path, "--resume", job_id],
+            [sys.executable, cli_path, "--api-spawn", job_id],
             cwd=PROJECT_ROOT,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -244,7 +254,7 @@ def transfer_job(manager: JobManager, job_id: str, user_id: str, target_user_id:
         raise ValueError(f"找不到任務 ID: {job_id}")
     if job.user_id != user_id:
         raise ValueError("無權限操作此任務。")
-    if job.status == "running":
+    if job.status in ("running", "starting"):
         raise ValueError("任務正在執行中，無法移交。請先暫停任務。")
     result = manager.transfer_job(job_id, target_user_id)
     if not result:
@@ -272,7 +282,7 @@ def reset_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError(f"找不到任務 ID: {job_id}")
     if job.user_id != user_id:
         raise ValueError("無權限重置此任務。")
-    if job.status == "running":
+    if job.status in ("running", "starting"):
         raise ValueError("任務正在執行中，無法直接重置，請先暫停任務。")
     result = manager.reset_job(job_id)
     if not result:
@@ -300,7 +310,7 @@ def retry_failed_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError(f"找不到任務 ID: {job_id}")
     if job.user_id != user_id:
         raise ValueError("無權限操作此任務。")
-    if job.status == "running":
+    if job.status in ("running", "starting"):
         raise ValueError("任務正在執行中，無法直接重試，請先暫停任務。")
     result = manager.retry_failed_job(job_id)
     if not result:

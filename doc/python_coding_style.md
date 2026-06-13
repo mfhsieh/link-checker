@@ -100,6 +100,9 @@ ruff format .
 
 # 2. 執行 Pylint 進行靜態分析 (包含主程式與測試腳本)
 pylint backend/ crawler/ cli.py test/
+
+# 3. 執行 Pytest 整合測試
+pytest test/
 ```
 
 ## 附錄：特定框架開發補充規範 (Framework-Specific Guidelines)

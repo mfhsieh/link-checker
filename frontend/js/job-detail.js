@@ -7,7 +7,7 @@ import { download } from './api.js';
 import { toast } from './toast.js';
 
 const STATUS_LABELS = {
-    pending: '等待中', running: '執行中',
+    pending: '等待中', starting: '啟動中', running: '執行中',
     paused: '已暫停', completed: '已完成', error: '錯誤',
 };
 
@@ -144,7 +144,7 @@ async function refreshJobDetail(jobId) {
 
         renderJobInfo(job);
 
-        const isActuallyRunning = job.status === 'running' || job.is_running;
+        const isActuallyRunning = ['running', 'starting'].includes(job.status) || job.is_running;
         if (isActuallyRunning) {
             startPolling(jobId);
         } else {
@@ -175,7 +175,7 @@ async function loadInternalResultsPage(jobId) {
     containerEl.appendChild(skeletonEl);
 
     try {
-        const res = await api.get(`/api/jobs/${jobId}/internal-errors`, { page: _internalCurrentPage, page_size: 50 });
+        const res = await api.get(`/api/jobs/${jobId}/internal-results`, { page: _internalCurrentPage, page_size: 50 });
         renderInternalResultsTable(res, containerEl);
         renderInternalPagination(res, jobId);
     } catch (err) {
@@ -341,7 +341,7 @@ function renderJobInfo(job) {
     const el = (id) => document.getElementById(id);
 
     const isPausing = job.status === 'paused' && job.is_running;
-    const isActuallyRunning = job.status === 'running' || job.is_running;
+    const isActuallyRunning = ['running', 'starting'].includes(job.status) || job.is_running;
 
     _currentJobConfig = job.config;
 
@@ -349,6 +349,7 @@ function renderJobInfo(job) {
     if (statusEl) {
         let displayStatus = job.status;
         if (isPausing) displayStatus = 'paused';
+        else if (job.status === 'starting') displayStatus = 'starting';
         else if (isActuallyRunning) displayStatus = 'running';
 
         statusEl.className = `badge badge-${displayStatus}`;
@@ -562,7 +563,11 @@ function bindControlButtons() {
 
                     wrapper.appendChild(createSection('🛡️ 過濾與排除', [
                         { label: '忽略路徑規則', value: el => formatList(c.ignore_regexes, el) },
-                        { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } }
+                        { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } },
+                        { label: '自簽憑證豁免', value: el => formatList(c.ssl_exempt_domains, el) },
+                        { label: '網域專屬延遲', value: el => formatList(
+                            c.domain_delays ? Object.entries(c.domain_delays).map(([k, v]) => `${k}: ${v}s`) : [], el
+                        ) }
                     ]));
 
                     container.appendChild(wrapper);

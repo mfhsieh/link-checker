@@ -72,6 +72,7 @@ def _write_iterator_to_zip(zf: zipfile.ZipFile, csv_filename: str, iterator: Ite
         pass
 
 
+@router.get("/{job_id}/results/export")
 def export_results(
     job_id: str,
     query_args: ExportQueryArgs = Depends(),
@@ -191,6 +192,7 @@ def export_results(
     )
 
 
+@router.get("/{job_id}/export/full")
 def export_full_report(
     job_id: str,
     background_tasks: BackgroundTasks,

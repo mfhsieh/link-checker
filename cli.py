@@ -5,8 +5,6 @@
 並透過 JobManager 啟動全新的任務或是恢復先前中斷的任務。
 """
 
-# pylint: disable=duplicate-code
-
 import argparse
 import json
 import logging
@@ -15,6 +13,7 @@ import re
 import secrets
 import string
 import sys
+import typing
 from logging.handlers import RotatingFileHandler
 
 import yaml
@@ -210,6 +209,7 @@ def _is_help_needed(args: argparse.Namespace) -> bool:
         args.retry_failed,
         args.create_admin,
         args.serve,
+        args.api_spawn is not None,
     ]
     return not any(commands)
 
@@ -226,109 +226,129 @@ def parse_args() -> argparse.Namespace | None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="外部連結檢查爬蟲 (External Link Checker Crawler)"
     )
-    parser.add_argument(
+
+    # ---------------------------------------------------------
+    # 群組 1：任務生命週期與調度 (Job Lifecycle & Scheduling)
+    # ---------------------------------------------------------
+    group_lifecycle = parser.add_argument_group("任務生命週期與調度 (Job Lifecycle & Scheduling)")
+    group_lifecycle.add_argument("-c", "--config", type=str, help="YAML 設定檔的路徑 (建立新任務時必填)")
+    group_lifecycle.add_argument("-u", "--user-id", type=str, help="(選填) 綁定任務的擁有者 ID")
+    group_lifecycle.add_argument("-r", "--resume", type=str, help="欲恢復執行之任務 (Job) ID")
+    group_lifecycle.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="(選填) 強制接管狀態卡在 running 的任務（搭配 --resume 使用）",
+    )
+    group_lifecycle.add_argument(
+        "-p",
+        "--pause",
+        type=str,
+        metavar="JOB_ID",
+        help="暫停指定任務 (僅在任務狀態為 running 時生效)",
+    )
+    group_lifecycle.add_argument(
+        "-d",
+        "--delete",
+        type=str,
+        metavar="JOB_ID",
+        help="刪除指定任務，並清理其所有佇列與外連記錄",
+    )
+    group_lifecycle.add_argument(
+        "-R",
+        "--reset",
+        type=str,
+        metavar="JOB_ID",
+        help="重設指定任務，清除已探索外連並將狀態與佇列歸零",
+    )
+    group_lifecycle.add_argument(
+        "-T",
+        "--retry-failed",
+        type=str,
+        metavar="JOB_ID",
+        help="局部重試指定任務中爬取失敗的內部網頁",
+    )
+
+    # ---------------------------------------------------------
+    # 群組 2：報表檢視與結果匯出 (Reporting & Exporting)
+    # ---------------------------------------------------------
+    group_report = parser.add_argument_group("報表檢視與結果匯出 (Reporting & Exporting)")
+    group_report.add_argument("--list-jobs", action="store_true", help="列出所有已建立的爬蟲任務")
+    group_report.add_argument("--report", type=str, help="檢視指定任務的詳細進度與統計報表")
+    group_report.add_argument(
+        "--export",
+        type=str,
+        metavar="JOB_ID",
+        help="將指定任務 ID 所找到的外部連結匯出",
+    )
+    group_report.add_argument(
+        "--export-full",
+        type=str,
+        metavar="JOB_ID",
+        help="將指定任務 ID 的完整報表 (ZIP 壓縮檔) 匯出",
+    )
+    group_report.add_argument(
+        "--output",
+        type=str,
+        metavar="FILE_PATH",
+        help="(選填) 指定匯出檔案的路徑與名稱，預設為 report/<JOB_ID>.csv (或 .json)",
+    )
+    group_report.add_argument(
+        "--filter",
+        type=str,
+        choices=["dead", "broken", "insecure"],
+        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken, insecure)",
+    )
+    group_report.add_argument(
+        "--exclude",
+        type=str,
+        help="(選填) 搭配 --export 使用，排除指定的目標網域（多個以逗號分隔，例如: facebook.com,youtube.com）",
+    )
+    group_report.add_argument(
+        "--group-by",
+        type=str,
+        choices=["none", "target", "source", "domain"],
+        default="none",
+        help="(選填) 搭配 --export，指定聚合模式 (target:依外連, source:依來源頁面, domain:依網域)",
+    )
+    group_report.add_argument(
+        "--json",
+        action="store_true",
+        help="(選填) 以 JSON 格式輸出或導出結果 (支援 --list-jobs, --report, --export)",
+    )
+
+    # ---------------------------------------------------------
+    # 群組 3：全域設定與系統維運 (Global & System Admin)
+    # ---------------------------------------------------------
+    group_system = parser.add_argument_group("全域設定與系統維運 (Global & System Admin)")
+    group_system.add_argument(
         "-g",
         "--global-config",
         type=str,
         default=os.environ.get("GLOBAL_CONFIG_PATH", "config/config_global.yaml"),
         help="全域 YAML 設定檔的路徑",
     )
-    parser.add_argument("-c", "--config", type=str, help="YAML 設定檔的路徑")
-    parser.add_argument("-u", "--user-id", type=str, help="(選填) 綁定任務的擁有者 ID")
-    parser.add_argument("-r", "--resume", type=str, help="欲恢復執行之任務 (Job) ID")
-    parser.add_argument(
-        "-f",
-        "--force",
-        action="store_true",
-        help="(選填) 強制接管狀態卡在 running 的任務（搭配 --resume 使用）",
-    )
-    parser.add_argument("--list-jobs", action="store_true", help="列出所有已建立的爬蟲任務")
-    parser.add_argument(
-        "--pause",
-        type=str,
-        metavar="JOB_ID",
-        help="暫停指定任務 (僅在任務狀態為 running 時生效)",
-    )
-    parser.add_argument(
-        "--delete",
-        type=str,
-        metavar="JOB_ID",
-        help="刪除指定任務，並清理其所有佇列與外連記錄",
-    )
-    parser.add_argument(
-        "--reset",
-        type=str,
-        metavar="JOB_ID",
-        help="重設指定任務，清除已探索外連並將狀態與佇列歸零",
-    )
-    parser.add_argument(
-        "--retry-failed",
-        type=str,
-        metavar="JOB_ID",
-        help="局部重試指定任務中爬取失敗的內部網頁",
-    )
-    parser.add_argument("--report", type=str, help="檢視指定任務的詳細進度與統計報表")
-    parser.add_argument(
-        "--export",
-        type=str,
-        metavar="JOB_ID",
-        help="將指定任務 ID 所找到的外部連結匯出",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        metavar="FILE_PATH",
-        help="(選填) 指定匯出檔案的路徑與名稱，預設為 report/<JOB_ID>.csv (或 .json)",
-    )
-    parser.add_argument(
-        "--export-full",
-        type=str,
-        metavar="JOB_ID",
-        help="將指定任務 ID 的完整報表 (ZIP 壓縮檔) 匯出",
-    )
-    parser.add_argument(
-        "--filter",
-        type=str,
-        choices=["dead", "broken", "insecure"],
-        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken, insecure)",
-    )
-    parser.add_argument(
-        "--exclude",
-        type=str,
-        help=("(選填) 搭配 --export 使用，排除指定的目標網域（多個以逗號分隔，例如: facebook.com,youtube.com）"),
-    )
-    parser.add_argument(
-        "--group",
-        action="store_true",
-        help="(已棄用) 搭配 --export 使用，請改用 --group-by target",
-    )
-    parser.add_argument(
-        "--group-by",
-        type=str,
-        choices=["none", "target", "source", "domain"],
-        default="none",
-        help=("(選填) 搭配 --export，指定聚合模式 (target:依外連, source:依來源頁面, domain:依網域)"),
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="(選填) 以 JSON 格式輸出或導出結果 (支援 --list-jobs, --report, --export)",
-    )
-    parser.add_argument(
+    group_system.add_argument(
         "--serve",
         action="store_true",
         help="啟動 Web 後端伺服器 (FastAPI / Uvicorn)",
     )
-    parser.add_argument(
+    group_system.add_argument(
         "--reload",
         action="store_true",
         help="(選填) 搭配 --serve 使用，啟用 Uvicorn 的開發模式熱重載",
     )
-    parser.add_argument(
+    group_system.add_argument(
         "--create-admin",
         nargs=1,
         metavar="EMAIL",
         help="建立或更新系統管理員帳號 (隨機產生密碼並設為待設密狀態)",
+    )
+    group_system.add_argument(
+        "--api-spawn",
+        type=str,
+        metavar="JOB_ID",
+        help=argparse.SUPPRESS,  # API 背景呼叫專用
     )
 
     args: argparse.Namespace = parser.parse_args()
@@ -385,11 +405,12 @@ def _handle_report(manager: JobManager, args: argparse.Namespace) -> None:
         print(f"最後更新: {report['updated_at']}")
         print("-" * 20)
         print("【佇列進度統計】")
-        print(f"  總計網址數: {report['queue']['total']}")
-        print(f"  已完成 (Completed): {report['queue']['completed']}")
-        print(f"  已略過 (Skipped):   {report['queue']['skipped']}")
-        print(f"  等待中 (Pending):   {report['queue']['pending']}")
-        print(f"  已失敗 (Failed):    {report['queue']['failed']}")
+        queue_stats = typing.cast(dict[str, int], report["queue"])
+        print(f"  總計網址數: {queue_stats['total']}")
+        print(f"  已完成 (Completed): {queue_stats['completed']}")
+        print(f"  已略過 (Skipped):   {queue_stats['skipped']}")
+        print(f"  等待中 (Pending):   {queue_stats['pending']}")
+        print(f"  已失敗 (Failed):    {queue_stats['failed']}")
         print("-" * 20)
         print("【產出成果】")
         print(f"  尋獲外部連結數: {report['external_links']}")
@@ -406,7 +427,7 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     """
     ext = ".json" if args.json else ".csv"
     output_path = args.output if args.output else f"report/{args.export}{ext}"
-    group_by = "target" if args.group else args.group_by
+    group_by = args.group_by
     logging.info("準備將任務 %s 匯出至 %s...", args.export, output_path)
     success = export_job_results(
         manager.session_factory,
@@ -443,6 +464,70 @@ def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def _handle_pause(manager: JobManager, args: argparse.Namespace) -> None:
+    """
+    處理暫停任務的指令。
+
+    向指定的任務發出暫停訊號，並將任務狀態設為 paused。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含欲暫停的任務 ID (args.pause)。
+    """
+    logging.info("準備暫停任務 %s...", args.pause)
+    if not manager.pause_job(args.pause):
+        sys.exit(1)
+    logging.info("已成功發送暫停指令，任務狀態已設為 paused。")
+
+
+def _handle_delete(manager: JobManager, args: argparse.Namespace) -> None:
+    """
+    處理刪除任務的指令。
+
+    刪除指定任務，並清理關聯的所有佇列資料與外連紀錄。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含欲刪除的任務 ID (args.delete)。
+    """
+    logging.info("準備刪除任務 %s...", args.delete)
+    if not manager.delete_job(args.delete):
+        sys.exit(1)
+    logging.info("任務已成功刪除，相關佇列與外連記錄已清理。")
+
+
+def _handle_reset(manager: JobManager, args: argparse.Namespace) -> None:
+    """
+    處理重設任務的指令。
+
+    將指定任務的狀態重置，並清空已發現的連結與執行紀錄，使其可重新開始。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含欲重設的任務 ID (args.reset)。
+    """
+    logging.info("準備重設任務 %s...", args.reset)
+    if not manager.reset_job(args.reset):
+        sys.exit(1)
+    logging.info("任務已成功重設。")
+
+
+def _handle_retry_failed(manager: JobManager, args: argparse.Namespace) -> None:
+    """
+    處理局部重試任務的指令。
+
+    將指定任務中內部抓取失敗的網頁狀態重設為等待中，以便後續可透過 resume 指令重新爬取。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含欲重試的任務 ID (args.retry_failed)。
+    """
+    logging.info("準備局部重試任務 %s 的失敗項目...", args.retry_failed)
+    if not manager.retry_failed_job(args.retry_failed):
+        sys.exit(1)
+    logging.info("任務的失敗項目已成功重置為 pending。您可以透過 --resume 再次啟動該任務。")
+
+
 def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> bool:
     """
     處理不需要讀取 job config 的一般管理指令（例如：清單、報表、暫停、刪除、重設等）。
@@ -454,7 +539,6 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
     Returns:
         bool: 如果處理了其中一個指令，則回傳 True；若皆未符合則回傳 False。
     """
-    # pylint: disable=too-many-branches
     handled = True
     if args.list_jobs:
         _handle_list_jobs(manager, args)
@@ -465,29 +549,144 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
     elif args.export_full:
         _handle_export_full(manager, args)
     elif args.pause:
-        logging.info("準備暫停任務 %s...", args.pause)
-        if not manager.pause_job(args.pause):
-            sys.exit(1)
-        logging.info("已成功發送暫停指令，任務狀態已設為 paused。")
+        _handle_pause(manager, args)
     elif args.delete:
-        logging.info("準備刪除任務 %s...", args.delete)
-        if not manager.delete_job(args.delete):
-            sys.exit(1)
-        logging.info("任務已成功刪除，相關佇列與外連記錄已清理。")
+        _handle_delete(manager, args)
     elif args.reset:
-        logging.info("準備重設任務 %s...", args.reset)
-        if not manager.reset_job(args.reset):
-            sys.exit(1)
-        logging.info("任務已成功重設。")
+        _handle_reset(manager, args)
     elif args.retry_failed:
-        logging.info("準備局部重試任務 %s 的失敗項目...", args.retry_failed)
-        if not manager.retry_failed_job(args.retry_failed):
-            sys.exit(1)
-        logging.info("任務的失敗項目已成功重置為 pending。您可以透過 --resume 再次啟動該任務。")
+        _handle_retry_failed(manager, args)
     else:
         handled = False
 
     return handled
+
+
+def _handle_resume(manager: JobManager, args: argparse.Namespace) -> None:
+    """
+    處理恢復執行指定任務的指令。
+
+    從資料庫中讀取原始設定快照並繼續尚未完成的爬蟲任務。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含欲恢復的任務 ID (args.resume) 與是否強制執行的選項 (args.force)。
+    """
+    logging.info("正在恢復執行任務 %s...", args.resume)
+    if args.config:
+        logging.warning("--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。")
+    manager.run_job(job_id=args.resume, force=args.force)
+
+
+def _handle_api_spawn(manager: JobManager, args: argparse.Namespace) -> None:
+    """
+    處理 API 在背景產生的任務啟動指令。
+    """
+    logging.info("API 觸發任務啟動程序: %s", args.api_spawn)
+    manager.run_job(job_id=args.api_spawn, force=args.force, is_api_spawn=True)
+
+
+def _load_job_config(config_path: str) -> dict[str, object]:
+    """
+    讀取並解析任務專用的 YAML 設定檔。
+
+    若未提供絕對路徑，則預設從 `job/` 目錄中尋找。
+
+    Args:
+        config_path (str): 任務設定檔的路徑。
+
+    Returns:
+        dict[str, object]: 解析後的任務設定字典。
+
+    Raises:
+        SystemExit: 當設定檔不存在、權限不足或格式錯誤時終止程式。
+    """
+    if not config_path.startswith(("job/", "./job/", "/")):
+        config_path = os.path.join("job", config_path)
+    try:
+        return load_config(config_path, allowed_directory="job")
+    except FileNotFoundError:
+        logging.error("找不到指定的設定檔: %s", config_path)
+        sys.exit(1)
+    except PermissionError as pe:
+        logging.error("安全驗證失敗：%s", pe)
+        sys.exit(1)
+    except yaml.YAMLError as e:
+        logging.error("讀取設定檔時發生格式錯誤: %s", e)
+        sys.exit(1)
+
+
+def _normalize_domains(raw_domains: object) -> list[str]:
+    """
+    將傳入的網域設定統一正規化為字串列表。
+
+    支援處理單一字串、列表或其他可轉換型別，並會自動去除空白與無效項目。
+
+    Args:
+        raw_domains (object): 從設定檔讀取出來的原始網域資料。
+
+    Returns:
+        list[str]: 正規化後的網域字串列表。
+    """
+    if isinstance(raw_domains, str):
+        raw_domains = [raw_domains]
+    elif not isinstance(raw_domains, list):
+        raw_domains = [str(raw_domains)] if raw_domains is not None else []
+    return [str(d).strip() for d in raw_domains if str(d).strip()]
+
+
+def _create_and_run_new_job(
+    manager: JobManager,
+    args: argparse.Namespace,
+    config: dict[str, object],
+    crawler_config: dict[str, object],
+) -> None:
+    """
+    驗證設定參數，建立全新任務並啟動爬蟲。
+
+    解析任務所需的起始網址與目標網域，若驗證通過則交由 manager 建立任務，並隨即啟動執行。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含可選的綁定使用者 ID。
+        config (dict[str, object]): 讀取自 YAML 的原始任務設定。
+        crawler_config (dict[str, object]): 已合併全域設定的爬蟲執行參數。
+
+    Raises:
+        SystemExit: 當缺少必填參數、網址格式錯誤或啟動爬蟲發生例外時終止程式。
+    """
+    try:
+        start_url: str | None = str(config.get("start_url")).strip() if config.get("start_url") is not None else None
+        target_domains = _normalize_domains(config.get("target_domains", []))
+        trusted_domains = _normalize_domains(config.get("trusted_domains", []))
+
+        if not start_url:
+            logging.error("設定檔中缺少必填參數: start_url")
+            sys.exit(1)
+
+        if not (start_url.startswith("http://") or start_url.startswith("https://")):
+            logging.error("設定檔參數錯誤: start_url 必須以 http:// 或 https:// 開頭")
+            sys.exit(1)
+
+        if not target_domains:
+            logging.error("設定檔中缺少必填參數: target_domains (至少需包含一個網域)")
+            sys.exit(1)
+
+        logging.info("準備建立新任務...")
+        job_id: str = manager.create_job(
+            JobCreateOptions(
+                start_url=start_url,
+                target_domains=target_domains,
+                trusted_domains=trusted_domains,
+                crawler_config=crawler_config,
+                user_id=args.user_id,
+            )
+        )
+        logging.info("成功建立任務 %s。爬蟲啟動中...", job_id)
+        manager.run_job(job_id, crawler_config=crawler_config)
+    except (ValueError, RuntimeError, OSError, TypeError) as e:
+        logging.error("啟動爬蟲時發生例外錯誤: %s", e)
+        sys.exit(1)
 
 
 def _handle_resume_or_create(manager: JobManager, args: argparse.Namespace, global_config: dict[str, object]) -> None:
@@ -504,76 +703,96 @@ def _handle_resume_or_create(manager: JobManager, args: argparse.Namespace, glob
     Raises:
         SystemExit: 當讀取設定失敗、驗證不通過或啟動爬蟲失敗時，終止程式並回傳錯誤碼 1。
     """
-    # pylint: disable=too-many-branches,too-many-statements
     if args.resume is not None:
-        logging.info("正在恢復執行任務 %s...", args.resume)
-        if args.config:
-            logging.warning("--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。")
-        manager.run_job(job_id=args.resume, force=args.force)
+        _handle_resume(manager, args)
         return
 
     config: dict[str, object] = {}
     if args.config:
-        config_path = args.config
-        if not config_path.startswith(("job/", "./job/", "/")):
-            config_path = os.path.join("job", config_path)
-        try:
-            config = load_config(config_path, allowed_directory="job")
-        except FileNotFoundError:
-            logging.error("找不到指定的設定檔: %s", config_path)
-            sys.exit(1)
-        except PermissionError as pe:
-            logging.error("安全驗證失敗：%s", pe)
-            sys.exit(1)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logging.error("讀取設定檔時發生錯誤: %s", e)
-            sys.exit(1)
+        config = _load_job_config(args.config)
 
     crawler_config = merge_and_validate_crawler_config(config, global_config)
+    _create_and_run_new_job(manager, args, config, crawler_config)
+
+
+def _load_global_config(args: argparse.Namespace) -> dict[str, object]:
+    """
+    讀取並解析系統全域 YAML 設定檔。
+
+    若未提供絕對路徑，則預設從 `config/` 目錄中尋找。若檔案不存在則預設回傳空字典。
+
+    Args:
+        args (argparse.Namespace): 命令列參數，包含全域設定檔路徑。
+
+    Returns:
+        dict[str, object]: 解析後的全域設定字典。
+
+    Raises:
+        SystemExit: 當全域設定檔權限不足或格式解析錯誤時終止程式。
+    """
+    global_config_path = args.global_config
+    if not global_config_path.startswith(("config/", "./config/", "/")):
+        global_config_path = os.path.join("config", global_config_path)
 
     try:
-        start_url: str | None = str(config.get("start_url")).strip() if config.get("start_url") is not None else None
-        target_domains_raw = config.get("target_domains", [])
-        trusted_domains_raw = config.get("trusted_domains", [])
+        return load_config(global_config_path, allowed_directory="config")
+    except FileNotFoundError:
+        logging.warning("找不到全域設定檔: %s，將使用預設全域設定", global_config_path)
+        return {}
+    except PermissionError as pe:
+        logging.error("安全驗證失敗：%s", pe)
+        sys.exit(1)
+    except yaml.YAMLError as e:
+        logging.error("讀取全域設定檔時發生格式錯誤: %s", e)
+        sys.exit(1)
 
-        if isinstance(target_domains_raw, str):
-            target_domains_raw = [target_domains_raw]
-        elif not isinstance(target_domains_raw, list):
-            target_domains_raw = [str(target_domains_raw)] if target_domains_raw is not None else []
 
-        target_domains: list[str] = [str(d).strip() for d in target_domains_raw if str(d).strip()]
+def _handle_create_admin(args: argparse.Namespace) -> None:
+    """
+    處理建立管理員帳號的指令。
 
-        if isinstance(trusted_domains_raw, str):
-            trusted_domains_raw = [trusted_domains_raw]
-        elif not isinstance(trusted_domains_raw, list):
-            trusted_domains_raw = [str(trusted_domains_raw)] if trusted_domains_raw is not None else []
+    提取命令列提供的信箱地址，並觸發管理員帳號建立與密碼產生邏輯。
 
-        trusted_domains: list[str] = [str(d).strip() for d in trusted_domains_raw if str(d).strip()]
+    Args:
+        args (argparse.Namespace): 命令列參數，包含目標信箱。
 
-        if not start_url:
-            logging.error("設定檔中缺少必填參數: start_url")
-            sys.exit(1)
+    Raises:
+        SystemExit: 當信箱格式錯誤或資料庫執行發生異常時終止程式。
+    """
+    try:
+        email = args.create_admin[0]
+        create_admin(email)
+    except (ValueError, RuntimeError, TypeError) as e:
+        logging.error("建立管理員帳號失敗: %s", e)
+        sys.exit(1)
 
-        if not (start_url.startswith("http://") or start_url.startswith("https://")):
-            logging.error("設定檔參數錯誤: start_url 必須以 http:// 或 https:// 開頭")
-            sys.exit(1)
 
-        if not target_domains:
-            logging.error("設定檔中缺少必填參數: target_domains (至少需包含一個網域)")
-            sys.exit(1)
+def _handle_serve(args: argparse.Namespace) -> None:
+    """
+    處理啟動 Web 後端伺服器的指令。
 
-        logging.info("準備建立新任務...")
-        job_id: str = manager.create_job(JobCreateOptions(
-            start_url=start_url,
-            target_domains=target_domains,
-            trusted_domains=trusted_domains,
-            crawler_config=crawler_config,
-            user_id=args.user_id,
-        ))
-        logging.info("成功建立任務 %s。爬蟲啟動中...", job_id)
-        manager.run_job(job_id, crawler_config=crawler_config)
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logging.error("啟動爬蟲時發生例外錯誤: %s", e)
+    透過 Uvicorn 啟動 FastAPI 應用程式，並依據參數決定是否開啟熱重載。
+
+    Args:
+        args (argparse.Namespace): 命令列參數，包含是否啟用熱重載 (args.reload)。
+
+    Raises:
+        SystemExit: 當缺少必要套件或啟動伺服器發生例外錯誤時終止程式。
+    """
+    logging.info("啟動 Web 後端伺服器...")
+    try:
+        import uvicorn  # pylint: disable=import-outside-toplevel
+
+        uvicorn.run(
+            "backend.main:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=args.reload,
+            proxy_headers=True,
+            forwarded_allow_ips="*",
+        )
+    except (ImportError, RuntimeError, OSError) as e:
+        logging.error("啟動 Web 伺服器失敗: %s", e)
         sys.exit(1)
 
 
@@ -590,53 +809,23 @@ def main() -> None:
     if not args:
         return
 
-    global_config_path = args.global_config
-    if not global_config_path.startswith(("config/", "./config/", "/")):
-        global_config_path = os.path.join("config", global_config_path)
-
-    global_config: dict[str, object] = {}
-    try:
-        global_config = load_config(global_config_path, allowed_directory="config")
-    except FileNotFoundError:
-        logging.warning("找不到全域設定檔: %s，將使用預設全域設定", global_config_path)
-    except PermissionError as pe:
-        logging.error("安全驗證失敗：%s", pe)
-        sys.exit(1)
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logging.error("讀取全域設定檔時發生錯誤: %s", e)
-        sys.exit(1)
-
+    global_config = _load_global_config(args)
     setup_logging()
     db_url: str = os.environ.get("CRAWLER_DB_URL", "sqlite:///db/crawler.db")
 
     if args.create_admin:
-        try:
-            email = args.create_admin[0]
-            create_admin(email)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logging.error("建立管理員帳號失敗: %s", e)
-            sys.exit(1)
+        _handle_create_admin(args)
         return
 
     if args.serve:
-        logging.info("啟動 Web 後端伺服器...")
-        try:
-            import uvicorn  # pylint: disable=import-outside-toplevel
-
-            uvicorn.run(
-                "backend.main:app",
-                host="0.0.0.0",
-                port=8000,
-                reload=args.reload,
-                proxy_headers=True,
-                forwarded_allow_ips="*",
-            )
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logging.error("啟動 Web 伺服器失敗: %s", e)
-            sys.exit(1)
+        _handle_serve(args)
         return
 
     manager: JobManager = JobManager(db_url=db_url)
+    if args.api_spawn:
+        _handle_api_spawn(manager, args)
+        return
+
     if _handle_job_management(manager, args):
         return
 

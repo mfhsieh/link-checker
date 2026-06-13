@@ -547,10 +547,10 @@ def takeover_job(
     job = manager.get_job(job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
-    if job.status != "running":
+    if job.status not in ("running", "starting"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"任務狀態為 {job.status}，只有 running 狀態的任務才能被強制接管。",
+            detail=f"任務狀態為 {job.status}，只有 running 或 starting 狀態的任務才能被強制接管。",
         )
 
     # 記錄任務強制接管的操作日誌

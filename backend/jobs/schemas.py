@@ -222,6 +222,7 @@ class ExportQueryArgs:  # pylint: disable=too-few-public-methods
         self.fmt = fmt
 
 
+@dataclass
 class JobCreateConfig:  # pylint: disable=too-few-public-methods
     """建立任務的設定封裝。"""
 
@@ -245,17 +246,18 @@ class JobResultQuery:  # pylint: disable=too-few-public-methods,too-many-instanc
     page_size: int = 50
 
     @classmethod
-    def from_query_args(cls, job_id: str, user_id: str, query_args: BaseModel) -> "JobResultQuery":
+    def from_query_args(cls, job_id: str, user_id: str, query_args: object) -> "JobResultQuery":
         """
-        從 Pydantic 查詢參數建立。
+        從查詢參數建立。
 
         Args:
             job_id (str): 任務 ID。
             user_id (str): 使用者 ID。
-            query_args (BaseModel): FastAPI 接收到的查詢參數模型。
+            query_args (object): FastAPI 接收到的查詢參數物件。
 
         Returns:
             JobResultQuery: 建立的查詢封裝物件。
         """
-        kwargs = query_args.model_dump(exclude_unset=True)
-        return cls(job_id=job_id, user_id=user_id, **kwargs)
+        valid_keys = cls.__annotations__.keys()
+        filtered_kwargs = {k: v for k, v in vars(query_args).items() if k in valid_keys}
+        return cls(job_id=job_id, user_id=user_id, **filtered_kwargs)

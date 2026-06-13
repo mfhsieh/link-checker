@@ -75,6 +75,8 @@ cp .env.example .env
 nano .env
 ```
 
+> **提示**：若您希望自訂資料庫儲存位置（例如掛載至外部硬碟以節省系統碟空間），請於 `.env` 中設定 `AUTH_DB_URL` 與 `CRAWLER_DB_URL`。
+
 2. 初始化系統，建立第一位管理員帳號：
 
 ```bash
@@ -302,10 +304,10 @@ http://<您的 VM 外部 IP>/
    ```
 2. **執行 VACUUM 壓縮資料庫**：
    ```bash
-   # 壓縮爬蟲資料庫
+   # 壓縮爬蟲資料庫 (若有自訂 CRAWLER_DB_URL，請替換為該路徑)
    sqlite3 db/crawler.db "VACUUM;"
 
-   # 壓縮帳號資料庫
+   # 壓縮帳號資料庫 (若有自訂 AUTH_DB_URL，請替換為該路徑)
    sqlite3 db/auth.db "VACUUM;"
    ```
 

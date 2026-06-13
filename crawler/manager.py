@@ -147,6 +147,7 @@ class JobManager:
         job_id: str,
         crawler_config: dict[str, object] | None = None,
         force: bool = False,
+        is_api_spawn: bool = False,
     ) -> None:
         """
         執行指定的爬蟲任務，直到佇列清空或遭到使用者中斷為止。
@@ -155,9 +156,10 @@ class JobManager:
             job_id (str): 欲執行的任務 ID。
             crawler_config (dict[str, object] | None): 爬蟲相關的設定參數。
             force (bool): 是否強制接管卡在 running 狀態的任務。
+            is_api_spawn (bool): 是否由 API 背景程序觸發。
         """
         runner = JobRunner(self.session_factory, job_id)
-        runner.execute(crawler_config, force)
+        runner.execute(crawler_config, force, is_api_spawn)
 
     def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
         """
@@ -184,6 +186,7 @@ class JobManager:
                     "start_url": job.start_url,
                     "status": job.status,
                     "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                    "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
                 }
                 for job in jobs
             ]
@@ -239,7 +242,7 @@ class JobManager:
 
     def pause_job(self, job_id: str) -> bool:
         """
-        將指定任務狀態更新為 paused（僅在任務當前為 running 時允許）。
+        將指定任務狀態更新為 paused（在任務當前為 running 或 pending 時允許）。
 
         Args:
             job_id (str): 欲暫停的任務 ID。
@@ -252,11 +255,11 @@ class JobManager:
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
                 return False
-            if job.status == "running":
+            if job.status in ("running", "pending", "starting"):
                 job.status = "paused"
                 session.commit()
                 return True
-            logger.warning("任務 %s 當前狀態為 %s，非 running，無法暫停。", job_id, job.status)
+            logger.warning("任務 %s 當前狀態為 %s，無法暫停。", job_id, job.status)
             return False
 
     def delete_job(self, job_id: str) -> bool:
@@ -338,7 +341,7 @@ class JobManager:
                 return False
 
             # 執行中的任務不允許直接重置，避免子程序仍在運行時造成狀態不一致
-            if job.status == "running":
+            if job.status in ("running", "starting"):
                 logger.error(
                     "任務 %s 目前正在執行中，無法直接重置。請先暫停任務再進行重置。",
                     job_id,
@@ -385,7 +388,7 @@ class JobManager:
                 logger.error("找不到指定的任務 ID: %s", job_id)
                 return False
 
-            if job.status == "running":
+            if job.status in ("running", "starting"):
                 logger.error("任務 %s 目前正在執行中，無法直接重試。請先暫停任務。", job_id)
                 return False
 

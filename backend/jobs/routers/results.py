@@ -23,6 +23,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
+@router.get("/{job_id}/results")
 def get_results(
     job_id: str,
     query_args: ResultsQueryArgs = Depends(),
@@ -51,6 +52,7 @@ def get_results(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
+@router.get("/{job_id}/results/summary")
 def get_results_summary(
     job_id: str,
     exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
@@ -80,6 +82,7 @@ def get_results_summary(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
+@router.get("/{job_id}/diff")
 def get_job_diff(
     job_id: str,
     compare_with: str = Query(..., description="要比對的新任務 ID (對照組)"),
@@ -117,7 +120,8 @@ def get_job_diff(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
-def get_internal_errors(
+@router.get("/{job_id}/internal-results")
+def get_internal_results(
     job_id: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),

@@ -95,15 +95,21 @@ class JobRunner:
         self.state = JobRunnerState()
         self.executor: ThreadPoolExecutor | None = None
 
-    def execute(self, crawler_config_param: dict[str, object] | None = None, force: bool = False) -> None:
+    def execute(
+        self,
+        crawler_config_param: dict[str, object] | None = None,
+        force: bool = False,
+        is_api_spawn: bool = False,
+    ) -> None:
         """開始執行爬蟲任務。
 
         Args:
             crawler_config_param (dict[str, object] | None): 爬蟲相關的設定參數。
             force (bool): 是否強制接管卡在 running 狀態的任務。
+            is_api_spawn (bool): 是否由 API 背景程序觸發。
         """
         with self.session_factory() as session:
-            job = self._initialize(session, crawler_config_param, force)
+            job = self._initialize(session, crawler_config_param, force, is_api_spawn)
             if not job:
                 return
 
@@ -147,6 +153,7 @@ class JobRunner:
         session: Session,
         crawler_config_param: dict[str, object] | None,
         force: bool,
+        is_api_spawn: bool = False,
     ) -> Job | None:
         """載入任務並解析配置。若任務狀態無法執行則回傳 None。
 
@@ -155,6 +162,7 @@ class JobRunner:
           crawler_config_param: dict[str:
           object] | None:
           force: bool:
+          is_api_spawn: bool:
 
         Returns:
 
@@ -172,6 +180,14 @@ class JobRunner:
             logger.error(
                 "任務 %s 目前正在執行中。如果確定前次程序已經意外終止，請加上 -f 或 --force 參數強制接管任務。",
                 self.job_id,
+            )
+            return None
+
+        if is_api_spawn and job.status != "starting" and not force:
+            logger.info(
+                "任務 %s 當前狀態為 %s，並非預期的 starting。表示任務可能已在啟動階段被暫停，取消執行。",
+                self.job_id,
+                job.status,
             )
             return None
 
@@ -212,7 +228,8 @@ class JobRunner:
         )
 
         self.state.crawled_count = (
-            session.query(CrawlQueue)
+            session
+            .query(CrawlQueue)
             .filter(
                 CrawlQueue.job_id == self.job_id,
                 (CrawlQueue.status.in_(["completed", "failed", "warning"]))
@@ -262,7 +279,8 @@ class JobRunner:
                 break
 
             queue_item: CrawlQueue | None = (
-                session.query(CrawlQueue)
+                session
+                .query(CrawlQueue)
                 .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
                 .order_by(CrawlQueue.id)
                 .first()
@@ -376,7 +394,8 @@ class JobRunner:
         ):
             for link in internal_links:
                 exists = (
-                    session.query(CrawlQueue)
+                    session
+                    .query(CrawlQueue)
                     .filter(
                         CrawlQueue.job_id == self.job_id,
                         CrawlQueue.url == link,
@@ -413,7 +432,8 @@ class JobRunner:
         links_needing_http_check = []
         for link in unique_external_links:
             exists = (
-                session.query(ExternalLink)
+                session
+                .query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == self.job_id,
                     ExternalLink.source_url == current_url,
@@ -502,7 +522,8 @@ class JobRunner:
         for res_link, res_ip, res_code, res_err in results:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
             exists = (
-                session.query(ExternalLink)
+                session
+                .query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == self.job_id,
                     ExternalLink.source_url == current_url,

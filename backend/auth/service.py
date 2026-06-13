@@ -444,17 +444,22 @@ def refresh_session(db: DBSession, session: Session) -> None:
         logger.warning("更新 Session 有效期時發生未預期錯誤: %s", e)
 
 
-def invalidate_session(db: DBSession, raw_token: str) -> None:
+def invalidate_session(db: DBSession, raw_token: str, ip: str | None = None) -> None:
     """
-    使指定 Session 立即失效（登出）。
+    使指定 Session 立即失效（登出），並寫入登出日誌。
 
     Args:
         db (DBSession): Auth DB Session。
         raw_token (str): Cookie 中的原始 Session Token。
+        ip (str | None): 客戶端 IP 位址。
     """
     token_hash = _hash_token(raw_token)
-    db.query(Session).filter(Session.token_hash == token_hash).delete()
-    db.commit()
+    session = db.query(Session).filter(Session.token_hash == token_hash).first()
+    if session:
+        user_id = session.user_id
+        db.delete(session)
+        _log_event(db, "logout", user_id=user_id, ip_address=ip)
+        db.commit()
 
 
 def invalidate_all_user_sessions(db: DBSession, user_id: str) -> int:

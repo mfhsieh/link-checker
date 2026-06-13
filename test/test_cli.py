@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 E2E integration test script for external link checker.
 """
@@ -14,8 +13,11 @@ import zipfile
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_cli.db"
+os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_cli.db"
+
 PORT: int = 8080
-DB_PATH: str = "db/crawler.db"
+DB_PATH: str = "db/test_crawler_cli.db"
 YAML_CONFIG: str = "job/test_job.yaml"
 
 
@@ -52,11 +54,36 @@ def wait_for_server(port: int, timeout: float = 5.0) -> bool:
     return False
 
 
+def setup_databases() -> None:
+    """
+    建立並初始化全新的測試用資料庫。
+    """
+    # pylint: disable=import-outside-toplevel, protected-access
+    import backend.auth.db as auth_db
+    import backend.deps as backend_deps
+
+    # 強制清除模組的快取 Engine/Session
+    auth_db._ENGINE = None  # pylint: disable=protected-access
+    auth_db._SESSION_LOCAL = None  # pylint: disable=protected-access
+    backend_deps._JOB_MANAGER = None  # pylint: disable=protected-access
+
+    if os.path.exists("db/test_auth_cli.db"):
+        os.remove("db/test_auth_cli.db")
+    if os.path.exists("db/test_crawler_cli.db"):
+        os.remove("db/test_crawler_cli.db")
+
+    from backend.auth.db import get_auth_engine
+    from backend.deps import get_job_manager
+
+    get_auth_engine()
+    get_job_manager()
+
+
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 # pylint: disable=import-outside-toplevel, import-error, protected-access
 # pylint: disable=subprocess-run-check, unspecified-encoding, multiple-statements
 # pylint: disable=consider-using-with, unused-variable, broad-exception-caught
-def run_test() -> None:
+def test_cli_full_flow() -> None:
     """
     執行端到端 (E2E) 整合測試與各核心組件的單元測試。
 
@@ -166,9 +193,8 @@ def run_test() -> None:
         print("Mock Server is ready.")
 
         # 5. 執行第一個測試：無限制爬行，驗證功能正確性與 is_secure
-        if os.path.exists(DB_PATH):
-            print(f"Removing old database: {DB_PATH}")
-            os.remove(DB_PATH)
+        print("Setting up fresh test databases...")
+        setup_databases()
 
         # 動態產生主測試設定檔，確保 PORT 與最新欄位名稱正確
         os.makedirs("job", exist_ok=True)
@@ -244,7 +270,8 @@ crawler:
         google_url = "https://www.google.com"
         assert google_url in ext_dict, "Google link not found in DB"
         assert ext_dict[google_url]["status_code"] == 200, (
-            f"Google status code should be 200, got {ext_dict[google_url]['status_code']}. Error: {ext_dict[google_url]['error']}"
+            f"Google status code should be 200, got {ext_dict[google_url]['status_code']}. "
+            f"Error: {ext_dict[google_url]['error']}",
         )
         assert ext_dict[google_url]["ip"] is not None, "Google IP should not be None"
         assert ext_dict[google_url]["is_secure"] == 1, "Google is_secure should be 1 (True)"
@@ -342,7 +369,8 @@ crawler:
             "--export",
             job_id,
             "--json",
-            "--group",
+            "--group-by",
+            "target",
             "--output",
             export_file,
         ]
@@ -641,8 +669,7 @@ crawler:
 
         # 7. 執行第二個測試：驗證爬取限制功能 (max_depth=1, max_pages=3)
         print("\nRunning Limits Validation Job (max_depth=1, max_pages=3)...")
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
+        setup_databases()
 
         limit_yaml = "job/test_limit_job.yaml"
         with open(limit_yaml, "w", encoding="utf-8") as f:
@@ -706,8 +733,7 @@ crawler:
         except Exception:
             pass
 
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
+        setup_databases()
 
         advanced_yaml = "job/test_advanced_job.yaml"
         with open(advanced_yaml, "w", encoding="utf-8") as f:
@@ -791,15 +817,8 @@ crawler:
         if os.path.exists("job/test_limit_job.yaml"):
             os.remove("job/test_limit_job.yaml")
 
-        print("\n=== All E2E Assertions Passed! Test SUCCESS ===")
-        sys.exit(0)
+        print("All CLI Integration Tests Passed Successfully!")
 
-    except AssertionError as ae:
-        print(f"\n=== Validation AssertionError: {ae} ===")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n=== Test Runner Error: {e} ===")
-        sys.exit(1)
     finally:
         print("Terminating Mock Server process...")
         server_proc.terminate()
@@ -812,4 +831,6 @@ crawler:
 
 
 if __name__ == "__main__":
-    run_test()
+    import pytest
+
+    sys.exit(pytest.main(["-v", "-s", __file__]))

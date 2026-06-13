@@ -7,6 +7,7 @@ import { toast } from './toast.js';
 
 const STATUS_LABELS = {
   pending: '等待中',
+  starting: '啟動中',
   running: '執行中',
   paused: '已暫停',
   completed: '已完成',

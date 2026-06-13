@@ -4,28 +4,28 @@
 
 ---
 
-## 2. 主爬行迴圈與健康診斷之非同步解耦架構 (Async Distributed Architecture)
+## 1. 主爬行迴圈與健康診斷之非同步解耦架構 (Async Distributed Architecture)
 * **功能描述**：目前外部連結健康診斷是與主爬行迴圈同步進行（雖已採用 `ThreadPoolExecutor` 提升單頁內速度，但當外連高達數萬個時，仍會佔用主程序資源）。
 * **規劃方案**：將外部連結檢查徹底解耦為物理獨立的背景任務。主爬蟲專職遍歷，並將待探測外連丟入非同步工作佇列（如 Celery、Redis 或是 RabbitMQ），由背景的探測 worker 進程池獨立執行診斷並非同步寫入資料庫。此為未來 Web 後台架構擴充時的重要優化方向。
 * **狀態**：**待後續 Web 化開發階段評估（Pending Review）**。
 
 ---
 
-## 3. 任務進度推送升級：Polling → SSE (Server-Sent Events)
+## 2. 任務進度推送升級：Polling → SSE (Server-Sent Events)
 * **功能描述**：目前前台任務詳情頁面透過客戶端每 3 秒輪詢（Polling）`GET /api/jobs/{id}` 來取得進度更新，會造成不必要的無效請求。
 * **規劃方案**：後端實作 `GET /api/jobs/{id}/stream` SSE 端點，爬蟲子程序狀態變更時主動推送事件至前台；前台改用 `EventSource` API 訂閱，減少網路往返並提升即時性。
 * **狀態**：**待後續優化（Pending Review）**。
 
 ---
 
-## 4. UI 元件擴充：外連結果批次操作支援
+## 3. UI 元件擴充：外連結果批次操作支援
 * **功能描述**：目前外連結果列表僅支援全域匯出。
 * **規劃方案**：在外連結果列表增加 Checkbox，支援「批次勾選」以利針對特定連結進行局部匯出或重新發起 HTTP 探測。
 * **狀態**：**待後續優化（Pending Review）**。
 
 ---
 
-## 5. 跨資料庫刪除的不一致風險防護 (Cross-DB Transaction)
+## 4. 跨資料庫刪除的不一致風險防護 (Cross-DB Transaction)
 * **功能描述**：解決 `backend/admin/router.py` 跨庫刪除時，因缺乏分散式事務保護可能導致資料不一致的風險。
 * **規劃方案**：帳號與任務的跨庫刪除目前仍維持循序物理刪除，尚未實作軟刪除或二階段提交。未來若遷移至 PostgreSQL 可考慮實作 Saga 模式或軟刪除機制，以確保最終一致性。
 * **狀態**：**待後續優化（Pending Review）**。

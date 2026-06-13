@@ -44,9 +44,6 @@ DEBUG="false"
 AUTH_DB_URL="sqlite:///db/auth.db"
 CRAWLER_DB_URL="sqlite:///db/crawler.db"
 
-# Session 設定
-SECRET_KEY="your-strong-random-secret-key"  # 生產環境必填
-
 # SMTP 設定 (邀請與通知郵件)
 SMTP_HOST="smtp.example.com"
 SMTP_PORT="587"

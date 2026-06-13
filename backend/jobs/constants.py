@@ -19,4 +19,8 @@ ALLOWED_CRAWLER_CONFIG_KEYS = [
     "retries",
     "proxy_url",
     "user_agent",
+    "ignore_extensions",
+    "ignore_regexes",
+    "ssl_exempt_domains",
+    "domain_delays",
 ]

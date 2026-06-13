@@ -1061,7 +1061,7 @@
           const tdStatus = document.createElement('td');
           const spanStatus = document.createElement('span');
           spanStatus.className = `badge badge-${j.status}`;
-          const statusMap = { pending: '等待中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' };
+          const statusMap = { pending: '等待中', starting: '啟動中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' };
           spanStatus.textContent = statusMap[j.status] || j.status;
           tdStatus.appendChild(spanStatus);
           tr.appendChild(tdStatus);
@@ -1073,7 +1073,7 @@
           const divActions = document.createElement('div');
           divActions.style.display = 'flex';
           divActions.style.gap = '0.5rem';
-          if (j.status === 'running') {
+          if (['running', 'starting'].includes(j.status)) {
             const btnTakeover = document.createElement('button');
             btnTakeover.className = 'btn btn-sm btn-secondary job-action-btn';
             btnTakeover.dataset.action = 'takeover';
