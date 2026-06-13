@@ -16,6 +16,7 @@ db/*
 # 個別任務設定檔目錄
 job/*
 !job/.gitkeep
+!job/config_job.yaml.example
 
 # 紀錄檔目錄
 log/*
