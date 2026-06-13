@@ -4,12 +4,13 @@ E2E integration test script for external link checker.
 
 import json
 import os
-import socket
 import sqlite3
 import subprocess
 import sys
 import time
 import zipfile
+
+from test.utils import is_port_in_use, wait_for_server
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -19,39 +20,6 @@ os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_cli.db"
 PORT: int = 8080
 DB_PATH: str = "db/test_crawler_cli.db"
 YAML_CONFIG: str = "job/test_job.yaml"
-
-
-def is_port_in_use(port: int) -> bool:
-    """
-    檢查指定的 TCP 通訊埠 (Port) 是否已被本地端佔用。
-
-    Args:
-        port (int): 欲檢查的 TCP 通訊埠號碼。
-
-    Returns:
-        bool: 若已被佔用回傳 True，否則回傳 False。
-    """
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("localhost", port)) == 0
-
-
-def wait_for_server(port: int, timeout: float = 5.0) -> bool:
-    """
-    循環等待指定的 TCP 伺服器就緒並成功綁定通訊埠。
-
-    Args:
-        port (int): 伺服器所監聽的 TCP 通訊埠。
-        timeout (float): 最長等待超時時間（秒），預設為 5 秒。
-
-    Returns:
-        bool: 若伺服器在限時內啟動成功並就緒回傳 True，否則回傳 False。
-    """
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        if is_port_in_use(port):
-            return True
-        time.sleep(0.1)
-    return False
 
 
 def setup_databases() -> None:

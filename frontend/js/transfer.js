@@ -88,7 +88,7 @@ export async function initTransferPage(preselectedJobId = null) {
             const statusStr = j.status === 'completed' ? '已完成' : (j.status === 'paused' ? '已暫停' : (j.status === 'pending' ? '等待中' : (j.status === 'starting' ? '啟動中' : (j.status === 'error' ? '異常' : j.status))));
             const opt = document.createElement('option');
             opt.value = j.id;
-            opt.textContent = `${j.id.substring(0, 8)}... - ${j.start_url} [${statusStr}]`;
+            opt.textContent = `${api.formatShortUuid(j.id)} - ${j.start_url} [${statusStr}]`;
             jobSelectEl.appendChild(opt);
         });
         runBtn.disabled = false;

@@ -26,6 +26,8 @@ let _internalCurrentPage = 1;
 let _internalResultItems = [];
 let _detailSort = { key: null, asc: true };
 let _detailColFilters = {};
+let _internalSort = { key: null, asc: true };
+let _internalColFilters = {};
 let _currentDetailHeaders = [];
 let _currentResultItems = [];
 
@@ -90,6 +92,8 @@ export async function initJobDetailPage(jobId) {
     _currentPage = 1;
     _detailSort = { key: null, asc: true };
     _detailColFilters = {};
+    _internalSort = { key: null, asc: true };
+    _internalColFilters = {};
 
     // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
     document.querySelectorAll('.filter-card[data-filter]').forEach(c => {
@@ -209,24 +213,126 @@ function renderInternalResultsTable(res, containerEl) {
         return;
     }
 
-    containerEl.replaceChildren();
-    const wrapper = document.createElement('div');
-    wrapper.className = 'table-wrapper';
-    const tableEl = document.createElement('table');
-    tableEl.className = 'table';
-    const thead = document.createElement('thead');
-    const trHead = document.createElement('tr');
+    const headers = [
+        { label: '失效網址 (URL)', key: 'URL' },
+        { label: '來源頁面 (Source)', key: 'Source URL' },
+        { label: 'HTTP 狀態', key: 'HTTP Status Code' },
+        { label: '錯誤訊息', key: 'Error Message' }
+    ];
 
-    ['失效網址 (URL)', '來源頁面 (Source)', 'HTTP 狀態', '錯誤訊息'].forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
-    tableEl.appendChild(thead);
+    let tableEl = containerEl.querySelector('.table');
+    if (!tableEl) {
+        containerEl.replaceChildren();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-wrapper';
+        tableEl = document.createElement('table');
+        tableEl.className = 'table';
+        const thead = document.createElement('thead');
+        const trHead = document.createElement('tr');
 
-    const tbody = document.createElement('tbody');
-    _internalResultItems.forEach(item => {
+        headers.forEach(h => {
+            const th = document.createElement('th');
+            th.style.verticalAlign = 'top';
+            const headerTop = document.createElement('div');
+            headerTop.style.display = 'flex';
+            headerTop.style.justifyContent = 'space-between';
+            headerTop.style.alignItems = 'center';
+            if (h.sortable !== false) headerTop.style.cursor = 'pointer';
+
+            const label = document.createElement('span');
+            label.textContent = h.label;
+            headerTop.appendChild(label);
+
+            if (h.sortable !== false) {
+                const sortIcon = document.createElement('span');
+                sortIcon.className = 'sort-icon';
+                sortIcon.dataset.key = h.key;
+                sortIcon.style.color = 'var(--text-muted)';
+                sortIcon.style.fontSize = '0.75rem';
+                sortIcon.style.marginLeft = '0.25rem';
+                sortIcon.textContent = _internalSort.key === h.key ? (_internalSort.asc ? '▲' : '▼') : '⇅';
+                if (_internalSort.key === h.key) sortIcon.style.color = 'var(--color-brand-500)';
+                headerTop.appendChild(sortIcon);
+
+                headerTop.addEventListener('click', () => {
+                    if (_internalSort.key === h.key) _internalSort.asc = !_internalSort.asc;
+                    else { _internalSort.key = h.key; _internalSort.asc = true; }
+
+                    trHead.querySelectorAll('.sort-icon').forEach(icon => {
+                        if (icon.dataset.key === _internalSort.key) {
+                            icon.textContent = _internalSort.asc ? '▲' : '▼';
+                            icon.style.color = 'var(--color-brand-500)';
+                        } else {
+                            icon.textContent = '⇅';
+                            icon.style.color = 'var(--text-muted)';
+                        }
+                    });
+                    renderInternalTbody(tableEl);
+                });
+            }
+            th.appendChild(headerTop);
+
+            if (h.filterable !== false) {
+                const filterInput = document.createElement('input');
+                filterInput.type = 'text';
+                filterInput.className = 'form-input text-xs';
+                filterInput.placeholder = '篩選...';
+                filterInput.style.marginTop = '0.5rem';
+                filterInput.style.padding = '0.25rem 0.5rem';
+                filterInput.style.height = 'auto';
+                filterInput.style.fontWeight = 'normal';
+                filterInput.value = _internalColFilters[h.key] || '';
+
+                filterInput.addEventListener('input', (e) => {
+                    _internalColFilters[h.key] = e.target.value.toLowerCase();
+                    renderInternalTbody(tableEl);
+                });
+                filterInput.addEventListener('click', e => e.stopPropagation());
+                th.appendChild(filterInput);
+            }
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        tableEl.appendChild(thead);
+        tableEl.appendChild(document.createElement('tbody'));
+        wrapper.appendChild(tableEl);
+        containerEl.appendChild(wrapper);
+
+        const paginationContainerEl = document.createElement('div');
+        paginationContainerEl.id = 'internal-results-pagination';
+        containerEl.appendChild(paginationContainerEl);
+    }
+
+    renderInternalTbody(tableEl);
+}
+
+function renderInternalTbody(tableEl) {
+    let data = [..._internalResultItems];
+
+    for (const [k, v] of Object.entries(_internalColFilters)) {
+        if (!v) continue;
+        data = data.filter(item => String(item[k] || '').toLowerCase().includes(v));
+    }
+
+    if (_internalSort.key) {
+        data.sort((a, b) => {
+            let valA = a[_internalSort.key];
+            let valB = b[_internalSort.key];
+            if (valA === undefined || valA === null) valA = '';
+            if (valB === undefined || valB === null) valB = '';
+            if (typeof valA === 'number' && typeof valB === 'number') return _internalSort.asc ? valA - valB : valB - valA;
+            valA = String(valA).toLowerCase();
+            valB = String(valB).toLowerCase();
+            if (valA < valB) return _internalSort.asc ? -1 : 1;
+            if (valA > valB) return _internalSort.asc ? 1 : -1;
+            return 0;
+        });
+    }
+
+    let tbody = tableEl.querySelector('tbody');
+    tbody.replaceChildren();
+
+    data.forEach(item => {
         const tr = document.createElement('tr');
 
         const tdUrl = document.createElement('td');
@@ -273,13 +379,6 @@ function renderInternalResultsTable(res, containerEl) {
 
         tbody.appendChild(tr);
     });
-    tableEl.appendChild(tbody);
-    wrapper.appendChild(tableEl);
-    containerEl.appendChild(wrapper);
-
-    const paginationContainerEl = document.createElement('div');
-    paginationContainerEl.id = 'internal-results-pagination';
-    containerEl.appendChild(paginationContainerEl);
 }
 
 function renderInternalPagination(res, jobId) {
@@ -357,8 +456,8 @@ function renderJobInfo(job) {
     }
 
     setTextContent('job-start-url', job.start_url);
-    setTextContent('job-created-at', job.created_at ? new Date(job.created_at).toLocaleString('zh-TW') : '-');
-    setTextContent('job-updated-at', job.updated_at ? new Date(job.updated_at).toLocaleString('zh-TW') : '-');
+    setTextContent('job-created-at', api.formatLocalTime(job.created_at));
+    setTextContent('job-updated-at', api.formatLocalTime(job.updated_at));
     setTextContent('job-external-count', job.external_link_count ?? 0);
 
     const progress = job.progress || {};

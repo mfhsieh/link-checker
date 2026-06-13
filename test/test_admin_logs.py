@@ -21,8 +21,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from backend.auth.models import AuthBase, AuthLog, User
 from backend.deps import get_auth_db, get_crawler_db, get_job_manager, require_admin, require_csrf
-from crawler.models import Base as CrawlerBase, Job
 from backend.main import app
+from crawler.models import Base as CrawlerBase
 
 # 測試用 SQLite DSN
 TEST_AUTH_DB_URL: str = "sqlite:///tmp/auth_test.db"
@@ -53,8 +53,15 @@ def override_get_auth_db() -> Generator[Session, None, None]:
 # 模擬的管理員物件
 mock_admin: User = User(id="admin-id", email="admin@test.com", role="admin", status="active")
 
+
 # 模擬 Crawler DB 依賴
 def override_get_crawler_db() -> Generator[Session, None, None]:
+    """
+    覆寫取得 Crawler DB Session 的依賴函式。
+
+    Yields:
+        Session: 測試用的 Crawler DB Session。
+    """
     try:
         db = TestingSessionLocal()
         yield db
@@ -64,23 +71,35 @@ def override_get_crawler_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
+
 # 模擬 JobManager
 class MockJobManager:
-    def get_job(self, job_id: str):
-        class MockJob:
+    """模擬的 JobManager 類別，供測試使用。"""
+
+    def get_job(self, job_id: str) -> object | None:
+        """模擬取得特定任務狀態。"""
+
+        class MockJob:  # pylint: disable=too-few-public-methods
+            """模擬的任務物件。"""
+
             status = "running"
+
         if job_id == "nonexistent":
             return None
         return MockJob()
 
-    def pause_job(self, job_id: str):
-        pass
+    def pause_job(self, job_id: str) -> None:  # pylint: disable=unused-argument
+        """模擬暫停任務。"""
 
-    def delete_job(self, job_id: str):
+    def delete_job(self, job_id: str) -> bool:  # pylint: disable=unused-argument
+        """模擬刪除任務。"""
         return True
 
-def override_get_job_manager():
+
+def override_get_job_manager() -> MockJobManager:
+    """覆寫取得 JobManager 的依賴函式。"""
     return MockJobManager()
+
 
 # 設定 dependency overrides
 app.dependency_overrides[get_auth_db] = override_get_auth_db
@@ -258,10 +277,12 @@ class TestAdminLogs(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         db = TestingSessionLocal()
-        log = db.query(AuthLog).filter(
-            AuthLog.event_type == "user_deleted",
-            AuthLog.user_id == "admin-id"
-        ).order_by(AuthLog.created_at.desc()).first()
+        log = (
+            db.query(AuthLog)
+            .filter(AuthLog.event_type == "user_deleted", AuthLog.user_id == "admin-id")
+            .order_by(AuthLog.created_at.desc())
+            .first()
+        )
         self.assertIsNotNone(log)
         if log:
             detail = json.loads(str(log.detail))
@@ -276,10 +297,12 @@ class TestAdminLogs(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         db = TestingSessionLocal()
-        log = db.query(AuthLog).filter(
-            AuthLog.event_type == "job_force_action",
-            AuthLog.user_id == "admin-id"
-        ).order_by(AuthLog.created_at.desc()).first()
+        log = (
+            db.query(AuthLog)
+            .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
+            .order_by(AuthLog.created_at.desc())
+            .first()
+        )
         self.assertIsNotNone(log)
         if log:
             detail = json.loads(str(log.detail))
@@ -295,10 +318,12 @@ class TestAdminLogs(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         db = TestingSessionLocal()
-        log = db.query(AuthLog).filter(
-            AuthLog.event_type == "job_force_action",
-            AuthLog.user_id == "admin-id"
-        ).order_by(AuthLog.created_at.desc()).first()
+        log = (
+            db.query(AuthLog)
+            .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
+            .order_by(AuthLog.created_at.desc())
+            .first()
+        )
         self.assertIsNotNone(log)
         if log:
             detail = json.loads(str(log.detail))

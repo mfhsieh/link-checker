@@ -16,6 +16,7 @@ const STATUS_LABELS = {
 
 let _currentJobs = [];
 let _jobSort = { key: 'created_at', asc: false };
+let _jobColFilters = {};
 let _listContainerEl = null;
 
 /**
@@ -57,7 +58,19 @@ export function renderJobList(jobs, containerEl) {
     return;
   }
 
-  _currentJobs.sort((a, b) => {
+  let data = [..._currentJobs];
+
+  for (const [k, v] of Object.entries(_jobColFilters)) {
+    if (!v) continue;
+    data = data.filter(item => {
+      let val = item[k];
+      if (k === 'status') val = STATUS_LABELS[val] || val;
+      else if (k === 'created_at') val = api.formatLocalTime(val);
+      return String(val || '').toLowerCase().includes(v);
+    });
+  }
+
+  data.sort((a, b) => {
     let valA = a[_jobSort.key];
     let valB = b[_jobSort.key];
     if (valA === undefined || valA === null) valA = '';
@@ -91,22 +104,25 @@ export function renderJobList(jobs, containerEl) {
     { label: '起始 URL', key: 'start_url' },
     { label: '狀態', key: 'status' },
     { label: '建立時間', key: 'created_at' },
-    { label: '操作', key: null }
+    { label: '操作', key: null, filterable: false }
   ];
 
   headers.forEach(h => {
     const th = document.createElement('th');
+    th.style.verticalAlign = 'top';
+
     if (!h.key) {
       th.textContent = h.label;
     } else {
-      const div = document.createElement('div');
-      div.style.display = 'flex';
-      div.style.alignItems = 'center';
-      div.style.cursor = 'pointer';
+      const headerTop = document.createElement('div');
+      headerTop.style.display = 'flex';
+      headerTop.style.justifyContent = 'space-between';
+      headerTop.style.alignItems = 'center';
+      headerTop.style.cursor = 'pointer';
 
-      const span = document.createElement('span');
-      span.textContent = h.label;
-      div.appendChild(span);
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = h.label;
+      headerTop.appendChild(labelSpan);
 
       const icon = document.createElement('span');
       icon.className = 'sort-icon';
@@ -119,9 +135,9 @@ export function renderJobList(jobs, containerEl) {
         icon.textContent = '⇅';
         icon.style.color = 'var(--text-muted)';
       }
-      div.appendChild(icon);
+      headerTop.appendChild(icon);
 
-      div.addEventListener('click', () => {
+      headerTop.addEventListener('click', () => {
         if (_jobSort.key === h.key) {
           _jobSort.asc = !_jobSort.asc;
         } else {
@@ -130,7 +146,26 @@ export function renderJobList(jobs, containerEl) {
         }
         renderJobList(null, _listContainerEl);
       });
-      th.appendChild(div);
+      th.appendChild(headerTop);
+
+      if (h.filterable !== false) {
+        const filterInput = document.createElement('input');
+        filterInput.type = 'text';
+        filterInput.className = 'form-input text-xs';
+        filterInput.placeholder = '篩選...';
+        filterInput.style.marginTop = '0.5rem';
+        filterInput.style.padding = '0.25rem 0.5rem';
+        filterInput.style.height = 'auto';
+        filterInput.style.fontWeight = 'normal';
+        filterInput.value = _jobColFilters[h.key] || '';
+
+        filterInput.addEventListener('input', (e) => {
+          _jobColFilters[h.key] = e.target.value.toLowerCase();
+          renderJobList(null, _listContainerEl);
+        });
+        filterInput.addEventListener('click', e => e.stopPropagation());
+        th.appendChild(filterInput);
+      }
     }
     headRowEl.appendChild(th);
   });
@@ -138,7 +173,7 @@ export function renderJobList(jobs, containerEl) {
   tableEl.appendChild(theadEl);
 
   const tbodyEl = document.createElement('tbody');
-  _currentJobs.forEach(job => {
+  data.forEach(job => {
     tbodyEl.appendChild(renderJobRow(job));
   });
   tableEl.appendChild(tbodyEl);
@@ -149,8 +184,8 @@ export function renderJobList(jobs, containerEl) {
 function renderJobRow(job) {
   const statusClass = `badge-${job.status}`;
   const label = STATUS_LABELS[job.status] || job.status;
-  const createdAt = job.created_at ? new Date(job.created_at).toLocaleString('zh-TW') : '-';
-  const shortId = job.id ? job.id.substring(0, 8) + '...' : '-';
+  const createdAt = api.formatLocalTime(job.created_at);
+  const jobId = job.id || '-';
   const truncatedUrl = job.start_url || '-';
 
   const tr = document.createElement('tr');
@@ -166,7 +201,7 @@ function renderJobRow(job) {
   const span1 = document.createElement('span');
   span1.className = 'font-mono text-xs';
   span1.title = job.id;
-  span1.textContent = shortId;
+  span1.textContent = jobId;
   td1.appendChild(span1);
   tr.appendChild(td1);
 

@@ -509,12 +509,191 @@
 
     // ── 使用者管理 ────────────────────────────────────────────
 
+    let _userSort = { key: 'created_at', asc: false };
+    let _userColFilters = {};
+    let _currentUsers = [];
+
+    function renderUsersTable(container) {
+      const headers = [
+        { label: '電子郵件', key: 'email' },
+        { label: '角色', key: 'role' },
+        { label: '狀態', key: 'status' },
+        { label: '建立時間', key: 'created_at' },
+        { label: '最後登入', key: 'last_login_at' },
+        { label: '操作', key: null, filterable: false }
+      ];
+
+      let table = container.querySelector('.table');
+      if (!table) {
+        container.replaceChildren();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-wrapper';
+        table = document.createElement('table');
+        table.className = 'table';
+        const thead = document.createElement('thead');
+        const trHead = document.createElement('tr');
+
+        headers.forEach(h => {
+          const th = document.createElement('th');
+          th.style.verticalAlign = 'top';
+          if (!h.key) {
+            th.textContent = h.label;
+          } else {
+            const headerTop = document.createElement('div');
+            headerTop.style.display = 'flex';
+            headerTop.style.justifyContent = 'space-between';
+            headerTop.style.alignItems = 'center';
+            headerTop.style.cursor = 'pointer';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = h.label;
+            headerTop.appendChild(labelSpan);
+
+            const icon = document.createElement('span');
+            icon.className = 'sort-icon';
+            icon.style.fontSize = '0.75rem';
+            icon.style.marginLeft = '0.25rem';
+            if (_userSort.key === h.key) {
+              icon.textContent = _userSort.asc ? '▲' : '▼';
+              icon.style.color = 'var(--color-brand-500)';
+            } else {
+              icon.textContent = '⇅';
+              icon.style.color = 'var(--text-muted)';
+            }
+            headerTop.appendChild(icon);
+
+            headerTop.addEventListener('click', () => {
+              if (_userSort.key === h.key) {
+                _userSort.asc = !_userSort.asc;
+              } else {
+                _userSort.key = h.key;
+                _userSort.asc = true;
+              }
+              renderUsersTable(container);
+            });
+            th.appendChild(headerTop);
+
+            if (h.filterable !== false) {
+              const filterInput = document.createElement('input');
+              filterInput.type = 'text';
+              filterInput.className = 'form-input text-xs';
+              filterInput.placeholder = '篩選...';
+              filterInput.style.marginTop = '0.5rem';
+              filterInput.style.padding = '0.25rem 0.5rem';
+              filterInput.style.height = 'auto';
+              filterInput.style.fontWeight = 'normal';
+              filterInput.value = _userColFilters[h.key] || '';
+
+              filterInput.addEventListener('input', (e) => {
+                _userColFilters[h.key] = e.target.value.toLowerCase();
+                renderUsersTable(container);
+              });
+              filterInput.addEventListener('click', e => e.stopPropagation());
+              th.appendChild(filterInput);
+            }
+          }
+          trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        table.appendChild(thead);
+        table.appendChild(document.createElement('tbody'));
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+      }
+
+      const statusMap = { pending: '待設密', active: '正常', suspended: '已停用', expired: '已過期' };
+
+      let data = [..._currentUsers];
+      for (const [k, v] of Object.entries(_userColFilters)) {
+        if (!v) continue;
+        data = data.filter(item => {
+          let val = item[k];
+          if (k === 'role') val = val === 'admin' ? '管理員' : '使用者';
+          else if (k === 'status') val = statusMap[val] || val;
+          else if (k === 'created_at' || k === 'last_login_at') val = api.formatLocalTime(val);
+          return String(val || '').toLowerCase().includes(v);
+        });
+      }
+
+      data.sort((a, b) => {
+        let valA = a[_userSort.key];
+        let valB = b[_userSort.key];
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+
+        if (_userSort.key === 'created_at' || _userSort.key === 'last_login_at') {
+          valA = new Date(valA).getTime() || 0;
+          valB = new Date(valB).getTime() || 0;
+          return _userSort.asc ? valA - valB : valB - valA;
+        }
+
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+        if (valA < valB) return _userSort.asc ? -1 : 1;
+        if (valA > valB) return _userSort.asc ? 1 : -1;
+        return 0;
+      });
+
+      const tbody = table.querySelector('tbody');
+      tbody.replaceChildren();
+
+      data.forEach(u => {
+        const trBody = document.createElement('tr');
+        const tdEmail = document.createElement('td');
+        tdEmail.textContent = u.email;
+        trBody.appendChild(tdEmail);
+        const tdRole = document.createElement('td');
+        const roleBadge = document.createElement('span');
+        roleBadge.className = `badge badge-${u.role === 'admin' ? 'admin' : 'pending'}`;
+        roleBadge.textContent = u.role === 'admin' ? '管理員' : '使用者';
+        tdRole.appendChild(roleBadge);
+        trBody.appendChild(tdRole);
+        const tdStatus = document.createElement('td');
+        const statusBadge = document.createElement('span');
+        statusBadge.className = `badge badge-${u.status}`;
+        statusBadge.textContent = statusMap[u.status] || u.status;
+        tdStatus.appendChild(statusBadge);
+        trBody.appendChild(tdStatus);
+        const tdCreated = document.createElement('td');
+        tdCreated.className = 'text-sm text-muted';
+        tdCreated.textContent = api.formatLocalTime(u.created_at);
+        trBody.appendChild(tdCreated);
+        const tdLogin = document.createElement('td');
+        tdLogin.className = 'text-sm text-muted';
+        tdLogin.textContent = api.formatLocalTime(u.last_login_at);
+        trBody.appendChild(tdLogin);
+        const tdActions = document.createElement('td');
+        const actionDiv = document.createElement('div');
+        actionDiv.style.display = 'flex';
+        actionDiv.style.gap = '0.5rem';
+        actionDiv.style.flexWrap = 'wrap';
+        const addBtn = (text, btnClass, action) => {
+          const btn = document.createElement('button');
+          btn.className = `btn btn-sm ${btnClass} user-action-btn`;
+          btn.dataset.action = action;
+          btn.dataset.id = u.id;
+          btn.dataset.email = u.email;
+          btn.textContent = text;
+          actionDiv.appendChild(btn);
+        };
+        if (u.id !== user.id && u.role === 'user' && u.status !== 'suspended') addBtn('設為管理員', 'btn-secondary', 'promote');
+        if (u.id !== user.id && u.role === 'admin') addBtn('取消管理員', 'btn-danger', 'demote');
+        if (u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin') addBtn('停用', 'btn-danger', 'suspend');
+        if (u.status === 'suspended') addBtn('啟用', 'btn-secondary', 'activate');
+        if (['pending', 'expired'].includes(u.status)) addBtn('重寄邀請', 'btn-secondary', 'resend');
+        if (u.id !== user.id && u.role !== 'admin') addBtn('刪除', 'btn-danger', 'delete');
+        tdActions.appendChild(actionDiv);
+        trBody.appendChild(tdActions);
+        tbody.appendChild(trBody);
+      });
+    }
+
     async function loadUsers() {
       const container = document.getElementById('users-table-container');
       try {
         const users = await api.get('/api/admin/users');
-        container.replaceChildren();
         if (!users || users.length === 0) {
+          container.replaceChildren();
           const empty = document.createElement('div');
           empty.className = 'empty-state';
           const title = document.createElement('div');
@@ -524,73 +703,8 @@
           container.appendChild(empty);
           return;
         }
-        const wrapper = document.createElement('div');
-        wrapper.className = 'table-wrapper';
-        const table = document.createElement('table');
-        table.className = 'table';
-        const thead = document.createElement('thead');
-        const trHead = document.createElement('tr');
-        ['電子郵件', '角色', '狀態', '建立時間', '最後登入', '操作'].forEach(t => {
-          const th = document.createElement('th');
-          th.textContent = t;
-          trHead.appendChild(th);
-        });
-        thead.appendChild(trHead);
-        table.appendChild(thead);
-        const tbody = document.createElement('tbody');
-        users.forEach(u => {
-          const trBody = document.createElement('tr');
-          const tdEmail = document.createElement('td');
-          tdEmail.textContent = u.email;
-          trBody.appendChild(tdEmail);
-          const tdRole = document.createElement('td');
-          const roleBadge = document.createElement('span');
-          roleBadge.className = `badge badge-${u.role === 'admin' ? 'admin' : 'pending'}`;
-          roleBadge.textContent = u.role === 'admin' ? '管理員' : '使用者';
-          tdRole.appendChild(roleBadge);
-          trBody.appendChild(tdRole);
-          const tdStatus = document.createElement('td');
-          const statusBadge = document.createElement('span');
-          statusBadge.className = `badge badge-${u.status}`;
-          const statusMap = { pending: '待設密', active: '正常', suspended: '已停用', expired: '已過期' };
-          statusBadge.textContent = statusMap[u.status] || u.status;
-          tdStatus.appendChild(statusBadge);
-          trBody.appendChild(tdStatus);
-          const tdCreated = document.createElement('td');
-          tdCreated.className = 'text-sm text-muted';
-          tdCreated.textContent = u.created_at ? new Date(u.created_at).toLocaleString('zh-TW') : '-';
-          trBody.appendChild(tdCreated);
-          const tdLogin = document.createElement('td');
-          tdLogin.className = 'text-sm text-muted';
-          tdLogin.textContent = u.last_login_at ? new Date(u.last_login_at).toLocaleString('zh-TW') : '-';
-          trBody.appendChild(tdLogin);
-          const tdActions = document.createElement('td');
-          const actionDiv = document.createElement('div');
-          actionDiv.style.display = 'flex';
-          actionDiv.style.gap = '0.5rem';
-          actionDiv.style.flexWrap = 'wrap';
-          const addBtn = (text, btnClass, action) => {
-            const btn = document.createElement('button');
-            btn.className = `btn btn-sm ${btnClass} user-action-btn`;
-            btn.dataset.action = action;
-            btn.dataset.id = u.id;
-            btn.dataset.email = u.email;
-            btn.textContent = text;
-            actionDiv.appendChild(btn);
-          };
-          if (u.id !== user.id && u.role === 'user' && u.status !== 'suspended') addBtn('設為管理員', 'btn-secondary', 'promote');
-          if (u.id !== user.id && u.role === 'admin') addBtn('取消管理員', 'btn-danger', 'demote');
-          if (u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin') addBtn('停用', 'btn-danger', 'suspend');
-          if (u.status === 'suspended') addBtn('啟用', 'btn-secondary', 'activate');
-          if (['pending', 'expired'].includes(u.status)) addBtn('重寄邀請', 'btn-secondary', 'resend');
-          if (u.id !== user.id && u.role !== 'admin') addBtn('刪除', 'btn-danger', 'delete');
-          tdActions.appendChild(actionDiv);
-          trBody.appendChild(tdActions);
-          tbody.appendChild(trBody);
-        });
-        table.appendChild(tbody);
-        wrapper.appendChild(table);
-        container.appendChild(wrapper);
+        _currentUsers = users;
+        renderUsersTable(container);
       } catch (err) {
         container.replaceChildren();
         const empty = document.createElement('div');
@@ -932,43 +1046,134 @@
     // ── 操作日誌 ─────────────────────────────────────────────
 
     let _logPage = 1;
+    let _logSort = { key: 'created_at', asc: false };
+    let _logColFilters = {};
+    let _currentLogs = [];
 
-    async function loadLogs(page = 1) {
-      _logPage = page;
-      const container = document.getElementById('logs-container');
-      try {
-        const res = await api.get('/api/admin/logs', { page, page_size: 50 });
-        const items = res.items || [];
+    function renderLogsTable(container) {
+      const headers = [
+        { label: '時間', key: 'created_at' },
+        { label: '事件類型', key: 'event_type' },
+        { label: '使用者 ID', key: 'user_id' },
+        { label: 'IP', key: 'ip_address' },
+        { label: '詳情', key: 'detail' }
+      ];
+
+      let table = container.querySelector('.table');
+      if (!table) {
         container.replaceChildren();
-        if (!items.length) {
-          const empty = document.createElement('div');
-          empty.className = 'empty-state';
-          const title = document.createElement('div');
-          title.className = 'empty-state-title';
-          title.textContent = '無日誌記錄';
-          empty.appendChild(title);
-          container.appendChild(empty);
-          return;
-        }
         const wrapper = document.createElement('div');
         wrapper.className = 'table-wrapper';
-        const table = document.createElement('table');
+        table = document.createElement('table');
         table.className = 'table';
         const thead = document.createElement('thead');
         const trHead = document.createElement('tr');
-        ['時間', '事件類型', '使用者 ID', 'IP', '詳情'].forEach(t => {
+
+        headers.forEach(h => {
           const th = document.createElement('th');
-          th.textContent = t;
+          th.style.verticalAlign = 'top';
+          if (!h.key) {
+            th.textContent = h.label;
+          } else {
+            const headerTop = document.createElement('div');
+            headerTop.style.display = 'flex';
+            headerTop.style.justifyContent = 'space-between';
+            headerTop.style.alignItems = 'center';
+            headerTop.style.cursor = 'pointer';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = h.label;
+            headerTop.appendChild(labelSpan);
+
+            const icon = document.createElement('span');
+            icon.className = 'sort-icon';
+            icon.style.fontSize = '0.75rem';
+            icon.style.marginLeft = '0.25rem';
+            if (_logSort.key === h.key) {
+              icon.textContent = _logSort.asc ? '▲' : '▼';
+              icon.style.color = 'var(--color-brand-500)';
+            } else {
+              icon.textContent = '⇅';
+              icon.style.color = 'var(--text-muted)';
+            }
+            headerTop.appendChild(icon);
+
+            headerTop.addEventListener('click', () => {
+              if (_logSort.key === h.key) {
+                _logSort.asc = !_logSort.asc;
+              } else {
+                _logSort.key = h.key;
+                _logSort.asc = true;
+              }
+              renderLogsTable(container);
+            });
+            th.appendChild(headerTop);
+
+            if (h.filterable !== false) {
+              const filterInput = document.createElement('input');
+              filterInput.type = 'text';
+              filterInput.className = 'form-input text-xs';
+              filterInput.placeholder = '篩選...';
+              filterInput.style.marginTop = '0.5rem';
+              filterInput.style.padding = '0.25rem 0.5rem';
+              filterInput.style.height = 'auto';
+              filterInput.style.fontWeight = 'normal';
+              filterInput.value = _logColFilters[h.key] || '';
+
+              filterInput.addEventListener('input', (e) => {
+                _logColFilters[h.key] = e.target.value.toLowerCase();
+                renderLogsTable(container);
+              });
+              filterInput.addEventListener('click', e => e.stopPropagation());
+              th.appendChild(filterInput);
+            }
+          }
           trHead.appendChild(th);
         });
         thead.appendChild(trHead);
         table.appendChild(thead);
-        const tbody = document.createElement('tbody');
-        items.forEach(log => {
+        table.appendChild(document.createElement('tbody'));
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+      }
+
+      let data = [..._currentLogs];
+      for (const [k, v] of Object.entries(_logColFilters)) {
+        if (!v) continue;
+        data = data.filter(item => {
+          let val = item[k];
+          if (k === 'created_at') val = api.formatLocalTime(val);
+          return String(val || '').toLowerCase().includes(v);
+        });
+      }
+
+      data.sort((a, b) => {
+        let valA = a[_logSort.key];
+        let valB = b[_logSort.key];
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+
+        if (_logSort.key === 'created_at') {
+          valA = new Date(valA).getTime() || 0;
+          valB = new Date(valB).getTime() || 0;
+          return _logSort.asc ? valA - valB : valB - valA;
+        }
+
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+        if (valA < valB) return _logSort.asc ? -1 : 1;
+        if (valA > valB) return _logSort.asc ? 1 : -1;
+        return 0;
+      });
+
+      const tbody = table.querySelector('tbody');
+      tbody.replaceChildren();
+
+      data.forEach(log => {
           const tr = document.createElement('tr');
           const tdTime = document.createElement('td');
           tdTime.className = 'text-xs font-mono text-muted';
-          tdTime.textContent = log.created_at ? new Date(log.created_at).toLocaleString('zh-TW') : '-';
+          tdTime.textContent = api.formatLocalTime(log.created_at);
           tr.appendChild(tdTime);
           const tdType = document.createElement('td');
           const code = document.createElement('code');
@@ -990,45 +1195,164 @@
           tdDetail.textContent = log.detail || '-';
           tr.appendChild(tdDetail);
           tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        wrapper.appendChild(table);
-        container.appendChild(wrapper);
+      });
+    }
+
+    async function loadLogs(page = 1) {
+      _logPage = page;
+      const container = document.getElementById('logs-container');
+      try {
+        const res = await api.get('/api/admin/logs', { page, page_size: 50 });
+        const items = res.items || [];
+        if (!items.length) {
+          container.replaceChildren();
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          const title = document.createElement('div');
+          title.className = 'empty-state-title';
+          title.textContent = '無日誌記錄';
+          empty.appendChild(title);
+          container.appendChild(empty);
+          return;
+        }
+        _currentLogs = items;
+        renderLogsTable(container);
       } catch (err) { toast.error('載入日誌失敗：' + err.message); }
     }
 
     // ── 任務監控 ─────────────────────────────────────────────
 
-    async function loadAllJobs() {
-      const container = document.getElementById('jobs-table-container');
-      try {
-        const jobs = await api.get('/api/admin/jobs');
+    let _allJobSort = { key: 'created_at', asc: false };
+    let _allJobColFilters = {};
+    let _currentAllJobs = [];
+
+    function renderAllJobsTable(container) {
+      const headers = [
+        { label: '任務 ID / 擁有者', key: 'id' },
+        { label: '起始網址', key: 'start_url' },
+        { label: '狀態', key: 'status' },
+        { label: '建立時間', key: 'created_at' },
+        { label: '操作', key: null, filterable: false }
+      ];
+
+      let table = container.querySelector('.table');
+      if (!table) {
         container.replaceChildren();
-        if (!jobs || jobs.length === 0) {
-          const empty = document.createElement('div');
-          empty.className = 'empty-state';
-          const title = document.createElement('div');
-          title.className = 'empty-state-title';
-          title.textContent = '目前無任何任務';
-          empty.appendChild(title);
-          container.appendChild(empty);
-          return;
-        }
         const wrapper = document.createElement('div');
         wrapper.className = 'table-wrapper';
-        const table = document.createElement('table');
+        table = document.createElement('table');
         table.className = 'table';
         const thead = document.createElement('thead');
         const trHead = document.createElement('tr');
-        ['任務 ID / 擁有者', '起始網址', '狀態', '建立時間', '操作'].forEach(t => {
+
+        headers.forEach(h => {
           const th = document.createElement('th');
-          th.textContent = t;
+          th.style.verticalAlign = 'top';
+          if (!h.key) {
+            th.textContent = h.label;
+          } else {
+            const headerTop = document.createElement('div');
+            headerTop.style.display = 'flex';
+            headerTop.style.justifyContent = 'space-between';
+            headerTop.style.alignItems = 'center';
+            headerTop.style.cursor = 'pointer';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = h.label;
+            headerTop.appendChild(labelSpan);
+
+            const icon = document.createElement('span');
+            icon.className = 'sort-icon';
+            icon.style.fontSize = '0.75rem';
+            icon.style.marginLeft = '0.25rem';
+            if (_allJobSort.key === h.key) {
+              icon.textContent = _allJobSort.asc ? '▲' : '▼';
+              icon.style.color = 'var(--color-brand-500)';
+            } else {
+              icon.textContent = '⇅';
+              icon.style.color = 'var(--text-muted)';
+            }
+            headerTop.appendChild(icon);
+
+            headerTop.addEventListener('click', () => {
+              if (_allJobSort.key === h.key) {
+                _allJobSort.asc = !_allJobSort.asc;
+              } else {
+                _allJobSort.key = h.key;
+                _allJobSort.asc = true;
+              }
+              renderAllJobsTable(container);
+            });
+            th.appendChild(headerTop);
+
+            if (h.filterable !== false) {
+              const filterInput = document.createElement('input');
+              filterInput.type = 'text';
+              filterInput.className = 'form-input text-xs';
+              filterInput.placeholder = '篩選...';
+              filterInput.style.marginTop = '0.5rem';
+              filterInput.style.padding = '0.25rem 0.5rem';
+              filterInput.style.height = 'auto';
+              filterInput.style.fontWeight = 'normal';
+              filterInput.value = _allJobColFilters[h.key] || '';
+
+              filterInput.addEventListener('input', (e) => {
+                _allJobColFilters[h.key] = e.target.value.toLowerCase();
+                renderAllJobsTable(container);
+              });
+              filterInput.addEventListener('click', e => e.stopPropagation());
+              th.appendChild(filterInput);
+            }
+          }
           trHead.appendChild(th);
         });
         thead.appendChild(trHead);
         table.appendChild(thead);
-        const tbody = document.createElement('tbody');
-        jobs.forEach(j => {
+        table.appendChild(document.createElement('tbody'));
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+      }
+
+      const statusMap = { pending: '等待中', starting: '啟動中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' };
+
+      let data = [..._currentAllJobs];
+      for (const [k, v] of Object.entries(_allJobColFilters)) {
+        if (!v) continue;
+        data = data.filter(item => {
+          let val = item[k];
+          if (k === 'id') {
+             const ownerId = item.user_id || '匿名';
+             if (String(val).toLowerCase().includes(v) || ownerId.toLowerCase().includes(v)) return true;
+             return false;
+          } else if (k === 'status') val = statusMap[val] || val;
+          else if (k === 'created_at') val = api.formatLocalTime(val);
+          return String(val || '').toLowerCase().includes(v);
+        });
+      }
+
+      data.sort((a, b) => {
+        let valA = a[_allJobSort.key];
+        let valB = b[_allJobSort.key];
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+
+        if (_allJobSort.key === 'created_at') {
+          valA = new Date(valA).getTime() || 0;
+          valB = new Date(valB).getTime() || 0;
+          return _allJobSort.asc ? valA - valB : valB - valA;
+        }
+
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+        if (valA < valB) return _allJobSort.asc ? -1 : 1;
+        if (valA > valB) return _allJobSort.asc ? 1 : -1;
+        return 0;
+      });
+
+      const tbody = table.querySelector('tbody');
+      tbody.replaceChildren();
+
+      data.forEach(j => {
           const tr = document.createElement('tr');
           const tdId = document.createElement('td');
           const divId = document.createElement('div');
@@ -1061,13 +1385,12 @@
           const tdStatus = document.createElement('td');
           const spanStatus = document.createElement('span');
           spanStatus.className = `badge badge-${j.status}`;
-          const statusMap = { pending: '等待中', starting: '啟動中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' };
           spanStatus.textContent = statusMap[j.status] || j.status;
           tdStatus.appendChild(spanStatus);
           tr.appendChild(tdStatus);
           const tdCreated = document.createElement('td');
           tdCreated.className = 'text-sm text-muted';
-          tdCreated.textContent = j.created_at || '-';
+          tdCreated.textContent = api.formatLocalTime(j.created_at);
           tr.appendChild(tdCreated);
           const tdActions = document.createElement('td');
           const divActions = document.createElement('div');
@@ -1090,10 +1413,26 @@
           tdActions.appendChild(divActions);
           tr.appendChild(tdActions);
           tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        wrapper.appendChild(table);
-        container.appendChild(wrapper);
+      });
+    }
+
+    async function loadAllJobs() {
+      const container = document.getElementById('jobs-table-container');
+      try {
+        const jobs = await api.get('/api/admin/jobs');
+        if (!jobs || jobs.length === 0) {
+          container.replaceChildren();
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          const title = document.createElement('div');
+          title.className = 'empty-state-title';
+          title.textContent = '目前無任何任務';
+          empty.appendChild(title);
+          container.appendChild(empty);
+          return;
+        }
+        _currentAllJobs = jobs;
+        renderAllJobsTable(container);
       } catch (err) {
         container.replaceChildren();
         const empty = document.createElement('div');

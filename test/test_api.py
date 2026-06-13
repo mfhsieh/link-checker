@@ -7,7 +7,6 @@ API 端點完整覆蓋率測試腳本 (API Endpoints Full Coverage Test)。
 """
 
 import os
-import socket
 import sqlite3
 import subprocess
 import sys
@@ -15,6 +14,8 @@ import time
 from datetime import datetime, timezone
 
 import httpx
+
+from test.utils import is_port_in_use, wait_for_server  # pylint: disable=wrong-import-order
 
 # Ensure we don't accidentally touch dev databases
 os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_api.db"
@@ -43,8 +44,8 @@ def setup_databases() -> None:
     接著呼叫 `get_auth_engine()` 與 `get_job_manager()` 來重新建立對應的資料表與初始化狀態。
     確保每次測試都在乾淨的環境下執行。
     """
-    import backend.auth.db as auth_db
-    import backend.deps as backend_deps
+    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
+    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
 
     # 強制清除模組的快取 Engine/Session，避免下一個測試沿用到已被刪除的舊 sqlite fd
     auth_db._ENGINE = None  # pylint: disable=protected-access
@@ -100,39 +101,6 @@ def get_csrf_token(response: httpx.Response, current_token: str = "") -> str:
         if cookie.name == "csrf_token":
             return cookie.value
     return current_token
-
-
-def is_port_in_use(port: int) -> bool:
-    """
-    檢查指定的 TCP 通訊埠 (Port) 是否已被本地端佔用。
-
-    Args:
-        port (int): 欲檢查的 TCP 通訊埠號碼。
-
-    Returns:
-        bool: 若已被佔用回傳 True，否則回傳 False。
-    """
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("localhost", port)) == 0
-
-
-def wait_for_server(port: int, timeout: float = 5.0) -> bool:
-    """
-    循環等待指定的 TCP 伺服器就緒並成功綁定通訊埠。
-
-    Args:
-        port (int): 伺服器所監聽的 TCP 通訊埠。
-        timeout (float): 最長等待超時時間（秒），預設為 5 秒。
-
-    Returns:
-        bool: 若伺服器在限時內啟動成功並就緒回傳 True，否則回傳 False。
-    """
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        if is_port_in_use(port):
-            return True
-        time.sleep(0.1)
-    return False
 
 
 # pylint: disable=too-many-statements

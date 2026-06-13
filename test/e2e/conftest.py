@@ -104,10 +104,7 @@ def test_server():
 @pytest.fixture(scope="session")
 def browser_type_launch_args(browser_type_launch_args):
     """覆寫 Playwright 啟動參數，強制使用系統的 Chromium。"""
-    return {
-        **browser_type_launch_args,
-        "executable_path": "/usr/bin/chromium"
-    }
+    return {**browser_type_launch_args, "executable_path": "/usr/bin/chromium"}
 
 
 @pytest.fixture(scope="session")

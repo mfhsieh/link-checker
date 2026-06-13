@@ -710,7 +710,7 @@ export async function initComparePage(baseJobId = null) {
             optgroupTarget.label = url;
 
             groupJobs.forEach(j => {
-                const optText = `${j.id.substring(0, 8)}... (${new Date(j.created_at).toLocaleString('zh-TW')})`;
+                const optText = `${api.formatShortUuid(j.id)} (${api.formatLocalTime(j.created_at)})`;
 
                 const optBase = document.createElement('option');
                 optBase.value = j.id;

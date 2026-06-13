@@ -168,3 +168,36 @@ export async function download(path) {
     linkEl.remove();
     URL.revokeObjectURL(url);
 }
+
+/**
+ * 格式化時間：將後端回傳的 Naive UTC 字串轉換為瀏覽器當地時間
+ */
+export function formatLocalTime(dateStr) {
+  if (!dateStr) return '-';
+  let ds = String(dateStr);
+  if (!ds.endsWith('Z') && !ds.includes('+') && !ds.match(/-\d{2}:\d{2}$/)) {
+    ds += 'Z';
+  }
+  const d = new Date(ds);
+  if (isNaN(d.getTime())) return '-';
+  
+  const yyyy = d.getFullYear();
+  const MM = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const HH = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  
+  return `${yyyy}/${MM}/${dd} ${HH}:${mm}:${ss}`;
+}
+
+/**
+ * 格式化 UUID：取前 5 碼與後 5 碼，中間以 ... 連接（例如 ABCDE...FGHIJ）
+ */
+export function formatShortUuid(uuid) {
+  if (!uuid) return '-';
+  const u = String(uuid);
+  if (u.length <= 10) return u;
+  return `${u.substring(0, 5)}...${u.substring(u.length - 5)}`;
+}
+

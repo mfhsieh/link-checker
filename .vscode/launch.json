@@ -22,16 +22,25 @@
                 "8080"
             ],
             "console": "integratedTerminal",
-            "justMyCode": true
         },
         {
-            "name": "🧪 執行 E2E 整合測試 (Debug)",
+            "name": "🕸️ 測試單一網址 (Debug)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/test/run_test.py",
+            "program": "${workspaceFolder}/scripts/test_url.py",
+            "args": [
+                "${input:targetUrl}"
+            ],
             "console": "integratedTerminal",
-            "justMyCode": true,
-            "subProcess": false
+            "justMyCode": true
+        }
+    ],
+    "inputs": [
+        {
+            "id": "targetUrl",
+            "type": "promptString",
+            "description": "請輸入要測試的網址",
+            "default": "https://example.com"
         }
     ]
 }
