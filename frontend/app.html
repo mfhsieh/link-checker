@@ -276,7 +276,7 @@
             <div class="progress-bar" style="margin-bottom:1.25rem">
               <div class="progress-fill" id="job-progress-fill" style="width:0%"></div>
             </div>
-            <div class="grid-stats" style="grid-template-columns:repeat(6,1fr);gap:0.75rem;margin-bottom:0">
+            <div class="grid-stats" style="grid-template-columns:repeat(6, minmax(0, 1fr));gap:0.75rem;margin-bottom:0">
               <div class="stat-card" style="padding:0.75rem">
                 <div class="stat-label">總計</div>
                 <div class="stat-value text-xl" id="stat-total">0</div>
@@ -286,11 +286,11 @@
                 <div class="stat-value text-xl text-success" id="stat-completed">0</div>
               </div>
               <div class="stat-card" style="padding:0.75rem" title="網頁容量過大而被提早截斷，可能遺漏部分連結">
-                <div class="stat-label text-warning">部分截斷</div>
+                <div class="stat-label text-warning">截斷</div>
                 <div class="stat-value text-xl text-warning" id="stat-warning">0</div>
               </div>
               <div class="stat-card" style="padding:0.75rem">
-                <div class="stat-label">等待中</div>
+                <div class="stat-label">等待</div>
                 <div class="stat-value text-xl" id="stat-pending">0</div>
               </div>
               <div class="stat-card" style="padding:0.75rem">
@@ -802,7 +802,7 @@
           </style>
 
           <!-- Stats Grid as Tabs -->
-          <div class="grid-stats" style="grid-template-columns:repeat(6,1fr);gap:0.75rem;">
+          <div class="grid-stats" style="grid-template-columns:repeat(6, minmax(0, 1fr));gap:0.75rem;">
             <div class="stat-card diff-tab-card active" data-diff-tab="ip_changed" style="padding:0.75rem">
               <div class="stat-label text-danger">🚨 IP 異動</div>
               <div class="stat-value text-danger" id="diff-stat-ip">0</div>

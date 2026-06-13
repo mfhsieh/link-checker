@@ -5,14 +5,7 @@
 import * as api from './api.js';
 import { toast } from './toast.js';
 
-const STATUS_LABELS = {
-  pending: '等待中',
-  starting: '啟動中',
-  running: '執行中',
-  paused: '已暫停',
-  completed: '已完成',
-  error: '錯誤',
-};
+
 
 let _currentJobs = [];
 let _jobSort = { key: 'created_at', asc: false };
@@ -64,7 +57,7 @@ export function renderJobList(jobs, containerEl) {
     if (!v) continue;
     data = data.filter(item => {
       let val = item[k];
-      if (k === 'status') val = STATUS_LABELS[val] || val;
+      if (k === 'status') val = api.formatStatus(val);
       else if (k === 'created_at') val = api.formatLocalTime(val);
       return String(val || '').toLowerCase().includes(v);
     });
@@ -149,21 +142,10 @@ export function renderJobList(jobs, containerEl) {
       th.appendChild(headerTop);
 
       if (h.filterable !== false) {
-        const filterInput = document.createElement('input');
-        filterInput.type = 'text';
-        filterInput.className = 'form-input text-xs';
-        filterInput.placeholder = '篩選...';
-        filterInput.style.marginTop = '0.5rem';
-        filterInput.style.padding = '0.25rem 0.5rem';
-        filterInput.style.height = 'auto';
-        filterInput.style.fontWeight = 'normal';
-        filterInput.value = _jobColFilters[h.key] || '';
-
-        filterInput.addEventListener('input', (e) => {
-          _jobColFilters[h.key] = e.target.value.toLowerCase();
+        const filterInput = api.createFilterInput(_jobColFilters[h.key], (newVal) => {
+          _jobColFilters[h.key] = newVal;
           renderJobList(null, _listContainerEl);
         });
-        filterInput.addEventListener('click', e => e.stopPropagation());
         th.appendChild(filterInput);
       }
     }
@@ -183,7 +165,7 @@ export function renderJobList(jobs, containerEl) {
 
 function renderJobRow(job) {
   const statusClass = `badge-${job.status}`;
-  const label = STATUS_LABELS[job.status] || job.status;
+  const label = api.formatStatus(job.status);
   const createdAt = api.formatLocalTime(job.created_at);
   const jobId = job.id || '-';
   const truncatedUrl = job.start_url || '-';
@@ -206,12 +188,7 @@ function renderJobRow(job) {
   tr.appendChild(td1);
 
   const td2 = document.createElement('td');
-  const span2 = document.createElement('span');
-  span2.className = 'truncate';
-  span2.style.maxWidth = '280px';
-  span2.style.display = 'block';
-  span2.title = truncatedUrl;
-  span2.textContent = truncatedUrl;
+  const span2 = api.createTruncatedSpan(truncatedUrl, '280px');
   td2.appendChild(span2);
   tr.appendChild(td2);
 

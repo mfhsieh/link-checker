@@ -503,7 +503,6 @@
   border-top: 1px solid var(--surface-border-subtle);
 }
 
-/* ── Stat Cards ───────────────────────────────────────────── */
 .stat-card {
   background: var(--surface-base);
   border: 1px solid var(--surface-border-subtle);
@@ -513,6 +512,7 @@
   flex-direction: column;
   gap: var(--space-2);
   transition: border-color var(--transition-base), transform var(--transition-base);
+  container-type: inline-size;
 }
 
 .stat-card:hover {
@@ -543,11 +543,18 @@
 }
 
 .stat-value {
-  font-size: var(--text-3xl);
+  font-size: clamp(0.9rem, 16cqi, 1.875rem);
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
   font-feature-settings: "tnum";
+  white-space: nowrap;
 }
+
+/* 針對 text-xl 特殊處理以覆蓋 base.css 中的 .text-xl */
+.stat-card .stat-value.text-xl {
+  font-size: clamp(1rem, 28cqi, 2.25rem);
+}
+
 
 .stat-sub {
   font-size: var(--text-xs);
@@ -735,4 +742,17 @@
 .tab-btn.active {
   color: var(--color-brand-400);
   border-bottom-color: var(--color-brand-400);
+}
+
+/* ── Scroll Bleed Prevention ─────────────────────────────── */
+body.modal-open {
+  overflow: hidden !important;
+}
+
+.modal-overlay {
+  overscroll-behavior: contain;
+}
+
+.modal-content {
+  overscroll-behavior: contain;
 }

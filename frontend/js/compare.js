@@ -217,36 +217,17 @@ function renderCompareTab(tabName) {
                     if (_compareSort.key === h.key) _compareSort.asc = !_compareSort.asc;
                     else { _compareSort.key = h.key; _compareSort.asc = true; }
 
-                    trHeadEl.querySelectorAll('.sort-icon').forEach(icon => {
-                        if (icon.dataset.key === _compareSort.key) {
-                            icon.textContent = _compareSort.asc ? '▲' : '▼';
-                            icon.style.color = 'var(--color-brand-500)';
-                        } else {
-                            icon.textContent = '⇅';
-                            icon.style.color = 'var(--text-muted)';
-                        }
-                    });
+                    api.updateSortIcons(trHeadEl, _compareSort.key, _compareSort.asc);
                     renderCompareTbody(tableEl, tabName);
                 });
             }
             th.appendChild(headerTop);
 
             if (h.filterable !== false) {
-                const filterInput = document.createElement('input');
-                filterInput.type = 'text';
-                filterInput.className = 'form-input text-xs';
-                filterInput.placeholder = '篩選...';
-                filterInput.style.marginTop = '0.5rem';
-                filterInput.style.padding = '0.25rem 0.5rem';
-                filterInput.style.height = 'auto';
-                filterInput.style.fontWeight = 'normal';
-                filterInput.value = _compareColFilters[h.key] || '';
-
-                filterInput.addEventListener('input', (e) => {
-                    _compareColFilters[h.key] = e.target.value.toLowerCase();
+                const filterInput = api.createFilterInput(_compareColFilters[h.key], (newVal) => {
+                    _compareColFilters[h.key] = newVal;
                     renderCompareTbody(tableEl, tabName);
                 });
-                filterInput.addEventListener('click', e => e.stopPropagation());
                 th.appendChild(filterInput);
             }
 

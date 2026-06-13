@@ -201,3 +201,102 @@ export function formatShortUuid(uuid) {
   return `${u.substring(0, 5)}...${u.substring(u.length - 5)}`;
 }
 
+export const STATUS_LABELS = {
+  pending: '等待中',
+  starting: '啟動中',
+  running: '執行中',
+  paused: '已暫停',
+  completed: '已完成',
+  error: '錯誤',
+};
+
+export function formatStatus(status) {
+  return STATUS_LABELS[status] || status;
+}
+
+export function createFilterInput(initialValue, onInput) {
+  const filterInput = document.createElement('input');
+  filterInput.type = 'text';
+  filterInput.className = 'form-input text-xs';
+  filterInput.placeholder = '篩選...';
+  filterInput.style.marginTop = '0.5rem';
+  filterInput.style.padding = '0.25rem 0.5rem';
+  filterInput.style.height = 'auto';
+  filterInput.style.fontWeight = 'normal';
+  filterInput.value = initialValue || '';
+
+  filterInput.addEventListener('input', (e) => {
+    onInput(e.target.value.toLowerCase());
+  });
+  filterInput.addEventListener('click', e => e.stopPropagation());
+  return filterInput;
+}
+
+export function createTruncatedSpan(text, maxWidth = '280px') {
+  const span = document.createElement('span');
+  span.className = 'truncate';
+  span.style.maxWidth = maxWidth;
+  span.style.display = 'block';
+  span.title = text || '-';
+  span.textContent = text || '-';
+  return span;
+}
+
+export function updateSortIcons(containerEl, activeKey, isAsc) {
+  if (!containerEl) return;
+  containerEl.querySelectorAll('.sort-icon').forEach(icon => {
+    if (icon.dataset.key === activeKey) {
+      icon.textContent = isAsc ? '▲' : '▼';
+      icon.style.color = 'var(--color-brand-500)';
+    } else {
+      icon.textContent = '⇅';
+      icon.style.color = 'var(--text-muted)';
+    }
+  });
+}
+
+// 全域監聽 Modal (modal-overlay) 的開關狀態，防範背景 Scroll Bleed
+if (typeof window !== 'undefined') {
+  const initModalObserver = () => {
+    const modalOverlays = document.querySelectorAll('.modal-overlay');
+    if (modalOverlays.length === 0) return;
+
+    const updateBodyScroll = () => {
+      let hasVisibleModal = false;
+      modalOverlays.forEach(el => {
+        if (el.style.display !== 'none' && el.style.visibility !== 'hidden') {
+          hasVisibleModal = true;
+        }
+      });
+      if (hasVisibleModal) {
+        document.body.classList.add('modal-open');
+      } else {
+        document.body.classList.remove('modal-open');
+      }
+    };
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+          updateBodyScroll();
+        }
+      });
+    });
+
+    modalOverlays.forEach(el => {
+      observer.observe(el, { attributes: true, attributeFilter: ['style'] });
+    });
+
+    // 初始檢查一次
+    updateBodyScroll();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initModalObserver);
+  } else {
+    initModalObserver();
+  }
+}
+
+
+

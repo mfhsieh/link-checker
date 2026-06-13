@@ -6,10 +6,7 @@ import * as api from './api.js';
 import { download } from './api.js';
 import { toast } from './toast.js';
 
-const STATUS_LABELS = {
-    pending: '等待中', starting: '啟動中', running: '執行中',
-    paused: '已暫停', completed: '已完成', error: '錯誤',
-};
+
 
 let _pollTimer = null;
 let _currentJobId = null;
@@ -258,36 +255,17 @@ function renderInternalResultsTable(res, containerEl) {
                     if (_internalSort.key === h.key) _internalSort.asc = !_internalSort.asc;
                     else { _internalSort.key = h.key; _internalSort.asc = true; }
 
-                    trHead.querySelectorAll('.sort-icon').forEach(icon => {
-                        if (icon.dataset.key === _internalSort.key) {
-                            icon.textContent = _internalSort.asc ? '▲' : '▼';
-                            icon.style.color = 'var(--color-brand-500)';
-                        } else {
-                            icon.textContent = '⇅';
-                            icon.style.color = 'var(--text-muted)';
-                        }
-                    });
+                    api.updateSortIcons(trHead, _internalSort.key, _internalSort.asc);
                     renderInternalTbody(tableEl);
                 });
             }
             th.appendChild(headerTop);
 
             if (h.filterable !== false) {
-                const filterInput = document.createElement('input');
-                filterInput.type = 'text';
-                filterInput.className = 'form-input text-xs';
-                filterInput.placeholder = '篩選...';
-                filterInput.style.marginTop = '0.5rem';
-                filterInput.style.padding = '0.25rem 0.5rem';
-                filterInput.style.height = 'auto';
-                filterInput.style.fontWeight = 'normal';
-                filterInput.value = _internalColFilters[h.key] || '';
-
-                filterInput.addEventListener('input', (e) => {
-                    _internalColFilters[h.key] = e.target.value.toLowerCase();
+                const filterInput = api.createFilterInput(_internalColFilters[h.key], (newVal) => {
+                    _internalColFilters[h.key] = newVal;
                     renderInternalTbody(tableEl);
                 });
-                filterInput.addEventListener('click', e => e.stopPropagation());
                 th.appendChild(filterInput);
             }
             trHead.appendChild(th);
@@ -452,7 +430,7 @@ function renderJobInfo(job) {
         else if (isActuallyRunning) displayStatus = 'running';
 
         statusEl.className = `badge badge-${displayStatus}`;
-        statusEl.textContent = isPausing ? '暫停中...' : (STATUS_LABELS[displayStatus] || displayStatus);
+        statusEl.textContent = isPausing ? '暫停中...' : api.formatStatus(displayStatus);
     }
 
     setTextContent('job-start-url', job.start_url);
@@ -816,36 +794,17 @@ function renderResultsTable(res, containerEl) {
                     if (_detailSort.key === h.key) _detailSort.asc = !_detailSort.asc;
                     else { _detailSort.key = h.key; _detailSort.asc = true; }
 
-                    trHead.querySelectorAll('.sort-icon').forEach(icon => {
-                        if (icon.dataset.key === _detailSort.key) {
-                            icon.textContent = _detailSort.asc ? '▲' : '▼';
-                            icon.style.color = 'var(--color-brand-500)';
-                        } else {
-                            icon.textContent = '⇅';
-                            icon.style.color = 'var(--text-muted)';
-                        }
-                    });
+                    api.updateSortIcons(trHead, _detailSort.key, _detailSort.asc);
                     renderResultsTbody(tableEl);
                 });
             }
             th.appendChild(headerTop);
 
             if (h.filterable !== false) {
-                const filterInput = document.createElement('input');
-                filterInput.type = 'text';
-                filterInput.className = 'form-input text-xs';
-                filterInput.placeholder = '篩選...';
-                filterInput.style.marginTop = '0.5rem';
-                filterInput.style.padding = '0.25rem 0.5rem';
-                filterInput.style.height = 'auto';
-                filterInput.style.fontWeight = 'normal';
-                filterInput.value = _detailColFilters[h.key] || '';
-
-                filterInput.addEventListener('input', (e) => {
-                    _detailColFilters[h.key] = e.target.value.toLowerCase();
+                const filterInput = api.createFilterInput(_detailColFilters[h.key], (newVal) => {
+                    _detailColFilters[h.key] = newVal;
                     renderResultsTbody(tableEl);
                 });
-                filterInput.addEventListener('click', e => e.stopPropagation());
                 th.appendChild(filterInput);
             }
             trHead.appendChild(th);
