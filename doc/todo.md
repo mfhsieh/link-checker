@@ -12,7 +12,7 @@
 ---
 
 ## 2. 任務進度推送升級：Polling → SSE (Server-Sent Events)
-* **功能描述**：目前前台任務詳情頁面透過客戶端每 3 秒輪詢（Polling）`GET /api/jobs/{id}` 來取得進度更新，會造成不必要的無效請求。
+* **功能描述**：目前前台任務詳情頁面透過客戶端每 10 秒輪詢（Polling）`GET /api/jobs/{id}` 來取得進度更新，會造成不必要的無效請求。
 * **規劃方案**：後端實作 `GET /api/jobs/{id}/stream` SSE 端點，爬蟲子程序狀態變更時主動推送事件至前台；前台改用 `EventSource` API 訂閱，減少網路往返並提升即時性。
 * **狀態**：**待後續優化（Pending Review）**。
 

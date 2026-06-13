@@ -12,10 +12,10 @@ const BASE_URL = '';  // 同源，不需前綴
 
 /** 從 Cookie 讀取指定名稱的值 */
 function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
 }
 
 /**
@@ -25,63 +25,63 @@ function getCookie(name) {
  * @returns {Promise<any>} 解析後的 JSON 回應
  */
 async function request(path, options = {}) {
-    const method = (options.method || 'GET').toUpperCase();
+  const method = (options.method || 'GET').toUpperCase();
 
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(options.headers || {}),
-    };
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {}),
+  };
 
-    // CSRF Token（POST / PATCH / PUT / DELETE 需要）
-    if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) {
-        const csrfToken = getCookie('csrf_token');
-        if (csrfToken) {
-            headers['X-CSRF-Token'] = csrfToken;
-        }
+  // CSRF Token（POST / PATCH / PUT / DELETE 需要）
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) {
+    const csrfToken = getCookie('csrf_token');
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
     }
+  }
 
-    const response = await fetch(BASE_URL + path, {
-        ...options,
-        method,
-        headers,
-        credentials: 'same-origin',  // 攜帶 Cookie
-    });
+  const response = await fetch(BASE_URL + path, {
+    ...options,
+    method,
+    headers,
+    credentials: 'same-origin',  // 攜帶 Cookie
+  });
 
-    // 401 → 清除客戶端狀態並重導向登入頁
-    if (response.status === 401) {
-        if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
-            window.location.replace('/');
-            return;
-        }
+  // 401 → 清除客戶端狀態並重導向登入頁
+  if (response.status === 401) {
+    if (window.location.pathname !== '/' && window.location.pathname !== '/index.html') {
+      window.location.replace('/');
+      return;
     }
+  }
 
-    // 嘗試解析 JSON
-    let data;
-    const contentType = response.headers.get('Content-Type') || '';
-    if (contentType.includes('application/json')) {
-        data = await response.json();
-    } else {
-        data = await response.text();
+  // 嘗試解析 JSON
+  let data;
+  const contentType = response.headers.get('Content-Type') || '';
+  if (contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    data = await response.text();
+  }
+
+  if (!response.ok) {
+    let message = `HTTP ${response.status} ${response.statusText}`;
+    if (data && data.detail) {
+      if (Array.isArray(data.detail)) {
+        message = data.detail.map(e => `[${e.loc && e.loc.length > 0 ? e.loc[e.loc.length - 1] : '參數錯誤'}] ${e.msg}`).join('\n');
+      } else {
+        message = data.detail;
+      }
+    } else if (typeof data === 'string' && data.trim()) {
+      message = data.trim();
     }
+    const err = new Error(message);
+    err.status = response.status;
+    err.data = data;
+    throw err;
+  }
 
-    if (!response.ok) {
-        let message = `HTTP ${response.status} ${response.statusText}`;
-        if (data && data.detail) {
-            if (Array.isArray(data.detail)) {
-                message = data.detail.map(e => `[${e.loc && e.loc.length > 0 ? e.loc[e.loc.length - 1] : '參數錯誤'}] ${e.msg}`).join('\n');
-            } else {
-                message = data.detail;
-            }
-        } else if (typeof data === 'string' && data.trim()) {
-            message = data.trim();
-        }
-        const err = new Error(message);
-        err.status = response.status;
-        err.data = data;
-        throw err;
-    }
-
-    return data;
+  return data;
 }
 
 // ── Public API ────────────────────────────────────────────────
@@ -93,14 +93,14 @@ async function request(path, options = {}) {
  * @returns {Promise<any>} 解析後的 JSON 回應
  */
 export function get(path, params) {
-    let url = path;
-    if (params) {
-        const qs = new URLSearchParams(
-            Object.entries(params).filter(([, v]) => v !== null && v !== undefined)
-        ).toString();
-        if (qs) url += '?' + qs;
-    }
-    return request(url, { method: 'GET' });
+  let url = path;
+  if (params) {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== null && v !== undefined)
+    ).toString();
+    if (qs) url += '?' + qs;
+  }
+  return request(url, { method: 'GET' });
 }
 
 /**
@@ -110,10 +110,10 @@ export function get(path, params) {
  * @returns {Promise<any>} 解析後的 JSON 回應
  */
 export function post(path, body) {
-    return request(path, {
-        method: 'POST',
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+  return request(path, {
+    method: 'POST',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
 }
 
 /**
@@ -123,10 +123,10 @@ export function post(path, body) {
  * @returns {Promise<any>} 解析後的 JSON 回應
  */
 export function patch(path, body) {
-    return request(path, {
-        method: 'PATCH',
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+  return request(path, {
+    method: 'PATCH',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
 }
 
 /**
@@ -135,7 +135,7 @@ export function patch(path, body) {
  * @returns {Promise<any>} 解析後的 JSON 回應
  */
 export function del(path) {
-    return request(path, { method: 'DELETE' });
+  return request(path, { method: 'DELETE' });
 }
 
 /**
@@ -144,29 +144,29 @@ export function del(path) {
  * @returns {Promise<void>} 無回傳值
  */
 export async function download(path) {
-    const response = await fetch(BASE_URL + path, {
-        method: 'GET',
-        credentials: 'same-origin',
-    });
+  const response = await fetch(BASE_URL + path, {
+    method: 'GET',
+    credentials: 'same-origin',
+  });
 
-    if (!response.ok) {
-        throw new Error(`下載失敗：HTTP ${response.status}`);
-    }
+  if (!response.ok) {
+    throw new Error(`下載失敗：HTTP ${response.status}`);
+  }
 
-    const blob = await response.blob();
-    const disposition = response.headers.get('Content-Disposition') || '';
-    let filename = 'export';
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    if (match) filename = match[1];
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  let filename = 'export';
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  if (match) filename = match[1];
 
-    const url = URL.createObjectURL(blob);
-    const linkEl = document.createElement('a');
-    linkEl.href = url;
-    linkEl.download = filename;
-    document.body.appendChild(linkEl);
-    linkEl.click();
-    linkEl.remove();
-    URL.revokeObjectURL(url);
+  const url = URL.createObjectURL(blob);
+  const linkEl = document.createElement('a');
+  linkEl.href = url;
+  linkEl.download = filename;
+  document.body.appendChild(linkEl);
+  linkEl.click();
+  linkEl.remove();
+  URL.revokeObjectURL(url);
 }
 
 /**
@@ -180,14 +180,14 @@ export function formatLocalTime(dateStr) {
   }
   const d = new Date(ds);
   if (isNaN(d.getTime())) return '-';
-  
+
   const yyyy = d.getFullYear();
   const MM = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   const HH = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   const ss = String(d.getSeconds()).padStart(2, '0');
-  
+
   return `${yyyy}/${MM}/${dd} ${HH}:${mm}:${ss}`;
 }
 
@@ -199,6 +199,21 @@ export function formatShortUuid(uuid) {
   const u = String(uuid);
   if (u.length <= 10) return u;
   return `${u.substring(0, 5)}...${u.substring(u.length - 5)}`;
+}
+
+/**
+ * 安全跳脫 HTML 實體字元，防範 XSS 攻擊
+ * @param {string} str - 未受信任的字串
+ * @returns {string} 跳脫後的安全字串
+ */
+export function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export const STATUS_LABELS = {
@@ -297,6 +312,3 @@ if (typeof window !== 'undefined') {
     initModalObserver();
   }
 }
-
-
-

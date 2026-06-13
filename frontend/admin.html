@@ -174,7 +174,8 @@
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="cfg-jitter-ratio">延遲抖動 (0~1)</label>
-                    <input class="form-input" type="number" step="0.01" min="0" max="1" id="cfg-jitter-ratio" placeholder="載入中..." />
+                    <input class="form-input" type="number" step="0.01" min="0" max="1" id="cfg-jitter-ratio"
+                      placeholder="載入中..." />
                     <div class="form-hint">實際延遲時間隨機增減的比例（個別任務無法覆寫）。</div>
                   </div>
                   <div class="form-group">
@@ -218,8 +219,11 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="cfg-proxy-url">Proxy URL</label>
-                  <input class="form-input" type="text" id="cfg-proxy-url" placeholder="http://user:password@proxy.example.com:8080" />
-                  <div class="form-hint">全域預設代理伺服器（Proxy）連線位址。若個別任務有填寫將取代此設定 <strong>【條件覆寫】</strong>。注意：伺服器環境變數具有最高強制覆寫優先權。</div>
+                  <input class="form-input" type="text" id="cfg-proxy-url"
+                    placeholder="http://user:password@proxy.example.com:8080" />
+                  <div class="form-hint">全域預設代理伺服器（Proxy）連線位址。若個別任務有填寫將取代此設定
+                    <strong>【條件覆寫】</strong>。注意：伺服器環境變數具有最高強制覆寫優先權。
+                  </div>
                 </div>
               </div>
 
@@ -728,7 +732,7 @@
     }
 
     async function activateUser(userId, email) {
-      const confirmed = await showConfirm('⚠️ 啟用帳號', `確定要重新啟用帳號 ${email}？啟用後該使用者將可正常登入。`, '啟用', true);
+      const confirmed = await showConfirm('⚠️ 啟用帳號', `確定要重新啟用帳號 ${api.escapeHtml(email)}？啟用後該使用者將可正常登入。`, '啟用', true);
       if (!confirmed) return;
       try {
         await api.patch(`/api/admin/users/${userId}`, { status: 'active' });
@@ -742,8 +746,8 @@
       const roleName = isPromote ? '管理員' : '一般使用者';
       const title = isPromote ? '⚠️ 設為管理員' : '⚠️ 取消管理員';
       const msg = isPromote
-        ? `確定要將帳號 ${email} 提權為「管理員」？這將允許其存取所有後台系統設定與操作。`
-        : `確定要將帳號 ${email} 降權為「一般使用者」？其將立即失去後台存取權限。`;
+        ? `確定要將帳號 ${api.escapeHtml(email)} 提權為「管理員」？這將允許其存取所有後台系統設定與操作。`
+        : `確定要將帳號 ${api.escapeHtml(email)} 降權為「一般使用者」？其將立即失去後台存取權限。`;
 
       const confirmed = await showConfirm(title, msg, '確定變更', true);
       if (!confirmed) return;
@@ -755,7 +759,7 @@
     }
 
     async function resendInvite(userId, email) {
-      const confirmed = await showConfirm('重新寄送邀請', `確定要重新寄送邀請信至 ${email}？原本未使用的邀請碼將會立即失效。`, '重新寄送');
+      const confirmed = await showConfirm('重新寄送邀請', `確定要重新寄送邀請信至 ${api.escapeHtml(email)}？原本未使用的邀請碼將會立即失效。`, '重新寄送');
       if (!confirmed) return;
       try {
         await api.post(`/api/admin/users/${userId}/resend-invite`);
@@ -764,7 +768,7 @@
     }
 
     async function deleteUser(userId, email) {
-      const confirmed = await showConfirm('🚨 刪除帳號', `確定要刪除帳號 ${email}？此操作將一併刪除其所有任務資料，且無法復原。`, '永久刪除', true);
+      const confirmed = await showConfirm('🚨 刪除帳號', `確定要刪除帳號 ${api.escapeHtml(email)}？此操作將一併刪除其所有任務資料，且無法復原。`, '永久刪除', true);
       if (!confirmed) return;
       try {
         await api.del(`/api/admin/users/${userId}`);
@@ -817,7 +821,7 @@
 
       try {
         await api.post('/api/admin/users', { email });
-        toast.success(`邀請已寄送至 ${email}。`);
+        toast.success(`邀請已寄送至 ${api.escapeHtml(email)}。`);
         closeInviteModal();
         await loadUsers();
       } catch (err) {
@@ -1027,7 +1031,7 @@
       const email = document.getElementById('smtp-test-email').value.trim();
       if (!email) { toast.warning('請填寫測試收件者 Email。'); return; }
 
-      const confirmed = await showConfirm('發送測試郵件', `確定要發送 SMTP 測試郵件至 ${escapeHtml(email)} 嗎？`, '確定發送');
+      const confirmed = await showConfirm('發送測試郵件', `確定要發送 SMTP 測試郵件至 ${api.escapeHtml(email)} 嗎？`, '確定發送');
       if (!confirmed) return;
 
       const btn = document.getElementById('smtp-test-btn');
@@ -1170,31 +1174,31 @@
       tbody.replaceChildren();
 
       data.forEach(log => {
-          const tr = document.createElement('tr');
-          const tdTime = document.createElement('td');
-          tdTime.className = 'text-xs font-mono text-muted';
-          tdTime.textContent = api.formatLocalTime(log.created_at);
-          tr.appendChild(tdTime);
-          const tdType = document.createElement('td');
-          const code = document.createElement('code');
-          code.style.fontSize = '0.75rem';
-          code.style.color = 'var(--color-brand-400)';
-          code.textContent = log.event_type;
-          tdType.appendChild(code);
-          tr.appendChild(tdType);
-          const tdUser = document.createElement('td');
-          tdUser.className = 'text-xs font-mono text-muted';
-          tdUser.textContent = log.user_id || '-';
-          tr.appendChild(tdUser);
-          const tdIp = document.createElement('td');
-          tdIp.className = 'text-xs font-mono';
-          tdIp.textContent = log.ip_address || '-';
-          tr.appendChild(tdIp);
-          const tdDetail = document.createElement('td');
-          tdDetail.className = 'text-xs text-muted';
-          tdDetail.textContent = log.detail || '-';
-          tr.appendChild(tdDetail);
-          tbody.appendChild(tr);
+        const tr = document.createElement('tr');
+        const tdTime = document.createElement('td');
+        tdTime.className = 'text-xs font-mono text-muted';
+        tdTime.textContent = api.formatLocalTime(log.created_at);
+        tr.appendChild(tdTime);
+        const tdType = document.createElement('td');
+        const code = document.createElement('code');
+        code.style.fontSize = '0.75rem';
+        code.style.color = 'var(--color-brand-400)';
+        code.textContent = log.event_type;
+        tdType.appendChild(code);
+        tr.appendChild(tdType);
+        const tdUser = document.createElement('td');
+        tdUser.className = 'text-xs font-mono text-muted';
+        tdUser.textContent = log.user_id || '-';
+        tr.appendChild(tdUser);
+        const tdIp = document.createElement('td');
+        tdIp.className = 'text-xs font-mono';
+        tdIp.textContent = log.ip_address || '-';
+        tr.appendChild(tdIp);
+        const tdDetail = document.createElement('td');
+        tdDetail.className = 'text-xs text-muted';
+        tdDetail.textContent = log.detail || '-';
+        tr.appendChild(tdDetail);
+        tbody.appendChild(tr);
       });
     }
 
@@ -1321,9 +1325,9 @@
         data = data.filter(item => {
           let val = item[k];
           if (k === 'id') {
-             const ownerId = item.user_id || '匿名';
-             if (String(val).toLowerCase().includes(v) || ownerId.toLowerCase().includes(v)) return true;
-             return false;
+            const ownerId = item.user_id || '匿名';
+            if (String(val).toLowerCase().includes(v) || ownerId.toLowerCase().includes(v)) return true;
+            return false;
           } else if (k === 'status') val = statusMap[val] || val;
           else if (k === 'created_at') val = api.formatLocalTime(val);
           return String(val || '').toLowerCase().includes(v);
@@ -1353,66 +1357,66 @@
       tbody.replaceChildren();
 
       data.forEach(j => {
-          const tr = document.createElement('tr');
-          const tdId = document.createElement('td');
-          const divId = document.createElement('div');
-          divId.style.fontWeight = '500';
-          divId.style.fontSize = '0.875rem';
-          divId.textContent = j.id;
-          const divOwner = document.createElement('div');
-          divOwner.className = 'text-xs text-muted';
-          divOwner.style.marginTop = '0.25rem';
-          divOwner.textContent = `擁有者 ID: ${j.user_id || '匿名'}`;
-          tdId.appendChild(divId);
-          tdId.appendChild(divOwner);
-          tr.appendChild(tdId);
-          const tdUrl = document.createElement('td');
-          if (j.user_id === user.id) {
-            const aUrl = document.createElement('a');
-            aUrl.href = `/app.html#/jobs/${j.id}`;
-            aUrl.className = 'text-link';
-            aUrl.style.wordBreak = 'break-all';
-            aUrl.title = '查看任務詳情';
-            aUrl.textContent = j.start_url;
-            tdUrl.appendChild(aUrl);
-          } else {
-            const divUrl = document.createElement('div');
-            divUrl.style.wordBreak = 'break-all';
-            divUrl.textContent = j.start_url;
-            tdUrl.appendChild(divUrl);
-          }
-          tr.appendChild(tdUrl);
-          const tdStatus = document.createElement('td');
-          const spanStatus = document.createElement('span');
-          spanStatus.className = `badge badge-${j.status}`;
-          spanStatus.textContent = statusMap[j.status] || j.status;
-          tdStatus.appendChild(spanStatus);
-          tr.appendChild(tdStatus);
-          const tdCreated = document.createElement('td');
-          tdCreated.className = 'text-sm text-muted';
-          tdCreated.textContent = api.formatLocalTime(j.created_at);
-          tr.appendChild(tdCreated);
-          const tdActions = document.createElement('td');
-          const divActions = document.createElement('div');
-          divActions.style.display = 'flex';
-          divActions.style.gap = '0.5rem';
-          if (['running', 'starting'].includes(j.status)) {
-            const btnTakeover = document.createElement('button');
-            btnTakeover.className = 'btn btn-sm btn-secondary job-action-btn';
-            btnTakeover.dataset.action = 'takeover';
-            btnTakeover.dataset.id = j.id;
-            btnTakeover.textContent = '強制暫停';
-            divActions.appendChild(btnTakeover);
-          }
-          const btnDel = document.createElement('button');
-          btnDel.className = 'btn btn-sm btn-danger job-action-btn';
-          btnDel.dataset.action = 'delete';
-          btnDel.dataset.id = j.id;
-          btnDel.textContent = '刪除';
-          divActions.appendChild(btnDel);
-          tdActions.appendChild(divActions);
-          tr.appendChild(tdActions);
-          tbody.appendChild(tr);
+        const tr = document.createElement('tr');
+        const tdId = document.createElement('td');
+        const divId = document.createElement('div');
+        divId.style.fontWeight = '500';
+        divId.style.fontSize = '0.875rem';
+        divId.textContent = j.id;
+        const divOwner = document.createElement('div');
+        divOwner.className = 'text-xs text-muted';
+        divOwner.style.marginTop = '0.25rem';
+        divOwner.textContent = `擁有者 ID: ${j.user_id || '匿名'}`;
+        tdId.appendChild(divId);
+        tdId.appendChild(divOwner);
+        tr.appendChild(tdId);
+        const tdUrl = document.createElement('td');
+        if (j.user_id === user.id) {
+          const aUrl = document.createElement('a');
+          aUrl.href = `/app.html#/jobs/${j.id}`;
+          aUrl.className = 'text-link';
+          aUrl.style.wordBreak = 'break-all';
+          aUrl.title = '查看任務詳情';
+          aUrl.textContent = j.start_url;
+          tdUrl.appendChild(aUrl);
+        } else {
+          const divUrl = document.createElement('div');
+          divUrl.style.wordBreak = 'break-all';
+          divUrl.textContent = j.start_url;
+          tdUrl.appendChild(divUrl);
+        }
+        tr.appendChild(tdUrl);
+        const tdStatus = document.createElement('td');
+        const spanStatus = document.createElement('span');
+        spanStatus.className = `badge badge-${j.status}`;
+        spanStatus.textContent = statusMap[j.status] || j.status;
+        tdStatus.appendChild(spanStatus);
+        tr.appendChild(tdStatus);
+        const tdCreated = document.createElement('td');
+        tdCreated.className = 'text-sm text-muted';
+        tdCreated.textContent = api.formatLocalTime(j.created_at);
+        tr.appendChild(tdCreated);
+        const tdActions = document.createElement('td');
+        const divActions = document.createElement('div');
+        divActions.style.display = 'flex';
+        divActions.style.gap = '0.5rem';
+        if (['running', 'starting'].includes(j.status)) {
+          const btnTakeover = document.createElement('button');
+          btnTakeover.className = 'btn btn-sm btn-secondary job-action-btn';
+          btnTakeover.dataset.action = 'takeover';
+          btnTakeover.dataset.id = j.id;
+          btnTakeover.textContent = '強制暫停';
+          divActions.appendChild(btnTakeover);
+        }
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn btn-sm btn-danger job-action-btn';
+        btnDel.dataset.action = 'delete';
+        btnDel.dataset.id = j.id;
+        btnDel.textContent = '刪除';
+        divActions.appendChild(btnDel);
+        tdActions.appendChild(divActions);
+        tr.appendChild(tdActions);
+        tbody.appendChild(tr);
       });
     }
 

@@ -37,18 +37,13 @@ def _patched_getaddrinfo(
     """攔截 socket.getaddrinfo 以支援自訂 DNS 解析。
 
     Args:
-      host(str | bytes | None): 目標主機。
-      port(str | int | None): 目標通訊埠。
-      *args: 傳遞給原始 getaddrinfo 的額外位置參數 (例如 family, type, proto, flags)。
-      **kwargs: 傳遞給原始 getaddrinfo 的額外關鍵字參數。
-      host: str | bytes | None:
-      port: str | int | None:
-      *args: object:
-      **kwargs: object:
+        host (str | bytes | None): 目標主機。
+        port (str | int | None): 目標通訊埠。
+        *args (object): 傳遞給原始 getaddrinfo 的額外位置參數 (例如 family, type, proto, flags)。
+        **kwargs (object): 傳遞給原始 getaddrinfo 的額外關鍵字參數。
 
     Returns:
-      list[tuple[int, int, int, str, object]]: 原始或被替換的位址資訊列表。
-
+        list[tuple[int, int, int, str, object]]: 原始或被替換的位址資訊列表。
     """
     overrides = getattr(_dns_override, "overrides", {})
     if host in overrides:
@@ -85,11 +80,6 @@ class CrawlerCore:
 
     負責處理 HTML 內容的抓取、連結的擷取，並根據提供的網域規則
     將連結分類為內部連結與外部目標連結。
-
-    Args:
-
-    Returns:
-
     """
 
     @staticmethod
@@ -97,10 +87,10 @@ class CrawlerCore:
         """編譯正則表達式，忽略無效的語法。
 
         Args:
-          regexes: list[str]:
+            regexes (list[str]): 原始的正則表達式字串列表。
 
         Returns:
-
+            list[re.Pattern]: 編譯後的正則表達式物件列表。
         """
         compiled = []
         for p in regexes:
@@ -148,12 +138,10 @@ class CrawlerCore:
         否則回傳預設的 client。
 
         Args:
-          url(str): 目標網址。
-          url: str:
+            url (str): 目標網址。
 
         Returns:
-          httpx.Client: 應使用的 HTTPX 客戶端實例。
-
+            httpx.Client: 應使用的 HTTPX 客戶端實例。
         """
         domain = get_domain(url)
         if domain and is_in_domain_list(domain, self.config.ssl_exempt_domains):
@@ -164,10 +152,10 @@ class CrawlerCore:
         """檢查是否符合忽略規則，若符合則回傳原因。
 
         Args:
-          url: str:
+            url (str): 欲檢查的網址。
 
         Returns:
-
+            str | None: 若符合忽略規則回傳原因字串，否則回傳 None。
         """
         if any(pattern.search(url) for pattern in self.ignore_regex_compiled):
             logger.debug("網址 %s 符合忽略之 Regex 規則，略過爬取", url)
@@ -182,11 +170,11 @@ class CrawlerCore:
         """解析 IP 並檢查 SSRF，回傳 (IP, 錯誤訊息)。
 
         Args:
-          domain: str | None:
-          url: str:
+            domain (str | None): 目標網域。
+            url (str): 目標網址。
 
         Returns:
-
+            tuple[str | None, str | None]: (IP 位址, 錯誤訊息)。
         """
         if not domain:
             return None, None
@@ -202,12 +190,12 @@ class CrawlerCore:
         """處理 HTTP 重導向，回傳 (next_url, 提前回傳的結果)。
 
         Args:
-          response: httpx.Response:
-          current_url: str:
-          target_domains: list[str] | None:
+            response (httpx.Response): HTTP 回應物件。
+            current_url (str): 當前網址。
+            target_domains (list[str] | None): 允許進入的目標網域清單。
 
         Returns:
-
+            tuple[str | None, tuple | None]: (下一步網址, 提前回傳的結果)。
         """
         location = response.headers.get("Location")
         if not location:
@@ -233,11 +221,11 @@ class CrawlerCore:
         """檢查 MIME 類型是否允許，若不允許則回傳錯誤訊息。
 
         Args:
-          response: httpx.Response:
-          current_url: str:
+            response (httpx.Response): HTTP 回應物件。
+            current_url (str): 當前網址。
 
         Returns:
-
+            str | None: 若 MIME 類型不符則回傳錯誤訊息，否則回傳 None。
         """
         content_type: str = response.headers.get("Content-Type", "").lower()
         if self.config.mime_type_filter.get("enabled", True):
@@ -251,11 +239,11 @@ class CrawlerCore:
         """下載網頁內容並回傳 (HTML 字串, 錯誤或警告訊息)。
 
         Args:
-          response: httpx.Response:
-          current_url: str:
+            response (httpx.Response): HTTP 回應物件。
+            current_url (str): 當前網址。
 
         Returns:
-
+            tuple[str, str | None]: (網頁 HTML 內容, 錯誤或警告訊息)。
         """
         content_bytes = bytearray()
         err_msg = None
@@ -280,12 +268,12 @@ class CrawlerCore:
         """處理 HTTP 回應，回傳 (next_url, 提前回傳的結果)。
 
         Args:
-          response: httpx.Response:
-          current_url: str:
-          target_domains: list[str] | None:
+            response (httpx.Response): HTTP 回應物件。
+            current_url (str): 當前網址。
+            target_domains (list[str] | None): 允許進入的目標網域清單。
 
         Returns:
-
+            tuple[str | None, tuple | None]: (下一步網址, 提前回傳的結果)。
         """
         if response.status_code in (301, 302, 303, 307, 308):
             return self._handle_redirect(response, current_url, target_domains)
@@ -305,12 +293,12 @@ class CrawlerCore:
         """執行單次 fetch 流程，回傳 (request_sent, next_url, result_tuple)。
 
         Args:
-          current_url: str:
-          request_sent: bool:
-          target_domains: list[str] | None:
+            current_url (str): 當前網址。
+            request_sent (bool): 標記此循環是否已實際發送過 HTTP 請求。
+            target_domains (list[str] | None): 允許進入的目標網域清單。
 
         Returns:
-
+            tuple[bool, str, tuple | None]: (是否發送請求, 下一步網址, 提前回傳的結果)。
         """
         if ignore_reason := self._check_ignore_rules(current_url):
             return request_sent, current_url, (None, None, "skip", current_url, request_sent, ignore_reason)
@@ -334,14 +322,12 @@ class CrawlerCore:
         """抓取給定網址的 HTML 內容。
 
         Args:
-          url(str): 欲抓取的網址字串。
-          target_domains(list[str] | None): 目標網域清單，用於防止重導向跨出邊界。
-          url: str:
-          target_domains: list[str] | None:  (Default value = None)
+            url (str): 欲抓取的網址字串。
+            target_domains (list[str] | None): 目標網域清單，用於防止重導向跨出邊界。
 
         Returns:
-          tuple[str | None, int | None, str, str, bool, str | None]: 回傳 (HTML字串, HTTP狀態碼, 狀態, 最終網址, 是否發送請求, 錯誤或警告訊息)。
-          狀態字串為 'completed', 'warning' 或 'skip'。
+            tuple[str | None, int | None, str, str, bool, str | None]: (HTML字串, HTTP狀態碼, 狀態, 最終網址,
+                是否發送請求, 錯誤或警告訊息)。狀態字串為 'completed', 'warning' 或 'skip'。
 
         Raises:
           httpx.HTTPStatusError: 若 HTTP 回應狀態碼非 2xx 時拋出（預設由外層捕捉）。
@@ -363,14 +349,11 @@ class CrawlerCore:
         """從給定的 HTML 內容中擷取所有有效且絕對路徑的連結與外連資源（如超連結、script、stylesheet、iframe、img、embed、form、object 等）。
 
         Args:
-          html(str): 準備進行解析的 HTML 字串。
-          base_url(str): 用來將相對路徑轉換為絕對路徑的基準網址。
-          html: str:
-          base_url: str:
+            html (str): 準備進行解析的 HTML 字串。
+            base_url (str): 用來將相對路徑轉換為絕對路徑的基準網址。
 
         Returns:
-          list[str]: 包含所有已擷取且去重複的正規化網址陣列。
-
+            list[str]: 包含所有已擷取且去重複的正規化網址陣列。
         """
         if not html:
             return []
@@ -427,22 +410,13 @@ class CrawlerCore:
         """處理單一網址，包含抓取網頁、擷取連結以及分類。
 
         Args:
-          url(str): 準備處理的網址。
-          target_domains(list[str]): 允許爬蟲進入的網域陣列。
-          trusted_domains(list[str]): 被視為信任的網域陣列。指向這些網域以外的連結將被視為目標。
-          url: str:
-          target_domains: list[str]:
-          trusted_domains: list[str]:
+            url (str): 準備處理的網址。
+            target_domains (list[str]): 允許爬蟲進入的網域陣列。
+            trusted_domains (list[str]): 被視為信任的網域陣列。指向這些網域以外的連結將被視為外部目標。
 
         Returns:
-          tuple[list[str], list[str], int | None, str, bool, str | None]: 包含：
-          - internal_links: 準備加入佇列繼續爬取的內部連結陣列。
-          - external_target_links: 需被記錄的外部連結陣列。
-          - status_code: HTTP 狀態碼 (若有)。
-          - status: 最終狀態 ('completed' 或 'skip')。
-          - request_sent: 是否發送了 HTTP 請求。
-          - err_msg: 擷取過程的警告或錯誤訊息 (若有)。
-
+            tuple[list[str], list[str], int | None, str, bool, str | None]: (內部連結陣列, 外部目標連結陣列,
+                HTTP 狀態碼, 最終狀態, 是否發送請求, 錯誤或警告訊息)。
         """
         html, status_code, status, final_url, request_sent, err_msg = self.fetch(url, target_domains=target_domains)
 
@@ -475,13 +449,13 @@ class CrawlerCore:
         """降級為 GET 請求以進行外部連結探測。
 
         Args:
-          current_url: str:
-          tgt_dom: str | None:
-          ip: str | None:
-          client: httpx.Client:
+            current_url (str): 當前外部網址。
+            tgt_dom (str | None): 目標網域。
+            ip (str | None): 解析出的 IP 位址。
+            client (httpx.Client): HTTPX 客戶端物件。
 
         Returns:
-
+            tuple[str | None, tuple | None]: (重導向的下一步網址, 回傳狀態結果的 tuple)。
         """
         headers = {"Range": "bytes=0-1023"}
         if self.enable_dynamic_headers:
@@ -502,12 +476,12 @@ class CrawlerCore:
         """執行 HEAD 或 GET 請求探測。
 
         Args:
-          current_url: str:
-          tgt_dom: str | None:
-          ip: str | None:
+            current_url (str): 當前外部網址。
+            tgt_dom (str | None): 目標網域。
+            ip (str | None): 解析出的 IP 位址。
 
         Returns:
-
+            tuple[str | None, tuple | None]: (重導向的下一步網址, 回傳狀態結果的 tuple)。
         """
         client = self._get_client(current_url)
         with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
@@ -530,10 +504,10 @@ class CrawlerCore:
         """單次外部連結檢查邏輯，攔截異常並回傳。
 
         Args:
-          current_url: str:
+            current_url (str): 準備進行探測的當前外部網址。
 
         Returns:
-
+            tuple[str | None, tuple | None]: (重導向的下一步網址, 回傳狀態結果的 tuple)。
         """
         try:
             tgt_dom = get_domain(current_url)
@@ -555,12 +529,10 @@ class CrawlerCore:
         則自動降級為帶有 Range 標頭的 GET 請求，嘗試繞過反爬蟲機制。
 
         Args:
-          url(str): 準備進行探測的外部網址。
-          url: str:
+            url (str): 準備進行探測的外部網址。
 
         Returns:
-          tuple[int | None, str | None]: 回傳 (HTTP 狀態碼, 錯誤訊息)。
-
+            tuple[int | None, str | None]: 回傳 (HTTP 狀態碼, 錯誤訊息)。
         """
         current_url = url
 
@@ -578,10 +550,6 @@ class CrawlerCore:
         """關閉底層的 HTTPX 客戶端連線。
 
         釋放底層連線池資源。建議在爬蟲任務結束時呼叫。
-
-        Args:
-
-        Returns:
 
         """
         self.client.close()

@@ -38,17 +38,12 @@ def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: 
     支援以子網域完全匹配。
 
     Args:
-      url(str): 當前網址。
-      domain_delays(dict[str): 網域為 key、延遲秒數為 value 的字典。
-      default_delay(float): 全域預設延遲秒數。
-      url: str:
-      domain_delays: dict[str:
-      float]:
-      default_delay: float:
+        url (str): 當前網址。
+        domain_delays (dict[str, float]): 網域為 key、延遲秒數為 value 的字典。
+        default_delay (float): 全域預設延遲秒數。
 
     Returns:
-      float: 該網域適用的延遲秒數。
-
+        float: 該網域適用的延遲秒數。
     """
     if not domain_delays:
         return default_delay
@@ -158,14 +153,13 @@ class JobRunner:
         """載入任務並解析配置。若任務狀態無法執行則回傳 None。
 
         Args:
-          session: Session:
-          crawler_config_param: dict[str:
-          object] | None:
-          force: bool:
-          is_api_spawn: bool:
+            session (Session): SQLAlchemy Session 實例。
+            crawler_config_param (dict[str, object] | None): 傳入的爬蟲參數設定字典。
+            force (bool): 是否強制接管。
+            is_api_spawn (bool): 是否為 API 生成程序的背景呼叫。
 
         Returns:
-
+            Job | None: 初始化成功的任務物件，若無法執行則回傳 None。
         """
         job: Job | None = session.query(Job).filter(Job.id == self.job_id).first()
         if not job:
@@ -253,12 +247,9 @@ class JobRunner:
         """任務的執行主迴圈。
 
         Args:
-          session: Session:
-          job: Job:
-          crawler: CrawlerCore:
-
-        Returns:
-
+            session (Session): SQLAlchemy Session 實例。
+            job (Job): 當前的爬蟲任務物件。
+            crawler (CrawlerCore): 初始化的爬蟲核心引擎。
         """
         while True:
             session.expire(job)
@@ -294,14 +285,11 @@ class JobRunner:
             self._process_item(session, queue_item, crawler)
 
     def _mark_job_completed(self, session: Session, job: Job) -> None:
-        """
+        """將任務狀態標記為已完成並送出通知。
 
         Args:
-          session: Session:
-          job: Job:
-
-        Returns:
-
+            session (Session): SQLAlchemy Session 實例。
+            job (Job): 當前的爬蟲任務物件。
         """
         job.status = "completed"
         session.commit()
@@ -316,12 +304,9 @@ class JobRunner:
         """處理單一 CrawlQueue 項目。
 
         Args:
-          session: Session:
-          queue_item: CrawlQueue:
-          crawler: CrawlerCore:
-
-        Returns:
-
+            session (Session): SQLAlchemy Session 實例。
+            queue_item (CrawlQueue): 當前準備處理的佇列物件。
+            crawler (CrawlerCore): 爬蟲核心引擎。
         """
         current_url: str = queue_item.url
         logger.info("正在爬取: %s", current_url)
@@ -378,15 +363,12 @@ class JobRunner:
             time.sleep(actual_delay)
 
     def _handle_internal_links(self, session: Session, queue_item: CrawlQueue, internal_links: list[str]) -> None:
-        """
+        """將收集到的內部連結寫入資料庫佇列。
 
         Args:
-          session: Session:
-          queue_item: CrawlQueue:
-          internal_links: list[str]:
-
-        Returns:
-
+            session (Session): SQLAlchemy Session 實例。
+            queue_item (CrawlQueue): 當前處理的佇列來源網址物件。
+            internal_links (list[str]): 解析出的內部連結陣列。
         """
         next_depth = queue_item.depth + 1
         if self.crawler_config_dict.get("max_depth", None) is None or next_depth <= self.crawler_config_dict.get(
@@ -419,15 +401,15 @@ class JobRunner:
         current_url: str,
         unique_external_links: list[str],
     ) -> list[str]:
-        """
+        """過濾出需要進行存活探測的全新外部連結（利用快取去重）。
 
         Args:
-          session: Session:
-          current_url: str:
-          unique_external_links: list[str]:
+            session (Session): SQLAlchemy Session 實例。
+            current_url (str): 當前來源網址。
+            unique_external_links (list[str]): 本頁取得的獨立外部連結清單。
 
         Returns:
-
+            list[str]: 尚未被快取或處理過的外部連結清單，需進一步發送 HTTP 探測。
         """
         links_needing_http_check = []
         for link in unique_external_links:
@@ -468,16 +450,13 @@ class JobRunner:
         external_target_links: list[str],
         crawler: CrawlerCore,
     ) -> None:
-        """
+        """併發處理外部連結存活探測，並將結果寫入資料庫與快取。
 
         Args:
-          session: Session:
-          current_url: str:
-          external_target_links: list[str]:
-          crawler: CrawlerCore:
-
-        Returns:
-
+            session (Session): SQLAlchemy Session 實例。
+            current_url (str): 當前來源網址。
+            external_target_links (list[str]): 待處理的外部連結陣列。
+            crawler (CrawlerCore): 爬蟲核心引擎。
         """
         unique_links = list(set(external_target_links))
         needs_check = self._prepare_external_links(session, current_url, unique_links)
@@ -487,14 +466,6 @@ class JobRunner:
             def check_single(
                 ext_link: str,
             ) -> tuple[str, str | None, int | None, str | None]:
-                """
-
-                Args:
-                  ext_link: str:
-
-                Returns:
-
-                """
                 return self._check_single_link(ext_link, crawler)
 
             results = list(self.executor.map(check_single, needs_check))
@@ -506,18 +477,12 @@ class JobRunner:
         current_url: str,
         results: list[tuple[str, str | None, int | None, str | None]],
     ) -> None:
-        """
+        """將探測完畢的外部連結結果保存至資料庫與內部快取記憶體中。
 
         Args:
-          session: Session:
-          current_url: str:
-          results: list[tuple[str:
-          str | None:
-          int | None:
-          str | None]]:
-
-        Returns:
-
+            session (Session): SQLAlchemy Session 實例。
+            current_url (str): 當前來源網址。
+            results (list[tuple]): (目標網址, IP, HTTP狀態碼, 錯誤訊息) 構成的結果陣列。
         """
         for res_link, res_ip, res_code, res_err in results:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
@@ -545,14 +510,14 @@ class JobRunner:
                 session.add(new_ext)
 
     def _check_single_link(self, ext_link: str, crawler: CrawlerCore) -> tuple[str, str | None, int | None, str | None]:
-        """
+        """呼叫爬蟲引擎對單一外部連結進行存活探測。
 
         Args:
-          ext_link: str:
-          crawler: CrawlerCore:
+            ext_link (str): 外部連結網址。
+            crawler (CrawlerCore): 爬蟲核心引擎。
 
         Returns:
-
+            tuple[str, str | None, int | None, str | None]: (目標網址, IP, 狀態碼, 錯誤訊息)。
         """
         tgt_dom = get_domain(ext_link)
         ip_res = resolve_ip(tgt_dom) if tgt_dom else None
@@ -560,15 +525,12 @@ class JobRunner:
         return ext_link, ip_res, code_res, err_res
 
     def _handle_error(self, session: Session, queue_item: CrawlQueue, e: httpx.HTTPError) -> None:
-        """
+        """處理 HTTP 請求過程中的錯誤，套用重試邏輯或標記永久失效。
 
         Args:
-          session: Session:
-          queue_item: CrawlQueue:
-          e: httpx.HTTPError:
-
-        Returns:
-
+            session (Session): SQLAlchemy Session 實例。
+            queue_item (CrawlQueue): 發生錯誤的佇列物件。
+            e (httpx.HTTPError): 捕捉到的 HTTPX 例外。
         """
         session.rollback()
         current_url = queue_item.url
