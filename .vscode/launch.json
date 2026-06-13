@@ -33,6 +33,29 @@
             ],
             "console": "integratedTerminal",
             "justMyCode": true
+        },
+        {
+            "name": "🔗 測試外部連結 (Debug)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/test_ext.py",
+            "args": [
+                "${input:targetUrl}"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "🔗 測試外部連結 (不套用社群降級)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/test_ext.py",
+            "args": [
+                "${input:targetUrl}",
+                "--disable-social"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ],
     "inputs": [

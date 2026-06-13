@@ -77,7 +77,15 @@ DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
         "ignore_regexes": [],
         "domain_delays": {},
         "ssl_exempt_domains": [],
-        "social_domains": ["facebook.com", "fb.com", "youtube.com", "youtu.be"],
+        "social_domains": [
+            "facebook.com",
+            "fb.com",
+            "youtube.com",
+            "youtu.be",
+            "instagram.com",
+            "twitter.com",
+            "linkedin.com",
+        ],
         "ignore_extensions": (
             ".pdf .doc .docx .xls .xlsx .ppt .pptx .odt .ods .odp .csv .txt .rtf .epub .mobi "
             ".jpg .jpeg .png .gif .svg .webp .bmp .ico .tif .tiff .psd .ai .eps .mp4 .mp3 .avi "

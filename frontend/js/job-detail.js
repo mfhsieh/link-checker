@@ -622,29 +622,32 @@ function bindControlButtons() {
                     wrapper.style.flexDirection = 'column';
                     wrapper.style.gap = '1.5rem';
 
-                    wrapper.appendChild(createSection('🌐 網域設定', [
+                    wrapper.appendChild(createSection('🌐 基本設定', [
                         { label: '目標網域', value: el => formatList(c.target_domains, el) },
                         { label: '信任網域', value: el => formatList(c.trusted_domains, el) }
+                    ]));
+
+                    wrapper.appendChild(createSection('🛡️ 進階過濾與網路', [
+                        { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } },
+                        { label: '忽略路徑規則', value: el => formatList(c.ignore_regexes, el) },
+                        {
+                            label: '特定網域延遲', value: el => formatList(
+                                c.domain_delays ? Object.entries(c.domain_delays).map(([k, v]) => `${k}: ${v}s`) : [], el
+                            )
+                        },
+                        { label: '自簽憑證豁免', value: el => formatList(c.ssl_exempt_domains, el) },
+                        { label: '自訂 User-Agent', value: c.user_agent || '系統預設 (自動輪替)', valClass: 'text-xs text-muted' },
+                        c.proxy_url !== undefined ? { label: '代理伺服器', value: c.proxy_url || '-', valClass: 'font-mono text-xs', valStyle: { wordBreak: 'break-all' } } : null
                     ]));
 
                     wrapper.appendChild(createSection('⚙️ 資源與限制', [
                         { label: '最大爬取深度', value: c.max_depth === null ? '不限制' : c.max_depth },
                         { label: '最大抓取頁數', value: c.max_pages === null ? '不限制' : c.max_pages },
                         { label: '請求延遲', value: `${c.delay ?? '-'} 秒` },
-                        { label: '連線逾時', value: `${c.timeout ?? '-'} 秒` },
-                        { label: 'TCP連線逾時', value: `${c.connect_timeout ?? '-'} 秒` },
+                        { label: '總連線逾時', value: `${c.timeout ?? '-'} 秒` },
+                        { label: 'TCP 連線逾時', value: `${c.connect_timeout ?? '-'} 秒` },
                         { label: '外連探測逾時', value: `${c.external_check_timeout ?? '-'} 秒` },
-                        { label: '失敗重試', value: `${c.retries ?? '-'} 次` },
-                        c.proxy_url !== undefined ? { label: '代理伺服器', value: c.proxy_url || '-', valClass: 'font-mono text-xs', valStyle: { wordBreak: 'break-all' } } : null
-                    ]));
-
-                    wrapper.appendChild(createSection('🛡️ 過濾與排除', [
-                        { label: '忽略路徑規則', value: el => formatList(c.ignore_regexes, el) },
-                        { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } },
-                        { label: '自簽憑證豁免', value: el => formatList(c.ssl_exempt_domains, el) },
-                        { label: '網域專屬延遲', value: el => formatList(
-                            c.domain_delays ? Object.entries(c.domain_delays).map(([k, v]) => `${k}: ${v}s`) : [], el
-                        ) }
+                        { label: '失敗重試次數', value: `${c.retries ?? '-'} 次` }
                     ]));
 
                     container.appendChild(wrapper);

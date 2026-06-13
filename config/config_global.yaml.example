@@ -117,6 +117,9 @@ crawler:
     - "fb.com"
     - "youtube.com"
     - "youtu.be"
+    - "instagram.com"
+    - "twitter.com"
+    - "linkedin.com"
 
   # 預設略過且不進行 HTML 抓取解析的副檔名清單
   # 合併規則：【聯集合併 (Union)】個別任務的清單會與此清單疊加生效，防範意外下載巨型非網頁檔案。

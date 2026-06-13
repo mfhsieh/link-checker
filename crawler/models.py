@@ -10,9 +10,14 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any, cast
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, Query, mapped_column, relationship
+
+from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
+
+_DEF = cast(dict[str, Any], DEFAULT_GLOBAL_CONFIG["crawler"])
 
 
 class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
@@ -35,51 +40,33 @@ def get_utc_now() -> datetime:
 class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
     """爬蟲引擎的全域與進階配置物件。"""
 
-    timeout: int = 30
-    connect_timeout: float = 5.0
-    external_check_timeout: float = 10.0
-    ignore_extensions: list[str] = field(default_factory=lambda: [".pdf", ".jpg", ".png", ".gif", ".mp4", ".zip"])
-    mime_type_filter: dict[str, object] = field(
-        default_factory=lambda: {"enabled": True, "allowed_types": ["text/html", "application/xhtml+xml"]}
-    )
-    ignore_regexes: list[str] = field(default_factory=list)
-    user_agent: str | None = None
-    ssl_exempt_domains: list[str] = field(default_factory=list)
-    proxy_url: str | None = None
-    max_content_length: int = 10485760
-    max_redirects: int = 10
-    social_domains: list[str] = field(
-        default_factory=lambda: [
-            "facebook.com",
-            "fb.com",
-            "youtube.com",
-            "instagram.com",
-            "twitter.com",
-            "linkedin.com",
-        ]
-    )
+    timeout: int = _DEF["timeout"]
+    connect_timeout: float = _DEF["connect_timeout"]
+    external_check_timeout: float = _DEF["external_check_timeout"]
+    ignore_extensions: list[str] = field(default_factory=lambda: list(_DEF["ignore_extensions"]))
+    mime_type_filter: dict[str, object] = field(default_factory=lambda: dict(_DEF["mime_type_filter"]))
+    ignore_regexes: list[str] = field(default_factory=lambda: list(_DEF["ignore_regexes"]))
+    user_agent: str | None = _DEF["user_agent"]
+    ssl_exempt_domains: list[str] = field(default_factory=lambda: list(_DEF["ssl_exempt_domains"]))
+    proxy_url: str | None = _DEF["proxy_url"]
+    max_content_length: int = _DEF["max_content_length"]
+    max_redirects: int = _DEF["max_redirects"]
+    social_domains: list[str] = field(default_factory=lambda: list(_DEF["social_domains"]))
 
     def __post_init__(self) -> None:
         """
         在初始化後檢查網域陣列是否有提供初始值。
         """
         if self.ignore_extensions is None:
-            self.ignore_extensions = [".pdf", ".jpg", ".png", ".gif", ".mp4", ".zip"]
+            self.ignore_extensions = list(_DEF["ignore_extensions"])
         if self.mime_type_filter is None:
-            self.mime_type_filter = {"enabled": True, "allowed_types": ["text/html", "application/xhtml+xml"]}
+            self.mime_type_filter = dict(_DEF["mime_type_filter"])
         if self.ignore_regexes is None:
-            self.ignore_regexes = []
+            self.ignore_regexes = list(_DEF["ignore_regexes"])
         if self.ssl_exempt_domains is None:
-            self.ssl_exempt_domains = []
+            self.ssl_exempt_domains = list(_DEF["ssl_exempt_domains"])
         if self.social_domains is None:
-            self.social_domains = [
-                "facebook.com",
-                "fb.com",
-                "youtube.com",
-                "instagram.com",
-                "twitter.com",
-                "linkedin.com",
-            ]
+            self.social_domains = list(_DEF["social_domains"])
 
 
 class Job(Base):  # pylint: disable=too-few-public-methods
