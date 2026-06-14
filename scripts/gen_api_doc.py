@@ -129,6 +129,7 @@ def _process_responses(operation: dict, lines: list[str]) -> None:
         lines.append(f"- **{status_code}**: {res_desc}")
 
 
+# pylint: disable=invalid-name
 def _process_schemas(schema: dict, lines: list[str]) -> None:
     """
     處理 OpenAPI Schema 中的所有 Components Schemas，並將其轉換為 Markdown 表格附加至行列表中。

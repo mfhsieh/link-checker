@@ -21,7 +21,7 @@ from crawler.profiles import get_random_profile
 from crawler.utils import get_domain, is_in_domain_list, is_safe_ip, normalize_url, resolve_ip
 
 try:
-    import h2  # pylint: disable=unused-import
+    import h2  # noqa: F401 # pylint: disable=unused-import
 
     _HTTP2_SUPPORTED = True
 except ImportError:
@@ -376,6 +376,7 @@ class CrawlerCore:
         logger.warning("網址 %s 超過最大重導向次數", url)
         return None, None, "skip", current_url, request_sent, "超過最大重導向次數"
 
+    # pylint: disable=too-many-locals
     def extract_links(self, html: str, base_url: str) -> list[str]:
         """從給定的 HTML 內容中擷取所有有效且絕對路徑的連結與外連資源（如超連結、script、stylesheet、iframe、img、embed、form、object 等）。
 
@@ -593,6 +594,7 @@ class CrawlerCore:
         except (ValueError, socket.gaierror, TypeError, AttributeError, UnicodeError) as e:
             return None, (None, str(e))
 
+    # pylint: disable=too-many-nested-blocks
     def check_external_link(self, url: str) -> tuple[int | None, str | None]:
         """對外部連結進行存活檢查。
 

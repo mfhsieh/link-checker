@@ -196,6 +196,7 @@ def export_results(
 
 
 @router.get("/{job_id}/internal-results/export")
+# pylint: disable=too-many-arguments
 def export_internal_results(
     job_id: str,
     query_filter: str | None = Query(

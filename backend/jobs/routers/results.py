@@ -146,6 +146,7 @@ def get_internal_results_summary(
 
 
 @router.get("/{job_id}/internal-results")
+# pylint: disable=too-many-arguments
 def get_internal_results(
     job_id: str,
     status_filter: str | None = Query(

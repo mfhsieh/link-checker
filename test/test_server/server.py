@@ -1,3 +1,4 @@
+# pylint: disable=cyclic-import
 """
 Mock HTTP 伺服器模組。
 

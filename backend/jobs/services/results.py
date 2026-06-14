@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """
 任務結果與統計查詢邏輯。
 """
@@ -828,6 +829,7 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
     return query
 
 
+# pylint: disable=too-many-locals
 def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group_by: str = "none") -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的統計摘要。
@@ -886,47 +888,48 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
             "connection_error": connection_error,
             "other_error": other_error,
         }
-    else:
-        set_all = set()
-        set_not_found = set()
-        set_server_error = set()
-        set_access_denied = set()
-        set_timeout = set()
-        set_connection_error = set()
-        set_other_error = set()
 
-        query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
-        for q in query.yield_per(2000):
-            key = q.source_url or "" if group_by == "source" else q.id
-            set_all.add(key)
+    set_all = set()
+    set_not_found = set()
+    set_server_error = set()
+    set_access_denied = set()
+    set_timeout = set()
+    set_connection_error = set()
+    set_other_error = set()
 
-            c = q.status_code
-            msg = str(q.error_message or "").lower()
+    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+    for q in query.yield_per(2000):
+        key = q.source_url or "" if group_by == "source" else q.id
+        set_all.add(key)
 
-            if c in (404, 410):
-                set_not_found.add(key)
-            elif c is not None and c >= 500:
-                set_server_error.add(key)
-            elif c in (401, 403):
-                set_access_denied.add(key)
-            elif c is None and ("timeout" in msg or "timed out" in msg):
-                set_timeout.add(key)
-            elif c is None and not ("timeout" in msg or "timed out" in msg):
-                set_connection_error.add(key)
-            else:
-                set_other_error.add(key)
+        c = q.status_code
+        msg = str(q.error_message or "").lower()
 
-        return {
-            "total": len(set_all),
-            "not_found": len(set_not_found),
-            "server_error": len(set_server_error),
-            "access_denied": len(set_access_denied),
-            "timeout": len(set_timeout),
-            "connection_error": len(set_connection_error),
-            "other_error": len(set_other_error),
-        }
+        if c in (404, 410):
+            set_not_found.add(key)
+        elif c is not None and c >= 500:
+            set_server_error.add(key)
+        elif c in (401, 403):
+            set_access_denied.add(key)
+        elif c is None and ("timeout" in msg or "timed out" in msg):
+            set_timeout.add(key)
+        elif c is None and not ("timeout" in msg or "timed out" in msg):
+            set_connection_error.add(key)
+        else:
+            set_other_error.add(key)
+
+    return {
+        "total": len(set_all),
+        "not_found": len(set_not_found),
+        "server_error": len(set_server_error),
+        "access_denied": len(set_access_denied),
+        "timeout": len(set_timeout),
+        "connection_error": len(set_connection_error),
+        "other_error": len(set_other_error),
+    }
 
 
+# pylint: disable=too-many-arguments, too-many-locals
 def get_internal_errors(
     db: DBSession,
     job_id: str,

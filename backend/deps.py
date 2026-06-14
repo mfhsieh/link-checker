@@ -1,3 +1,4 @@
+# pylint: disable=cyclic-import
 """
 FastAPI 共用依賴注入模組。
 
