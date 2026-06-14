@@ -7,7 +7,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Iterator
 
-from sqlalchemy import case
+from sqlalchemy import case, cast, String, asc, desc
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.sql.functions import count
@@ -166,19 +166,110 @@ def get_job_results(
         query, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
     )
 
+    import json
+
+    def apply_py_filter_sort(items_list: list[dict[str, object]]) -> list[dict[str, object]]:
+        if query_args.col_filters:
+            try:
+                filters = json.loads(query_args.col_filters)
+                filtered = []
+                for item in items_list:
+                    match = True
+                    for k, v in filters.items():
+                        if not v:
+                            continue
+                        v_str = str(v).lower()
+                        val = item.get(k)
+                        if k == "is_secure":
+                            val_str = "✓" if val else "✗"
+                        else:
+                            val_str = str(val).lower() if val is not None else ""
+                        if v_str not in val_str:
+                            match = False
+                            break
+                    if match:
+                        filtered.append(item)
+                items_list = filtered
+            except Exception:
+                pass
+
+        if query_args.sort_by:
+            sort_k = query_args.sort_by
+            rev = not query_args.sort_asc
+
+            def sort_key(x: dict[str, object]) -> object:
+                val = x.get(sort_k)
+                if val is None:
+                    return ""
+                if isinstance(val, (int, float, bool)):
+                    return val
+                return str(val).lower()
+
+            try:
+                items_list.sort(key=sort_key, reverse=rev)
+            except Exception:
+                pass
+        return items_list
+
     if query_args.group_by == "target":
         links = query.order_by(ExternalLink.created_at).all()
         items_list = _group_by_target(links)
+        items_list = apply_py_filter_sort(items_list)
     elif query_args.group_by == "source":
         links = query.order_by(ExternalLink.created_at).all()
         items_list = _group_by_source(links)
+        items_list = apply_py_filter_sort(items_list)
     elif query_args.group_by == "domain":
         links = query.order_by(ExternalLink.created_at).all()
         items_list = _group_by_domain(links)
+        items_list = apply_py_filter_sort(items_list)
     else:
+        if query_args.col_filters:
+            try:
+                filters = json.loads(query_args.col_filters)
+                for k, v in filters.items():
+                    if not v:
+                        continue
+                    v_str = str(v).lower()
+                    if k == "target_url":
+                        query = query.filter(ExternalLink.target_url.ilike(f"%{v_str}%"))
+                    elif k == "source_url":
+                        query = query.filter(ExternalLink.source_url.ilike(f"%{v_str}%"))
+                    elif k == "ip_address":
+                        query = query.filter(ExternalLink.ip_address.ilike(f"%{v_str}%"))
+                    elif k == "is_secure":
+                        is_sec = v_str in ("true", "1", "yes", "✓", "v", "t")
+                        query = query.filter(ExternalLink.is_secure.is_(is_sec))
+                    elif k == "http_status_code":
+                        query = query.filter(cast(ExternalLink.http_status_code, String).ilike(f"%{v_str}%"))
+                    elif k == "error_message":
+                        query = query.filter(ExternalLink.error_message.ilike(f"%{v_str}%"))
+            except Exception:
+                pass
+
+        if query_args.sort_by:
+            col = None
+            if query_args.sort_by == "target_url":
+                col = ExternalLink.target_url
+            elif query_args.sort_by == "source_url":
+                col = ExternalLink.source_url
+            elif query_args.sort_by == "ip_address":
+                col = ExternalLink.ip_address
+            elif query_args.sort_by == "is_secure":
+                col = ExternalLink.is_secure
+            elif query_args.sort_by == "http_status_code":
+                col = ExternalLink.http_status_code
+            elif query_args.sort_by == "error_message":
+                col = ExternalLink.error_message
+            if col is not None:
+                order_func = asc if query_args.sort_asc else desc
+                query = query.order_by(order_func(col))
+        else:
+            query = query.order_by(ExternalLink.created_at)
+
         total = query.count()
         offset = (query_args.page - 1) * query_args.page_size
-        links = query.order_by(ExternalLink.created_at).offset(offset).limit(query_args.page_size).all()
+        links = query.offset(offset).limit(query_args.page_size).all()
         items_list = [
             {
                 "id": lnk.id,
@@ -883,10 +974,10 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
             "total": total,
             "not_found": not_found,
             "server_error": server_error,
-            "access_denied": access_denied,
             "timeout": timeout,
             "connection_error": connection_error,
             "other_error": other_error,
+            "access_denied": access_denied,
         }
 
     set_all = set()
@@ -922,10 +1013,10 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
         "total": len(set_all),
         "not_found": len(set_not_found),
         "server_error": len(set_server_error),
-        "access_denied": len(set_access_denied),
         "timeout": len(set_timeout),
         "connection_error": len(set_connection_error),
         "other_error": len(set_other_error),
+        "access_denied": len(set_access_denied),
     }
 
 
@@ -939,6 +1030,9 @@ def get_internal_errors(
     page: int = 1,
     page_size: int = 50,
     truncate_lists: bool = True,
+    sort_by: str | None = None,
+    sort_asc: bool = True,
+    col_filters: str | None = None,
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表。
@@ -965,6 +1059,46 @@ def get_internal_errors(
     query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
     query = apply_internal_result_filters(query, status_filter)
 
+    import json
+
+    def apply_py_filter_sort(items_list: list[dict[str, object]]) -> list[dict[str, object]]:
+        if col_filters:
+            try:
+                filters = json.loads(col_filters)
+                filtered = []
+                for item in items_list:
+                    match = True
+                    for k, v in filters.items():
+                        if not v:
+                            continue
+                        v_str = str(v).lower()
+                        val = item.get(k)
+                        val_str = str(val).lower() if val is not None else ""
+                        if v_str not in val_str:
+                            match = False
+                            break
+                    if match:
+                        filtered.append(item)
+                items_list = filtered
+            except Exception:
+                pass
+        if sort_by:
+            rev = not sort_asc
+
+            def sort_key(x: dict[str, object]) -> object:
+                val = x.get(sort_by)
+                if val is None:
+                    return ""
+                if isinstance(val, (int, float, bool)):
+                    return val
+                return str(val).lower()
+
+            try:
+                items_list.sort(key=sort_key, reverse=rev)
+            except Exception:
+                pass
+        return items_list
+
     if group_by == "source":
         links = query.order_by(CrawlQueue.id).all()
         agg: dict[str, dict[str, object]] = defaultdict(
@@ -983,7 +1117,10 @@ def get_internal_errors(
                 })
 
         items_list = list(agg.values())
-        items_list.sort(key=lambda x: x["occurrence_count"], reverse=True)
+        if not sort_by:
+            items_list.sort(key=lambda x: x["occurrence_count"], reverse=True)
+
+        items_list = apply_py_filter_sort(items_list)
 
         total = len(items_list)
         offset = (page - 1) * page_size
@@ -997,9 +1134,43 @@ def get_internal_errors(
             "total_pages": total_pages,
         }
 
+    if col_filters:
+        try:
+            filters = json.loads(col_filters)
+            for k, v in filters.items():
+                if not v:
+                    continue
+                v_str = str(v).lower()
+                if k == "URL":
+                    query = query.filter(CrawlQueue.url.ilike(f"%{v_str}%"))
+                elif k == "Source URL":
+                    query = query.filter(CrawlQueue.source_url.ilike(f"%{v_str}%"))
+                elif k == "HTTP Status Code":
+                    query = query.filter(cast(CrawlQueue.status_code, String).ilike(f"%{v_str}%"))
+                elif k == "Error Message":
+                    query = query.filter(CrawlQueue.error_message.ilike(f"%{v_str}%"))
+        except Exception:
+            pass
+
+    if sort_by:
+        col = None
+        if sort_by == "URL":
+            col = CrawlQueue.url
+        elif sort_by == "Source URL":
+            col = CrawlQueue.source_url
+        elif sort_by == "HTTP Status Code":
+            col = CrawlQueue.status_code
+        elif sort_by == "Error Message":
+            col = CrawlQueue.error_message
+        if col is not None:
+            order_func = asc if sort_asc else desc
+            query = query.order_by(order_func(col))
+    else:
+        query = query.order_by(CrawlQueue.id)
+
     total = query.count()
     offset = (page - 1) * page_size
-    items = query.order_by(CrawlQueue.id).offset(offset).limit(page_size).all()
+    items = query.offset(offset).limit(page_size).all()
 
     items_list = [format_crawl_queue_item(q) for q in items]
 

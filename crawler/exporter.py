@@ -42,8 +42,8 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
         dict[str, object]: 包含佇列項目詳細資訊的字典。
     """
     return {
-        "URL": q.url,
         "Source URL": q.source_url if q.source_url else "",
+        "URL": q.url,
         "Status": q.status,
         "Depth": q.depth,
         "Retry Count": q.retry_count,
@@ -392,8 +392,8 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
         with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
             cq_writer = csv.writer(text_file)
             cq_writer.writerow([
-                "URL",
                 "Source URL",
+                "URL",
                 "Status",
                 "Depth",
                 "Retry Count",
@@ -405,8 +405,8 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
                 d = format_crawl_queue_item(q)
                 cq_writer.writerow(
                     _sanitize_csv_row([
-                        d["URL"],
                         d["Source URL"],
+                        d["URL"],
                         d["Status"],
                         d["Depth"],
                         d["Retry Count"],

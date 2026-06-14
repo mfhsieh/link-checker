@@ -168,11 +168,17 @@ class ResultsFilterArgs:  # pylint: disable=too-few-public-methods
         search: str | None = Query(None),
         exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
         group_by: str = Query("none", pattern="^(none|target|source|domain)$"),
+        sort_by: str | None = Query(None),
+        sort_asc: bool = Query(True),
+        col_filters: str | None = Query(None),
     ):
         self.status_filter = status_filter
         self.search = search
         self.exclude = exclude
         self.group_by = group_by
+        self.sort_by = sort_by
+        self.sort_asc = sort_asc
+        self.col_filters = col_filters
 
 
 class ResultsQueryArgs:  # pylint: disable=too-few-public-methods
@@ -196,6 +202,9 @@ class ResultsQueryArgs:  # pylint: disable=too-few-public-methods
         self.group_by = filters.group_by
         self.page = pagination.page
         self.page_size = pagination.page_size
+        self.sort_by = filters.sort_by
+        self.sort_asc = filters.sort_asc
+        self.col_filters = filters.col_filters
 
 
 class ExportQueryArgs:  # pylint: disable=too-few-public-methods
@@ -245,6 +254,9 @@ class JobResultQuery:  # pylint: disable=too-few-public-methods,too-many-instanc
     group_by: str = "none"
     page: int = 1
     page_size: int = 50
+    sort_by: str | None = None
+    sort_asc: bool = True
+    col_filters: str | None = None
 
     @classmethod
     def from_query_args(cls, job_id: str, user_id: str, query_args: object) -> "JobResultQuery":

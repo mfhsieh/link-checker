@@ -178,12 +178,17 @@ async function loadInternalResultsPage(jobId) {
     const containerEl = document.getElementById('internal-results-container');
     if (!containerEl) return;
 
-    containerEl.replaceChildren();
-    const skeletonEl = document.createElement('div');
-    skeletonEl.className = 'skeleton';
-    skeletonEl.style.height = '200px';
-    skeletonEl.style.borderRadius = '0.5rem';
-    containerEl.appendChild(skeletonEl);
+    let tableEl = containerEl.querySelector('.table');
+    if (!tableEl || containerEl.dataset.renderedInternalGroup !== _internalGroupBy) {
+        containerEl.replaceChildren();
+        const skeletonEl = document.createElement('div');
+        skeletonEl.className = 'skeleton';
+        skeletonEl.style.height = '200px';
+        skeletonEl.style.borderRadius = '0.5rem';
+        containerEl.appendChild(skeletonEl);
+    } else {
+        tableEl.style.opacity = '0.5';
+    }
 
     try {
         const params = {};
@@ -195,9 +200,14 @@ async function loadInternalResultsPage(jobId) {
     } catch (_) { /* 忽略 */ }
 
     try {
-        const params = { group_by: _internalGroupBy, page: _internalCurrentPage, page_size: 50 };
+        const params = { group_by: _internalGroupBy, page: _internalCurrentPage, page_size: 50, sort_by: _internalSort.key || undefined, sort_asc: _internalSort.asc };
         if (_internalFilter && _internalFilter !== 'all') params.filter = _internalFilter;
+        const activeFilters = Object.fromEntries(Object.entries(_internalColFilters).filter(([_, v]) => v !== ''));
+        if (Object.keys(activeFilters).length > 0) {
+            params.col_filters = JSON.stringify(activeFilters);
+        }
         const res = await api.get(`/api/jobs/${jobId}/internal-results`, params);
+        if (tableEl) tableEl.style.opacity = '1';
         renderInternalResultsTable(res, containerEl);
         renderInternalPagination(res, jobId);
     } catch (err) {
@@ -216,10 +226,10 @@ function renderInternalSummary(summary) {
     setTextContent('int-summary-total', summary.total ?? 0);
     setTextContent('int-summary-not-found', summary.not_found ?? 0);
     setTextContent('int-summary-server-error', summary.server_error ?? 0);
-    setTextContent('int-summary-access-denied', summary.access_denied ?? 0);
     setTextContent('int-summary-timeout', summary.timeout ?? 0);
     setTextContent('int-summary-connection-error', summary.connection_error ?? 0);
     setTextContent('int-summary-other-error', summary.other_error ?? 0);
+    setTextContent('int-summary-access-denied', summary.access_denied ?? 0);
 }
 
 function renderInternalResultsTable(res, containerEl) {
@@ -252,8 +262,8 @@ function renderInternalResultsTable(res, containerEl) {
         ];
     } else {
         headers = [
-            { label: '目標 URL', key: 'URL' },
             { label: '來源頁面 (Source)', key: 'Source URL' },
+            { label: '目標 URL', key: 'URL' },
             { label: 'HTTP 狀態', key: 'HTTP Status Code' },
             { label: '錯誤訊息', key: 'Error Message' }
         ];
@@ -298,7 +308,8 @@ function renderInternalResultsTable(res, containerEl) {
                     else { _internalSort.key = h.key; _internalSort.asc = true; }
 
                     api.updateSortIcons(trHead, _internalSort.key, _internalSort.asc);
-                    renderInternalTbody(tableEl);
+                    _internalCurrentPage = 1;
+                    loadInternalResultsPage(_currentJobId);
                 });
             }
             th.appendChild(headerTop);
@@ -306,7 +317,11 @@ function renderInternalResultsTable(res, containerEl) {
             if (h.filterable !== false) {
                 const filterInput = api.createFilterInput(_internalColFilters[h.key], (newVal) => {
                     _internalColFilters[h.key] = newVal;
-                    renderInternalTbody(tableEl);
+                    _internalCurrentPage = 1;
+                    if (window._internalFilterTimeout) clearTimeout(window._internalFilterTimeout);
+                    window._internalFilterTimeout = setTimeout(() => {
+                        loadInternalResultsPage(_currentJobId);
+                    }, 500);
                 });
                 th.appendChild(filterInput);
             }
@@ -355,26 +370,6 @@ function getInternalBadgeClass(code, errMsg) {
 
 function renderInternalTbody(tableEl) {
     let data = [..._internalResultItems];
-
-    for (const [k, v] of Object.entries(_internalColFilters)) {
-        if (!v) continue;
-        data = data.filter(item => String(item[k] || '').toLowerCase().includes(v));
-    }
-
-    if (_internalSort.key) {
-        data.sort((a, b) => {
-            let valA = a[_internalSort.key];
-            let valB = b[_internalSort.key];
-            if (valA === undefined || valA === null) valA = '';
-            if (valB === undefined || valB === null) valB = '';
-            if (typeof valA === 'number' && typeof valB === 'number') return _internalSort.asc ? valA - valB : valB - valA;
-            valA = String(valA).toLowerCase();
-            valB = String(valB).toLowerCase();
-            if (valA < valB) return _internalSort.asc ? -1 : 1;
-            if (valA > valB) return _internalSort.asc ? 1 : -1;
-            return 0;
-        });
-    }
 
     let tbody = tableEl.querySelector('tbody');
     tbody.replaceChildren();
@@ -472,19 +467,6 @@ function renderInternalTbody(tableEl) {
             tdTargets.appendChild(divTargets);
             tr.appendChild(tdTargets);
         } else {
-            const tdUrl = document.createElement('td');
-            tdUrl.className = 'truncate';
-            tdUrl.style.maxWidth = '260px';
-            tdUrl.title = item.URL;
-            const aUrl = document.createElement('a');
-            aUrl.href = item.URL;
-            aUrl.target = '_blank';
-            aUrl.rel = 'noopener noreferrer';
-            aUrl.className = 'text-brand';
-            aUrl.textContent = item.URL;
-            tdUrl.appendChild(aUrl);
-            tr.appendChild(tdUrl);
-
             const tdSource = document.createElement('td');
             tdSource.className = 'truncate';
             tdSource.style.maxWidth = '260px';
@@ -501,6 +483,19 @@ function renderInternalTbody(tableEl) {
                 tdSource.textContent = '-';
             }
             tr.appendChild(tdSource);
+
+            const tdUrl = document.createElement('td');
+            tdUrl.className = 'truncate';
+            tdUrl.style.maxWidth = '260px';
+            tdUrl.title = item.URL;
+            const aUrl = document.createElement('a');
+            aUrl.href = item.URL;
+            aUrl.target = '_blank';
+            aUrl.rel = 'noopener noreferrer';
+            aUrl.className = 'text-brand';
+            aUrl.textContent = item.URL;
+            tdUrl.appendChild(aUrl);
+            tr.appendChild(tdUrl);
 
             const tdStatus = document.createElement('td');
             tdStatus.className = getInternalStatusColorClass(item['HTTP Status Code'], item['Error Message']);
@@ -530,6 +525,19 @@ function renderInternalPagination(res, jobId) {
 
     const paginationDivEl = document.createElement('div');
     paginationDivEl.className = 'pagination';
+
+    const firstBtn = document.createElement('button');
+    firstBtn.className = 'page-btn';
+    firstBtn.textContent = '«';
+    firstBtn.title = '第一頁';
+    if (page <= 1) firstBtn.disabled = true;
+    else {
+        firstBtn.addEventListener('click', async () => {
+            _internalCurrentPage = 1;
+            await loadInternalResultsPage(jobId);
+        });
+    }
+    paginationDivEl.appendChild(firstBtn);
 
     const prevBtn = document.createElement('button');
     prevBtn.className = 'page-btn';
@@ -571,6 +579,19 @@ function renderInternalPagination(res, jobId) {
         });
     }
     paginationDivEl.appendChild(nextBtn);
+
+    const lastBtn = document.createElement('button');
+    lastBtn.className = 'page-btn';
+    lastBtn.textContent = '»';
+    lastBtn.title = '最後一頁';
+    if (page >= total_pages) lastBtn.disabled = true;
+    else {
+        lastBtn.addEventListener('click', async () => {
+            _internalCurrentPage = total_pages;
+            await loadInternalResultsPage(jobId);
+        });
+    }
+    paginationDivEl.appendChild(lastBtn);
 
     paginationEl.appendChild(paginationDivEl);
 }
@@ -857,12 +878,17 @@ async function loadResultsPage(jobId) {
     const containerEl = document.getElementById('results-container');
     if (!containerEl) return;
 
-    containerEl.replaceChildren();
-    const skeletonEl = document.createElement('div');
-    skeletonEl.className = 'skeleton';
-    skeletonEl.style.height = '200px';
-    skeletonEl.style.borderRadius = '0.5rem';
-    containerEl.appendChild(skeletonEl);
+    let tableEl = containerEl.querySelector('.table');
+    if (!tableEl || containerEl.dataset.renderedGroup !== _currentGroupBy) {
+        containerEl.replaceChildren();
+        const skeletonEl = document.createElement('div');
+        skeletonEl.className = 'skeleton';
+        skeletonEl.style.height = '200px';
+        skeletonEl.style.borderRadius = '0.5rem';
+        containerEl.appendChild(skeletonEl);
+    } else {
+        tableEl.style.opacity = '0.5';
+    }
 
     try {
         const params = {
@@ -871,8 +897,15 @@ async function loadResultsPage(jobId) {
             group_by: _currentGroupBy,
             page: _currentPage,
             page_size: 50,
+            sort_by: _detailSort.key || undefined,
+            sort_asc: _detailSort.asc,
         };
+        const activeFilters = Object.fromEntries(Object.entries(_detailColFilters).filter(([_, v]) => v !== ''));
+        if (Object.keys(activeFilters).length > 0) {
+            params.col_filters = JSON.stringify(activeFilters);
+        }
         const res = await api.get(`/api/jobs/${jobId}/results`, params);
+        if (tableEl) tableEl.style.opacity = '1';
         renderResultsTable(res, containerEl);
         renderPagination(res, jobId);
     } catch (err) {
@@ -920,13 +953,13 @@ function renderResultsTable(res, containerEl) {
     const isGroupDomain = _currentGroupBy === 'domain';
 
     if (isGroupTarget) {
-        _currentDetailHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: '安全', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '來源數', key: 'occurrence_count' }, { label: '錯誤訊息', key: 'error_message' }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
+        _currentDetailHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: 'HTTPS', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '來源數', key: 'occurrence_count' }, { label: '錯誤訊息', key: 'error_message' }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
     } else if (isGroupSource) {
         _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '外連數量', key: 'occurrence_count' }, { label: '目標 URL', key: 'targets', sortable: false, filterable: false }];
     } else if (isGroupDomain) {
         _currentDetailHeaders = [{ label: '外部網域', key: 'domain' }, { label: '來源數', key: 'occurrence_count' }, { label: '不重複網址數', key: 'unique_urls_count' }, { label: '目標 URL', key: 'unique_urls', sortable: false, filterable: false }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
     } else {
-        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: '安全', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '錯誤訊息', key: 'error_message' }];
+        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: 'HTTPS', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '錯誤訊息', key: 'error_message' }];
     }
 
     let tableEl = containerEl.querySelector('.table');
@@ -968,7 +1001,8 @@ function renderResultsTable(res, containerEl) {
                     else { _detailSort.key = h.key; _detailSort.asc = true; }
 
                     api.updateSortIcons(trHead, _detailSort.key, _detailSort.asc);
-                    renderResultsTbody(tableEl);
+                    _currentPage = 1;
+                    loadResultsPage(_currentJobId);
                 });
             }
             th.appendChild(headerTop);
@@ -976,7 +1010,11 @@ function renderResultsTable(res, containerEl) {
             if (h.filterable !== false) {
                 const filterInput = api.createFilterInput(_detailColFilters[h.key], (newVal) => {
                     _detailColFilters[h.key] = newVal;
-                    renderResultsTbody(tableEl);
+                    _currentPage = 1;
+                    if (window._filterTimeout) clearTimeout(window._filterTimeout);
+                    window._filterTimeout = setTimeout(() => {
+                        loadResultsPage(_currentJobId);
+                    }, 500);
                 });
                 th.appendChild(filterInput);
             }
@@ -999,34 +1037,6 @@ function renderResultsTable(res, containerEl) {
 
 function renderResultsTbody(tableEl) {
     let data = [..._currentResultItems];
-
-    for (const [k, v] of Object.entries(_detailColFilters)) {
-        if (!v) continue;
-        data = data.filter(item => {
-            let val = item[k];
-            if (k === 'is_secure') val = val ? '✓' : '✗';
-            return String(val || '').toLowerCase().includes(v);
-        });
-    }
-
-    if (_detailSort.key) {
-        data.sort((a, b) => {
-            let valA = a[_detailSort.key];
-            let valB = b[_detailSort.key];
-            if (_detailSort.key === 'is_secure') {
-                valA = valA ? 1 : 0;
-                valB = valB ? 1 : 0;
-            }
-            if (valA === undefined || valA === null) valA = '';
-            if (valB === undefined || valB === null) valB = '';
-            if (typeof valA === 'number' && typeof valB === 'number') return _detailSort.asc ? valA - valB : valB - valA;
-            valA = String(valA).toLowerCase();
-            valB = String(valB).toLowerCase();
-            if (valA < valB) return _detailSort.asc ? -1 : 1;
-            if (valA > valB) return _detailSort.asc ? 1 : -1;
-            return 0;
-        });
-    }
 
     let tbody = tableEl.querySelector('tbody');
     tbody.replaceChildren();
@@ -1362,6 +1372,20 @@ function renderPagination(res, jobId) {
     const paginationDivEl = document.createElement('div');
     paginationDivEl.className = 'pagination';
 
+    const firstBtn = document.createElement('button');
+    firstBtn.className = 'page-btn';
+    firstBtn.textContent = '«';
+    firstBtn.title = '第一頁';
+    if (page <= 1) firstBtn.disabled = true;
+    else {
+        firstBtn.dataset.page = 1;
+        firstBtn.addEventListener('click', async () => {
+            _currentPage = 1;
+            await loadResultsPage(jobId);
+        });
+    }
+    paginationDivEl.appendChild(firstBtn);
+
     const prevBtn = document.createElement('button');
     prevBtn.className = 'page-btn';
     prevBtn.textContent = '‹';
@@ -1405,6 +1429,20 @@ function renderPagination(res, jobId) {
         });
     }
     paginationDivEl.appendChild(nextBtn);
+
+    const lastBtn = document.createElement('button');
+    lastBtn.className = 'page-btn';
+    lastBtn.textContent = '»';
+    lastBtn.title = '最後一頁';
+    if (page >= total_pages) lastBtn.disabled = true;
+    else {
+        lastBtn.dataset.page = total_pages;
+        lastBtn.addEventListener('click', async () => {
+            _currentPage = total_pages;
+            await loadResultsPage(jobId);
+        });
+    }
+    paginationDivEl.appendChild(lastBtn);
 
     paginationEl.appendChild(paginationDivEl);
 }

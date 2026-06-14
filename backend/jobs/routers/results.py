@@ -157,6 +157,9 @@ def get_internal_results(
     group_by: str = Query("none", pattern="^(none|source)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    sort_by: str | None = Query(None),
+    sort_asc: bool = Query(True),
+    col_filters: str | None = Query(None),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> dict[str, object]:
@@ -177,6 +180,8 @@ def get_internal_results(
         HTTPException 404: 找不到任務或無權限存取時拋出。
     """
     try:
-        return job_results.get_internal_errors(db, job_id, current_user.id, status_filter, group_by, page, page_size)
+        return job_results.get_internal_errors(
+            db, job_id, current_user.id, status_filter, group_by, page, page_size, True, sort_by, sort_asc, col_filters
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e

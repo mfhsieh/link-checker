@@ -414,7 +414,7 @@
             <div class="stat-card filter-card active" data-filter="all" style="padding:0.75rem">
               <div class="stat-label">連結總數</div>
               <div class="stat-value text-danger" id="int-summary-total">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">不重複的失敗連結總數量</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">不重複的爬蟲抓取失敗總數量</div>
             </div>
             <div class="stat-card filter-card" data-filter="not_found" style="padding:0.75rem">
               <div class="stat-label text-warning">資源遺失</div>
@@ -425,11 +425,6 @@
               <div class="stat-label text-danger">伺服器異常</div>
               <div class="stat-value text-danger" id="int-summary-server-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法完成請求 (5XX)</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="access_denied" style="padding:0.75rem">
-              <div class="stat-label text-muted">權限不足</div>
-              <div class="stat-value text-muted" id="int-summary-access-denied">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未獲授權 (401) 或拒絕進入 (403)</div>
             </div>
             <div class="stat-card filter-card" data-filter="timeout" style="padding:0.75rem">
               <div class="stat-label text-info">連線逾時</div>
@@ -445,6 +440,11 @@
               <div class="stat-label text-secondary">其他異常</div>
               <div class="stat-value text-secondary" id="int-summary-other-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未預期的例外</div>
+            </div>
+            <div class="stat-card filter-card" data-filter="access_denied" style="padding:0.75rem">
+              <div class="stat-label text-muted">權限不足</div>
+              <div class="stat-value text-muted" id="int-summary-access-denied">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未獲授權 (401) 或拒絕進入 (403)</div>
             </div>
           </div>
 

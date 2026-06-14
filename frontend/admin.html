@@ -1229,7 +1229,68 @@
         }
         _currentLogs = items;
         renderLogsTable(container);
+        renderLogPagination(res, container);
       } catch (err) { toast.error('載入日誌失敗：' + err.message); }
+    }
+
+    function renderLogPagination(res, container) {
+      let paginationEl = container.querySelector('#logs-pagination');
+      if (!paginationEl) {
+        paginationEl = document.createElement('div');
+        paginationEl.id = 'logs-pagination';
+        container.appendChild(paginationEl);
+      }
+      paginationEl.replaceChildren();
+
+      const { page, total_pages } = res;
+      if (total_pages <= 1) return;
+
+      const paginationDivEl = document.createElement('div');
+      paginationDivEl.className = 'pagination';
+
+      const firstBtn = document.createElement('button');
+      firstBtn.className = 'page-btn';
+      firstBtn.textContent = '«';
+      firstBtn.title = '第一頁';
+      if (page <= 1) firstBtn.disabled = true;
+      else firstBtn.addEventListener('click', () => loadLogs(1));
+      paginationDivEl.appendChild(firstBtn);
+
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'page-btn';
+      prevBtn.textContent = '‹';
+      if (page <= 1) prevBtn.disabled = true;
+      else prevBtn.addEventListener('click', () => loadLogs(page - 1));
+      paginationDivEl.appendChild(prevBtn);
+
+      const delta = 2;
+      const start = Math.max(1, page - delta);
+      const end = Math.min(total_pages, page + delta);
+
+      for (let i = start; i <= end; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.className = i === page ? 'page-btn active' : 'page-btn';
+        pageBtn.textContent = i;
+        if (i !== page) pageBtn.addEventListener('click', () => loadLogs(i));
+        paginationDivEl.appendChild(pageBtn);
+      }
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'page-btn';
+      nextBtn.textContent = '›';
+      if (page >= total_pages) nextBtn.disabled = true;
+      else nextBtn.addEventListener('click', () => loadLogs(page + 1));
+      paginationDivEl.appendChild(nextBtn);
+
+      const lastBtn = document.createElement('button');
+      lastBtn.className = 'page-btn';
+      lastBtn.textContent = '»';
+      lastBtn.title = '最後一頁';
+      if (page >= total_pages) lastBtn.disabled = true;
+      else lastBtn.addEventListener('click', () => loadLogs(total_pages));
+      paginationDivEl.appendChild(lastBtn);
+
+      paginationEl.appendChild(paginationDivEl);
     }
 
     // ── 任務監控 ─────────────────────────────────────────────
