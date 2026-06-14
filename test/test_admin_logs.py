@@ -322,8 +322,7 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db
-            .query(AuthLog)
+            db.query(AuthLog)
             .filter(AuthLog.event_type == "user_deleted", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()
@@ -343,8 +342,7 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db
-            .query(AuthLog)
+            db.query(AuthLog)
             .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()
@@ -365,8 +363,7 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db
-            .query(AuthLog)
+            db.query(AuthLog)
             .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()

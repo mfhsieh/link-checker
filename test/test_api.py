@@ -26,7 +26,7 @@ os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_api.db"
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position, duplicate-code, protected-access, broad-exception-caught
 from fastapi.testclient import TestClient
 
 from backend.auth.db import get_auth_engine, get_auth_session_local
@@ -44,8 +44,9 @@ def setup_databases() -> None:
     接著呼叫 `get_auth_engine()` 與 `get_job_manager()` 來重新建立對應的資料表與初始化狀態。
     確保每次測試都在乾淨的環境下執行。
     """
-    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
-    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel, protected-access, broad-exception-caught
+    import backend.auth.db as auth_db
+    import backend.deps as backend_deps
 
     # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
     if auth_db._ENGINE is not None:
@@ -81,8 +82,9 @@ def teardown_databases() -> None:
     """
     清理測試所產生的資料庫檔案。
     """
-    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
-    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel, protected-access, broad-exception-caught
+    import backend.auth.db as auth_db
+    import backend.deps as backend_deps
 
     # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
     if auth_db._ENGINE is not None:

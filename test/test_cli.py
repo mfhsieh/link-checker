@@ -2,6 +2,8 @@
 E2E integration test script for external link checker.
 """
 
+# pylint: disable=protected-access, broad-exception-caught, duplicate-code
+
 import json
 import os
 import sqlite3
@@ -96,7 +98,6 @@ def teardown_databases() -> None:
                     os.remove(target_file)
                 except OSError:
                     pass
-
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements

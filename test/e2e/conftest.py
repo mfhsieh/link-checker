@@ -4,12 +4,14 @@ E2E 自動化整合測試的 Pytest Fixture 配置模組。
 提供測試伺服器生命週期管理、資料庫初始化，以及 Playwright 相關設定。
 """
 
+# pylint: disable=protected-access, broad-exception-caught, duplicate-code, consider-using-with
+
 import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from collections.abc import Generator
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
