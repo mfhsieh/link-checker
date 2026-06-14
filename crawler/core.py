@@ -476,7 +476,10 @@ class CrawlerCore:
         Returns:
             tuple[str | None, tuple | None]: (重導向的下一步網址, 回傳狀態結果的 tuple)。
         """
-        headers = {"Range": "bytes=0-1023"}
+        # 移除 Range: bytes=0-1023 標頭，因為部分 IIS 伺服器與 WAF
+        # 對於帶有 Range 標頭的動態網頁 (.aspx) 請求會誤判並直接回傳 404/400。
+        # 由於使用 client.stream()，讀取完標頭後連線即會中斷，因此不加 Range 依然能達到節省頻寬的效果。
+        headers: dict[str, str] = {}
         if self.enable_dynamic_headers:
             headers.update(get_random_profile())
         stream_timeout = httpx.Timeout(self.config.external_check_timeout, connect=self.config.connect_timeout)
@@ -515,7 +518,9 @@ class CrawlerCore:
             return None, (response.status_code, None)
 
         is_social_media = tgt_dom and is_in_domain_list(tgt_dom.lower(), self.config.social_domains)
-        if response.status_code in (400, 403, 405) or (response.status_code >= 400 and is_social_media):
+        # 許多伺服器 (如 IIS) 對 HEAD 請求的轉址設定不完整，可能直接回傳 404 或 405。
+        # 將 404 等常見誤判狀態碼納入降級條件，若 HEAD 遇到 404 將以 GET (Stream) 二次確認。
+        if response.status_code in (400, 403, 404, 405, 406, 501) or (response.status_code >= 400 and is_social_media):
             return self._fallback_get(current_url, tgt_dom, ip, client)
         return None, (response.status_code, None)
 
