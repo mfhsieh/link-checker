@@ -107,12 +107,12 @@ def main() -> None:
             print(f"  - {link}")
     else:
         print(f"[-] 爬取失敗或異常。狀態: {status}, 狀態碼: {status_code}")
+        # pylint: disable=duplicate-code
         if error_msg:
             print(f"    - 錯誤訊息: {error_msg}")
 
     core.close()
 
 
-# pylint: disable=duplicate-code
 if __name__ == "__main__":
     main()
