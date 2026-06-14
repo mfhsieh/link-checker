@@ -7,7 +7,7 @@
 1. 登入 [GCP 主控台](https://console.cloud.google.com/)，導覽至 **Compute Engine > VM 執行個體**。
 2. 點擊 **建立執行個體**。
 3. **機器設定**：
-   - 建議選擇 `e2-micro` 或 `e2-small`（視您預計掃描的規模而定，若是大量並行掃描建議至少 2GB RAM）。
+   - 建議選擇 `e2-small` 或 `e2-medium`（視您預計掃描的規模而定。因系統實作了記憶體高速聚合去重架構，若需處理百萬級別的連結匯出，建議至少配備 2GB RAM 以上）。
 4. **開機磁碟 (Boot Disk)**：
    - 向下捲動找到「開機磁碟」區塊，點擊 **「變更」(Change)** 按鈕。
    - **作業系統 (Operating System)**：在下拉選單中選擇 **Ubuntu**。

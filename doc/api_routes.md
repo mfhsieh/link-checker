@@ -30,8 +30,10 @@
 | `GET` | `/api/jobs/{job_id}/results` | 外連結果列表（支援篩選、搜尋、去重聚合與分頁）。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/summary` | 取得任務結果統計摘要。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/diff` | 比對兩個任務的外連結果差異 (支援排除網域)。 | 已登入（僅限自身任務） |
+| `GET` | `/api/jobs/{job_id}/internal-results/summary` | 取得任務內部網頁爬取失敗的統計摘要。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/internal-results` | 取得內部網頁爬取失敗的紀錄列表（支援分頁）。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/export` | 匯出外連結果（CSV 或 JSON 格式下載）。 | 已登入（僅限自身任務） |
+| `GET` | `/api/jobs/{job_id}/internal-results/export` | 匯出內部失效結果（CSV 或 JSON 格式下載）。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/export/full` | 匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。 | 已登入（僅限自身任務） |
 
 ## 3. 系統管理台 API (`/api/admin`)

@@ -527,6 +527,29 @@
 - **422**: Validation Error
 ---
 
+## GET /api/jobs/{job_id}/internal-results/summary
+**摘要**: Get Internal Results Summary
+
+**說明**: 取得任務內部網頁爬取失敗的統計摘要。
+
+
+**Args**:
+- `job_id` (str): 任務 ID。
+- `group_by` (str): 聚合方式。
+- `current_user` (User): 當前登入的使用者。
+- `db` (DBSession): Crawler DB Session。
+
+
+**Returns**:
+- `dict[str, object]`: 內部結果統計。
+
+**標籤**: jobs
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
 ## GET /api/jobs/{job_id}/internal-results
 **摘要**: Get Internal Results
 
@@ -569,6 +592,35 @@
 **Args**:
 - `job_id` (str): 任務 UUID。
 - `query_args` (ExportQueryArgs): 匯出查詢參數，含過濾條件、聚合設定與格式。
+- `current_user` (User): 當前登入使用者。
+- `db` (DBSession): Crawler 資料庫 Session。
+
+
+**Returns**:
+- `Response`: 包含匯出檔案內容的 FastAPI Response 物件。
+
+
+**Raises**:
+- `HTTPException 404`: 若任務不存在或不屬於當前使用者。
+
+**標籤**: jobs
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
+## GET /api/jobs/{job_id}/internal-results/export
+**摘要**: Export Internal Results
+
+**說明**: 匯出內部失效結果（CSV 或 JSON 格式下載）。
+
+
+**Args**:
+- `job_id` (str): 任務 UUID。
+- `query_filter` (str | None): 狀態過濾條件。
+- `group_by` (str): 聚合方式。
+- `fmt` (str): 輸出格式。
 - `current_user` (User): 當前登入使用者。
 - `db` (DBSession): Crawler 資料庫 Session。
 
@@ -703,8 +755,8 @@
 **Args**:
 - `user_id` (str): 被刪除使用者的 UUID。
 - `request` (Request): FastAPI Request。
+- `background_tasks` (BackgroundTasks): 用於發送背景清理任務。
 - `auth_db` (DBSession): Auth 資料庫 Session。
-- `crawler_db` (DBSession): Crawler 資料庫 Session。
 - `current_admin` (User): 當前操作的管理員使用者物件。
 - `_csrf` (None): CSRF 防禦依賴。
 
@@ -974,36 +1026,36 @@ Crawler 區塊配置更新請求結構。
 
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
-| `timeout` | any | 否 |  |
-| `delay` | any | 否 |  |
-| `retries` | any | 否 |  |
-| `max_depth` | any | 否 |  |
-| `max_pages` | any | 否 |  |
-| `max_content_length` | any | 否 |  |
-| `max_redirects` | any | 否 |  |
-| `jitter_ratio` | any | 否 |  |
-| `user_agent` | any | 否 |  |
-| `proxy_url` | any | 否 |  |
-| `ssl_exempt_domains` | any | 否 |  |
-| `social_domains` | any | 否 |  |
-| `domain_delays` | any | 否 |  |
-| `ignore_extensions` | any | 否 |  |
-| `ignore_regexes` | any | 否 |  |
+| `timeout` | integer | 否 |  |
+| `delay` | number | 否 |  |
+| `retries` | integer | 否 |  |
+| `max_depth` | integer | 否 |  |
+| `max_pages` | integer | 否 |  |
+| `max_content_length` | integer | 否 |  |
+| `max_redirects` | integer | 否 |  |
+| `jitter_ratio` | number | 否 |  |
+| `user_agent` | string | 否 |  |
+| `proxy_url` | string | 否 |  |
+| `ssl_exempt_domains` | array | 否 |  |
+| `social_domains` | array | 否 |  |
+| `domain_delays` | object | 否 |  |
+| `ignore_extensions` | array | 否 |  |
+| `ignore_regexes` | array | 否 |  |
 | `mime_type_filter` | MimeTypeFilterConfig | 否 |  |
-| `min_timeout` | any | 否 |  |
-| `max_timeout` | any | 否 |  |
-| `connect_timeout` | any | 否 |  |
-| `external_check_timeout` | any | 否 |  |
-| `min_connect_timeout` | any | 否 |  |
-| `max_connect_timeout` | any | 否 |  |
-| `min_external_check_timeout` | any | 否 |  |
-| `max_external_check_timeout` | any | 否 |  |
-| `min_delay` | any | 否 |  |
-| `max_delay` | any | 否 |  |
-| `min_retries` | any | 否 |  |
-| `max_retries` | any | 否 |  |
-| `max_max_depth` | any | 否 |  |
-| `max_max_pages` | any | 否 |  |
+| `min_timeout` | integer | 否 |  |
+| `max_timeout` | integer | 否 |  |
+| `connect_timeout` | number | 否 |  |
+| `external_check_timeout` | number | 否 |  |
+| `min_connect_timeout` | number | 否 |  |
+| `max_connect_timeout` | number | 否 |  |
+| `min_external_check_timeout` | number | 否 |  |
+| `max_external_check_timeout` | number | 否 |  |
+| `min_delay` | number | 否 |  |
+| `max_delay` | number | 否 |  |
+| `min_retries` | integer | 否 |  |
+| `max_retries` | integer | 否 |  |
+| `max_max_depth` | integer | 否 |  |
+| `max_max_pages` | integer | 否 |  |
 
 ---
 
@@ -1017,17 +1069,18 @@ Crawler 區塊配置更新請求結構。
 | `trusted_domains` | array | 否 |  |
 | `ignore_extensions` | array | 否 |  |
 | `ignore_regexes` | array | 否 |  |
-| `max_depth` | any | 否 |  |
-| `max_pages` | any | 否 |  |
-| `delay` | any | 否 |  |
-| `timeout` | any | 否 |  |
-| `connect_timeout` | any | 否 |  |
-| `external_check_timeout` | any | 否 |  |
-| `retries` | any | 否 |  |
-| `proxy_url` | any | 否 |  |
-| `user_agent` | any | 否 |  |
+| `max_depth` | integer | 否 |  |
+| `max_pages` | integer | 否 |  |
+| `delay` | number | 否 |  |
+| `timeout` | integer | 否 |  |
+| `connect_timeout` | number | 否 |  |
+| `external_check_timeout` | number | 否 |  |
+| `retries` | integer | 否 |  |
+| `proxy_url` | string | 否 |  |
+| `user_agent` | string | 否 |  |
 | `ssl_exempt_domains` | array | 否 |  |
-| `domain_delays` | any | 否 |  |
+| `social_domains` | array | 否 |  |
+| `domain_delays` | object | 否 |  |
 
 ---
 
@@ -1053,8 +1106,8 @@ Crawler 區塊配置更新請求結構。
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
 | `email` | string | 是 |  |
-| `password` | any | 否 |  |
-| `token` | any | 否 |  |
+| `password` | string | 否 |  |
+| `token` | string | 否 |  |
 
 ---
 
@@ -1109,8 +1162,8 @@ MimeType 過濾設定。
 
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
-| `status` | any | 否 |  |
-| `role` | any | 否 |  |
+| `status` | string | 否 |  |
+| `role` | string | 否 |  |
 
 ---
 

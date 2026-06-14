@@ -353,7 +353,7 @@ python cli.py --export <JOB_ID> --group-by source
 # 依外部網域統計導出 (檢視對外部服務的依賴分佈與次數)
 python cli.py --export <JOB_ID> --group-by domain
 
-# 匯出完整報表大禮包 (自動打包為 ZIP 檔)
+# 匯出完整報表大禮包 (自動打包為 ZIP 檔，內含外部連結與內部連結診斷 CSV)
 python cli.py --export-full <JOB_ID>
 
 # 匯出完整報表並自訂 ZIP 檔名

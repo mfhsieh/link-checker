@@ -229,7 +229,7 @@ erDiagram
 | `url` | `String(2048)` | `NOT NULL` | 準備或已經被爬取之頁面網址。 |
 | `source_url` | `String(2048)` | `Nullable` | 發現此網址的來源網頁網址 (若是任務的起始網址則為 NULL)。 |
 | `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗), `skip` (因 MIME 或副檔名不符而跳過)。 |
-| `status_code` | `Integer` | `Nullable` | 記錄爬取最終完成、失敗或被跳過時的 HTTP 回應狀態碼 (例如 200, 404, 500)。若未發送請求即被跳過或發生連線錯誤，則為 `NULL`。 |
+| `status_code` | `Integer` | `Nullable` | 記錄爬取最終的 HTTP 狀態碼。前端與匯出引擎藉由綜合判斷此欄位與 `error_message`，將內部失敗動態歸類為 6 大失效樣態 (資源遺失、伺服器異常、權限不足、連線逾時、底層異常、其他)。 |
 | `retry_count` | `Integer` | `Default: 0` | 爬取發生錯誤並重試的次數，由全域與任務設定控制上限。 |
 | `depth` | `Integer` | `Default: 0` | 記錄此網址被發現的爬取深度。起始網址深度為 `0`，子網址為 `current_depth + 1`。 |
 | `error_message` | `Text` | `Nullable` | 若爬取最後狀態為 `failed`，此欄位會記錄最終發生的例外錯誤訊息。 |

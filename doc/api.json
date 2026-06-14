@@ -975,6 +975,62 @@
         }
       }
     },
+    "/api/jobs/{job_id}/internal-results/summary": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Internal Results Summary",
+        "description": "取得任務內部網頁爬取失敗的統計摘要。\n\nArgs:\n    job_id (str): 任務 ID。\n    group_by (str): 聚合方式。\n    current_user (User): 當前登入的使用者。\n    db (DBSession): Crawler DB Session。\n\nReturns:\n    dict[str, object]: 內部結果統計。",
+        "operationId": "get_internal_results_summary_api_jobs__job_id__internal_results_summary_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(none|source)$",
+              "default": "none",
+              "title": "Group By"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Internal Results Summary Api Jobs  Job Id  Internal Results Summary Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/jobs/{job_id}/internal-results": {
       "get": {
         "tags": [
@@ -991,6 +1047,34 @@
             "schema": {
               "type": "string",
               "title": "Job Id"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(not_found|server_error|access_denied|timeout|connection_error|other_error|all)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Filter"
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(none|source)$",
+              "default": "none",
+              "title": "Group By"
             }
           },
           {
@@ -1101,6 +1185,86 @@
             "schema": {
               "type": "string",
               "pattern": "^(none|target|source|domain)$",
+              "default": "none",
+              "title": "Group By"
+            }
+          },
+          {
+            "name": "fmt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(csv|json)$",
+              "default": "csv",
+              "title": "Fmt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/internal-results/export": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Export Internal Results",
+        "description": "匯出內部失效結果（CSV 或 JSON 格式下載）。\n\nArgs:\n    job_id (str): 任務 UUID。\n    query_filter (str | None): 狀態過濾條件。\n    group_by (str): 聚合方式。\n    fmt (str): 輸出格式。\n    current_user (User): 當前登入使用者。\n    db (DBSession): Crawler 資料庫 Session。\n\nReturns:\n    Response: 包含匯出檔案內容的 FastAPI Response 物件。\n\nRaises:\n    HTTPException 404: 若任務不存在或不屬於當前使用者。",
+        "operationId": "export_internal_results_api_jobs__job_id__internal_results_export_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(not_found|server_error|access_denied|timeout|connection_error|other_error|all)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Filter"
+            }
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(none|source)$",
               "default": "none",
               "title": "Group By"
             }
@@ -1340,7 +1504,7 @@
           "admin"
         ],
         "summary": "Delete User",
-        "description": "刪除帳號及所有關聯資料（含 Crawler DB 中的任務）。\n\n跨庫刪除順序（§12.4）：先刪 Crawler DB 資料，再刪 Auth DB 帳號。\n\nArgs:\n    user_id (str): 被刪除使用者的 UUID。\n    request (Request): FastAPI Request。\n    auth_db (DBSession): Auth 資料庫 Session。\n    crawler_db (DBSession): Crawler 資料庫 Session。\n    current_admin (User): 當前操作的管理員使用者物件。\n    _csrf (None): CSRF 防禦依賴。\n\nReturns:\n    dict[str, str]: 成功訊息。\n\nRaises:\n    HTTPException 400: 若管理員企圖刪除自己的帳號。\n    HTTPException 403: 企圖直接刪除其他管理員帳號。\n    HTTPException 404: 若被刪除的使用者不存在。",
+        "description": "刪除帳號及所有關聯資料（含 Crawler DB 中的任務）。\n\n跨庫刪除順序（§12.4）：先刪 Crawler DB 資料，再刪 Auth DB 帳號。\n\nArgs:\n    user_id (str): 被刪除使用者的 UUID。\n    request (Request): FastAPI Request。\n    background_tasks (BackgroundTasks): 用於發送背景清理任務。\n    auth_db (DBSession): Auth 資料庫 Session。\n    current_admin (User): 當前操作的管理員使用者物件。\n    _csrf (None): CSRF 防禦依賴。\n\nReturns:\n    dict[str, str]: 成功訊息。\n\nRaises:\n    HTTPException 400: 若管理員企圖刪除自己的帳號。\n    HTTPException 403: 企圖直接刪除其他管理員帳號。\n    HTTPException 404: 若被刪除的使用者不存在。",
         "operationId": "delete_user_api_admin_users__user_id__delete",
         "parameters": [
           {
@@ -2434,6 +2598,14 @@
             },
             "type": "array",
             "title": "Ssl Exempt Domains",
+            "default": []
+          },
+          "social_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Social Domains",
             "default": []
           },
           "domain_delays": {

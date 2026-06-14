@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 自動產生 API 規格與路由清單。
 
@@ -165,10 +164,13 @@ def _process_schemas(schema: dict, lines: list[str]) -> None:
                     if "$ref" in option:
                         prop_type = option["$ref"].split("/")[-1]
                         break
+                    if "type" in option and option["type"] != "null":
+                        prop_type = option["type"]
+                        break
 
             is_required = "是" if prop_name in required_fields else "否"
             desc = prop_details.get("description", "")
-            desc = desc.replace("\n", " ").replace("\r", "").strip()
+            desc = desc.replace("\n", " ").replace("\r", "").replace("|", "\\|").strip()
 
             lines.append(f"| `{prop_name}` | {prop_type} | {is_required} | {desc} |")
 
