@@ -746,7 +746,7 @@ def stream_internal_results(db: DBSession, job_id: str, user_id: str) -> Iterato
 
 
 def get_internal_errors(
-    db: DBSession, job_id: str, user_id: str, page: int = 1, page_size: int = 50
+    db: DBSession, job_id: str, user_id: str, group_by: str = "none", page: int = 1, page_size: int = 50
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表。
@@ -755,6 +755,7 @@ def get_internal_errors(
         db (DBSession): Crawler DB Session。
         job_id (str): 任務 ID。
         user_id (str): 請求查詢的使用者 ID。
+        group_by (str): 聚合方式。
         page (int): 頁碼。
         page_size (int): 每頁筆數。
 
@@ -769,6 +770,37 @@ def get_internal_errors(
         raise ValueError("無權限存取此任務。")
 
     query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+
+    if group_by == "source":
+        links = query.order_by(CrawlQueue.id).all()
+        agg: dict[str, dict[str, object]] = defaultdict(
+            lambda: {"source_url": "", "occurrence_count": 0, "targets": []}
+        )
+        for q in links:
+            s_url = q.source_url or ""
+            d = agg[s_url]
+            d["source_url"] = s_url
+            d["occurrence_count"] += 1
+            d["targets"].append({
+                "url": q.url,
+                "status": str(q.status_code) if q.status_code is not None else "Error",
+                "error_message": q.error_message,
+            })
+
+        items_list = list(agg.values())
+        items_list.sort(key=lambda x: x["occurrence_count"], reverse=True)
+
+        total = len(items_list)
+        offset = (page - 1) * page_size
+        items = items_list[offset : offset + page_size]
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+        }
 
     total = query.count()
     offset = (page - 1) * page_size

@@ -20,6 +20,7 @@ let _eventsBound = false;
 let _pollInterval = 5000;
 let _currentTab = 'external';
 let _internalCurrentPage = 1;
+let _internalGroupBy = 'none';
 let _internalResultItems = [];
 let _detailSort = { key: null, asc: true };
 let _detailColFilters = {};
@@ -81,6 +82,7 @@ export async function initJobDetailPage(jobId) {
 
     _currentTab = 'external';
     _internalCurrentPage = 1;
+    _internalGroupBy = 'none';
     // 初始化時載入儲存在 localStorage 的排除清單
     _currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
     _currentExcludeEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
@@ -98,6 +100,9 @@ export async function initJobDetailPage(jobId) {
     });
     const groupSelectEl = document.getElementById('results-group-select');
     if (groupSelectEl) groupSelectEl.value = 'none';
+
+    const internalGroupSelectEl = document.getElementById('internal-results-group-select');
+    if (internalGroupSelectEl) internalGroupSelectEl.value = 'none';
 
     // 重置 Tab UI 狀態
     document.querySelectorAll('#job-detail-tabs .tab-btn').forEach(btn => {
@@ -176,7 +181,7 @@ async function loadInternalResultsPage(jobId) {
     containerEl.appendChild(skeletonEl);
 
     try {
-        const res = await api.get(`/api/jobs/${jobId}/internal-results`, { page: _internalCurrentPage, page_size: 50 });
+        const res = await api.get(`/api/jobs/${jobId}/internal-results`, { group_by: _internalGroupBy, page: _internalCurrentPage, page_size: 50 });
         renderInternalResultsTable(res, containerEl);
         renderInternalPagination(res, jobId);
     } catch (err) {
@@ -210,15 +215,26 @@ function renderInternalResultsTable(res, containerEl) {
         return;
     }
 
-    const headers = [
-        { label: '失效網址 (URL)', key: 'URL' },
-        { label: '來源頁面 (Source)', key: 'Source URL' },
-        { label: 'HTTP 狀態', key: 'HTTP Status Code' },
-        { label: '錯誤訊息', key: 'Error Message' }
-    ];
+    let headers = [];
+    const isInternalGroupSource = _internalGroupBy === 'source';
+
+    if (isInternalGroupSource) {
+        headers = [
+            { label: '來源頁面 (Source)', key: 'source_url' },
+            { label: '失效數量', key: 'occurrence_count' },
+            { label: '目標 URL', key: 'targets', sortable: false, filterable: false }
+        ];
+    } else {
+        headers = [
+            { label: '目標 URL', key: 'URL' },
+            { label: '來源頁面 (Source)', key: 'Source URL' },
+            { label: 'HTTP 狀態', key: 'HTTP Status Code' },
+            { label: '錯誤訊息', key: 'Error Message' }
+        ];
+    }
 
     let tableEl = containerEl.querySelector('.table');
-    if (!tableEl) {
+    if (!tableEl || containerEl.dataset.renderedInternalGroup !== _internalGroupBy) {
         containerEl.replaceChildren();
         const wrapper = document.createElement('div');
         wrapper.className = 'table-wrapper';
@@ -275,6 +291,7 @@ function renderInternalResultsTable(res, containerEl) {
         tableEl.appendChild(document.createElement('tbody'));
         wrapper.appendChild(tableEl);
         containerEl.appendChild(wrapper);
+        containerEl.dataset.renderedInternalGroup = _internalGroupBy;
 
         const paginationContainerEl = document.createElement('div');
         paginationContainerEl.id = 'internal-results-pagination';
@@ -313,47 +330,131 @@ function renderInternalTbody(tableEl) {
     data.forEach(item => {
         const tr = document.createElement('tr');
 
-        const tdUrl = document.createElement('td');
-        tdUrl.className = 'truncate';
-        tdUrl.style.maxWidth = '300px';
-        tdUrl.title = item.URL;
-        const aUrl = document.createElement('a');
-        aUrl.href = item.URL;
-        aUrl.target = '_blank';
-        aUrl.rel = 'noopener noreferrer';
-        aUrl.className = 'text-link text-danger';
-        aUrl.textContent = item.URL;
-        tdUrl.appendChild(aUrl);
-        tr.appendChild(tdUrl);
+        if (_internalGroupBy === 'source') {
+            const tdSource = document.createElement('td');
+            tdSource.className = 'truncate';
+            tdSource.style.maxWidth = '260px';
+            tdSource.title = item.source_url || '-';
+            if (item.source_url) {
+                const aSource = document.createElement('a');
+                aSource.href = item.source_url;
+                aSource.target = '_blank';
+                aSource.rel = 'noopener noreferrer';
+                aSource.className = 'text-brand';
+                aSource.textContent = item.source_url;
+                tdSource.appendChild(aSource);
+            } else {
+                tdSource.textContent = '-';
+            }
+            tr.appendChild(tdSource);
 
-        const tdSource = document.createElement('td');
-        tdSource.className = 'truncate text-xs text-muted';
-        tdSource.style.maxWidth = '260px';
-        tdSource.title = item['Source URL'] || '-';
-        if (item['Source URL']) {
-            const aSource = document.createElement('a');
-            aSource.href = item['Source URL'];
-            aSource.target = '_blank';
-            aSource.rel = 'noopener noreferrer';
-            aSource.style.color = 'inherit';
-            aSource.textContent = item['Source URL'];
-            tdSource.appendChild(aSource);
+            const tdCount = document.createElement('td');
+            tdCount.style.fontWeight = '600';
+            tdCount.style.fontFeatureSettings = '"tnum"';
+            tdCount.textContent = item.occurrence_count;
+            tr.appendChild(tdCount);
+
+            const tdTargets = document.createElement('td');
+            const divTargets = document.createElement('div');
+            divTargets.style.maxHeight = '150px';
+            divTargets.style.overflowY = 'auto';
+            divTargets.style.paddingRight = '4px';
+            const ul = document.createElement('ul');
+            ul.style.margin = '0';
+            ul.style.paddingLeft = '0';
+            ul.style.listStyle = 'none';
+            ul.style.fontSize = '0.8125rem';
+            item.targets.forEach(t => {
+                const li = document.createElement('li');
+                li.style.marginBottom = '0.375rem';
+
+                const badgeClass = 'badge-danger';
+                const badge = document.createElement('span');
+                badge.className = `badge ${badgeClass}`;
+                badge.style.padding = '0.125rem 0.375rem';
+                badge.style.fontSize = '0.7rem';
+                badge.style.marginRight = '0.5rem';
+                badge.style.display = 'inline-block';
+                badge.style.minWidth = '3.5rem';
+                badge.style.textAlign = 'center';
+                badge.textContent = t.status || 'Error';
+                li.appendChild(badge);
+
+                const spanTargetWrapper = document.createElement('span');
+                spanTargetWrapper.className = 'truncate text-muted';
+                spanTargetWrapper.style.display = 'inline-block';
+                spanTargetWrapper.style.maxWidth = '400px';
+                spanTargetWrapper.style.verticalAlign = 'bottom';
+                spanTargetWrapper.title = t.url;
+
+                const aTarget = document.createElement('a');
+                aTarget.href = t.url;
+                aTarget.target = '_blank';
+                aTarget.rel = 'noopener noreferrer';
+                aTarget.style.color = 'inherit';
+                aTarget.textContent = t.url;
+
+                spanTargetWrapper.appendChild(aTarget);
+                li.appendChild(spanTargetWrapper);
+
+                if (t.error_message) {
+                    const errSpan = document.createElement('span');
+                    errSpan.className = 'text-xs text-muted';
+                    errSpan.style.display = 'block';
+                    errSpan.style.marginTop = '0.125rem';
+                    errSpan.style.marginLeft = '4.25rem';
+                    errSpan.textContent = t.error_message;
+                    li.appendChild(errSpan);
+                }
+
+                ul.appendChild(li);
+            });
+            divTargets.appendChild(ul);
+            tdTargets.appendChild(divTargets);
+            tr.appendChild(tdTargets);
         } else {
-            tdSource.textContent = '-';
+            const tdUrl = document.createElement('td');
+            tdUrl.className = 'truncate';
+            tdUrl.style.maxWidth = '260px';
+            tdUrl.title = item.URL;
+            const aUrl = document.createElement('a');
+            aUrl.href = item.URL;
+            aUrl.target = '_blank';
+            aUrl.rel = 'noopener noreferrer';
+            aUrl.className = 'text-brand';
+            aUrl.textContent = item.URL;
+            tdUrl.appendChild(aUrl);
+            tr.appendChild(tdUrl);
+
+            const tdSource = document.createElement('td');
+            tdSource.className = 'truncate';
+            tdSource.style.maxWidth = '260px';
+            tdSource.title = item['Source URL'] || '-';
+            if (item['Source URL']) {
+                const aSource = document.createElement('a');
+                aSource.href = item['Source URL'];
+                aSource.target = '_blank';
+                aSource.rel = 'noopener noreferrer';
+                aSource.className = 'text-brand';
+                aSource.textContent = item['Source URL'];
+                tdSource.appendChild(aSource);
+            } else {
+                tdSource.textContent = '-';
+            }
+            tr.appendChild(tdSource);
+
+            const tdStatus = document.createElement('td');
+            tdStatus.className = 'text-danger';
+            tdStatus.textContent = item['HTTP Status Code'] || '-';
+            tr.appendChild(tdStatus);
+
+            const tdError = document.createElement('td');
+            tdError.className = 'text-xs text-muted truncate';
+            tdError.style.maxWidth = '160px';
+            tdError.title = item['Error Message'] || '-';
+            tdError.textContent = item['Error Message'] || '-';
+            tr.appendChild(tdError);
         }
-        tr.appendChild(tdSource);
-
-        const tdStatus = document.createElement('td');
-        tdStatus.className = 'text-danger';
-        tdStatus.textContent = item['HTTP Status Code'] || '-';
-        tr.appendChild(tdStatus);
-
-        const tdError = document.createElement('td');
-        tdError.className = 'text-xs text-muted truncate';
-        tdError.style.maxWidth = '200px';
-        tdError.title = item['Error Message'] || '-';
-        tdError.textContent = item['Error Message'] || '-';
-        tr.appendChild(tdError);
 
         tbody.appendChild(tr);
     });
@@ -1302,6 +1403,17 @@ function bindResultsControls() {
             _detailSort = { key: null, asc: true };
             _detailColFilters = {};
             await loadResults(_currentJobId);
+        });
+    }
+
+    const internalGroupSelectEl = document.getElementById('internal-results-group-select');
+    if (internalGroupSelectEl) {
+        internalGroupSelectEl.addEventListener('change', async () => {
+            _internalGroupBy = internalGroupSelectEl.value;
+            _internalCurrentPage = 1;
+            _internalSort = { key: null, asc: true };
+            _internalColFilters = {};
+            await loadInternalResultsPage(_currentJobId);
         });
     }
 

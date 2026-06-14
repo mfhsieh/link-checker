@@ -407,9 +407,17 @@
 
         <div id="tab-content-internal" style="display:none">
           <div class="card" style="padding:0;overflow:hidden">
-            <div class="card-header" style="padding:1.25rem 1.5rem;">
-              <div style="display:flex; align-items:center; gap:0.75rem">
-                <span class="card-title">內部失效連結</span>
+            <div class="card-header"
+              style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+              <div class="ext-link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
+                <span class="card-title ext-link-title" style="margin-right:0.5rem">內部失效連結</span>
+                <div style="display:flex; align-items:center; gap:0.75rem">
+                  <select id="internal-results-group-select" class="form-input"
+                    style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
+                    <option value="none">平鋪列表 (預設)</option>
+                    <option value="source">依自家網頁聚合 (修補視角)</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div id="internal-results-container" style="padding:0 0 1rem">

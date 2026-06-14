@@ -123,6 +123,7 @@ def get_job_diff(
 @router.get("/{job_id}/internal-results")
 def get_internal_results(
     job_id: str,
+    group_by: str = Query("none", pattern="^(none|source)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     current_user: User = Depends(get_current_user),
@@ -145,6 +146,6 @@ def get_internal_results(
         HTTPException 404: 找不到任務或無權限存取時拋出。
     """
     try:
-        return job_results.get_internal_errors(db, job_id, current_user.id, page, page_size)
+        return job_results.get_internal_errors(db, job_id, current_user.id, group_by, page, page_size)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
