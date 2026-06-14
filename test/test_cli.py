@@ -230,6 +230,8 @@ crawler:
   retries: 0
   delay: 0.1
   timeout: 30
+  social_domains:
+    - "127.0.0.1"
 """)
 
         # Allow local IPs for testing SSRF bypass
@@ -285,7 +287,7 @@ crawler:
             }
 
         print(f"Found {len(ext_dict)} external links in DB.")
-        assert len(ext_dict) == 10, f"Expected 10 external links, got {len(ext_dict)}"
+        assert len(ext_dict) == 11, f"Expected 11 external links, got {len(ext_dict)}"
 
         # 斷言 1: Google (應為 200, 且有 IP, is_secure 應為 1)
         google_url = "https://www.google.com"
@@ -346,12 +348,19 @@ crawler:
             f"neverssl.com is_secure should be 0 (False), got {ext_dict[neverssl_url]['is_secure']}"
         )
 
-        # 斷言 6: mock-social-media (應為 HTTP, is_secure 應為 0, 因為 HEAD 返回 501 且非社群網域故不降級，狀態碼應為 501)
+        # 斷言 6: mock-social-media (因 127.0.0.1 設為社群網域，HEAD 520 會觸發 GET 降級並取得 200)
         social_url = f"http://127.0.0.1:{PORT}/mock-social-media"
         assert social_url in ext_dict, "Mock social media link not found in DB"
         assert ext_dict[social_url]["is_secure"] == 0, "Mock social media is_secure should be 0"
-        assert ext_dict[social_url]["status_code"] == 501, (
-            f"Mock social media status_code should be 501, got {ext_dict[social_url]['status_code']}"
+        assert ext_dict[social_url]["status_code"] == 200, (
+            f"Mock social media status_code should be 200, got {ext_dict[social_url]['status_code']}"
+        )
+
+        # 斷言 7: mock-non-social (127.0.0.2 非社群網域，HEAD 520 不會降級，狀態碼維持 520)
+        non_social_url = f"http://127.0.0.2:{PORT}/mock-non-social"
+        assert non_social_url in ext_dict, "Mock non-social link not found in DB"
+        assert ext_dict[non_social_url]["status_code"] == 520, (
+            f"Mock non-social status_code should be 520, got {ext_dict[non_social_url]['status_code']}"
         )
 
         # 新增外部資源類型斷言 (CSS Link)
@@ -494,7 +503,7 @@ crawler:
                 f"Error: {item.get('error_message')}"
             )
 
-        # 預期非 200 的外連共有 6 個（httpbin 404 x2, httpbin 500, httpbin post, broken-img, dns fail）
+        # 預期 broken 的外連共有 6 個（httpbin 404 x2, httpbin 500, httpbin post, broken-img, mock-non-social）
         # 排除 possibly flaky neverssl.com 連結 (若它連不上會被歸類為 broken)
         filtered_broken = [item for item in broken_data if item.get("target_url") != "http://neverssl.com"]
         assert len(filtered_broken) == 6, (

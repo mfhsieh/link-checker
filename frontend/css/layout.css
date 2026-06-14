@@ -393,6 +393,38 @@
 
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
+  .topbar-user-info {
+    display: none;
+  }
+
+  .topbar-actions {
+    gap: var(--space-1);
+  }
+
+  .topbar-actions .btn-text {
+    display: none;
+  }
+
+  .topbar-actions .btn {
+    padding: 0.4rem;
+  }
+
+  /* 在窄螢幕上隱藏統計卡片的說明文字，節省垂直空間 */
+  .stat-card .text-xs.text-muted,
+  .stat-card .stat-sub {
+    display: none;
+  }
+
+  /* 窄螢幕時將工具列強制分行 */
+  .ext-link-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .ext-link-title {
+    width: 100%;
+    margin-bottom: 0.25rem;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
     grid-template-rows: 60px auto 1fr;

@@ -158,6 +158,14 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             )
             return
 
+        # 11. 測試：社群網域與非社群網域的 GET 降級
+        if self.path in ("/mock-social-media", "/mock-non-social"):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"<html><body><h1>Mock Media</h1></body></html>")
+            return
+
         # 6. 靜態檔案回傳（index.html, page2.html, 以及重新導向後的 subfolder 目錄內容）
         # 先分離 query string 與 path
         path_without_query: str = self.path.split("?")[0]
@@ -184,6 +192,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                     content = f.read()
                 port = self.server.server_address[1]
                 content = content.replace("127.0.0.1", f"127.0.0.1:{port}")
+                content = content.replace("127.0.0.2", f"127.0.0.2:{port}")
                 content = content.replace("localhost", f"localhost:{port}")
                 self.wfile.write(content.encode("utf-8"))
                 return
@@ -212,6 +221,10 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
+            return
+
+        if self.path in ("/mock-social-media", "/mock-non-social"):
+            self.send_error(520, "Unknown Error (WAF Mock)")
             return
 
         self.send_error(501, "Unsupported method ('HEAD')")

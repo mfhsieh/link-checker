@@ -24,7 +24,15 @@
           style="margin-left:0.5rem;font-size:0.75rem;color:var(--text-muted);border:1px solid var(--surface-border);border-radius:9999px;padding:0.125rem 0.5rem">後台</span>
       </a>
       <div class="topbar-actions">
-        <button class="btn btn-ghost btn-sm" id="logout-btn">登出</button>
+        <button class="btn btn-ghost btn-sm" id="logout-btn" title="登出">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" style="width:16px;height:16px">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span class="btn-text">登出</span>
+        </button>
       </div>
     </header>
 

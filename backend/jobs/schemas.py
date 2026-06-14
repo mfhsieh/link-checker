@@ -33,6 +33,7 @@ class CreateJobRequest(BaseModel):
     proxy_url: str | None = None
     user_agent: str | None = None
     ssl_exempt_domains: list[str] = []
+    social_domains: list[str] = []
     domain_delays: dict[str, float] | None = None
 
     @field_validator("start_url")
@@ -75,7 +76,7 @@ class CreateJobRequest(BaseModel):
             raise ValueError("至少需要指定一個目標網域。")
         return cleaned
 
-    @field_validator("trusted_domains", "ssl_exempt_domains", "ignore_extensions")
+    @field_validator("trusted_domains", "ssl_exempt_domains", "social_domains", "ignore_extensions")
     @classmethod
     def clean_string_lists(cls, v: list[str]) -> list[str]:
         """

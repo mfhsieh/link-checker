@@ -433,7 +433,15 @@ function renderJobInfo(job) {
         statusEl.textContent = isPausing ? '暫停中...' : api.formatStatus(displayStatus);
     }
 
-    setTextContent('job-start-url', job.start_url);
+    const startUrlEl = el('job-start-url');
+    if (startUrlEl) {
+        startUrlEl.textContent = job.start_url || '-';
+        if (job.start_url) {
+            startUrlEl.href = job.start_url;
+        } else {
+            startUrlEl.removeAttribute('href');
+        }
+    }
     setTextContent('job-created-at', api.formatLocalTime(job.created_at));
     setTextContent('job-updated-at', api.formatLocalTime(job.updated_at));
     setTextContent('job-external-count', job.external_link_count ?? 0);
@@ -636,6 +644,7 @@ function bindControlButtons() {
                             )
                         },
                         { label: '自簽憑證豁免', value: el => formatList(c.ssl_exempt_domains, el) },
+                        { label: '社群與反爬蟲', value: el => formatList(c.social_domains, el) },
                         { label: '自訂 User-Agent', value: c.user_agent || '系統預設 (自動輪替)', valClass: 'text-xs text-muted' },
                         c.proxy_url !== undefined ? { label: '代理伺服器', value: c.proxy_url || '-', valClass: 'font-mono text-xs', valStyle: { wordBreak: 'break-all' } } : null
                     ]));

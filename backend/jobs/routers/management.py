@@ -82,6 +82,7 @@ def get_default_config(
         "proxy_url",
         "user_agent",
         "ssl_exempt_domains",
+        "social_domains",
         "domain_delays",
     }
 

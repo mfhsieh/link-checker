@@ -22,5 +22,6 @@ ALLOWED_CRAWLER_CONFIG_KEYS = [
     "ignore_extensions",
     "ignore_regexes",
     "ssl_exempt_domains",
+    "social_domains",
     "domain_delays",
 ]
