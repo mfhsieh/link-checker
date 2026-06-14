@@ -156,7 +156,7 @@ erDiagram
     jobs {
         String(36) id PK "任務的主鍵 (UUID)"
         String(128) user_id "任務擁有者 ID"
-        String(2048) start_url "爬蟲起始網址"
+        Text start_url "爬蟲起始網址"
         Text target_domains "允許的目標網域清單"
         Text trusted_domains "視為信任的網域清單"
         Text config_json "最終爬蟲設定快照 (JSON)"
@@ -168,8 +168,8 @@ erDiagram
     crawl_queue {
         Integer id PK "佇列項目的主鍵"
         String(36) job_id FK "關聯任務的 ID"
-        String(2048) url "準備爬取的網址"
-        String(2048) source_url "來源網頁網址"
+        Text url "準備爬取的網址"
+        Text source_url "來源網頁網址"
         String(50) status "處理狀態"
         Integer status_code "HTTP 狀態碼"
         Integer retry_count "已重試次數"
@@ -182,8 +182,8 @@ erDiagram
     external_links {
         Integer id PK "外部連結的主鍵"
         String(36) job_id FK "關聯任務的 ID"
-        String(2048) source_url "來源網頁網址"
-        String(2048) target_url "目標外部網址"
+        Text source_url "來源網頁網址"
+        Text target_url "目標外部網址"
         String(45) ip_address "解析出的 IP 位址"
         Boolean is_secure "是否為 HTTPS 安全協定"
         Integer http_status_code "HTTP 狀態碼"
@@ -201,7 +201,7 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | `String(36)` | **Primary Key** | 任務的主鍵，由系統自動產生唯一之 UUID v4 字串。 |
 | `user_id` | `String(128)` | `Nullable`, `Index` | 該任務的擁有者 ID。預設為 `NULL`（代表系統匿名建立）。 |
-| `start_url` | `String(2048)` | `NOT NULL` | 該任務開始進行爬取的起點網址。 |
+| `start_url` | `Text` | `NOT NULL` | 該任務開始進行爬取的起點網址。 |
 | `target_domains` | `Text` | `NOT NULL` | 允許爬蟲深入抓取的網域清單，以逗號 (`,`) 分隔。 |
 | `trusted_domains` | `Text` | `NOT NULL` | 視為信任系統的網域清單，以逗號 (`,`) 分隔。 |
 | `config_json` | `Text` | `Nullable` | 任務建立當下，已與全域設定合併之最終爬蟲參數快照 (JSON 格式)。註：為落實最小權限，後端 API 提取此快照時會主動進行機密遮蔽 (如 Proxy 密碼)。 |
@@ -226,8 +226,8 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | `Integer` | **Primary Key**, `Auto-Increment` | 佇列項目的唯一識別碼。 |
 | `job_id` | `String(36)` | **Foreign Key** (`jobs.id`) | 該網址隸屬於哪一個任務。 |
-| `url` | `String(2048)` | `NOT NULL` | 準備或已經被爬取之頁面網址。 |
-| `source_url` | `String(2048)` | `Nullable` | 發現此網址的來源網頁網址 (若是任務的起始網址則為 NULL)。 |
+| `url` | `Text` | `NOT NULL` | 準備或已經被爬取之頁面網址。 |
+| `source_url` | `Text` | `Nullable` | 發現此網址的來源網頁網址 (若是任務的起始網址則為 NULL)。 |
 | `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗), `skip` (因 MIME 或副檔名不符而跳過)。 |
 | `status_code` | `Integer` | `Nullable` | 記錄爬取最終的 HTTP 狀態碼。前端與匯出引擎藉由綜合判斷此欄位與 `error_message`，將內部失敗動態歸類為 6 大失效樣態 (資源遺失、伺服器異常、權限不足、連線逾時、底層異常、其他)。 |
 | `retry_count` | `Integer` | `Default: 0` | 爬取發生錯誤並重試的次數，由全域與任務設定控制上限。 |
@@ -248,8 +248,8 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | `Integer` | **Primary Key**, `Auto-Increment` | 外部連結紀錄的唯一識別碼。 |
 | `job_id` | `String(36)` | **Foreign Key** (`jobs.id`) | 該外部連結是在哪一個任務中被發現的。 |
-| `source_url` | `String(2048)` | `NOT NULL` | 發現此外部連結的來源網頁，也就是該連結所在的母網頁。 |
-| `target_url` | `String(2048)` | `NOT NULL` | 網頁中提取出的外部連結 `href` 本身。 |
+| `source_url` | `Text` | `NOT NULL` | 發現此外部連結的來源網頁，也就是該連結所在的母網頁。 |
+| `target_url` | `Text` | `NOT NULL` | 網頁中提取出的外部連結 `href` 本身。 |
 | `ip_address` | `String(45)` | `Nullable` | 透過 DNS 解析該 `target_url` 之網域所取得的 IPv4/IPv6 位址。若解析失敗則為 `NULL`。 |
 | `is_secure` | `Boolean` | `Default: True` | 標記此外部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若為 HTTPS 則為 `True`，若為 HTTP 則為 `False`。 |
 | `http_status_code` | `Integer` | `Nullable` | 對外部連結進行 HTTP 存活檢查後取得的 HTTP 狀態碼。若為 `NULL` 代表未探測或連線失敗。 |

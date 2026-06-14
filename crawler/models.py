@@ -91,7 +91,7 @@ class Job(Base):  # pylint: disable=too-few-public-methods
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
-    start_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    start_url: Mapped[str] = mapped_column(Text, nullable=False)
     target_domains: Mapped[str] = mapped_column(Text, nullable=False)
     trusted_domains: Mapped[str] = mapped_column(Text, nullable=False)
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -128,8 +128,8 @@ class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id"), nullable=False)
-    url: Mapped[str] = mapped_column(String(2048), nullable=False)
-    source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending")
     status_code: Mapped[int | None] = mapped_column(nullable=True)
     retry_count: Mapped[int] = mapped_column(default=0)
@@ -168,8 +168,8 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id"), nullable=False)
-    source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
-    target_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    target_url: Mapped[str] = mapped_column(Text, nullable=False)
 
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     is_secure: Mapped[bool] = mapped_column(default=True)
