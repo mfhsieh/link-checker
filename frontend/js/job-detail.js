@@ -667,7 +667,7 @@ function bindControlButtons() {
     });
 
     bindBtn('btn-retry-failed-job', async () => {
-        const confirmed = await showConfirm('重試失敗項目', '確定要將爬取失敗的內部網頁重新加入佇列並重試嗎？\n（註：此操作不會影響或重試已經紀錄為無效的外部連結）', '確定重試');
+        const confirmed = await showConfirm('重試失敗項目', '確定要將爬取失敗的內部網頁，以及包含無效外連的網頁重新加入佇列並重試嗎？\n（系統將自動清除失效的外部連結並重新發起探測）', '確定重試');
         if (!confirmed) return;
         await api.post(`/api/jobs/${_currentJobId}/retry-failed`);
         toast.success('失敗項目已重置！您可以點擊啟動繼續任務。');

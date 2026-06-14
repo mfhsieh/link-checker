@@ -266,7 +266,7 @@ def parse_args() -> argparse.Namespace | None:
         "--retry-failed",
         type=str,
         metavar="JOB_ID",
-        help="局部重試指定任務中爬取失敗的內部網頁",
+        help="局部重試指定任務中爬取失敗的內部網頁與包含無效外連的網頁",
     )
 
     # ---------------------------------------------------------

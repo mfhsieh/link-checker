@@ -23,3 +23,9 @@
 * **規劃方案**：在外連結果列表增加 Checkbox，支援「批次勾選」以利針對特定連結進行局部匯出或重新發起 HTTP 探測。
 * **狀態**：**待後續優化（Pending Review）**。
 
+---
+
+## 4. PostgreSQL 連線池效能調校 (Connection Pool Optimization)
+* **功能描述**：系統底層已支援遷移為 PostgreSQL，但 `create_engine` 尚未配置專屬的連線池參數。在多執行緒並發爬取 (`ThreadPoolExecutor`) 加上前端高頻 API 存取的情境下，預設的連線池大小 (5) 可能被耗盡，導致 Timeout 或是連線中斷問題。
+* **規劃方案**：在 `backend/auth/db.py` 與 `crawler/manager.py` 初始化資料庫引擎時，若偵測連線字串非 SQLite (如 PostgreSQL)，則明確加入 `pool_size=20`、`max_overflow=20`，以及啟用斷線重連防護 `pool_pre_ping=True` 等進階連線池參數，徹底發揮 PostgreSQL 高併發潛力。
+* **狀態**：**待後續優化（Pending Review）**。

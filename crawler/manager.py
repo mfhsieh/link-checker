@@ -394,7 +394,7 @@ class JobManager:
 
             job.status = "pending"
 
-            # 將本身爬取失敗的內部網頁改回 pending
+            # 1. 將本身爬取失敗的內部網頁改回 pending
             session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed").update(
                 {
                     "status": "pending",
@@ -404,6 +404,44 @@ class JobManager:
                 },
                 synchronize_session=False,
             )
+
+            # 2. 處理探測異常或失敗的外部連結
+            failed_ext_condition = (
+                (ExternalLink.ip_address.is_(None))
+                | (ExternalLink.ip_address == "")
+                | (ExternalLink.http_status_code.is_(None))
+                | (ExternalLink.http_status_code >= 400)
+            )
+
+            # 找出包含失效外連的來源網頁
+            failed_ext_links = (
+                session
+                .query(ExternalLink.source_url)
+                .filter(ExternalLink.job_id == job_id, failed_ext_condition)
+                .distinct()
+                .all()
+            )
+
+            source_urls_to_retry = [row[0] for row in failed_ext_links if row[0]]
+
+            if source_urls_to_retry:
+                # 刪除失效的外部連結紀錄
+                session.query(ExternalLink).filter(ExternalLink.job_id == job_id, failed_ext_condition).delete(
+                    synchronize_session=False
+                )
+
+                # 將包含失效外連的母網頁狀態重置為 pending，以便重新解析與探測
+                for i in range(0, len(source_urls_to_retry), 900):
+                    batch = source_urls_to_retry[i : i + 900]
+                    session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.url.in_(batch)).update(
+                        {
+                            "status": "pending",
+                            "retry_count": 0,
+                            "status_code": None,
+                            "error_message": None,
+                        },
+                        synchronize_session=False,
+                    )
 
             session.commit()
             return True
