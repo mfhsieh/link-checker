@@ -20,6 +20,7 @@ let _eventsBound = false;
 let _pollInterval = 5000;
 let _currentTab = 'external';
 let _internalCurrentPage = 1;
+let _internalFilter = 'all';
 let _internalGroupBy = 'none';
 let _internalResultItems = [];
 let _detailSort = { key: null, asc: true };
@@ -83,6 +84,7 @@ export async function initJobDetailPage(jobId) {
     _currentTab = 'external';
     _internalCurrentPage = 1;
     _internalGroupBy = 'none';
+    _internalFilter = 'all';
     // 初始化時載入儲存在 localStorage 的排除清單
     _currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
     _currentExcludeEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
@@ -95,6 +97,9 @@ export async function initJobDetailPage(jobId) {
     _internalColFilters = {};
 
     // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
+    document.querySelectorAll('.filter-card-internal[data-filter]').forEach(c => {
+        c.classList.toggle('active', c.dataset.filter === 'all');
+    });
     document.querySelectorAll('.filter-card[data-filter]').forEach(c => {
         c.classList.toggle('active', c.dataset.filter === 'all');
     });
@@ -181,7 +186,14 @@ async function loadInternalResultsPage(jobId) {
     containerEl.appendChild(skeletonEl);
 
     try {
-        const res = await api.get(`/api/jobs/${jobId}/internal-results`, { group_by: _internalGroupBy, page: _internalCurrentPage, page_size: 50 });
+        const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`);
+        renderInternalSummary(summary);
+    } catch (_) { /* 忽略 */ }
+
+    try {
+        const params = { group_by: _internalGroupBy, page: _internalCurrentPage, page_size: 50 };
+        if (_internalFilter && _internalFilter !== 'all') params.filter = _internalFilter;
+        const res = await api.get(`/api/jobs/${jobId}/internal-results`, params);
         renderInternalResultsTable(res, containerEl);
         renderInternalPagination(res, jobId);
     } catch (err) {
@@ -194,6 +206,16 @@ async function loadInternalResultsPage(jobId) {
         emptyStateEl.appendChild(descEl);
         containerEl.appendChild(emptyStateEl);
     }
+}
+
+function renderInternalSummary(summary) {
+    setTextContent('int-summary-total', summary.total ?? 0);
+    setTextContent('int-summary-not-found', summary.not_found ?? 0);
+    setTextContent('int-summary-server-error', summary.server_error ?? 0);
+    setTextContent('int-summary-access-denied', summary.access_denied ?? 0);
+    setTextContent('int-summary-timeout', summary.timeout ?? 0);
+    setTextContent('int-summary-connection-error', summary.connection_error ?? 0);
+    setTextContent('int-summary-other-error', summary.other_error ?? 0);
 }
 
 function renderInternalResultsTable(res, containerEl) {
@@ -299,6 +321,32 @@ function renderInternalResultsTable(res, containerEl) {
     }
 
     renderInternalTbody(tableEl);
+}
+
+function getInternalStatusColorClass(code, errMsg) {
+    if (!code || code === '-' || code === 'Error' || code === 'DNS Failed') {
+        const msg = String(errMsg || '').toLowerCase();
+        if (msg.includes('timeout') || msg.includes('timed out')) return 'text-info';
+        return 'text-brand';
+    }
+    const c = parseInt(code, 10);
+    if (c === 401 || c === 403) return 'text-muted';
+    if (c === 404 || c === 410) return 'text-warning';
+    if (c >= 500) return 'text-danger';
+    return 'text-secondary';
+}
+
+function getInternalBadgeClass(code, errMsg) {
+    if (!code || code === '-' || code === 'Error' || code === 'DNS Failed') {
+        const msg = String(errMsg || '').toLowerCase();
+        if (msg.includes('timeout') || msg.includes('timed out')) return 'badge-info';
+        return 'badge-admin';
+    }
+    const c = parseInt(code, 10);
+    if (c === 401 || c === 403) return 'badge-pending';
+    if (c === 404 || c === 410) return 'badge-warning';
+    if (c >= 500) return 'badge-danger';
+    return 'badge-secondary';
 }
 
 function renderInternalTbody(tableEl) {
@@ -444,7 +492,8 @@ function renderInternalTbody(tableEl) {
             tr.appendChild(tdSource);
 
             const tdStatus = document.createElement('td');
-            tdStatus.className = 'text-danger';
+            tdStatus.className = getInternalStatusColorClass(item['HTTP Status Code'], item['Error Message']);
+            tdStatus.style.fontWeight = '600';
             tdStatus.textContent = item['HTTP Status Code'] || '-';
             tr.appendChild(tdStatus);
 
@@ -1111,9 +1160,7 @@ function renderResultsTbody(tableEl) {
                 const li = document.createElement('li');
                 li.style.marginBottom = '0.375rem';
 
-                let badgeClass = 'badge-pending';
-                if (t.status.includes('404') || t.status.includes('500') || t.status === 'Error' || t.status === 'DNS Failed') badgeClass = 'badge-danger';
-
+                const badgeClass = getInternalBadgeClass(t.status, t.error_message);
                 const badge = document.createElement('span');
                 badge.className = `badge ${badgeClass}`;
                 badge.style.padding = '0.125rem 0.375rem';
@@ -1334,6 +1381,17 @@ function bindResultsControls() {
                 c.classList.toggle('active', isActive);
             });
             await loadResultsPage(_currentJobId);
+        });
+    });
+
+    document.querySelectorAll('.filter-card-internal[data-filter]').forEach(chip => {
+        chip.addEventListener('click', async () => {
+            _internalFilter = chip.dataset.filter;
+            _internalCurrentPage = 1;
+            document.querySelectorAll('.filter-card-internal[data-filter]').forEach(c => {
+                c.classList.toggle('active', _internalFilter === c.dataset.filter);
+            });
+            await loadInternalResultsPage(_currentJobId);
         });
     });
 

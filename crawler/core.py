@@ -369,6 +369,9 @@ class CrawlerCore:
                         raise
                 else:
                     raise
+            except (ValueError, TypeError, UnicodeError) as e:
+                logger.warning("網址 %s 格式錯誤或無法解析: %s", current_url, e)
+                return None, None, "failed", current_url, request_sent, f"網址格式無效: {e}"
 
         logger.warning("網址 %s 超過最大重導向次數", url)
         return None, None, "skip", current_url, request_sent, "超過最大重導向次數"

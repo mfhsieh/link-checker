@@ -255,6 +255,10 @@ ol {
   color: var(--color-danger-400);
 }
 
+.text-info {
+  color: var(--color-info-400);
+}
+
 .font-mono {
   font-family: var(--font-mono);
 }

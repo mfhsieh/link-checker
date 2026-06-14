@@ -406,6 +406,39 @@
         </div>
 
         <div id="tab-content-internal" style="display:none">
+          <!-- 內部失效結果摘要 -->
+          <div class="grid-stats"
+            style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:0.75rem;margin-bottom:1.5rem">
+            <div class="stat-card filter-card-internal active" data-filter="all" style="padding:0.75rem">
+              <div class="stat-label">全部失效</div>
+              <div class="stat-value text-danger" id="int-summary-total">0</div>
+            </div>
+            <div class="stat-card filter-card-internal" data-filter="not_found" style="padding:0.75rem">
+              <div class="stat-label text-warning">資源遺失 404</div>
+              <div class="stat-value text-warning" id="int-summary-not-found">0</div>
+            </div>
+            <div class="stat-card filter-card-internal" data-filter="server_error" style="padding:0.75rem">
+              <div class="stat-label text-danger">伺服器異常 5xx</div>
+              <div class="stat-value text-danger" id="int-summary-server-error">0</div>
+            </div>
+            <div class="stat-card filter-card-internal" data-filter="access_denied" style="padding:0.75rem">
+              <div class="stat-label text-muted">權限阻擋 40x</div>
+              <div class="stat-value text-muted" id="int-summary-access-denied">0</div>
+            </div>
+            <div class="stat-card filter-card-internal" data-filter="timeout" style="padding:0.75rem">
+              <div class="stat-label text-info">連線超時</div>
+              <div class="stat-value text-info" id="int-summary-timeout">0</div>
+            </div>
+            <div class="stat-card filter-card-internal" data-filter="connection_error" style="padding:0.75rem">
+              <div class="stat-label" style="color:var(--color-brand-400)">憑證/底層異常</div>
+              <div class="stat-value" style="color:var(--color-brand-400)" id="int-summary-connection-error">0</div>
+            </div>
+            <div class="stat-card filter-card-internal" data-filter="other_error" style="padding:0.75rem">
+              <div class="stat-label text-secondary">其他異常</div>
+              <div class="stat-value text-secondary" id="int-summary-other-error">0</div>
+            </div>
+          </div>
+
           <div class="card" style="padding:0;overflow:hidden">
             <div class="card-header"
               style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">

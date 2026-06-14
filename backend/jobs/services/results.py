@@ -745,8 +745,110 @@ def stream_internal_results(db: DBSession, job_id: str, user_id: str) -> Iterato
         yield format_crawl_queue_item(q)
 
 
+def apply_internal_result_filters(query: Query, status_filter: str | None) -> Query:
+    """
+    套用內部失效連結的過濾條件。
+
+    Args:
+        query (Query): SQLAlchemy 查詢物件。
+        status_filter (str | None): 狀態篩選條件。
+
+    Returns:
+        Query: 加上過濾條件後的 SQLAlchemy 查詢物件。
+    """
+    if not status_filter or status_filter == "all":
+        return query
+
+    if status_filter == "not_found":
+        query = query.filter(CrawlQueue.status_code.in_([404, 410]))
+    elif status_filter == "server_error":
+        query = query.filter(CrawlQueue.status_code >= 500)
+    elif status_filter == "access_denied":
+        query = query.filter(CrawlQueue.status_code.in_([401, 403]))
+    elif status_filter == "timeout":
+        query = query.filter(
+            CrawlQueue.status_code.is_(None),
+            (CrawlQueue.error_message.ilike("%timeout%")) | (CrawlQueue.error_message.ilike("%timed out%")),
+        )
+    elif status_filter == "connection_error":
+        query = query.filter(
+            CrawlQueue.status_code.is_(None),
+            ~CrawlQueue.error_message.ilike("%timeout%"),
+            ~CrawlQueue.error_message.ilike("%timed out%"),
+        )
+    elif status_filter == "other_error":
+        query = query.filter(
+            CrawlQueue.status_code.isnot(None),
+            ~CrawlQueue.status_code.in_([404, 410, 401, 403]),
+            CrawlQueue.status_code < 500,
+        )
+    return query
+
+
+def get_internal_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, object]:
+    """
+    取得任務內部網頁爬取失敗的統計摘要。
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job or job.user_id != user_id:
+        raise ValueError("無權限存取此任務。")
+
+    query = db.query(
+        count(CrawlQueue.id).label("total"),
+        sql_sum(case((CrawlQueue.status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
+        sql_sum(case((CrawlQueue.status_code >= 500, 1), else_=0)).label("server_error"),
+        sql_sum(case((CrawlQueue.status_code.in_([401, 403]), 1), else_=0)).label("access_denied"),
+        sql_sum(
+            case(
+                (
+                    (CrawlQueue.status_code.is_(None))
+                    & ((CrawlQueue.error_message.ilike("%timeout%")) | (CrawlQueue.error_message.ilike("%timed out%"))),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("timeout"),
+        sql_sum(
+            case(
+                (
+                    (CrawlQueue.status_code.is_(None))
+                    & (~CrawlQueue.error_message.ilike("%timeout%"))
+                    & (~CrawlQueue.error_message.ilike("%timed out%")),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("connection_error"),
+    ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+
+    stats = query.first()
+    total = int(stats.total) if stats and stats.total else 0
+    not_found = int(stats.not_found) if stats and stats.not_found else 0
+    server_error = int(stats.server_error) if stats and stats.server_error else 0
+    access_denied = int(stats.access_denied) if stats and stats.access_denied else 0
+    timeout = int(stats.timeout) if stats and stats.timeout else 0
+    connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
+    other_error = total - not_found - server_error - access_denied - timeout - connection_error
+
+    return {
+        "total": total,
+        "not_found": not_found,
+        "server_error": server_error,
+        "access_denied": access_denied,
+        "timeout": timeout,
+        "connection_error": connection_error,
+        "other_error": other_error,
+    }
+
+
 def get_internal_errors(
-    db: DBSession, job_id: str, user_id: str, group_by: str = "none", page: int = 1, page_size: int = 50
+    db: DBSession,
+    job_id: str,
+    user_id: str,
+    status_filter: str | None = None,
+    group_by: str = "none",
+    page: int = 1,
+    page_size: int = 50,
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表。
@@ -755,6 +857,7 @@ def get_internal_errors(
         db (DBSession): Crawler DB Session。
         job_id (str): 任務 ID。
         user_id (str): 請求查詢的使用者 ID。
+        status_filter (str | None): 狀態篩選。
         group_by (str): 聚合方式。
         page (int): 頁碼。
         page_size (int): 每頁筆數。
@@ -770,6 +873,7 @@ def get_internal_errors(
         raise ValueError("無權限存取此任務。")
 
     query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+    query = apply_internal_result_filters(query, status_filter)
 
     if group_by == "source":
         links = query.order_by(CrawlQueue.id).all()

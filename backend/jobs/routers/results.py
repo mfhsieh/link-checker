@@ -120,9 +120,37 @@ def get_job_diff(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
+@router.get("/{job_id}/internal-results/summary")
+def get_internal_results_summary(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_crawler_db),
+) -> dict[str, object]:
+    """
+    取得任務內部網頁爬取失敗的統計摘要。
+
+    Args:
+        job_id (str): 任務 ID。
+        current_user (User): 當前登入的使用者。
+        db (DBSession): Crawler DB Session。
+
+    Returns:
+        dict[str, object]: 內部結果統計。
+    """
+    try:
+        return job_results.get_internal_results_summary(db, job_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+
 @router.get("/{job_id}/internal-results")
 def get_internal_results(
     job_id: str,
+    status_filter: str | None = Query(
+        None,
+        alias="filter",
+        pattern="^(not_found|server_error|access_denied|timeout|connection_error|other_error|all)$",
+    ),
     group_by: str = Query("none", pattern="^(none|source)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -146,6 +174,6 @@ def get_internal_results(
         HTTPException 404: 找不到任務或無權限存取時拋出。
     """
     try:
-        return job_results.get_internal_errors(db, job_id, current_user.id, group_by, page, page_size)
+        return job_results.get_internal_errors(db, job_id, current_user.id, status_filter, group_by, page, page_size)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e

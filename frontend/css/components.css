@@ -281,6 +281,12 @@
   border-color: hsla(145, 63%, 42%, 0.3);
 }
 
+.badge-info {
+  color: var(--color-info-400);
+  background: hsla(197, 71%, 52%, 0.1);
+  border-color: hsla(197, 71%, 52%, 0.3);
+}
+
 .badge-error {
   color: var(--color-danger-400);
   background: var(--color-danger-900);
