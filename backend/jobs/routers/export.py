@@ -16,6 +16,7 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     HTTPException,
+    Query,
     Response,
     status,
 )
@@ -183,6 +184,97 @@ def export_results(
 
             writer.writerow(_sanitize_csv_dict(row_data))
 
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+
+    return StreamingResponse(
+        csv_generator(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+    )
+
+
+@router.get("/{job_id}/internal-results/export")
+def export_internal_results(
+    job_id: str,
+    query_filter: str | None = Query(
+        None,
+        alias="filter",
+        pattern="^(not_found|server_error|access_denied|timeout|connection_error|other_error|all)$",
+    ),
+    group_by: str = Query("none", pattern="^(none|source)$"),
+    fmt: str = Query("csv", pattern="^(csv|json)$"),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_crawler_db),
+) -> Response:
+    """
+    匯出內部失效結果（CSV 或 JSON 格式下載）。
+
+    Args:
+        job_id (str): 任務 UUID。
+        query_filter (str | None): 狀態過濾條件。
+        group_by (str): 聚合方式。
+        fmt (str): 輸出格式。
+        current_user (User): 當前登入使用者。
+        db (DBSession): Crawler 資料庫 Session。
+
+    Returns:
+        Response: 包含匯出檔案內容的 FastAPI Response 物件。
+
+    Raises:
+        HTTPException 404: 若任務不存在或不屬於當前使用者。
+    """
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job or job.user_id != current_user.id:
+            raise ValueError(f"找不到任務 ID: {job_id}")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+    filename = f"job_{job_id}_internal_results"
+    if query_filter and query_filter != "all":
+        filename += f"_{query_filter}"
+    if group_by != "none":
+        filename += f"_by_{group_by}"
+
+    if fmt == "json":
+
+        def json_generator() -> Generator[str, None, None]:
+            yield "[\n"
+            first = True
+            for item in job_results.stream_internal_errors(db, job_id, current_user.id, query_filter, group_by):
+                if not first:
+                    yield ",\n"
+                yield json.dumps(item, ensure_ascii=False, indent=2)
+                first = False
+            yield "\n]"
+
+        return StreamingResponse(
+            json_generator(),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}.json"'},
+        )
+
+    def csv_generator() -> Generator[str, None, None]:
+        yield "\ufeff"
+        output = io.StringIO()
+        writer = None
+        for item in job_results.stream_internal_errors(db, job_id, current_user.id, query_filter, group_by):
+            if group_by == "source":
+                fieldnames = ["Source URL", "Failure Count", "Target URLs"]
+                row_data = {
+                    "Source URL": item["source_url"],
+                    "Failure Count": item["occurrence_count"],
+                    "Target URLs": "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]]),
+                }
+            else:
+                fieldnames = list(item.keys())
+                row_data = item
+            if writer is None:
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+            writer.writerow(_sanitize_csv_dict(row_data))
             yield output.getvalue()
             output.seek(0)
             output.truncate(0)

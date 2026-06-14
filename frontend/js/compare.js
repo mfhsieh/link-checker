@@ -314,6 +314,13 @@ function renderCompareTbody(tableEl, tabName) {
                     li.appendChild(aU);
                     ul.appendChild(li);
                 });
+                if (item.target_urls.length >= 10) {
+                    const truncLi = document.createElement('li');
+                    truncLi.className = 'text-xs text-muted';
+                    truncLi.style.marginTop = '0.25rem';
+                    truncLi.textContent = '... (清單過長已截斷)';
+                    ul.appendChild(truncLi);
+                }
                 divUrls.appendChild(ul);
                 tdUrls.appendChild(divUrls);
             } else {
@@ -348,6 +355,13 @@ function renderCompareTbody(tableEl, tabName) {
                     li.appendChild(aSrc);
                     ul.appendChild(li);
                 });
+                if (item.sources.length >= 10) {
+                    const truncLi = document.createElement('li');
+                    truncLi.className = 'text-xs text-muted';
+                    truncLi.style.marginTop = '0.25rem';
+                    truncLi.textContent = '... (清單過長已截斷)';
+                    ul.appendChild(truncLi);
+                }
                 divSources.appendChild(ul);
                 tdSources.appendChild(divSources);
             } else {
@@ -461,6 +475,13 @@ function renderCompareTbody(tableEl, tabName) {
                     li.appendChild(aSrc);
                     ul.appendChild(li);
                 });
+                if (item.sources.length >= 10) {
+                    const truncLi = document.createElement('li');
+                    truncLi.className = 'text-xs text-muted';
+                    truncLi.style.marginTop = '0.25rem';
+                    truncLi.textContent = '... (清單過長已截斷)';
+                    ul.appendChild(truncLi);
+                }
                 divSources.appendChild(ul);
                 tdSources.appendChild(divSources);
             } else {
@@ -499,9 +520,15 @@ function _getFilteredData() {
                 };
             }
             grouped[key].url_count += 1;
-            grouped[key].target_urls.add(item.target_url);
+            if (grouped[key].target_urls.size < 10) {
+                grouped[key].target_urls.add(item.target_url);
+            }
             if (item.sources) {
-                item.sources.forEach(src => grouped[key].sources.add(src));
+                item.sources.forEach(src => {
+                    if (grouped[key].sources.size < 10) {
+                        grouped[key].sources.add(src);
+                    }
+                });
             }
         });
         data = Object.values(grouped).map(g => ({

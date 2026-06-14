@@ -20,7 +20,7 @@ let _eventsBound = false;
 let _pollInterval = 5000;
 let _currentTab = 'external';
 let _internalCurrentPage = 1;
-let _internalFilter = 'all';
+let _internalFilter = null;
 let _internalGroupBy = 'none';
 let _internalResultItems = [];
 let _detailSort = { key: null, asc: true };
@@ -84,7 +84,7 @@ export async function initJobDetailPage(jobId) {
     _currentTab = 'external';
     _internalCurrentPage = 1;
     _internalGroupBy = 'none';
-    _internalFilter = 'all';
+    _internalFilter = null;
     // 初始化時載入儲存在 localStorage 的排除清單
     _currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
     _currentExcludeEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
@@ -97,10 +97,10 @@ export async function initJobDetailPage(jobId) {
     _internalColFilters = {};
 
     // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
-    document.querySelectorAll('.filter-card-internal[data-filter]').forEach(c => {
+    document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
         c.classList.toggle('active', c.dataset.filter === 'all');
     });
-    document.querySelectorAll('.filter-card[data-filter]').forEach(c => {
+    document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(c => {
         c.classList.toggle('active', c.dataset.filter === 'all');
     });
     const groupSelectEl = document.getElementById('results-group-select');
@@ -186,7 +186,11 @@ async function loadInternalResultsPage(jobId) {
     containerEl.appendChild(skeletonEl);
 
     try {
-        const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`);
+        const params = {};
+        if (_internalGroupBy && _internalGroupBy !== 'none') {
+            params.group_by = _internalGroupBy;
+        }
+        const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
         renderInternalSummary(summary);
     } catch (_) { /* 忽略 */ }
 
@@ -457,6 +461,13 @@ function renderInternalTbody(tableEl) {
 
                 ul.appendChild(li);
             });
+            if (item.targets.length >= 10) {
+                const truncLi = document.createElement('li');
+                truncLi.className = 'text-xs text-muted';
+                truncLi.style.marginTop = '0.25rem';
+                truncLi.textContent = '... (為確保效能已截斷，請匯出 CSV 檢視完整清單)';
+                ul.appendChild(truncLi);
+            }
             divTargets.appendChild(ul);
             tdTargets.appendChild(divTargets);
             tr.appendChild(tdTargets);
@@ -1082,6 +1093,13 @@ function renderResultsTbody(tableEl) {
                 li.appendChild(aU);
                 ul.appendChild(li);
             });
+            if (item.unique_urls.length >= 10) {
+                const truncLi = document.createElement('li');
+                truncLi.className = 'text-xs text-muted';
+                truncLi.style.marginTop = '0.25rem';
+                truncLi.textContent = '... (為確保效能已截斷，請匯出 CSV 檢視完整清單)';
+                ul.appendChild(truncLi);
+            }
             divUrls.appendChild(ul);
             tdUrls.appendChild(divUrls);
             tr.appendChild(tdUrls);
@@ -1112,6 +1130,13 @@ function renderResultsTbody(tableEl) {
                     li.appendChild(aSrc);
                     ulSources.appendChild(li);
                 });
+                if (item.source_urls.length >= 10) {
+                    const truncLi = document.createElement('li');
+                    truncLi.className = 'text-xs text-muted';
+                    truncLi.style.marginTop = '0.25rem';
+                    truncLi.textContent = '... (為確保效能已截斷，請匯出 CSV 檢視完整清單)';
+                    ulSources.appendChild(truncLi);
+                }
                 divSources.appendChild(ulSources);
                 tdSources.appendChild(divSources);
             } else {
@@ -1200,6 +1225,13 @@ function renderResultsTbody(tableEl) {
                 li.appendChild(spanTargetWrapper);
                 ul.appendChild(li);
             });
+            if (item.targets.length >= 10) {
+                const truncLi = document.createElement('li');
+                truncLi.className = 'text-xs text-muted';
+                truncLi.style.marginTop = '0.25rem';
+                truncLi.textContent = '... (為確保效能已截斷，請匯出 CSV 檢視完整清單)';
+                ul.appendChild(truncLi);
+            }
             divTargets.appendChild(ul);
             tdTargets.appendChild(divTargets);
             tr.appendChild(tdTargets);
@@ -1299,6 +1331,13 @@ function renderResultsTbody(tableEl) {
                     li.appendChild(aSrc);
                     ul.appendChild(li);
                 });
+                if (item.source_urls.length >= 10) {
+                    const truncLi = document.createElement('li');
+                    truncLi.className = 'text-xs text-muted';
+                    truncLi.style.marginTop = '0.25rem';
+                    truncLi.textContent = '... (為確保效能已截斷，請匯出 CSV 檢視完整清單)';
+                    ul.appendChild(truncLi);
+                }
                 divSources.appendChild(ul);
                 tdSources.appendChild(divSources);
             } else {
@@ -1371,12 +1410,12 @@ function renderPagination(res, jobId) {
 }
 
 function bindResultsControls() {
-    document.querySelectorAll('.filter-card[data-filter]').forEach(chip => {
+    document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(chip => {
         chip.addEventListener('click', async () => {
             const filter = chip.dataset.filter;
             _currentFilter = (_currentFilter === filter || filter === 'all') ? null : filter;
             _currentPage = 1;
-            document.querySelectorAll('.filter-card[data-filter]').forEach(c => {
+            document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(c => {
                 const isActive = _currentFilter === c.dataset.filter || (_currentFilter === null && c.dataset.filter === 'all');
                 c.classList.toggle('active', isActive);
             });
@@ -1384,12 +1423,14 @@ function bindResultsControls() {
         });
     });
 
-    document.querySelectorAll('.filter-card-internal[data-filter]').forEach(chip => {
+    document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(chip => {
         chip.addEventListener('click', async () => {
-            _internalFilter = chip.dataset.filter;
+            const filter = chip.dataset.filter;
+            _internalFilter = (_internalFilter === filter || filter === 'all') ? null : filter;
             _internalCurrentPage = 1;
-            document.querySelectorAll('.filter-card-internal[data-filter]').forEach(c => {
-                c.classList.toggle('active', _internalFilter === c.dataset.filter);
+            document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
+                const isActive = _internalFilter === c.dataset.filter || (_internalFilter === null && c.dataset.filter === 'all');
+                c.classList.toggle('active', isActive);
             });
             await loadInternalResultsPage(_currentJobId);
         });
@@ -1487,6 +1528,18 @@ function bindResultsControls() {
         if (_currentFilter) params.set('filter', _currentFilter);
         if (_currentExcludeEnabled && _currentExclude) params.set('exclude', _currentExclude);
         await download(`/api/jobs/${_currentJobId}/results/export?${params}`);
+    });
+
+    bindBtn('btn-int-export-csv', async () => {
+        const params = new URLSearchParams({ fmt: 'csv', group_by: _internalGroupBy });
+        if (_internalFilter && _internalFilter !== 'all') params.set('filter', _internalFilter);
+        await download(`/api/jobs/${_currentJobId}/internal-results/export?${params}`);
+    });
+
+    bindBtn('btn-int-export-json', async () => {
+        const params = new URLSearchParams({ fmt: 'json', group_by: _internalGroupBy });
+        if (_internalFilter && _internalFilter !== 'all') params.set('filter', _internalFilter);
+        await download(`/api/jobs/${_currentJobId}/internal-results/export?${params}`);
     });
 }
 

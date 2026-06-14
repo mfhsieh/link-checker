@@ -123,6 +123,7 @@ def get_job_diff(
 @router.get("/{job_id}/internal-results/summary")
 def get_internal_results_summary(
     job_id: str,
+    group_by: str = Query("none", pattern="^(none|source)$"),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> dict[str, object]:
@@ -131,6 +132,7 @@ def get_internal_results_summary(
 
     Args:
         job_id (str): 任務 ID。
+        group_by (str): 聚合方式。
         current_user (User): 當前登入的使用者。
         db (DBSession): Crawler DB Session。
 
@@ -138,7 +140,7 @@ def get_internal_results_summary(
         dict[str, object]: 內部結果統計。
     """
     try:
-        return job_results.get_internal_results_summary(db, job_id, current_user.id)
+        return job_results.get_internal_results_summary(db, job_id, current_user.id, group_by)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 

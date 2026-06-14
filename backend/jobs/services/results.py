@@ -56,7 +56,7 @@ def _group_by_target(links: list[ExternalLink]) -> list[dict[str, object]]:
         if not d["error_message"] and lnk.error_message:
             d["error_message"] = lnk.error_message
 
-    return [{**v, "source_urls": sorted(list(v["source_urls"]))} for v in agg.values()]
+    return [{**v, "source_urls": sorted(list(v["source_urls"]))[:10]} for v in agg.values()]
 
 
 def _group_by_domain(links: list[ExternalLink]) -> list[dict[str, object]]:
@@ -91,8 +91,8 @@ def _group_by_domain(links: list[ExternalLink]) -> list[dict[str, object]]:
             "domain": v["domain"],
             "occurrence_count": v["occurrence_count"],
             "unique_urls_count": len(v["unique_urls"]),
-            "unique_urls": sorted(list(v["unique_urls"])),
-            "source_urls": sorted(list(v["source_urls"])),
+            "unique_urls": sorted(list(v["unique_urls"])[:10]),
+            "source_urls": sorted(list(v["source_urls"])[:10]),
         })
     # 依出現次數降冪排序
     result.sort(key=lambda x: x["occurrence_count"], reverse=True)
@@ -126,12 +126,13 @@ def _group_by_source(links: list[ExternalLink]) -> list[dict[str, object]]:
             if lnk.http_status_code is not None
             else ("DNS Failed" if not lnk.ip_address else "Error")
         )
-        d["targets"].append({
-            "url": lnk.target_url,
-            "status": status_str,
-            "is_secure": lnk.is_secure,
-            "error_message": lnk.error_message,
-        })
+        if len(d["targets"]) < 10:
+            d["targets"].append({
+                "url": lnk.target_url,
+                "status": status_str,
+                "is_secure": lnk.is_secure,
+                "error_message": lnk.error_message,
+            })
 
     return [{**v} for v in agg.values()]
 
@@ -436,10 +437,10 @@ def _process_diff_common_url(
             "target_url": url,
             "old_ip": item_a["ip"],
             "new_ip": item_b["ip"],
-            "sources": sorted(list(item_b["sources"])),
+            "sources": sorted(list(item_b["sources"])[:10]),
         })
     if item_a["is_secure"] and not item_b["is_secure"]:
-        diff_lists["security_downgraded"].append({"target_url": url, "sources": sorted(list(item_b["sources"]))})
+        diff_lists["security_downgraded"].append({"target_url": url, "sources": sorted(list(item_b["sources"])[:10])})
 
     a_bad = _is_bad_link(item_a)
     b_bad = _is_bad_link(item_b)
@@ -451,7 +452,7 @@ def _process_diff_common_url(
             "old_error": item_a["error"],
             "new_status": item_b["status_code"],
             "new_error": item_b["error"],
-            "sources": sorted(list(item_b["sources"])),
+            "sources": sorted(list(item_b["sources"])[:10]),
         })
     elif a_bad and not b_bad:
         diff_lists["recovered"].append({
@@ -460,7 +461,7 @@ def _process_diff_common_url(
             "old_error": item_a["error"],
             "new_status": item_b["status_code"],
             "new_error": item_b["error"],
-            "sources": sorted(list(item_b["sources"])),
+            "sources": sorted(list(item_b["sources"])[:10]),
         })
 
 
@@ -517,7 +518,7 @@ def get_job_diff(
             "ip": dict_b[url]["ip"],
             "status_code": dict_b[url]["status_code"],
             "error": dict_b[url]["error"],
-            "sources": sorted(list(dict_b[url]["sources"])),
+            "sources": sorted(list(dict_b[url]["sources"])[:10]),
         }
         for url in (set_b - set_a)
     ]
@@ -528,7 +529,7 @@ def get_job_diff(
             "old_ip": dict_a[url]["ip"],
             "old_status_code": dict_a[url]["status_code"],
             "old_error": dict_a[url]["error"],
-            "sources": sorted(list(dict_a[url]["sources"])),
+            "sources": sorted(list(dict_a[url]["sources"])[:10]),
         }
         for url in (set_a - set_b)
     ]
@@ -745,6 +746,48 @@ def stream_internal_results(db: DBSession, job_id: str, user_id: str) -> Iterato
         yield format_crawl_queue_item(q)
 
 
+def stream_internal_errors(
+    db: DBSession,
+    job_id: str,
+    user_id: str,
+    status_filter: str | None = None,
+    group_by: str = "none",
+) -> Iterator[dict[str, object]]:
+    """
+    查詢任務的內部失效紀錄，並以 yield 串流回傳。
+
+    Args:
+        db (DBSession): Crawler DB Session。
+        job_id (str): 任務 ID。
+        user_id (str): 請求查詢的使用者 ID。
+        status_filter (str | None): 狀態篩選。
+        group_by (str): 聚合方式。
+
+    Yields:
+        dict[str, object]: 單筆內部失敗結果字典。
+
+    Raises:
+        ValueError: 找不到任務或無權限存取時拋出。
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job or job.user_id != user_id:
+        raise ValueError("無權限存取此任務。")
+
+    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+    query = apply_internal_result_filters(query, status_filter)
+
+    if group_by == "source":
+        # 呼叫既有的分頁查詢函數，但直接索取所有匹配結果並利用它實作的聚合演算法
+        results = get_internal_errors(
+            db, job_id, user_id, status_filter, group_by, page=1, page_size=9999999, truncate_lists=False
+        )
+        yield from results["items"]  # type: ignore
+    else:
+        cursor = query.order_by(CrawlQueue.id).yield_per(2000)
+        for q in cursor:
+            yield format_crawl_queue_item(q)
+
+
 def apply_internal_result_filters(query: Query, status_filter: str | None) -> Query:
     """
     套用內部失效連結的過濾條件。
@@ -785,7 +828,7 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
     return query
 
 
-def get_internal_results_summary(db: DBSession, job_id: str, user_id: str) -> dict[str, object]:
+def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group_by: str = "none") -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的統計摘要。
     """
@@ -793,52 +836,95 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str) -> di
     if not job or job.user_id != user_id:
         raise ValueError("無權限存取此任務。")
 
-    query = db.query(
-        count(CrawlQueue.id).label("total"),
-        sql_sum(case((CrawlQueue.status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
-        sql_sum(case((CrawlQueue.status_code >= 500, 1), else_=0)).label("server_error"),
-        sql_sum(case((CrawlQueue.status_code.in_([401, 403]), 1), else_=0)).label("access_denied"),
-        sql_sum(
-            case(
-                (
-                    (CrawlQueue.status_code.is_(None))
-                    & ((CrawlQueue.error_message.ilike("%timeout%")) | (CrawlQueue.error_message.ilike("%timed out%"))),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("timeout"),
-        sql_sum(
-            case(
-                (
-                    (CrawlQueue.status_code.is_(None))
-                    & (~CrawlQueue.error_message.ilike("%timeout%"))
-                    & (~CrawlQueue.error_message.ilike("%timed out%")),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("connection_error"),
-    ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+    if group_by == "none":
+        query = db.query(
+            count(CrawlQueue.id).label("total"),
+            sql_sum(case((CrawlQueue.status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
+            sql_sum(case((CrawlQueue.status_code >= 500, 1), else_=0)).label("server_error"),
+            sql_sum(case((CrawlQueue.status_code.in_([401, 403]), 1), else_=0)).label("access_denied"),
+            sql_sum(
+                case(
+                    (
+                        (CrawlQueue.status_code.is_(None))
+                        & (
+                            (CrawlQueue.error_message.ilike("%timeout%"))
+                            | (CrawlQueue.error_message.ilike("%timed out%"))
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("timeout"),
+            sql_sum(
+                case(
+                    (
+                        (CrawlQueue.status_code.is_(None))
+                        & (~CrawlQueue.error_message.ilike("%timeout%"))
+                        & (~CrawlQueue.error_message.ilike("%timed out%")),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("connection_error"),
+        ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
 
-    stats = query.first()
-    total = int(stats.total) if stats and stats.total else 0
-    not_found = int(stats.not_found) if stats and stats.not_found else 0
-    server_error = int(stats.server_error) if stats and stats.server_error else 0
-    access_denied = int(stats.access_denied) if stats and stats.access_denied else 0
-    timeout = int(stats.timeout) if stats and stats.timeout else 0
-    connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
-    other_error = total - not_found - server_error - access_denied - timeout - connection_error
+        stats = query.first()
+        total = int(stats.total) if stats and stats.total else 0
+        not_found = int(stats.not_found) if stats and stats.not_found else 0
+        server_error = int(stats.server_error) if stats and stats.server_error else 0
+        access_denied = int(stats.access_denied) if stats and stats.access_denied else 0
+        timeout = int(stats.timeout) if stats and stats.timeout else 0
+        connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
+        other_error = total - not_found - server_error - access_denied - timeout - connection_error
 
-    return {
-        "total": total,
-        "not_found": not_found,
-        "server_error": server_error,
-        "access_denied": access_denied,
-        "timeout": timeout,
-        "connection_error": connection_error,
-        "other_error": other_error,
-    }
+        return {
+            "total": total,
+            "not_found": not_found,
+            "server_error": server_error,
+            "access_denied": access_denied,
+            "timeout": timeout,
+            "connection_error": connection_error,
+            "other_error": other_error,
+        }
+    else:
+        set_all = set()
+        set_not_found = set()
+        set_server_error = set()
+        set_access_denied = set()
+        set_timeout = set()
+        set_connection_error = set()
+        set_other_error = set()
+
+        query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+        for q in query.yield_per(2000):
+            key = q.source_url or "" if group_by == "source" else q.id
+            set_all.add(key)
+
+            c = q.status_code
+            msg = str(q.error_message or "").lower()
+
+            if c in (404, 410):
+                set_not_found.add(key)
+            elif c is not None and c >= 500:
+                set_server_error.add(key)
+            elif c in (401, 403):
+                set_access_denied.add(key)
+            elif c is None and ("timeout" in msg or "timed out" in msg):
+                set_timeout.add(key)
+            elif c is None and not ("timeout" in msg or "timed out" in msg):
+                set_connection_error.add(key)
+            else:
+                set_other_error.add(key)
+
+        return {
+            "total": len(set_all),
+            "not_found": len(set_not_found),
+            "server_error": len(set_server_error),
+            "access_denied": len(set_access_denied),
+            "timeout": len(set_timeout),
+            "connection_error": len(set_connection_error),
+            "other_error": len(set_other_error),
+        }
 
 
 def get_internal_errors(
@@ -849,6 +935,7 @@ def get_internal_errors(
     group_by: str = "none",
     page: int = 1,
     page_size: int = 50,
+    truncate_lists: bool = True,
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表。
@@ -885,11 +972,12 @@ def get_internal_errors(
             d = agg[s_url]
             d["source_url"] = s_url
             d["occurrence_count"] += 1
-            d["targets"].append({
-                "url": q.url,
-                "status": str(q.status_code) if q.status_code is not None else "Error",
-                "error_message": q.error_message,
-            })
+            if not truncate_lists or len(d["targets"]) < 10:
+                d["targets"].append({
+                    "url": q.url,
+                    "status": str(q.status_code) if q.status_code is not None else "Error",
+                    "error_message": q.error_message,
+                })
 
         items_list = list(agg.values())
         items_list.sort(key=lambda x: x["occurrence_count"], reverse=True)
