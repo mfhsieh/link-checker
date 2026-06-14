@@ -338,9 +338,28 @@ class CrawlerCore:
         request_sent = False
 
         for _ in range(self.config.max_redirects):
-            request_sent, current_url, result = self._fetch_single(current_url, request_sent, target_domains)
-            if result:
-                return result
+            try:
+                request_sent, current_url, result = self._fetch_single(current_url, request_sent, target_domains)
+                if result:
+                    return result
+            except (httpx.RequestError, socket.gaierror) as e:
+                parsed = urlparse(current_url)
+                if parsed.scheme == "http":
+                    new_url = parsed._replace(scheme="https").geturl()
+                    logger.info(
+                        "內部連結 HTTP 連線失敗 (%s)，嘗試自動升級至 HTTPS 並重試: %s",
+                        e,
+                        new_url,
+                    )
+                    try:
+                        request_sent, current_url, result = self._fetch_single(new_url, request_sent, target_domains)
+                        if result:
+                            return result
+                    except (httpx.RequestError, socket.gaierror) as retry_err:
+                        logger.warning("HTTPS 重試亦失敗: %s，回傳最後的錯誤", retry_err)
+                        raise
+                else:
+                    raise
 
         logger.warning("網址 %s 超過最大重導向次數", url)
         return None, None, "skip", current_url, request_sent, "超過最大重導向次數"
@@ -539,6 +558,22 @@ class CrawlerCore:
         for _ in range(self.config.max_redirects):
             next_url, result = self._check_external_single(current_url)
             if result is not None:
+                status_code, err_msg = result
+                if status_code is None and err_msg:
+                    parsed = urlparse(current_url)
+                    if parsed.scheme == "http":
+                        new_url = parsed._replace(scheme="https").geturl()
+                        logger.info(
+                            "外部連結 HTTP 檢測失敗 (%s)，嘗試自動升級至 HTTPS 並重試: %s",
+                            err_msg,
+                            new_url,
+                        )
+                        next_url_retry, result_retry = self._check_external_single(new_url)
+                        if result_retry is not None:
+                            return result_retry
+                        if next_url_retry:
+                            current_url = next_url_retry
+                            continue
                 return result
             if next_url:
                 current_url = next_url
