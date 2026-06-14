@@ -157,12 +157,14 @@ def export_results(
                     "Occurrence Count",
                     "Unique URLs Count",
                     "Unique URLs",
+                    "Source URLs",
                 ]
                 row_data = {
                     "Domain": item["domain"],
                     "Occurrence Count": item["occurrence_count"],
                     "Unique URLs Count": item["unique_urls_count"],
                     "Unique URLs": "\n".join(item["unique_urls"]),
+                    "Source URLs": "\n".join(item["source_urls"]),
                 }
             elif query_args.group_by == "source":
                 fieldnames = ["Source URL", "External Link Count", "Target URLs"]

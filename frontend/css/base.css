@@ -232,6 +232,17 @@ ol {
   color: var(--text-brand);
 }
 
+.text-link {
+  color: var(--text-brand);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.text-link:hover {
+  color: var(--color-brand-200);
+}
+
 .text-success {
   color: var(--color-success-400);
 }

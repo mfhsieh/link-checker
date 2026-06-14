@@ -759,11 +759,11 @@ function renderResultsTable(res, containerEl) {
     const isGroupDomain = _currentGroupBy === 'domain';
 
     if (isGroupTarget) {
-        _currentDetailHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: '安全', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '來源數', key: 'occurrence_count' }, { label: '錯誤訊息', key: 'error_message' }];
+        _currentDetailHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: '安全', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '來源數', key: 'occurrence_count' }, { label: '錯誤訊息', key: 'error_message' }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
     } else if (isGroupSource) {
-        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '外連數量', key: 'occurrence_count' }, { label: '詳細連結清單', key: 'targets', sortable: false, filterable: false }];
+        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '外連數量', key: 'occurrence_count' }, { label: '目標 URL', key: 'targets', sortable: false, filterable: false }];
     } else if (isGroupDomain) {
-        _currentDetailHeaders = [{ label: '外部網域', key: 'domain' }, { label: '總出現次數', key: 'occurrence_count' }, { label: '不重複網址數', key: 'unique_urls_count' }, { label: '包含網址清單', key: 'unique_urls', sortable: false, filterable: false }];
+        _currentDetailHeaders = [{ label: '外部網域', key: 'domain' }, { label: '來源數', key: 'occurrence_count' }, { label: '不重複網址數', key: 'unique_urls_count' }, { label: '目標 URL', key: 'unique_urls', sortable: false, filterable: false }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
     } else {
         _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: '安全', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '錯誤訊息', key: 'error_message' }];
     }
@@ -891,7 +891,9 @@ function renderResultsTbody(tableEl) {
             const tr = document.createElement('tr');
 
             const tdDomain = document.createElement('td');
-            tdDomain.className = 'font-mono font-medium';
+            tdDomain.className = 'font-mono font-medium truncate';
+            tdDomain.style.maxWidth = '260px';
+            tdDomain.title = item.domain;
             tdDomain.textContent = item.domain;
             tr.appendChild(tdDomain);
 
@@ -917,15 +919,15 @@ function renderResultsTbody(tableEl) {
             ul.style.fontSize = '0.8125rem';
             item.unique_urls.forEach(u => {
                 const li = document.createElement('li');
-                li.className = 'truncate';
-                li.style.maxWidth = '360px';
+                li.className = 'truncate text-muted';
+                li.style.maxWidth = '250px';
                 li.style.marginBottom = '0.25rem';
                 li.title = u;
                 const aU = document.createElement('a');
                 aU.href = u;
                 aU.target = '_blank';
                 aU.rel = 'noopener noreferrer';
-                aU.className = 'text-link';
+                aU.style.color = 'inherit';
                 aU.textContent = u;
                 li.appendChild(aU);
                 ul.appendChild(li);
@@ -933,6 +935,40 @@ function renderResultsTbody(tableEl) {
             divUrls.appendChild(ul);
             tdUrls.appendChild(divUrls);
             tr.appendChild(tdUrls);
+
+            const tdSources = document.createElement('td');
+            if (item.source_urls && item.source_urls.length > 0) {
+                const divSources = document.createElement('div');
+                divSources.style.maxHeight = '150px';
+                divSources.style.overflowY = 'auto';
+                divSources.style.paddingRight = '4px';
+                const ulSources = document.createElement('ul');
+                ulSources.style.margin = '0';
+                ulSources.style.paddingLeft = '0';
+                ulSources.style.listStyle = 'none';
+                ulSources.style.fontSize = '0.8125rem';
+                item.source_urls.forEach(src => {
+                    const li = document.createElement('li');
+                    li.className = 'truncate text-muted';
+                    li.style.maxWidth = '250px';
+                    li.style.marginBottom = '0.25rem';
+                    li.title = src;
+                    const aSrc = document.createElement('a');
+                    aSrc.href = src;
+                    aSrc.target = '_blank';
+                    aSrc.rel = 'noopener noreferrer';
+                    aSrc.style.color = 'inherit';
+                    aSrc.textContent = src;
+                    li.appendChild(aSrc);
+                    ulSources.appendChild(li);
+                });
+                divSources.appendChild(ulSources);
+                tdSources.appendChild(divSources);
+            } else {
+                tdSources.className = 'text-muted';
+                tdSources.textContent = '-';
+            }
+            tr.appendChild(tdSources);
 
             tbody.appendChild(tr);
             return;
@@ -943,7 +979,7 @@ function renderResultsTbody(tableEl) {
 
             const tdSource = document.createElement('td');
             tdSource.className = 'truncate';
-            tdSource.style.maxWidth = '300px';
+            tdSource.style.maxWidth = '260px';
             tdSource.title = item.source_url;
             const aSource = document.createElement('a');
             aSource.href = item.source_url;
@@ -955,10 +991,9 @@ function renderResultsTbody(tableEl) {
             tr.appendChild(tdSource);
 
             const tdCount = document.createElement('td');
-            const countBadge = document.createElement('span');
-            countBadge.className = 'badge badge-danger';
-            countBadge.textContent = item.occurrence_count;
-            tdCount.appendChild(countBadge);
+            tdCount.style.fontWeight = '600';
+            tdCount.style.fontFeatureSettings = '"tnum"';
+            tdCount.textContent = item.occurrence_count;
             tr.appendChild(tdCount);
 
             const tdTargets = document.createElement('td');
@@ -1033,14 +1068,14 @@ function renderResultsTbody(tableEl) {
 
         if (!isGroupTarget) {
             const tdSource = document.createElement('td');
-            tdSource.className = 'truncate text-xs text-muted';
-            tdSource.style.maxWidth = '200px';
+            tdSource.className = 'truncate';
+            tdSource.style.maxWidth = '260px';
             tdSource.title = item.source_url;
             const aSource = document.createElement('a');
             aSource.href = item.source_url;
             aSource.target = '_blank';
             aSource.rel = 'noopener noreferrer';
-            aSource.style.color = 'inherit';
+            aSource.className = 'text-link';
             aSource.textContent = item.source_url;
             tdSource.appendChild(aSource);
             tr.appendChild(tdSource);
@@ -1055,13 +1090,12 @@ function renderResultsTbody(tableEl) {
         aTarget.target = '_blank';
         aTarget.rel = 'noopener noreferrer';
         aTarget.className = 'text-link';
-        aTarget.style.color = 'inherit';
         aTarget.textContent = item.target_url;
         tdTarget.appendChild(aTarget);
         tr.appendChild(tdTarget);
 
         const tdIp = document.createElement('td');
-        tdIp.className = 'font-mono text-xs';
+        tdIp.className = 'font-mono text-xs text-muted';
         tdIp.textContent = item.ip_address || '-';
         tr.appendChild(tdIp);
 
@@ -1085,9 +1119,46 @@ function renderResultsTbody(tableEl) {
 
         const tdError = document.createElement('td');
         tdError.className = 'text-xs text-muted truncate';
-        tdError.style.maxWidth = isGroupTarget ? '180px' : '160px';
+        tdError.style.maxWidth = '160px';
+        tdError.title = item.error_message || '';
         tdError.textContent = item.error_message || '-';
         tr.appendChild(tdError);
+
+        if (isGroupTarget) {
+            const tdSources = document.createElement('td');
+            if (item.source_urls && item.source_urls.length > 0) {
+                const divSources = document.createElement('div');
+                divSources.style.maxHeight = '150px';
+                divSources.style.overflowY = 'auto';
+                divSources.style.paddingRight = '4px';
+                const ul = document.createElement('ul');
+                ul.style.margin = '0';
+                ul.style.paddingLeft = '0';
+                ul.style.listStyle = 'none';
+                ul.style.fontSize = '0.8125rem';
+                item.source_urls.forEach(src => {
+                    const li = document.createElement('li');
+                    li.className = 'truncate text-muted';
+                    li.style.maxWidth = '250px';
+                    li.style.marginBottom = '0.25rem';
+                    li.title = src;
+                    const aSrc = document.createElement('a');
+                    aSrc.href = src;
+                    aSrc.target = '_blank';
+                    aSrc.rel = 'noopener noreferrer';
+                    aSrc.style.color = 'inherit';
+                    aSrc.textContent = src;
+                    li.appendChild(aSrc);
+                    ul.appendChild(li);
+                });
+                divSources.appendChild(ul);
+                tdSources.appendChild(divSources);
+            } else {
+                tdSources.className = 'text-muted';
+                tdSources.textContent = '-';
+            }
+            tr.appendChild(tdSources);
+        }
 
         tbody.appendChild(tr);
     });
