@@ -15,8 +15,8 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # 必須在載入 backend.main 之前設定，才能讓 background task 取到正確的測試 DB
-os.environ["AUTH_DB_URL"] = "sqlite:///tmp/auth_test.db"
-os.environ["CRAWLER_DB_URL"] = "sqlite:///tmp/crawler_test.db"
+os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_admin.db"
+os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_admin.db"
 
 # pylint: disable=wrong-import-position
 from fastapi.testclient import TestClient
@@ -29,7 +29,7 @@ from backend.main import app
 from crawler.models import Base as CrawlerBase
 
 # 測試用 SQLite DSN
-TEST_AUTH_DB_URL: str = "sqlite:///tmp/auth_test.db"
+TEST_AUTH_DB_URL: str = "sqlite:///db/test_auth_admin.db"
 
 # 建立 Engine
 engine: Engine = create_engine(TEST_AUTH_DB_URL, connect_args={"check_same_thread": False})
@@ -154,8 +154,18 @@ class TestAdminLogs(unittest.TestCase):
         在所有測試開始前執行的初始化操作。
         建立測試資料表、寫入初始使用者，並備份全域設定檔。
         """
+        # 確保刪除先前殘留的測試資料庫檔案，避免 IntegrityError
+        for db_file in ["db/test_auth_admin.db", "db/test_crawler_admin.db"]:
+            for suffix in ["", "-shm", "-wal"]:
+                target_file = db_file + suffix
+                if os.path.exists(target_file):
+                    try:
+                        os.remove(target_file)
+                    except OSError:
+                        pass
+
         # 建立所有資料表
-        os.makedirs("tmp", exist_ok=True)
+        os.makedirs("db", exist_ok=True)
         AuthBase.metadata.create_all(bind=engine)
         CrawlerBase.metadata.create_all(bind=engine)
 
@@ -187,11 +197,15 @@ class TestAdminLogs(unittest.TestCase):
         """
         # 刪除測試資料表
         AuthBase.metadata.drop_all(bind=engine)
-        if os.path.exists("tmp/auth_test.db"):
-            try:
-                os.remove("tmp/auth_test.db")
-            except OSError:
-                pass
+        engine.dispose()
+        for db_file in ["db/test_auth_admin.db", "db/test_crawler_admin.db"]:
+            for suffix in ["", "-shm", "-wal"]:
+                target_file = db_file + suffix
+                if os.path.exists(target_file):
+                    try:
+                        os.remove(target_file)
+                    except OSError:
+                        pass
 
         # 還原 config_global.yaml
         if cls.config_backup is not None:

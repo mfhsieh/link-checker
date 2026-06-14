@@ -47,18 +47,68 @@ def setup_databases() -> None:
     import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
     import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
 
-    # 強制清除模組的快取 Engine/Session，避免下一個測試沿用到已被刪除的舊 sqlite fd
-    auth_db._ENGINE = None  # pylint: disable=protected-access
-    auth_db._SESSION_LOCAL = None  # pylint: disable=protected-access
-    backend_deps._JOB_MANAGER = None  # pylint: disable=protected-access
+    # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
+    if auth_db._ENGINE is not None:
+        try:
+            auth_db._ENGINE.dispose()
+        except Exception:
+            pass
+    auth_db._ENGINE = None
+    auth_db._SESSION_LOCAL = None
 
-    if os.path.exists("db/test_auth_api.db"):
-        os.remove("db/test_auth_api.db")
-    if os.path.exists("db/test_crawler_api.db"):
-        os.remove("db/test_crawler_api.db")
+    if backend_deps._JOB_MANAGER is not None:
+        try:
+            backend_deps._JOB_MANAGER.engine.dispose()
+        except Exception:
+            pass
+    backend_deps._JOB_MANAGER = None
+
+    # 清除舊的資料庫主檔案與 -shm/-wal 暫存檔
+    for db_file in ["db/test_auth_api.db", "db/test_crawler_api.db"]:
+        for suffix in ["", "-shm", "-wal"]:
+            target_file = db_file + suffix
+            if os.path.exists(target_file):
+                try:
+                    os.remove(target_file)
+                except OSError:
+                    pass
 
     get_auth_engine()
     get_job_manager()  # This initializes the crawler DB and creates tables
+
+
+def teardown_databases() -> None:
+    """
+    清理測試所產生的資料庫檔案。
+    """
+    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
+    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
+    if auth_db._ENGINE is not None:
+        try:
+            auth_db._ENGINE.dispose()
+        except Exception:
+            pass
+    auth_db._ENGINE = None
+    auth_db._SESSION_LOCAL = None
+
+    if backend_deps._JOB_MANAGER is not None:
+        try:
+            backend_deps._JOB_MANAGER.engine.dispose()
+        except Exception:
+            pass
+    backend_deps._JOB_MANAGER = None
+
+    # 清除資料庫主檔案與 -shm/-wal 暫存檔
+    for db_file in ["db/test_auth_api.db", "db/test_crawler_api.db"]:
+        for suffix in ["", "-shm", "-wal"]:
+            target_file = db_file + suffix
+            if os.path.exists(target_file):
+                try:
+                    os.remove(target_file)
+                except OSError:
+                    pass
 
 
 def create_admin_user() -> None:
@@ -120,7 +170,13 @@ def test_api_full_flow() -> None:
     """
     setup_databases()
     create_admin_user()
+    try:
+        _run_api_full_flow()
+    finally:
+        teardown_databases()
 
+
+def _run_api_full_flow() -> None:
     print("--- Starting API Tests ---")
     client = TestClient(app)
 
@@ -445,6 +501,7 @@ def test_api_real_scenario_flow() -> None:
         except subprocess.TimeoutExpired:
             server_proc.kill()
             print("Mock Server process killed.")
+        teardown_databases()
 
 
 if __name__ == "__main__":
