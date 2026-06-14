@@ -85,6 +85,7 @@ DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
             "instagram.com",
             "twitter.com",
             "linkedin.com",
+            "line.me",
         ],
         "ignore_extensions": (
             ".pdf .doc .docx .xls .xlsx .ppt .pptx .odt .ods .odp .csv .txt .rtf .epub .mobi "

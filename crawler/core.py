@@ -20,6 +20,13 @@ from crawler.models import CrawlerConfig
 from crawler.profiles import get_random_profile
 from crawler.utils import get_domain, is_in_domain_list, is_safe_ip, normalize_url, resolve_ip
 
+try:
+    import h2  # pylint: disable=unused-import
+
+    _HTTP2_SUPPORTED = True
+except ImportError:
+    _HTTP2_SUPPORTED = False
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -118,12 +125,14 @@ class CrawlerCore:
         )
 
         self.client: httpx.Client = httpx.Client(
+            http2=_HTTP2_SUPPORTED,
             timeout=httpx.Timeout(self.config.timeout, connect=self.config.connect_timeout),
             follow_redirects=False,
             headers={"User-Agent": self.user_agent},
             proxy=self.config.proxy_url,
         )
         self.exempt_client: httpx.Client = httpx.Client(
+            http2=_HTTP2_SUPPORTED,
             timeout=httpx.Timeout(self.config.timeout, connect=self.config.connect_timeout),
             follow_redirects=False,
             headers={"User-Agent": self.user_agent},
@@ -309,7 +318,7 @@ class CrawlerCore:
             return request_sent, current_url, (None, None, "skip", current_url, request_sent, ssrf_err)
 
         with dns_override(domain, ip) if domain and ip else nullcontext():
-            headers = get_random_profile() if self.enable_dynamic_headers else None
+            headers = get_random_profile(current_url) if self.enable_dynamic_headers else None
             with self._get_client(current_url).stream("GET", current_url, headers=headers) as response:
                 next_url, result = self._process_response(response, current_url, target_domains)
                 if result:
@@ -395,6 +404,14 @@ class CrawlerCore:
 
             # 透過單次遍歷 HTML 樹來擷取所有標籤，大幅提升大型網頁的解析效能
             for tag in soup.find_all(list(tag_attr_map.keys())):
+                # 針對 <link> 標籤，忽略 dns-prefetch 與 preconnect。
+                # 這些標籤通常只指向網域根目錄（如 https://fonts.gstatic.com/）作為提早連線提示，並非實際可下載的資源，探測其根目錄通常會得到 404。
+                if tag.name == "link":
+                    rel_attr = tag.get("rel", [])
+                    rel_list = [rel_attr] if isinstance(rel_attr, str) else rel_attr
+                    if any(r.lower() in ("preconnect", "dns-prefetch") for r in rel_list):
+                        continue
+
                 attr = tag_attr_map.get(tag.name)
                 if attr and tag.has_attr(attr):
                     raw_links.append(tag.get(attr))
@@ -481,7 +498,24 @@ class CrawlerCore:
         # 由於使用 client.stream()，讀取完標頭後連線即會中斷，因此不加 Range 依然能達到節省頻寬的效果。
         headers: dict[str, str] = {}
         if self.enable_dynamic_headers:
-            headers.update(get_random_profile())
+            headers.update(get_random_profile(current_url))
+
+            # 外部探測不需下載網頁內容，大膽宣告支援現代壓縮格式，可繞過部分嚴格 WAF
+            headers["Accept-Encoding"] = "gzip, deflate, br, zstd"
+
+            # WAF 常會因為 HTTP/1.1 卻帶有現代瀏覽器的 Sec-Fetch 標頭而判定為異常 (403 阻擋)。
+            # 在降級探測時，拔除這些標頭以降低異常特徵，提升繞過成功率。
+            for key in [
+                "Sec-Ch-Ua",
+                "Sec-Ch-Ua-Mobile",
+                "Sec-Ch-Ua-Platform",
+                "Sec-Fetch-Dest",
+                "Sec-Fetch-Mode",
+                "Sec-Fetch-Site",
+                "Sec-Fetch-User",
+            ]:
+                headers.pop(key, None)
+
         stream_timeout = httpx.Timeout(self.config.external_check_timeout, connect=self.config.connect_timeout)
         with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
             with client.stream("GET", current_url, headers=headers, timeout=stream_timeout) as resp:
@@ -508,8 +542,18 @@ class CrawlerCore:
         client = self._get_client(current_url)
         with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
             head_timeout = httpx.Timeout(self.config.external_check_timeout, connect=self.config.connect_timeout)
-            headers = get_random_profile() if self.enable_dynamic_headers else None
-            response = client.request("HEAD", current_url, timeout=head_timeout, headers=headers)
+            headers = get_random_profile(current_url) if self.enable_dynamic_headers else None
+            if headers is not None:
+                # 外部探測不需下載網頁內容，大膽宣告支援現代壓縮格式
+                headers["Accept-Encoding"] = "gzip, deflate, br, zstd"
+
+            try:
+                response = client.request("HEAD", current_url, timeout=head_timeout, headers=headers)
+            except httpx.RequestError as e:
+                # WAF 經常以 Tarpit (刻意不回應導致超時) 或直接切斷連線來阻擋帶有現代瀏覽器特徵的 HEAD 請求。
+                # 當 HEAD 請求發生網路層異常時，主動降級使用剝離衝突特徵的 GET 請求進行二次確認。
+                logger.debug("HEAD 請求發生網路層異常 (%s)，嘗試降級使用 GET...", e)
+                return self._fallback_get(current_url, tgt_dom, ip, client)
 
         if response.status_code in (301, 302, 303, 307, 308):
             location = response.headers.get("Location")
@@ -564,17 +608,27 @@ class CrawlerCore:
             next_url, result = self._check_external_single(current_url)
             if result is not None:
                 status_code, err_msg = result
-                if status_code is None and err_msg:
+
+                # 若遇到連線錯誤 (status_code is None) 或是 WAF / 伺服器回傳異常 (>= 400)
+                # 許多現代網站與防火牆 (Cloudflare, HSTS) 對明文 HTTP 請求會直接中斷或回傳 403/520
+                is_failed = (status_code is None and err_msg) or (status_code is not None and status_code >= 400)
+
+                if is_failed:
                     parsed = urlparse(current_url)
                     if parsed.scheme == "http":
                         new_url = parsed._replace(scheme="https").geturl()
                         logger.info(
-                            "外部連結 HTTP 檢測失敗 (%s)，嘗試自動升級至 HTTPS 並重試: %s",
-                            err_msg,
+                            "外部連結 HTTP 檢測失敗 (狀態: %s)，嘗試自動升級至 HTTPS 並重試: %s",
+                            status_code if status_code is not None else err_msg,
                             new_url,
                         )
                         next_url_retry, result_retry = self._check_external_single(new_url)
                         if result_retry is not None:
+                            status_code_retry, err_msg_retry = result_retry
+                            # 若 HTTPS 連線徹底失敗 (無狀態碼) 但原始 HTTP 有狀態碼，保留原始 HTTP 結果
+                            if status_code_retry is None and status_code is not None:
+                                logger.info("HTTPS 重試連線失敗 (%s)，保留原始 HTTP 檢測結果", err_msg_retry)
+                                return result
                             return result_retry
                         if next_url_retry:
                             current_url = next_url_retry

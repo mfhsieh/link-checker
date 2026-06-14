@@ -1,6 +1,7 @@
 # ── 爬蟲核心依賴 ───────────────────────
 beautifulsoup4==4.14.3
 httpx==0.28.1
+h2==4.3.0
 PyYAML==6.0.3
 SQLAlchemy==2.0.50
 types-PyYAML==6.0.12.20260518

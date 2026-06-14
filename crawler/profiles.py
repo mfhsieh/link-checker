@@ -43,9 +43,13 @@ def _extract_edge_version(ua_string: str) -> str:
     return match.group(1) if match else "120"
 
 
-def get_random_profile() -> dict[str, str]:
+def get_random_profile(url: str | None = None) -> dict[str, str]:
     """
     隨機產生一組高擬真度的瀏覽器 HTTP 標頭。
+    若提供 url，會根據 HTTP/HTTPS 動態決定是否附加 Secure Context 專屬標頭。
+
+    Args:
+        url (str | None): 當前請求的網址，用以判斷是否為安全連線。
 
     Returns:
         dict[str, str]: 包含 User-Agent 與對應 Sec-Ch-Ua 等欄位的標頭字典。
@@ -65,26 +69,35 @@ def get_random_profile() -> dict[str, str]:
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7",
         "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
     }
 
-    # 針對不同瀏覽器補齊專屬 Headers
-    if "Chrome" in user_agent and "Edg" not in user_agent:
-        version = _extract_chrome_version(user_agent)
-        headers["Sec-Ch-Ua"] = f'"Not_A Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
-        headers["Sec-Ch-Ua-Mobile"] = "?0"
-        headers["Sec-Ch-Ua-Platform"] = (
-            '"Windows"' if "Windows" in user_agent else '"macOS"' if "Mac OS" in user_agent else '"Linux"'
-        )
-    elif "Edg" in user_agent:
-        version = _extract_edge_version(user_agent)
-        headers["Sec-Ch-Ua"] = f'"Not_A Brand";v="8", "Chromium";v="{version}", "Microsoft Edge";v="{version}"'
-        headers["Sec-Ch-Ua-Mobile"] = "?0"
-        headers["Sec-Ch-Ua-Platform"] = '"Windows"' if "Windows" in user_agent else '"macOS"'
-    elif "Firefox" in user_agent:
+    # Sec-Fetch 與 Sec-Ch-Ua 等 Client Hints 與 Metadata 標頭為 Secure Context 專屬。
+    # 若在明文 HTTP 請求中夾帶此類標頭，極易觸發現代 WAF (如 Cloudflare) 的防護機制並回傳 520 錯誤。
+    is_secure = url is None or url.startswith("https://")
+
+    if is_secure:
+        headers.update({
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+        })
+
+        # 針對不同瀏覽器補齊專屬 Headers
+        if "Chrome" in user_agent and "Edg" not in user_agent:
+            version = _extract_chrome_version(user_agent)
+            headers["Sec-Ch-Ua"] = f'"Not_A Brand";v="8", "Chromium";v="{version}", "Google Chrome";v="{version}"'
+            headers["Sec-Ch-Ua-Mobile"] = "?0"
+            headers["Sec-Ch-Ua-Platform"] = (
+                '"Windows"' if "Windows" in user_agent else '"macOS"' if "Mac OS" in user_agent else '"Linux"'
+            )
+        elif "Edg" in user_agent:
+            version = _extract_edge_version(user_agent)
+            headers["Sec-Ch-Ua"] = f'"Not_A Brand";v="8", "Chromium";v="{version}", "Microsoft Edge";v="{version}"'
+            headers["Sec-Ch-Ua-Mobile"] = "?0"
+            headers["Sec-Ch-Ua-Platform"] = '"Windows"' if "Windows" in user_agent else '"macOS"'
+
+    if "Firefox" in user_agent:
         # Firefox 特定的 Accept 順序
         headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
         # 移除 Chromium 專屬 Headers (如果存在的話)
