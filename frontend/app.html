@@ -353,7 +353,7 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">主機網域找不到，代表網站關閉或遭釋出</div>
             </div>
             <div class="stat-card filter-card" data-filter="broken"
-              data-desc="伺服器回傳 4XX 或 5XX 錯誤狀態碼 (可能遭 WAF 防火牆阻擋或權限不足)，或發生連線逾時、憑證失效等底層網路錯誤。"
+              data-desc="伺服器回傳 4XX 或 5XX 錯誤狀態碼 (可能遭 WAF 防火牆阻擋 (429) 或權限不足 (401, 403) )，或發生連線逾時、憑證失效等底層網路錯誤。"
               data-color="var(--color-danger-400)" style="padding:0.75rem">
               <div class="stat-label text-danger">HTTP 錯誤</div>
               <div class="stat-value text-danger" id="summary-http-error">0</div>
