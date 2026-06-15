@@ -152,7 +152,6 @@ erDiagram
 erDiagram
     jobs ||--o{ crawl_queue : "has many"
     jobs ||--o{ external_links : "has many"
-
     jobs {
         String(36) id PK "任務的主鍵 (UUID)"
         String(128) user_id "任務擁有者 ID"
@@ -164,10 +163,9 @@ erDiagram
         DateTime created_at "建立時間"
         DateTime updated_at "更新時間"
     }
-
     crawl_queue {
         Integer id PK "佇列項目的主鍵"
-        String(36) job_id FK "關聯任務的 ID"
+        String(36) job_id FK "關聯任務的 ID (ON DELETE CASCADE)"
         Text url "準備爬取的網址"
         Text source_url "來源網頁網址"
         String(50) status "處理狀態"
@@ -178,10 +176,9 @@ erDiagram
         DateTime created_at "加入時間"
         DateTime updated_at "更新時間"
     }
-
     external_links {
         Integer id PK "外部連結的主鍵"
-        String(36) job_id FK "關聯任務的 ID"
+        String(36) job_id FK "關聯任務的 ID (ON DELETE CASCADE)"
         Text source_url "來源網頁網址"
         Text target_url "目標外部網址"
         String(45) ip_address "解析出的 IP 位址"
@@ -225,7 +222,7 @@ erDiagram
 | 欄位名稱 | 型別 | 限制/預設值 | 說明 |
 | :--- | :--- | :--- | :--- |
 | `id` | `Integer` | **Primary Key**, `Auto-Increment` | 佇列項目的唯一識別碼。 |
-| `job_id` | `String(36)` | **Foreign Key** (`jobs.id`) | 該網址隸屬於哪一個任務。 |
+| `job_id` | `String(36)` | **Foreign Key** (`jobs.id`, `ON DELETE CASCADE`) | 該網址隸屬於哪一個任務。 |
 | `url` | `Text` | `NOT NULL` | 準備或已經被爬取之頁面網址。 |
 | `source_url` | `Text` | `Nullable` | 發現此網址的來源網頁網址 (若是任務的起始網址則為 NULL)。 |
 | `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗), `skip` (因 MIME 或副檔名不符而跳過)。 |
@@ -239,7 +236,7 @@ erDiagram
 ##### 索引資訊 (Indexes)
 為了加快查重以及尋找下一筆 `pending` 網址的效率，此表定義了以下複合索引：
 * **`ix_crawl_queue_job_url`**: `(job_id, url)`。用於去重檢查（避免全表掃描）。
-* **`ix_crawl_queue_job_status`**: `(job_id, status)`。用於快速提取下一個待爬取的佇列網址。
+* **`ix_crawl_queue_job_status_id`**: `(job_id, status, id)`。用於極速提取下一個待爬取的佇列網址（包含排序）。
 
 #### `external_links` (發現的外部連結)
 此資料表負責記錄爬蟲分析網頁 HTML 後，過濾並蒐集到的所有**外部目標連結**，這也是本系統最主要的產出結果。
@@ -247,7 +244,7 @@ erDiagram
 | 欄位名稱 | 型別 | 限制/預設值 | 說明 |
 | :--- | :--- | :--- | :--- |
 | `id` | `Integer` | **Primary Key**, `Auto-Increment` | 外部連結紀錄的唯一識別碼。 |
-| `job_id` | `String(36)` | **Foreign Key** (`jobs.id`) | 該外部連結是在哪一個任務中被發現的。 |
+| `job_id` | `String(36)` | **Foreign Key** (`jobs.id`, `ON DELETE CASCADE`) | 該外部連結是在哪一個任務中被發現的。 |
 | `source_url` | `Text` | `NOT NULL` | 發現此外部連結的來源網頁，也就是該連結所在的母網頁。 |
 | `target_url` | `Text` | `NOT NULL` | 網頁中提取出的外部連結 `href` 本身。 |
 | `ip_address` | `String(45)` | `Nullable` | 透過 DNS 解析該 `target_url` 之網域所取得的 IPv4/IPv6 位址。若解析失敗則為 `NULL`。 |
@@ -257,5 +254,6 @@ erDiagram
 | `created_at` | `DateTime` | `Default: 當下時間` | 系統成功解析並紀錄該筆外部連結的時間。 |
 
 ##### 索引與唯一約束資訊 (Indexes & Constraints)
-* **`ix_external_links_job_src_tgt`** (複合索引): `(job_id, source_url, target_url)`。
 * **`uq_external_links_job_src_tgt`** (唯一約束): `(job_id, source_url, target_url)`。用於從資料庫層面防止在同一任務中重複記錄相同的來源母頁面與目標外部網址。
+* **`ix_external_links_job_created`** (複合索引): `(job_id, created_at)`。用於加速巨量資料的分頁與排序。
+* **`ix_external_links_job_status_ip`** (複合索引): `(job_id, http_status_code, ip_address)`。用於加速狀態統計與篩選。

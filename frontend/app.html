@@ -346,8 +346,8 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">成功連線且 HTTP 狀態碼正常的健康連結</div>
             </div>
             <div class="stat-card filter-card" data-filter="dead"
-              data-desc="DNS 解析失敗 (無法找到 IP 位址)。這屬於高風險的無主網域，可能遭到駭客搶註並植入惡意內容，建議立即移除。" data-color="var(--color-danger-400)"
-              style="padding:0.75rem">
+              data-desc="DNS 解析失敗 (無法找到 IP 位址)。有可能是高風險的無主網域，可能遭到駭客搶註並植入惡意內容，建議立即移除。"
+              data-color="var(--color-danger-400)" style="padding:0.75rem">
               <div class="stat-label text-danger">DNS 錯誤</div>
               <div class="stat-value text-danger" id="summary-dns-failed">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">主機網域找不到，代表網站關閉或遭釋出</div>
@@ -360,7 +360,7 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器錯誤或連線異常 (高風險)</div>
             </div>
             <div class="stat-card filter-card" data-filter="blocked"
-              data-desc="伺服器回傳 401, 403, 429 等狀態碼。這通常代表目標網站的 WAF (防火牆) 將我們判定為爬蟲而拒絕存取，一般使用者仍可正常瀏覽，屬低風險誤報。"
+              data-desc="伺服器回傳 401, 403, 429 等狀態碼。這通常代表爬蟲未獲授權或 WAF (應用程式防火牆) 拒絕存取，一般使用者仍可正常瀏覽。"
               data-color="var(--color-neutral-400)" style="padding:0.75rem">
               <div class="stat-label text-secondary">權限阻擋</div>
               <div class="stat-value text-secondary" id="summary-blocked">0</div>
@@ -438,57 +438,56 @@
           <!-- 內部連結診斷摘要 -->
           <div class="grid-stats"
             style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:0.75rem">
-            <div class="stat-card filter-card active" data-filter="all" data-desc="此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件總數。"
+            <div class="stat-card filter-card active" data-filter="all" data-desc="此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件。"
               data-color="var(--color-brand-400)" style="padding:0.75rem">
               <div class="stat-label">紀錄總數</div>
               <div class="stat-value text-brand" id="int-summary-total">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">包含失敗與截斷的總數量</div>
             </div>
             <div class="stat-card filter-card" data-filter="server_error"
-              data-desc="目標伺服器發生崩潰或過載 (回傳 500, 502, 503 等狀態碼)，此為最嚴重的系統級異常，需請工程師立刻排查。"
+              data-desc="目標伺服器發生崩潰或過載 (回傳 500, 502, 503 等狀態碼)，若非預期中停機，則為嚴重的系統異常，需請工程師立刻處理。"
               data-color="var(--color-danger-400)" style="padding:0.75rem">
               <div class="stat-label text-danger">伺服器異常</div>
               <div class="stat-value text-danger" id="int-summary-server-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法完成請求 (5XX)</div>
             </div>
             <div class="stat-card filter-card" data-filter="connection_error"
-              data-desc="DNS 解析失敗、SSL 憑證無效或連線被目標主機直接拒絕。這通常代表基礎網路設施或防火牆設定有誤。" data-color="var(--color-brand-400)"
+              data-desc="SSL 憑證異常、DNS 解析失敗或連線被目標主機直接拒絕。這通常代表基礎網路設施或防火牆設定有誤。" data-color="var(--color-brand-400)"
               style="padding:0.75rem">
               <div class="stat-label text-brand">底層異常</div>
               <div class="stat-value text-brand" id="int-summary-connection-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">憑證無效、DNS 異常或連線被拒</div>
             </div>
-            <div class="stat-card filter-card" data-filter="timeout"
-              data-desc="目標伺服器未能在指定的超時時間內給予回應。這通常代表伺服器效能瓶頸或網路嚴重壅塞。" data-color="var(--color-info-400)"
-              style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="timeout" data-desc="伺服器未能在指定的時間內回應。這通常代表伺服器效能瓶頸或網路嚴重壅塞。"
+              data-color="var(--color-info-400)" style="padding:0.75rem">
               <div class="stat-label text-info">連線逾時</div>
               <div class="stat-value text-info" id="int-summary-timeout">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法於時限內回復</div>
             </div>
             <div class="stat-card filter-card" data-filter="not_found"
-              data-desc="伺服器運作正常，但找不到該網址對應的網頁或資源。通常是因為網址打錯或文章已被刪除，需請內容編輯修正。" data-color="var(--color-warning-400)"
+              data-desc="伺服器運作正常，但找不到該網址對應的資源。通常是因為網址打錯或資源已被刪除，需編輯修正。" data-color="var(--color-warning-400)"
               style="padding:0.75rem">
               <div class="stat-label text-warning">資源遺失</div>
               <div class="stat-value text-warning" id="int-summary-not-found">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">資源請求失敗 (404) 或資源已刪除 (410)</div>
             </div>
             <div class="stat-card filter-card" data-filter="other_error"
-              data-desc="其他未歸類的邊界例外狀況 (例如 400 Bad Request 或 406 Not Acceptable 等防呆捕捉)。"
-              data-color="var(--color-neutral-400)" style="padding:0.75rem">
+              data-desc="其他未歸類的異常狀況 (例如請求錯誤 (400) 或格式不符 (406) 等狀況)。" data-color="var(--color-neutral-400)"
+              style="padding:0.75rem">
               <div class="stat-label text-secondary">其他異常</div>
               <div class="stat-value text-secondary" id="int-summary-other-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未預期的例外</div>
             </div>
             <div class="stat-card filter-card" data-filter="warning"
-              data-desc="網頁容量超過系統設定的最大下載容量上限，已被提早截斷。該網頁可能遺漏部分未被解析的外部連結。" data-color="var(--color-warning-500)"
+              data-desc="網頁超過系統設定的最大下載上限，已被提早截斷。該網頁可能遺漏部分未被解析的外部連結。" data-color="var(--color-warning-500)"
               style="padding:0.75rem">
               <div class="stat-label text-warning">網頁截斷</div>
               <div class="stat-value text-warning" id="int-summary-warning">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">網頁容量過大被提早截斷</div>
             </div>
             <div class="stat-card filter-card" data-filter="access_denied"
-              data-desc="遭到目標伺服器的權限阻擋或被 WAF (網頁應用程式防火牆) 判定為爬蟲而拒絕存取。這極大機率是正常的防禦行為，而非連結真實失效。"
-              data-color="var(--color-neutral-500)" style="padding:0.75rem">
+              data-desc="未獲伺服器授權或 WAF (網頁應用程式防火牆) 拒絕存取。這極大機率是正常的防禦行為，而非連結真實失效。" data-color="var(--color-neutral-500)"
+              style="padding:0.75rem">
               <div class="stat-label text-muted">權限不足</div>
               <div class="stat-value text-muted" id="int-summary-access-denied">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未獲授權 (401) 或拒絕進入 (403)</div>
@@ -503,7 +502,7 @@
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件總數。</span>
+            <span>此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件。</span>
           </div>
 
           <div class="card" style="padding:0;overflow:hidden">
@@ -610,10 +609,11 @@
                         </svg></button> 合併疊加生效 <strong>【聯集】</strong>。</div>
                   </div>
                   <div class="form-group">
-                    <label class="form-label" for="job-ssl-exempt">自簽憑證豁免網域</label>
-                    <textarea class="form-textarea" id="job-ssl-exempt" rows="2" placeholder="example.com"></textarea>
-                    <div class="form-hint" id="hint-ssl-exempt">每行一個。忽略這些網域的 SSL 驗證，將與系統全域設定 <button type="button"
-                        id="btn-view-ssl" title="檢視預設豁免網域"
+                    <label class="form-label" for="job-social-domains">社群與反爬蟲網域</label>
+                    <textarea class="form-textarea" id="job-social-domains" rows="2"
+                      placeholder="facebook.com"></textarea>
+                    <div class="form-hint" id="hint-social-domains">每行一個。將與系統全域設定 <button type="button"
+                        id="btn-view-social" title="檢視預設社群與反爬蟲網域"
                         style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
                           viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -639,11 +639,10 @@
                     </div>
                   </div>
                   <div class="form-group">
-                    <label class="form-label" for="job-social-domains">社群與反爬蟲網域</label>
-                    <textarea class="form-textarea" id="job-social-domains" rows="2"
-                      placeholder="facebook.com"></textarea>
-                    <div class="form-hint" id="hint-social-domains">每行一個。將與系統全域設定 <button type="button"
-                        id="btn-view-social" title="檢視預設社群與反爬蟲網域"
+                    <label class="form-label" for="job-ssl-exempt">自簽憑證豁免網域</label>
+                    <textarea class="form-textarea" id="job-ssl-exempt" rows="2" placeholder="example.com"></textarea>
+                    <div class="form-hint" id="hint-ssl-exempt">每行一個。忽略這些網域的 SSL 驗證，將與系統全域設定 <button type="button"
+                        id="btn-view-ssl" title="檢視預設豁免網域"
                         style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
                           viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

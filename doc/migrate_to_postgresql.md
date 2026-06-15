@@ -41,13 +41,13 @@ sudo -u postgres psql
 
 ```sql
 -- 1. 建立專用使用者（請將 'your_secure_password' 替換為您的密碼）
-CREATE USER linkchecker_user WITH PASSWORD 'your_secure_password';
+CREATE USER elc_user WITH PASSWORD 'your_secure_password';
 
 -- 2. 建立 Auth 資料庫，並將擁有權指定給該使用者
-CREATE DATABASE linkchecker_auth OWNER linkchecker_user;
+CREATE DATABASE auth_db OWNER elc_user;
 
 -- 3. 建立 Crawler 資料庫，並將擁有權指定給該使用者
-CREATE DATABASE linkchecker_crawler OWNER linkchecker_user;
+CREATE DATABASE crawler_db OWNER elc_user;
 
 -- 4. 退出 psql
 \q
@@ -63,8 +63,8 @@ CREATE DATABASE linkchecker_crawler OWNER linkchecker_user;
 
 ```ini
 # 目標 PostgreSQL 連線 DSN 設定
-AUTH_DB_URL=postgresql://linkchecker_user:your_secure_password@localhost:5432/linkchecker_auth
-CRAWLER_DB_URL=postgresql://linkchecker_user:your_secure_password@localhost:5432/linkchecker_crawler
+AUTH_DB_URL=postgresql://elc_user:your_secure_password@localhost:5432/auth_db
+CRAWLER_DB_URL=postgresql://elc_user:your_secure_password@localhost:5432/crawler_db
 ```
 
 > [!WARNING]
@@ -83,7 +83,7 @@ CRAWLER_DB_URL=postgresql://linkchecker_user:your_secure_password@localhost:5432
 專案已準備好全自動遷移工具 [migrate_sqlite_to_pg.py](file:///home/mfhsieh/projects/python/ext-link-checker/scripts/migrate_sqlite_to_pg.py)，可安全地將現存 SQLite 資料（包含使用者、Sessions、歷史任務、待爬佇列與外部連結結果）導入 PostgreSQL。
 
 ### 遷移安全機制說明：
-* **全新重建模式**：遷移工具在寫入前，會自動清除目標 PostgreSQL 資料庫中現存的資料表（透過 `drop_all`）並全新建立 schema，以防止歷史殘留資料造成的衝突。
+* **全新重建與自動優化**：遷移工具在寫入前，會自動清除目標 PostgreSQL 資料庫中現存的資料表（透過 `drop_all`）並**根據最新的 `models.py` 定義全新建立 Schema**。這確保了所有最新的**效能複合索引 (Composite Indexes)** 與 **`ON DELETE CASCADE` (防 OOM 級聯刪除)** 設定都會被自動套用，無需手動調整。
 * **外鍵約束暫停**：腳本在執行寫入時會自動在 session 中設定 `SET session_replication_role = 'replica';`，暫時停用外鍵約束與觸發器，以確保資料快速且不按順序地安全寫入，並於完成後自動恢復。
 * **分批分流寫入**：針對海量資料（如 `crawl_queue` 或 `external_links` 資料表可能多達數十萬筆），腳本會以 `batch_size = 1000` 進行分批寫入，防止記憶體溢出（OOM）。
 * **序列 (Sequence) 自動同步**：遷移結束後，腳本會自動同步並更新 PostgreSQL 的主鍵 Serial 序列值，防止後續新寫入資料時主鍵衝突。
