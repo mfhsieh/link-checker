@@ -68,6 +68,9 @@ def resolve_ip(domain: str) -> str | None:
     except socket.gaierror:
         logger.warning("無法解析此網域的 IP 位址: %s", domain)
         return None
+    except (UnicodeError, ValueError) as e:
+        logger.warning("網域解析失敗 (可能為畸形網域): %s, 錯誤: %s", domain, e)
+        return None
     except OSError as e:
         logger.error("解析 %s IP 時發生未預期錯誤: %s", domain, e)
         return None
