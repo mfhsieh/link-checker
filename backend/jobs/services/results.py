@@ -972,10 +972,10 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
 
         return {
             "total": total,
-            "not_found": not_found,
             "server_error": server_error,
-            "timeout": timeout,
             "connection_error": connection_error,
+            "timeout": timeout,
+            "not_found": not_found,
             "other_error": other_error,
             "access_denied": access_denied,
         }
@@ -1011,10 +1011,10 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
 
     return {
         "total": len(set_all),
-        "not_found": len(set_not_found),
         "server_error": len(set_server_error),
-        "timeout": len(set_timeout),
         "connection_error": len(set_connection_error),
+        "timeout": len(set_timeout),
+        "not_found": len(set_not_found),
         "other_error": len(set_other_error),
         "access_denied": len(set_access_denied),
     }

@@ -224,10 +224,10 @@ async function loadInternalResultsPage(jobId) {
 
 function renderInternalSummary(summary) {
     setTextContent('int-summary-total', summary.total ?? 0);
-    setTextContent('int-summary-not-found', summary.not_found ?? 0);
     setTextContent('int-summary-server-error', summary.server_error ?? 0);
-    setTextContent('int-summary-timeout', summary.timeout ?? 0);
     setTextContent('int-summary-connection-error', summary.connection_error ?? 0);
+    setTextContent('int-summary-timeout', summary.timeout ?? 0);
+    setTextContent('int-summary-not-found', summary.not_found ?? 0);
     setTextContent('int-summary-other-error', summary.other_error ?? 0);
     setTextContent('int-summary-access-denied', summary.access_denied ?? 0);
 }

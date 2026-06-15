@@ -32,7 +32,7 @@
 | **2. 測試規範** | 自動化整合測試與實體庫刪除 (WAL/SHM 關閉清理) | [conftest.py:L36-107](file:///home/mfhsieh/projects/python/ext-link-checker/test/e2e/conftest.py#L36-L107) | 已實作 |
 | | 非同步事件迴圈保護 (FastAPI Sync/Async 執行緒分流) | [main.py](file:///home/mfhsieh/projects/python/ext-link-checker/backend/main.py) 與 `backend/` 控制器設計 | 已實作 |
 | | 精準例外捕獲與隔離 (避開 broad exception) | 全專案程式碼規範，如捕捉 `OSError`, `ValueError` 等 | 已實作 |
-| | API 規格自動生成與同步化 | [dump_openapi.py](file:///home/mfhsieh/projects/python/ext-link-checker/scripts/dump_openapi.py) | 已實作 |
+| | API 規格自動生成與同步化 | [gen_api_doc.py](file:///home/mfhsieh/projects/python/ext-link-checker/scripts/dump_openapi.py) | 已實作 |
 | **3. 爬蟲核心** | 廣度優先巡覽 (BFS) 與 FIFO 升冪佇列 | [runner.py:L272-283](file:///home/mfhsieh/projects/python/ext-link-checker/crawler/runner.py#L272-L283) | 已實作 |
 | | 網域內遍歷限制與越界重新導向防禦 | [core.py:L196-227](file:///home/mfhsieh/projects/python/ext-link-checker/crawler/core.py#L196-L227) | 已實作 |
 | | 多標籤外連靜態資源與表單 Action 偵測 | [core.py:L379-444](file:///home/mfhsieh/projects/python/ext-link-checker/crawler/core.py#L379-L444) | 已實作 |
