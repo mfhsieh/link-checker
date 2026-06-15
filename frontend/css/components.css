@@ -761,6 +761,11 @@ body.modal-open {
   overflow: hidden !important;
 }
 
+body.modal-open .main-content,
+body.modal-open .sidebar {
+  overflow: hidden !important;
+}
+
 .modal-overlay {
   overscroll-behavior: contain;
 }

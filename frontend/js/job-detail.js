@@ -262,7 +262,7 @@ function renderInternalResultsTable(res, containerEl) {
         titleEl.textContent = '太棒了！';
         const descEl = document.createElement('div');
         descEl.className = 'empty-state-desc';
-        descEl.textContent = '您的網站內部沒有任何失效連結 (404/500 等錯誤)。';
+        descEl.textContent = '您的網站內部沒有這類錯誤。';
         emptyStateEl.appendChild(titleEl);
         emptyStateEl.appendChild(descEl);
         containerEl.appendChild(emptyStateEl);
@@ -955,10 +955,10 @@ function renderResultsTable(res, containerEl) {
         emptyStateEl.className = 'empty-state';
         const titleEl = document.createElement('div');
         titleEl.className = 'empty-state-title';
-        titleEl.textContent = '無結果';
+        titleEl.textContent = '太棒了！';
         const descEl = document.createElement('div');
         descEl.className = 'empty-state-desc';
-        descEl.textContent = '目前沒有符合條件的外連結果';
+        descEl.textContent = '您的外部連結沒有這類錯誤。';
         emptyStateEl.appendChild(titleEl);
         emptyStateEl.appendChild(descEl);
         containerEl.appendChild(emptyStateEl);
