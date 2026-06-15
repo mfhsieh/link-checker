@@ -533,6 +533,12 @@
   transition: all var(--transition-base);
 }
 
+.filter-card:active {
+  transform: translateY(1px) scale(0.98) !important;
+  box-shadow: none !important;
+  transition: all 0.05s !important;
+}
+
 .filter-card.active {
   border-color: var(--color-brand-400) !important;
   background: hsla(221, 83%, 53%, 0.15) !important;

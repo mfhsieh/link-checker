@@ -98,10 +98,28 @@ export async function initJobDetailPage(jobId) {
 
     // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
     document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
-        c.classList.toggle('active', c.dataset.filter === 'all');
+        const isActive = c.dataset.filter === 'all';
+        c.classList.toggle('active', isActive);
+        if (isActive) {
+            const descBox = document.getElementById('int-filter-desc');
+            if (descBox) {
+                descBox.style.borderLeftColor = c.dataset.color || 'var(--color-brand-400)';
+                const span = descBox.querySelector('span');
+                if (span) span.textContent = c.dataset.desc;
+            }
+        }
     });
     document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(c => {
-        c.classList.toggle('active', c.dataset.filter === 'all');
+        const isActive = c.dataset.filter === 'all';
+        c.classList.toggle('active', isActive);
+        if (isActive) {
+            const descBox = document.getElementById('ext-filter-desc');
+            if (descBox) {
+                descBox.style.borderLeftColor = c.dataset.color || 'var(--color-brand-400)';
+                const span = descBox.querySelector('span');
+                if (span) span.textContent = c.dataset.desc;
+            }
+        }
     });
     const groupSelectEl = document.getElementById('results-group-select');
     if (groupSelectEl) groupSelectEl.value = 'none';
@@ -1453,10 +1471,24 @@ function bindResultsControls() {
             const filter = chip.dataset.filter;
             _currentFilter = (_currentFilter === filter || filter === 'all') ? null : filter;
             _currentPage = 1;
+
+            let activeDesc = '';
+            let activeColor = 'var(--color-brand-400)';
+
             document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(c => {
                 const isActive = _currentFilter === c.dataset.filter || (_currentFilter === null && c.dataset.filter === 'all');
                 c.classList.toggle('active', isActive);
+                if (isActive) {
+                    activeDesc = c.dataset.desc;
+                    activeColor = c.dataset.color || 'var(--color-brand-400)';
+                }
             });
+            const descBox = document.getElementById('ext-filter-desc');
+            if (descBox) {
+                descBox.style.borderLeftColor = activeColor;
+                const span = descBox.querySelector('span');
+                if (span) span.textContent = activeDesc;
+            }
             await loadResultsPage(_currentJobId);
         });
     });
@@ -1466,10 +1498,24 @@ function bindResultsControls() {
             const filter = chip.dataset.filter;
             _internalFilter = (_internalFilter === filter || filter === 'all') ? null : filter;
             _internalCurrentPage = 1;
+
+            let activeDesc = '';
+            let activeColor = 'var(--color-brand-400)';
+
             document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
                 const isActive = _internalFilter === c.dataset.filter || (_internalFilter === null && c.dataset.filter === 'all');
                 c.classList.toggle('active', isActive);
+                if (isActive) {
+                    activeDesc = c.dataset.desc;
+                    activeColor = c.dataset.color || 'var(--color-brand-400)';
+                }
             });
+            const descBox = document.getElementById('int-filter-desc');
+            if (descBox) {
+                descBox.style.borderLeftColor = activeColor;
+                const span = descBox.querySelector('span');
+                if (span) span.textContent = activeDesc;
+            }
             await loadInternalResultsPage(_currentJobId);
         });
     });

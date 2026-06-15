@@ -331,32 +331,52 @@
         <div id="tab-content-external">
           <!-- 外連結果摘要 -->
           <div class="grid-stats"
-            style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:1.5rem">
-            <div class="stat-card filter-card" data-filter="all" style="padding:0.75rem">
+            style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:0.75rem">
+            <div class="stat-card filter-card active" data-filter="all" data-desc="此任務探索到的所有不重複外部連結總數，包含正常與失效的連結。"
+              data-color="var(--color-brand-400)" style="padding:0.75rem">
               <div class="stat-label">連結總數</div>
               <div class="stat-value" id="summary-total">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">不重複的外部連結總數量</div>
             </div>
-            <div class="stat-card filter-card" data-filter="healthy" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="healthy"
+              data-desc="外部目標主機可正常解析，且回傳 2XX 或 3XX 狀態碼，代表連結可正常存取。" data-color="var(--color-success-400)"
+              style="padding:0.75rem">
               <div class="stat-label text-success">正常連結</div>
               <div class="stat-value text-success" id="summary-healthy">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">成功連線且 HTTP 狀態碼正常的健康連結</div>
             </div>
-            <div class="stat-card filter-card" data-filter="dead" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="dead"
+              data-desc="DNS 解析失敗 (無法找到 IP 位址)。這屬於高風險的無主網域，可能遭到駭客搶註並植入惡意內容，建議立即移除。" data-color="var(--color-danger-400)"
+              style="padding:0.75rem">
               <div class="stat-label text-danger">DNS 錯誤</div>
               <div class="stat-value text-danger" id="summary-dns-failed">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">主機網域找不到，代表網站關閉或遭釋出</div>
             </div>
-            <div class="stat-card filter-card" data-filter="broken" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="broken"
+              data-desc="伺服器回傳 4XX 或 5XX 錯誤狀態碼，或發生連線逾時、憑證失效等底層網路錯誤。" data-color="var(--color-danger-400)"
+              style="padding:0.75rem">
               <div class="stat-label text-danger">HTTP 錯誤</div>
               <div class="stat-value text-danger" id="summary-http-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器回傳錯誤 (如 404) 或發生連線異常</div>
             </div>
-            <div class="stat-card filter-card" data-filter="insecure" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="insecure"
+              data-desc="連結仍使用未加密的 HTTP 協定進行傳輸，容易遭到中間人監聽或劫持，建議將其升級為 HTTPS。" data-color="var(--color-warning-400)"
+              style="padding:0.75rem">
               <div class="stat-label text-warning">非 HTTPS</div>
               <div class="stat-value text-warning" id="summary-insecure">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">使用明文 HTTP 傳輸的不安全連結</div>
             </div>
+          </div>
+          <!-- 卡片說明區塊 -->
+          <div id="ext-filter-desc" class="text-sm text-muted"
+            style="margin-bottom: 1.5rem; padding: 0.625rem 0.875rem; background: var(--surface-raised); border-radius: var(--radius-md); border-left: 3px solid var(--color-brand-400); display: flex; align-items: center; gap: 0.5rem; transition: border-color var(--transition-base);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              style="width:16px;height:16px;flex-shrink:0">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>此任務探索到的所有不重複外部連結總數，包含正常與失效的連結。</span>
           </div>
 
           <!-- 外連結果 -->
@@ -410,42 +430,66 @@
         <div id="tab-content-internal" style="display:none">
           <!-- 內部連結診斷摘要 -->
           <div class="grid-stats"
-            style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:1.5rem">
-            <div class="stat-card filter-card active" data-filter="all" style="padding:0.75rem">
+            style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:0.75rem">
+            <div class="stat-card filter-card active" data-filter="all" data-desc="此任務在您的網站內部爬行時，遭遇的所有異常與抓取失敗事件總數。"
+              data-color="var(--color-brand-400)" style="padding:0.75rem">
               <div class="stat-label">連結總數</div>
               <div class="stat-value text-danger" id="int-summary-total">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">不重複的爬蟲抓取失敗總數量</div>
             </div>
-            <div class="stat-card filter-card" data-filter="server_error" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="server_error"
+              data-desc="目標伺服器發生崩潰或過載 (回傳 500, 502, 503 等狀態碼)，此為最嚴重的系統級異常，需請工程師立刻排查。"
+              data-color="var(--color-danger-400)" style="padding:0.75rem">
               <div class="stat-label text-danger">伺服器異常</div>
               <div class="stat-value text-danger" id="int-summary-server-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法完成請求 (5XX)</div>
             </div>
-            <div class="stat-card filter-card" data-filter="connection_error" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="connection_error"
+              data-desc="DNS 解析失敗、SSL 憑證無效或連線被目標主機直接拒絕。這通常代表基礎網路設施或防火牆設定有誤。" data-color="var(--color-brand-400)"
+              style="padding:0.75rem">
               <div class="stat-label text-brand">底層異常</div>
               <div class="stat-value text-brand" id="int-summary-connection-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">憑證無效、DNS 異常或連線被拒</div>
             </div>
-            <div class="stat-card filter-card" data-filter="timeout" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="timeout"
+              data-desc="目標伺服器未能在指定的超時時間內給予回應。這通常代表伺服器效能瓶頸或網路嚴重壅塞。" data-color="var(--color-info-400)"
+              style="padding:0.75rem">
               <div class="stat-label text-info">連線逾時</div>
               <div class="stat-value text-info" id="int-summary-timeout">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法於時限內回復</div>
             </div>
-            <div class="stat-card filter-card" data-filter="not_found" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="not_found"
+              data-desc="伺服器運作正常，但找不到該網址對應的網頁或資源。通常是因為網址打錯或文章已被刪除，需請內容編輯修正。" data-color="var(--color-warning-400)"
+              style="padding:0.75rem">
               <div class="stat-label text-warning">資源遺失</div>
               <div class="stat-value text-warning" id="int-summary-not-found">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">資源請求失敗 (404) 或資源已刪除 (410)</div>
             </div>
-            <div class="stat-card filter-card" data-filter="other_error" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="other_error"
+              data-desc="其他未歸類的邊界例外狀況 (例如 400 Bad Request 或 406 Not Acceptable 等防呆捕捉)。"
+              data-color="var(--color-neutral-400)" style="padding:0.75rem">
               <div class="stat-label text-secondary">其他異常</div>
               <div class="stat-value text-secondary" id="int-summary-other-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未預期的例外</div>
             </div>
-            <div class="stat-card filter-card" data-filter="access_denied" style="padding:0.75rem">
+            <div class="stat-card filter-card" data-filter="access_denied"
+              data-desc="遭到目標伺服器的權限阻擋或被 WAF (網頁應用程式防火牆) 判定為爬蟲而拒絕存取。這極大機率是正常的防禦行為，而非連結真實失效。"
+              data-color="var(--color-neutral-500)" style="padding:0.75rem">
               <div class="stat-label text-muted">權限不足</div>
               <div class="stat-value text-muted" id="int-summary-access-denied">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未獲授權 (401) 或拒絕進入 (403)</div>
             </div>
+          </div>
+          <!-- 卡片說明區塊 -->
+          <div id="int-filter-desc" class="text-sm text-muted"
+            style="margin-bottom: 1.5rem; padding: 0.625rem 0.875rem; background: var(--surface-raised); border-radius: var(--radius-md); border-left: 3px solid var(--color-brand-400); display: flex; align-items: center; gap: 0.5rem; transition: border-color var(--transition-base);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              style="width:16px;height:16px;flex-shrink:0">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>此任務在您的網站內部爬行時，遭遇的所有異常與抓取失敗事件總數。</span>
           </div>
 
           <div class="card" style="padding:0;overflow:hidden">
