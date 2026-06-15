@@ -225,6 +225,22 @@ def apply_job_result_filters(
                 & (ExternalLink.ip_address != "")
             )
         )
+    elif status_filter == "not_found":
+        query = query.filter(ExternalLink.http_status_code.in_([404, 410]))
+    elif status_filter == "server_error":
+        query = query.filter(ExternalLink.http_status_code >= 500)
+    elif status_filter == "connection_error":
+        query = query.filter(
+            (ExternalLink.http_status_code.is_(None))
+            & (ExternalLink.ip_address.isnot(None))
+            & (ExternalLink.ip_address != "")
+        )
+    elif status_filter == "other_error":
+        query = query.filter(
+            (ExternalLink.http_status_code >= 400)
+            & (ExternalLink.http_status_code < 500)
+            & (~ExternalLink.http_status_code.in_([404, 410, 401, 403, 405, 406, 429]))
+        )
     elif status_filter == "blocked":
         query = query.filter(ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]))
     elif status_filter == "insecure":

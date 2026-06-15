@@ -320,7 +320,10 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
     """
     set_all = set()
     set_dns_failed = set()
-    set_http_errors = set()
+    set_not_found = set()
+    set_server_error = set()
+    set_connection_error = set()
+    set_other_error = set()
     set_blocked = set()
     set_insecure = set()
     set_healthy = set()
@@ -338,18 +341,26 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
         set_all.add(key)
 
         is_dns_failed = not lnk.ip_address
-        is_blocked = lnk.http_status_code in (401, 403, 405, 406, 429)
-        is_http_error = not is_blocked and (
-            (lnk.http_status_code is not None and lnk.http_status_code >= 400)
-            or (lnk.http_status_code is None and bool(lnk.ip_address))
-        )
+        c = lnk.http_status_code
+        is_blocked = c in (401, 403, 405, 406, 429)
         is_insecure = not lnk.is_secure
-        is_healthy = bool(lnk.ip_address) and lnk.http_status_code is not None and lnk.http_status_code < 400
+        is_healthy = bool(lnk.ip_address) and c is not None and c < 400
+
+        is_not_found = c in (404, 410)
+        is_server_error = c is not None and c >= 500
+        is_connection_error = c is None and bool(lnk.ip_address)
+        is_other_error = c is not None and c >= 400 and c < 500 and not is_blocked and not is_not_found
 
         if is_dns_failed:
             set_dns_failed.add(key)
-        if is_http_error:
-            set_http_errors.add(key)
+        if is_not_found:
+            set_not_found.add(key)
+        if is_server_error:
+            set_server_error.add(key)
+        if is_connection_error:
+            set_connection_error.add(key)
+        if is_other_error:
+            set_other_error.add(key)
         if is_blocked:
             set_blocked.add(key)
         if is_insecure:
@@ -360,7 +371,10 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
     return {
         "total_external": len(set_all),
         "dns_failed": len(set_dns_failed),
-        "http_errors": len(set_http_errors),
+        "not_found": len(set_not_found),
+        "server_error": len(set_server_error),
+        "connection_error": len(set_connection_error),
+        "other_error": len(set_other_error),
         "blocked": len(set_blocked),
         "insecure": len(set_insecure),
         "healthy_count": len(set_healthy),
@@ -407,23 +421,30 @@ def get_results_summary(
                     else_=0,
                 )
             ).label("dns_failed"),
+            sql_sum(case((ExternalLink.http_status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
+            sql_sum(case((ExternalLink.http_status_code >= 500, 1), else_=0)).label("server_error"),
             sql_sum(
                 case(
                     (
-                        (
-                            (ExternalLink.http_status_code >= 400)
-                            & (~ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]))
-                        )
-                        | (
-                            (ExternalLink.http_status_code.is_(None))
-                            & (ExternalLink.ip_address.isnot(None))
-                            & (ExternalLink.ip_address != "")
-                        ),
+                        (ExternalLink.http_status_code.is_(None))
+                        & (ExternalLink.ip_address.isnot(None))
+                        & (ExternalLink.ip_address != ""),
                         1,
                     ),
                     else_=0,
                 )
-            ).label("http_errors"),
+            ).label("connection_error"),
+            sql_sum(
+                case(
+                    (
+                        (ExternalLink.http_status_code >= 400)
+                        & (ExternalLink.http_status_code < 500)
+                        & (~ExternalLink.http_status_code.in_([404, 410, 401, 403, 405, 406, 429])),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("other_error"),
             sql_sum(case((ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]), 1), else_=0)).label("blocked"),
             sql_sum(case((ExternalLink.is_secure.is_(False), 1), else_=0)).label("insecure"),
         ).filter(ExternalLink.job_id == job_id)
@@ -434,11 +455,16 @@ def get_results_summary(
 
         total_external = int(stats.total) if stats and stats.total else 0
         dns_failed = int(stats.dns_failed) if stats and stats.dns_failed else 0
-        http_errors = int(stats.http_errors) if stats and stats.http_errors else 0
+        not_found = int(stats.not_found) if stats and stats.not_found else 0
+        server_error = int(stats.server_error) if stats and stats.server_error else 0
+        connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
+        other_error = int(stats.other_error) if stats and stats.other_error else 0
         blocked = int(stats.blocked) if stats and stats.blocked else 0
         insecure = int(stats.insecure) if stats and stats.insecure else 0
 
-        healthy_count = total_external - dns_failed - http_errors - blocked
+        healthy_count = (
+            total_external - dns_failed - not_found - server_error - connection_error - other_error - blocked
+        )
 
     else:
         query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
@@ -446,7 +472,10 @@ def get_results_summary(
         stats_dict = _get_grouped_results_summary(query, group_by)
         total_external = stats_dict["total_external"]
         dns_failed = stats_dict["dns_failed"]
-        http_errors = stats_dict["http_errors"]
+        not_found = stats_dict["not_found"]
+        server_error = stats_dict["server_error"]
+        connection_error = stats_dict["connection_error"]
+        other_error = stats_dict["other_error"]
         blocked = stats_dict["blocked"]
         insecure = stats_dict["insecure"]
         healthy_count = stats_dict["healthy_count"]
@@ -457,7 +486,10 @@ def get_results_summary(
         "total_external_links": total_external,
         "healthy_count": healthy_count,
         "dns_failed_count": dns_failed,
-        "http_error_count": http_errors,
+        "not_found_count": not_found,
+        "server_error_count": server_error,
+        "connection_error_count": connection_error,
+        "other_error_count": other_error,
         "blocked_count": blocked,
         "insecure_count": insecure,
     }

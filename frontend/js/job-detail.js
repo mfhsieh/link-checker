@@ -952,7 +952,10 @@ function renderResultsSummary(summary) {
     setTextContent('summary-total', summary.total_external_links ?? 0);
     setTextContent('summary-healthy', summary.healthy_count ?? 0);
     setTextContent('summary-dns-failed', summary.dns_failed_count ?? 0);
-    setTextContent('summary-http-error', summary.http_error_count ?? 0);
+    setTextContent('summary-not-found', summary.not_found_count ?? 0);
+    setTextContent('summary-server-error', summary.server_error_count ?? 0);
+    setTextContent('summary-connection-error', summary.connection_error_count ?? 0);
+    setTextContent('summary-other-error', summary.other_error_count ?? 0);
     setTextContent('summary-blocked', summary.blocked_count ?? 0);
     setTextContent('summary-insecure', summary.insecure_count ?? 0);
 }
