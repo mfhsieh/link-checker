@@ -648,7 +648,7 @@ function renderJobInfo(job) {
 
     const progress = job.progress || {};
     const total = progress.total || 0;
-    const done = (progress.completed || 0) + (progress.skipped || 0) + (progress.failed || 0);
+    const done = (progress.completed || 0) + (progress.skipped || 0) + (progress.failed || 0) + (progress.warning || 0);
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
     const progressFillEl = el('job-progress-fill');
@@ -658,6 +658,7 @@ function renderJobInfo(job) {
 
     setTextContent('stat-total', total);
     setTextContent('stat-completed', progress.completed || 0);
+    setTextContent('stat-warning', progress.warning || 0);
     setTextContent('stat-pending', progress.pending || 0);
     setTextContent('stat-skipped', progress.skipped || 0);
     setTextContent('stat-failed', progress.failed || 0);
