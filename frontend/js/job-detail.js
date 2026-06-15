@@ -247,6 +247,7 @@ function renderInternalSummary(summary) {
     setTextContent('int-summary-timeout', summary.timeout ?? 0);
     setTextContent('int-summary-not-found', summary.not_found ?? 0);
     setTextContent('int-summary-other-error', summary.other_error ?? 0);
+    setTextContent('int-summary-warning', summary.warning ?? 0);
     setTextContent('int-summary-access-denied', summary.access_denied ?? 0);
 }
 
@@ -262,7 +263,7 @@ function renderInternalResultsTable(res, containerEl) {
         titleEl.textContent = '太棒了！';
         const descEl = document.createElement('div');
         descEl.className = 'empty-state-desc';
-        descEl.textContent = '您的網站內部沒有這類錯誤。';
+        descEl.textContent = '您的網站內部沒有這類問題。';
         emptyStateEl.appendChild(titleEl);
         emptyStateEl.appendChild(descEl);
         containerEl.appendChild(emptyStateEl);
@@ -366,6 +367,10 @@ function getInternalStatusColorClass(code, errMsg) {
         if (msg.includes('timeout') || msg.includes('timed out')) return 'text-info';
         return 'text-brand';
     }
+
+    const msg = String(errMsg || '').toLowerCase();
+    if (msg.includes('截斷')) return 'text-warning';
+
     const c = parseInt(code, 10);
     if (c === 401 || c === 403) return 'text-muted';
     if (c === 404 || c === 410) return 'text-warning';
@@ -379,6 +384,10 @@ function getInternalBadgeClass(code, errMsg) {
         if (msg.includes('timeout') || msg.includes('timed out')) return 'badge-info';
         return 'badge-admin';
     }
+
+    const msg = String(errMsg || '').toLowerCase();
+    if (msg.includes('截斷')) return 'badge-warning';
+
     const c = parseInt(code, 10);
     if (c === 401 || c === 403) return 'badge-pending';
     if (c === 404 || c === 410) return 'badge-warning';

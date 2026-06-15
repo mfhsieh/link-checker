@@ -865,7 +865,7 @@ def stream_internal_errors(
     if not job or job.user_id != user_id:
         raise ValueError("無權限存取此任務。")
 
-    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
     query = apply_internal_result_filters(query, status_filter)
 
     if group_by == "source":
@@ -895,24 +895,29 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
         return query
 
     if status_filter == "not_found":
-        query = query.filter(CrawlQueue.status_code.in_([404, 410]))
+        query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code.in_([404, 410]))
     elif status_filter == "server_error":
-        query = query.filter(CrawlQueue.status_code >= 500)
+        query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code >= 500)
     elif status_filter == "access_denied":
-        query = query.filter(CrawlQueue.status_code.in_([401, 403]))
+        query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code.in_([401, 403]))
     elif status_filter == "timeout":
         query = query.filter(
+            CrawlQueue.status == "failed",
             CrawlQueue.status_code.is_(None),
             (CrawlQueue.error_message.ilike("%timeout%")) | (CrawlQueue.error_message.ilike("%timed out%")),
         )
     elif status_filter == "connection_error":
         query = query.filter(
+            CrawlQueue.status == "failed",
             CrawlQueue.status_code.is_(None),
             ~CrawlQueue.error_message.ilike("%timeout%"),
             ~CrawlQueue.error_message.ilike("%timed out%"),
         )
+    elif status_filter == "warning":
+        query = query.filter(CrawlQueue.status == "warning")
     elif status_filter == "other_error":
         query = query.filter(
+            CrawlQueue.status == "failed",
             CrawlQueue.status_code.isnot(None),
             ~CrawlQueue.status_code.in_([404, 410, 401, 403]),
             CrawlQueue.status_code < 500,
@@ -938,7 +943,8 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
             sql_sum(
                 case(
                     (
-                        (CrawlQueue.status_code.is_(None))
+                        (CrawlQueue.status == "failed")
+                        & (CrawlQueue.status_code.is_(None))
                         & (
                             (CrawlQueue.error_message.ilike("%timeout%"))
                             | (CrawlQueue.error_message.ilike("%timed out%"))
@@ -951,7 +957,8 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
             sql_sum(
                 case(
                     (
-                        (CrawlQueue.status_code.is_(None))
+                        (CrawlQueue.status == "failed")
+                        & (CrawlQueue.status_code.is_(None))
                         & (~CrawlQueue.error_message.ilike("%timeout%"))
                         & (~CrawlQueue.error_message.ilike("%timed out%")),
                         1,
@@ -959,7 +966,8 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
                     else_=0,
                 )
             ).label("connection_error"),
-        ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+            sql_sum(case((CrawlQueue.status == "warning", 1), else_=0)).label("warning"),
+        ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
 
         stats = query.first()
         total = int(stats.total) if stats and stats.total else 0
@@ -968,7 +976,8 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
         access_denied = int(stats.access_denied) if stats and stats.access_denied else 0
         timeout = int(stats.timeout) if stats and stats.timeout else 0
         connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
-        other_error = total - not_found - server_error - access_denied - timeout - connection_error
+        warning = int(stats.warning) if stats and stats.warning else 0
+        other_error = total - not_found - server_error - access_denied - timeout - connection_error - warning
 
         return {
             "total": total,
@@ -977,6 +986,7 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
             "timeout": timeout,
             "not_found": not_found,
             "other_error": other_error,
+            "warning": warning,
             "access_denied": access_denied,
         }
 
@@ -987,8 +997,9 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
     set_timeout = set()
     set_connection_error = set()
     set_other_error = set()
+    set_warning = set()
 
-    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
     for q in query.yield_per(2000):
         key = q.source_url or "" if group_by == "source" else q.id
         set_all.add(key)
@@ -996,7 +1007,9 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
         c = q.status_code
         msg = str(q.error_message or "").lower()
 
-        if c in (404, 410):
+        if q.status == "warning":
+            set_warning.add(key)
+        elif c in (404, 410):
             set_not_found.add(key)
         elif c is not None and c >= 500:
             set_server_error.add(key)
@@ -1016,6 +1029,7 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
         "timeout": len(set_timeout),
         "not_found": len(set_not_found),
         "other_error": len(set_other_error),
+        "warning": len(set_warning),
         "access_denied": len(set_access_denied),
     }
 
@@ -1056,7 +1070,7 @@ def get_internal_errors(
     if not job or job.user_id != user_id:
         raise ValueError("無權限存取此任務。")
 
-    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed")
+    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
     query = apply_internal_result_filters(query, status_filter)
 
     import json

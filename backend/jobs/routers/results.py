@@ -152,7 +152,7 @@ def get_internal_results(
     status_filter: str | None = Query(
         None,
         alias="filter",
-        pattern="^(not_found|server_error|access_denied|timeout|connection_error|other_error|all)$",
+        pattern="^(not_found|server_error|access_denied|timeout|connection_error|other_error|warning|all)$",
     ),
     group_by: str = Query("none", pattern="^(none|source)$"),
     page: int = Query(1, ge=1),

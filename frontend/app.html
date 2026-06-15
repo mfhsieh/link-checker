@@ -353,7 +353,7 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">主機網域找不到，代表網站關閉或遭釋出</div>
             </div>
             <div class="stat-card filter-card" data-filter="broken"
-              data-desc="伺服器回傳 4XX 或 5XX 錯誤狀態碼 (包含遭 WAF 防火牆阻擋 (429) 或權限不足 (401, 403) 等)，或發生連線逾時、憑證失效等底層網路錯誤。"
+              data-desc="伺服器回傳 4XX 或 5XX 錯誤狀態碼 (可能遭 WAF 防火牆阻擋或權限不足)，或發生連線逾時、憑證失效等底層網路錯誤。"
               data-color="var(--color-danger-400)" style="padding:0.75rem">
               <div class="stat-label text-danger">HTTP 錯誤</div>
               <div class="stat-value text-danger" id="summary-http-error">0</div>
@@ -431,11 +431,11 @@
           <!-- 內部連結診斷摘要 -->
           <div class="grid-stats"
             style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:0.75rem">
-            <div class="stat-card filter-card active" data-filter="all" data-desc="此任務在您的網站內部爬行時，遭遇的所有異常與抓取失敗事件總數。"
+            <div class="stat-card filter-card active" data-filter="all" data-desc="此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件總數。"
               data-color="var(--color-brand-400)" style="padding:0.75rem">
-              <div class="stat-label">連結總數</div>
-              <div class="stat-value text-danger" id="int-summary-total">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">不重複的爬蟲抓取失敗總數量</div>
+              <div class="stat-label">紀錄總數</div>
+              <div class="stat-value text-brand" id="int-summary-total">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">包含失敗與截斷的總數量</div>
             </div>
             <div class="stat-card filter-card" data-filter="server_error"
               data-desc="目標伺服器發生崩潰或過載 (回傳 500, 502, 503 等狀態碼)，此為最嚴重的系統級異常，需請工程師立刻排查。"
@@ -472,6 +472,13 @@
               <div class="stat-value text-secondary" id="int-summary-other-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未預期的例外</div>
             </div>
+            <div class="stat-card filter-card" data-filter="warning"
+              data-desc="網頁容量超過系統設定的最大下載容量上限，已被提早截斷。該網頁可能遺漏部分未被解析的外部連結。" data-color="var(--color-warning-500)"
+              style="padding:0.75rem">
+              <div class="stat-label text-warning">網頁截斷</div>
+              <div class="stat-value text-warning" id="int-summary-warning">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">網頁容量過大被提早截斷</div>
+            </div>
             <div class="stat-card filter-card" data-filter="access_denied"
               data-desc="遭到目標伺服器的權限阻擋或被 WAF (網頁應用程式防火牆) 判定為爬蟲而拒絕存取。這極大機率是正常的防禦行為，而非連結真實失效。"
               data-color="var(--color-neutral-500)" style="padding:0.75rem">
@@ -489,7 +496,7 @@
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
-            <span>此任務在您的網站內部爬行時，遭遇的所有異常與抓取失敗事件總數。</span>
+            <span>此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件總數。</span>
           </div>
 
           <div class="card" style="padding:0;overflow:hidden">
