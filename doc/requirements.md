@@ -127,6 +127,8 @@
 * **巨量資料刪除與 OOM 防禦 (Bulk Deletion & OOM Prevention)**：
   * **被動級聯刪除 (Passive Deletes)**：為防範刪除大型任務時，ORM 將數十萬筆的子紀錄（如佇列與外連結果）載入記憶體逐筆刪除而引發伺服器 OOM (記憶體耗盡) 崩潰，資料庫層級必須強制設定外鍵之 `ON DELETE CASCADE`，並於 ORM 關聯明確設定 `passive_deletes=True`，將級聯刪除操作全權交由底層資料庫引擎極速處理。
   * **無同步批次刪除 (Evaluate-Free Bulk Deletion)**：執行資料表批次刪除（如任務重置）時，ORM 之 `delete()` 操作必須強制搭配 `synchronize_session=False` 參數，略過極耗資源的記憶體物件比對與狀態同步，確保直接發送純 SQL 指令至資料庫，將 Python 記憶體消耗降至最低。
+* **高併發複合索引優化 (Composite Indexing for High Concurrency)**：
+  * **減少資料庫排序與全表掃描成本**：為解決在 1GB RAM 等微型雲端主機環境下 PostgreSQL 的 CPU 過載問題，系統對頻繁查詢的資料表強制建立「複合索引 (Composite Index)」。如在 `CrawlQueue` 建立 `(job_id, status, id)` 索引，消除爬蟲高頻獲取任務時的排序負擔；在 `ExternalLink` 建立 `(job_id, created_at)` 與 `(job_id, http_status_code, ip_address)` 索引，使巨量資料分頁與狀態統計能完全透過 Index Scan 執行，避免全表掃描引發 CPU 與記憶體風暴。此策略亦完全相容並加速 SQLite 的本地查詢。
 * **任務生命週期管理與多使用者隔離**：
   * **多使用者任務隔離**：系統支援在建立或恢復任務時，將任務綁定至特定的使用者識別碼 (`user_id`)，以利多使用者共享系統時的任務歸屬辨識，且支援依使用者識別碼對所有任務進行列表與查詢過濾。
   * **任務移交機制 (Job Transfer)**：支援將任務的所有權在不同的管理員/使用者之間移交，移交後原帳號即失去該任務的存取權，以補足多使用者協作下的任務管理閉環。

@@ -127,7 +127,7 @@ class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
     __tablename__ = "crawl_queue"
     __table_args__ = (
         Index("ix_crawl_queue_job_url", "job_id", "url"),
-        Index("ix_crawl_queue_job_status", "job_id", "status"),
+        Index("ix_crawl_queue_job_status_id", "job_id", "status", "id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -161,13 +161,14 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
 
     __tablename__ = "external_links"
     __table_args__ = (
-        Index("ix_external_links_job_src_tgt", "job_id", "source_url", "target_url"),
         UniqueConstraint(
             "job_id",
             "source_url",
             "target_url",
             name="uq_external_links_job_src_tgt",
         ),
+        Index("ix_external_links_job_created", "job_id", "created_at"),
+        Index("ix_external_links_job_status_ip", "job_id", "http_status_code", "ip_address"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
