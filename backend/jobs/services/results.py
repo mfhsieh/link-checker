@@ -5,7 +5,7 @@
 
 import logging
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 
 from sqlalchemy import case, cast, String, asc, desc
 from sqlalchemy.orm import Query
@@ -23,12 +23,12 @@ from crawler.utils import (
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _group_by_target(links: list[ExternalLink]) -> list[dict[str, object]]:
+def _group_by_target(links: Iterable[ExternalLink]) -> list[dict[str, object]]:
     """
     依外部目標連結去重聚合。
 
     Args:
-        links (list[ExternalLink]): 欲聚合的外連記錄列表。
+        links (Iterable[ExternalLink]): 欲聚合的外連記錄迭代器。
 
     Returns:
         list[dict[str, object]]: 聚合後的結果列表。
@@ -60,12 +60,12 @@ def _group_by_target(links: list[ExternalLink]) -> list[dict[str, object]]:
     return [{**v, "source_urls": sorted(list(v["source_urls"]))[:10]} for v in agg.values()]
 
 
-def _group_by_domain(links: list[ExternalLink]) -> list[dict[str, object]]:
+def _group_by_domain(links: Iterable[ExternalLink]) -> list[dict[str, object]]:
     """
     依外部目標網域聚合，產出網域分佈統計報表。
 
     Args:
-        links (list[ExternalLink]): 欲聚合的外連記錄列表。
+        links (Iterable[ExternalLink]): 欲聚合的外連記錄迭代器。
 
     Returns:
         list[dict[str, object]]: 聚合後的結果列表。
@@ -100,12 +100,12 @@ def _group_by_domain(links: list[ExternalLink]) -> list[dict[str, object]]:
     return result
 
 
-def _group_by_source(links: list[ExternalLink]) -> list[dict[str, object]]:
+def _group_by_source(links: Iterable[ExternalLink]) -> list[dict[str, object]]:
     """
     依自家網頁(Source URL)聚合，產出修補視角報表。
 
     Args:
-        links (list[ExternalLink]): 欲聚合的外連記錄列表。
+        links (Iterable[ExternalLink]): 欲聚合的外連記錄迭代器。
 
     Returns:
         list[dict[str, object]]: 聚合後的結果列表。
@@ -212,15 +212,15 @@ def get_job_results(
         return items_list
 
     if query_args.group_by == "target":
-        links = query.order_by(ExternalLink.created_at).all()
+        links = query.order_by(ExternalLink.created_at).yield_per(2000)
         items_list = _group_by_target(links)
         items_list = apply_py_filter_sort(items_list)
     elif query_args.group_by == "source":
-        links = query.order_by(ExternalLink.created_at).all()
+        links = query.order_by(ExternalLink.created_at).yield_per(2000)
         items_list = _group_by_source(links)
         items_list = apply_py_filter_sort(items_list)
     elif query_args.group_by == "domain":
-        links = query.order_by(ExternalLink.created_at).all()
+        links = query.order_by(ExternalLink.created_at).yield_per(2000)
         items_list = _group_by_domain(links)
         items_list = apply_py_filter_sort(items_list)
     else:
@@ -1100,7 +1100,7 @@ def get_internal_errors(
         return items_list
 
     if group_by == "source":
-        links = query.order_by(CrawlQueue.id).all()
+        links = query.order_by(CrawlQueue.id).yield_per(2000)
         agg: dict[str, dict[str, object]] = defaultdict(
             lambda: {"source_url": "", "occurrence_count": 0, "targets": []}
         )
