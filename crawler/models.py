@@ -99,8 +99,12 @@ class Job(Base):  # pylint: disable=too-few-public-methods
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
 
-    queues: Mapped[list["CrawlQueue"]] = relationship(back_populates="job", cascade="all, delete-orphan")
-    external_links: Mapped[list["ExternalLink"]] = relationship(back_populates="job", cascade="all, delete-orphan")
+    queues: Mapped[list["CrawlQueue"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan", passive_deletes=True
+    )
+    external_links: Mapped[list["ExternalLink"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
@@ -127,7 +131,7 @@ class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id"), nullable=False)
+    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending")
@@ -167,7 +171,7 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id"), nullable=False)
+    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     target_url: Mapped[str] = mapped_column(Text, nullable=False)
 

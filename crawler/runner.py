@@ -131,7 +131,7 @@ class JobRunner:
                     send_job_status_notification(self.session_factory, self.job_id, "error")
             finally:
                 if self.executor:
-                    self.executor.shutdown(wait=True)
+                    self.executor.shutdown(wait=True, cancel_futures=True)
                 if crawler:
                     crawler.close()
 

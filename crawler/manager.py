@@ -351,10 +351,12 @@ class JobManager:
             job.status = "pending"
 
             # 清除外連記錄
-            session.query(ExternalLink).filter(ExternalLink.job_id == job_id).delete()
+            session.query(ExternalLink).filter(ExternalLink.job_id == job_id).delete(synchronize_session=False)
 
             # 清除佇列中除起始網址外的所有記錄
-            session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.url != job.start_url).delete()
+            session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.url != job.start_url).delete(
+                synchronize_session=False
+            )
 
             # 重設起始網址的佇列狀態
             start_queue = (
