@@ -296,8 +296,8 @@ def parse_args() -> argparse.Namespace | None:
     group_report.add_argument(
         "--filter",
         type=str,
-        choices=["dead", "broken", "insecure"],
-        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken, insecure)",
+        choices=["dead", "broken", "blocked", "insecure"],
+        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken, blocked, insecure)",
     )
     group_report.add_argument(
         "--exclude",

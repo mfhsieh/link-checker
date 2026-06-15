@@ -35,6 +35,7 @@ class JobStats:
     healthy: int
     broken: int
     dead: int
+    blocked: int
 
 
 def _get_user_email(user_id: str) -> str | None:
@@ -91,7 +92,8 @@ def _build_and_send_email(
         f"外部連結檢查統計：\n"
         f"  - 總共發現外部連結數：{stats.total}\n"
         f"  - 正常連結 (Healthy)：{stats.healthy} 個\n"
-        f"  - 損壞連結 (Broken Links，HTTP/連線異常)：{stats.broken} 個\n"
+        f"  - 損壞連結 (Broken Links，實質失效或連線異常)：{stats.broken} 個\n"
+        f"  - 權限阻擋 (Blocked，遭防火牆阻擋之低風險連結)：{stats.blocked} 個\n"
         f"  - 失效連結 (Dead Links，DNS 解析失敗)：{stats.dead} 個\n\n"
         f"詳細檢查結果，請登入系統後台查看。\n\n"
         f"此為系統自動發送的郵件，請勿回覆。"
@@ -151,18 +153,32 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
 
         # 統計外部連結狀態
         dead_count = (
-            session.query(ExternalLink)
+            session
+            .query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
                 (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
             )
             .count()
         )
-        broken_count = (
-            session.query(ExternalLink)
+        blocked_count = (
+            session
+            .query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
-                (ExternalLink.http_status_code >= 400)
+                ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]),
+            )
+            .count()
+        )
+        broken_count = (
+            session
+            .query(ExternalLink)
+            .filter(
+                ExternalLink.job_id == job_id,
+                (
+                    (ExternalLink.http_status_code >= 400)
+                    & (~ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]))
+                )
                 | (
                     (ExternalLink.http_status_code.is_(None))
                     & (ExternalLink.ip_address.isnot(None))
@@ -173,12 +189,13 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
         )
         total_count = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
 
-        healthy_count = total_count - dead_count - broken_count
+        healthy_count = total_count - dead_count - broken_count - blocked_count
 
         stats = JobStats(
             total=total_count,
             healthy=healthy_count,
             broken=broken_count,
             dead=dead_count,
+            blocked=blocked_count,
         )
         _build_and_send_email(to_email, job, status, stats)

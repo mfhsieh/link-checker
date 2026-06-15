@@ -953,6 +953,7 @@ function renderResultsSummary(summary) {
     setTextContent('summary-healthy', summary.healthy_count ?? 0);
     setTextContent('summary-dns-failed', summary.dns_failed_count ?? 0);
     setTextContent('summary-http-error', summary.http_error_count ?? 0);
+    setTextContent('summary-blocked', summary.blocked_count ?? 0);
     setTextContent('summary-insecure', summary.insecure_count ?? 0);
 }
 

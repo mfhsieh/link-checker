@@ -213,13 +213,15 @@ def apply_job_result_filters(
         query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
     elif status_filter == "broken":
         query = query.filter(
-            (ExternalLink.http_status_code >= 400)
+            ((ExternalLink.http_status_code >= 400) & (~ExternalLink.http_status_code.in_([401, 403, 405, 406, 429])))
             | (
                 (ExternalLink.http_status_code.is_(None))
                 & (ExternalLink.ip_address.isnot(None))
                 & (ExternalLink.ip_address != "")
             )
         )
+    elif status_filter == "blocked":
+        query = query.filter(ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]))
     elif status_filter == "insecure":
         query = query.filter(ExternalLink.is_secure.is_(False))
     elif status_filter == "healthy":
