@@ -239,7 +239,7 @@ def run(port: int = 8000) -> None:
         port (int): 伺服器監聽的 TCP 通訊埠，預設為 8000。
     """
     server_address = ("", port)
-    httpd = http.server.HTTPServer(server_address, MockHTTPRequestHandler)
+    httpd = http.server.ThreadingHTTPServer(server_address, MockHTTPRequestHandler)
     sys.stderr.write(f"Starting Mock Server on port {port}...\n")
     try:
         httpd.serve_forever()

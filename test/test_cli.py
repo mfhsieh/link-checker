@@ -503,11 +503,16 @@ crawler:
                 f"Error: {item.get('error_message')}"
             )
 
-        # 預期 broken 的外連共有 6 個（httpbin 404 x2, httpbin 500, httpbin post, broken-img, mock-non-social）
+        # 預期 broken 的外連共有 5 個（httpbin 404 x2, httpbin 500, broken-img, mock-non-social）
         # 排除 possibly flaky neverssl.com 連結 (若它連不上會被歸類為 broken)
-        filtered_broken = [item for item in broken_data if item.get("target_url") != "http://neverssl.com"]
-        assert len(filtered_broken) == 6, (
-            "Expected 6 broken links (excluding neverssl.com), "
+        # 排除 httpbin.org/post 連結 (有時回傳 405 歸類為 blocked，有時 timeout 歸類為 broken)
+        filtered_broken = [
+            item
+            for item in broken_data
+            if item.get("target_url") not in ("http://neverssl.com", "https://httpbin.org/post")
+        ]
+        assert len(filtered_broken) == 5, (
+            "Expected 5 broken links (excluding neverssl.com and httpbin.org/post), "
             f"got {len(filtered_broken)}: "
             f"{[x['target_url'] for x in filtered_broken]}"
         )

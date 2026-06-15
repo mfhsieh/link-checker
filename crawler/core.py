@@ -365,8 +365,8 @@ class CrawlerCore:
                         if result:
                             return result
                     except (httpx.RequestError, socket.gaierror) as retry_err:
-                        logger.warning("HTTPS 重試亦失敗: %s，回傳最後的錯誤", retry_err)
-                        raise
+                        logger.warning("HTTPS 重試亦失敗: %s，回傳最初的錯誤", retry_err)
+                        raise e
                 else:
                     raise
             except (ValueError, TypeError, UnicodeError) as e:
@@ -630,8 +630,8 @@ class CrawlerCore:
                         next_url_retry, result_retry = self._check_external_single(new_url)
                         if result_retry is not None:
                             status_code_retry, err_msg_retry = result_retry
-                            # 若 HTTPS 連線徹底失敗 (無狀態碼) 但原始 HTTP 有狀態碼，保留原始 HTTP 結果
-                            if status_code_retry is None and status_code is not None:
+                            # 若 HTTPS 連線徹底失敗 (無狀態碼)，保留原始 HTTP 檢測結果
+                            if status_code_retry is None:
                                 logger.info("HTTPS 重試連線失敗 (%s)，保留原始 HTTP 檢測結果", err_msg_retry)
                                 return result
                             return result_retry
