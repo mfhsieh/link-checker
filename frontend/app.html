@@ -353,8 +353,8 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">找不到主機網域的 IP</div>
             </div>
             <div class="stat-card filter-card" data-filter="not_found"
-              data-desc="目標伺服器運作正常，但找不到對應的資源 (404) 或該資源已刪除 (410)。建議盡速移除或替換該失效連結。" data-color="var(--color-warning-400)"
-              style="padding:0.75rem">
+              data-desc="目標伺服器運作正常，但找不到對應的資源 (404) 或該資源已刪除 (410)。建議確認非因網站防禦機制後，移除或替換該失效連結。"
+              data-color="var(--color-warning-400)" style="padding:0.75rem">
               <div class="stat-label text-warning">資源遺失</div>
               <div class="stat-value text-warning" id="summary-not-found">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">資源請求失敗或已刪除</div>
@@ -385,14 +385,14 @@
               data-color="var(--color-neutral-400)" style="padding:0.75rem">
               <div class="stat-label text-secondary">權限阻擋</div>
               <div class="stat-value text-secondary" id="summary-blocked">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">遭目標 WAF 或權限阻擋 (低風險)</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">遭目標 WAF 或權限阻擋</div>
             </div>
             <div class="stat-card filter-card" data-filter="insecure"
               data-desc="連結仍使用未加密的 HTTP 協定進行傳輸，容易遭到中間人監聽或劫持，建議將其升級為 HTTPS。" data-color="var(--color-warning-400)"
               style="padding:0.75rem">
               <div class="stat-label text-warning">非 HTTPS</div>
               <div class="stat-value text-warning" id="summary-insecure">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">使用明文 HTTP 傳輸的不安全連結</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">使用明文 HTTP 傳輸</div>
             </div>
           </div>
           <!-- 卡片說明區塊 -->
