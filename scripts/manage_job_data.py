@@ -1,3 +1,5 @@
+# pylint: disable=wrong-import-position
+# ruff: noqa: E402
 """
 任務資料備份與匯入工具。
 
@@ -9,36 +11,39 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import sys
+import tempfile
 import uuid
+import zipfile
 from datetime import datetime
 
 # 將專案根目錄加入 PYTHONPATH
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-# pylint: disable=wrong-import-position
 # isort: off
-from sqlalchemy import create_engine  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-from backend.config import get_settings  # noqa: E402
-from crawler.models import CrawlQueue, ExternalLink, Job  # noqa: E402
+from backend.config import get_settings
+from crawler.models import CrawlQueue, ExternalLink, Job
 # isort: on
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger: logging.Logger = logging.getLogger("job_sync")
 
 
-def export_job(job_id: str, output_dir: str) -> None:
+def export_job(job_id: str, output_path: str) -> None:
     """
     匯出任務資料。
 
     將指定任務的元資料與佇列/外連結果以 JSON/JSONL 格式寫入輸出目錄中。
+    若 output_path 以 .zip 結尾，將自動打包為 ZIP 壓縮檔。
 
     Args:
         job_id (str): 欲匯出的任務 ID。
-        output_dir (str): 匯出資料的目標資料夾路徑。
+        output_path (str): 匯出資料的目標資料夾路徑或 ZIP 檔案路徑。
 
     Raises:
         SystemExit: 當找不到任務時，結束程式。
@@ -47,15 +52,22 @@ def export_job(job_id: str, output_dir: str) -> None:
     engine = create_engine(settings.CRAWLER_DB_URL)
     session_factory = sessionmaker(bind=engine)
 
-    os.makedirs(output_dir, exist_ok=True)
+    is_zip = output_path.lower().endswith(".zip")
+    if is_zip:
+        work_dir = tempfile.mkdtemp()
+    else:
+        work_dir = output_path
+        os.makedirs(work_dir, exist_ok=True)
 
     with session_factory() as db:
         job = db.query(Job).filter(Job.id == job_id).first()
         if not job:
             logger.error("找不到任務 %s", job_id)
+            if is_zip:
+                shutil.rmtree(work_dir)
             sys.exit(1)
 
-        job_file = os.path.join(output_dir, "job_meta.json")
+        job_file = os.path.join(work_dir, "job_meta.json")
         job_data = {
             "start_url": job.start_url,
             "target_domains": job.target_domains,
@@ -71,7 +83,7 @@ def export_job(job_id: str, output_dir: str) -> None:
         logger.info("已匯出任務元資料至 %s", job_file)
 
         # 匯出 CrawlQueue (採 JSONL 格式以防 OOM)
-        queue_file = os.path.join(output_dir, "crawl_queue.jsonl")
+        queue_file = os.path.join(work_dir, "crawl_queue.jsonl")
         queue_count = 0
         with open(queue_file, "w", encoding="utf-8") as f:
             for q in db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).yield_per(2000):
@@ -91,7 +103,7 @@ def export_job(job_id: str, output_dir: str) -> None:
         logger.info("已匯出 %d 筆佇列資料至 %s", queue_count, queue_file)
 
         # 匯出 ExternalLink (採 JSONL 格式以防 OOM)
-        ext_file = os.path.join(output_dir, "external_links.jsonl")
+        ext_file = os.path.join(work_dir, "external_links.jsonl")
         ext_count = 0
         with open(ext_file, "w", encoding="utf-8") as f:
             for ext in db.query(ExternalLink).filter(ExternalLink.job_id == job_id).yield_per(2000):
@@ -108,15 +120,25 @@ def export_job(job_id: str, output_dir: str) -> None:
                 ext_count += 1
         logger.info("已匯出 %d 筆外部連結資料至 %s", ext_count, ext_file)
 
+    if is_zip:
+        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(job_file, "job_meta.json")
+            if os.path.exists(queue_file):
+                zf.write(queue_file, "crawl_queue.jsonl")
+            if os.path.exists(ext_file):
+                zf.write(ext_file, "external_links.jsonl")
+        shutil.rmtree(work_dir)
+        logger.info("已將任務備份壓縮至 %s", output_path)
 
-def import_job(input_dir: str, new_user_id: str) -> None:
+
+def import_job(input_path: str, new_user_id: str) -> None:
     """
     匯入任務資料。
 
-    將存放於輸入目錄中的 JSON/JSONL 資料寫入資料庫，並配發新的任務 ID 與指定新的擁有者。
+    將存放於輸入目錄或 ZIP 檔中的 JSON/JSONL 資料寫入資料庫，並配發新的任務 ID 與指定新的擁有者。
 
     Args:
-        input_dir (str): 存放任務備份資料的來源資料夾路徑。
+        input_path (str): 存放任務備份資料的來源資料夾路徑或 ZIP 檔案路徑。
         new_user_id (str): 接手該任務的新使用者 ID。
 
     Raises:
@@ -126,12 +148,27 @@ def import_job(input_dir: str, new_user_id: str) -> None:
     engine = create_engine(settings.CRAWLER_DB_URL)
     session_factory = sessionmaker(bind=engine)
 
-    job_file = os.path.join(input_dir, "job_meta.json")
-    queue_file = os.path.join(input_dir, "crawl_queue.jsonl")
-    ext_file = os.path.join(input_dir, "external_links.jsonl")
+    is_zip = input_path.lower().endswith(".zip")
+    if is_zip:
+        work_dir = tempfile.mkdtemp()
+        try:
+            with zipfile.ZipFile(input_path, "r") as zf:
+                zf.extractall(work_dir)
+        except zipfile.BadZipFile:
+            logger.error("損壞的 ZIP 壓縮檔: %s", input_path)
+            shutil.rmtree(work_dir)
+            sys.exit(1)
+    else:
+        work_dir = input_path
+
+    job_file = os.path.join(work_dir, "job_meta.json")
+    queue_file = os.path.join(work_dir, "crawl_queue.jsonl")
+    ext_file = os.path.join(work_dir, "external_links.jsonl")
 
     if not os.path.exists(job_file):
         logger.error("找不到任務元資料 %s", job_file)
+        if is_zip:
+            shutil.rmtree(work_dir)
         sys.exit(1)
 
     with open(job_file, "r", encoding="utf-8") as f:
@@ -208,6 +245,9 @@ def import_job(input_dir: str, new_user_id: str) -> None:
                 db.bulk_save_objects(ext_objects)
                 db.commit()
             logger.info("外部連結資料匯入完成")
+
+    if is_zip:
+        shutil.rmtree(work_dir)
 
 
 def main() -> None:

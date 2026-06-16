@@ -36,4 +36,9 @@ if [ "$COMMAND" == "export" ] || [ "$COMMAND" == "import" ]; then
         exit 1
     fi
     python scripts/manage_job_data.py "$COMMAND" "$2" "$3"
+else
+    echo "錯誤: 無效的指令 '$COMMAND'"
+    echo "請使用 'export' 或 'import' 作為第一個參數。"
+    show_help
+    exit 1
 fi
