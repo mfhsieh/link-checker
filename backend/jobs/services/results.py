@@ -347,9 +347,9 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
         is_healthy = bool(lnk.ip_address) and c is not None and c < 400
 
         is_not_found = c in (404, 410)
-        is_server_error = c is not None and c >= 500
+        is_server_error = c is not None and 500 <= c < 600
         is_connection_error = c is None and bool(lnk.ip_address)
-        is_other_error = c is not None and c >= 400 and c < 500 and not is_blocked and not is_not_found
+        is_other_error = c is not None and ((c >= 400 and c < 500 and not is_blocked and not is_not_found) or c >= 600)
 
         if is_dns_failed:
             set_dns_failed.add(key)
@@ -422,7 +422,9 @@ def get_results_summary(
                 )
             ).label("dns_failed"),
             sql_sum(case((ExternalLink.http_status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
-            sql_sum(case((ExternalLink.http_status_code >= 500, 1), else_=0)).label("server_error"),
+            sql_sum(
+                case(((ExternalLink.http_status_code >= 500) & (ExternalLink.http_status_code < 600), 1), else_=0)
+            ).label("server_error"),
             sql_sum(
                 case(
                     (
@@ -437,9 +439,12 @@ def get_results_summary(
             sql_sum(
                 case(
                     (
-                        (ExternalLink.http_status_code >= 400)
-                        & (ExternalLink.http_status_code < 500)
-                        & (~ExternalLink.http_status_code.in_([404, 410, 401, 403, 405, 406, 429])),
+                        (
+                            (ExternalLink.http_status_code >= 400)
+                            & (ExternalLink.http_status_code < 500)
+                            & (~ExternalLink.http_status_code.in_([404, 410, 401, 403, 405, 406, 429]))
+                        )
+                        | (ExternalLink.http_status_code >= 600),
                         1,
                     ),
                     else_=0,
@@ -942,7 +947,7 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
     if status_filter == "not_found":
         query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code.in_([404, 410]))
     elif status_filter == "server_error":
-        query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code >= 500)
+        query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code >= 500, CrawlQueue.status_code < 600)
     elif status_filter == "access_denied":
         query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code.in_([401, 403]))
     elif status_filter == "timeout":
@@ -965,7 +970,7 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
             CrawlQueue.status == "failed",
             CrawlQueue.status_code.isnot(None),
             ~CrawlQueue.status_code.in_([404, 410, 401, 403]),
-            CrawlQueue.status_code < 500,
+            (CrawlQueue.status_code < 500) | (CrawlQueue.status_code >= 600),
         )
     return query
 
@@ -983,7 +988,9 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
         query = db.query(
             count(CrawlQueue.id).label("total"),
             sql_sum(case((CrawlQueue.status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
-            sql_sum(case((CrawlQueue.status_code >= 500, 1), else_=0)).label("server_error"),
+            sql_sum(case(((CrawlQueue.status_code >= 500) & (CrawlQueue.status_code < 600), 1), else_=0)).label(
+                "server_error"
+            ),
             sql_sum(case((CrawlQueue.status_code.in_([401, 403]), 1), else_=0)).label("access_denied"),
             sql_sum(
                 case(
@@ -1056,7 +1063,7 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
             set_warning.add(key)
         elif c in (404, 410):
             set_not_found.add(key)
-        elif c is not None and c >= 500:
+        elif c is not None and 500 <= c < 600:
             set_server_error.add(key)
         elif c in (401, 403):
             set_access_denied.add(key)

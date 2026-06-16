@@ -346,25 +346,25 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">成功連線且回應正常</div>
             </div>
             <div class="stat-card filter-card" data-filter="dead"
-              data-desc="DNS 解析失敗 (無法找到 IP 位址)。有可能是高風險的無主網域，可能遭到駭客搶註並植入惡意內容。建議查明有無誤植網址並修正，或移除此連結。"
+              data-desc="DNS 解析失敗 (無法找到 IP 位址)。可能是誤植網址或廢棄不用的網域；也有可能是高風險的無主網域，會遭他人惡意註冊。建議儘速修正或移除該失效連結。"
               data-color="var(--color-danger-400)" style="padding:0.75rem">
               <div class="stat-label text-danger">DNS 錯誤</div>
               <div class="stat-value text-danger" id="summary-dns-failed">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">找不到主機網域的 IP</div>
             </div>
             <div class="stat-card filter-card" data-filter="not_found"
-              data-desc="目標伺服器運作正常，但找不到對應的資源 (404) 或該資源已刪除 (410)。建議確認非因網站防禦機制後，移除或替換該失效連結。"
+              data-desc="目標伺服器運作正常，但找不到對應的資源 (404) 或該資源已刪除 (410)。建議確認非因網站防禦機制後，修正或移除該失效連結。"
               data-color="var(--color-warning-400)" style="padding:0.75rem">
               <div class="stat-label text-warning">資源遺失</div>
               <div class="stat-value text-warning" id="summary-not-found">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">資源請求失敗或已刪除</div>
             </div>
             <div class="stat-card filter-card" data-filter="server_error"
-              data-desc="目標伺服器發生崩潰或過載 (回傳 500, 502, 503 等狀態碼)。這通常是暫時性異常，可過幾日後再次檢驗。" data-color="var(--color-danger-400)"
+              data-desc="伺服器錯誤 (5XX)。這通常是暫時性異常，或對方設定了嚴格的防禦機制。可過幾日後再次檢驗。" data-color="var(--color-danger-400)"
               style="padding:0.75rem">
               <div class="stat-label text-danger">伺服器異常</div>
               <div class="stat-value text-danger" id="summary-server-error">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">對方伺服器無法完成請求</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">對方伺服器錯誤</div>
             </div>
             <div class="stat-card filter-card" data-filter="connection_error"
               data-desc="連線逾時、SSL 憑證異常或連線強制重置。這通常代表底層網路異常，或對方設定了嚴格的防禦機制。" data-color="var(--color-brand-400)"
@@ -374,7 +374,7 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">連線逾時、憑證無效或連線被拒</div>
             </div>
             <div class="stat-card filter-card" data-filter="other_error"
-              data-desc="其他未歸類的 HTTP 異常狀況 (例如請求錯誤 400 或格式不符 406 等狀況)。" data-color="var(--color-neutral-400)"
+              data-desc="其他未歸類的 HTTP 異常狀況 (例如：請求錯誤 400、格式不符 406 等狀況)。" data-color="var(--color-neutral-400)"
               style="padding:0.75rem">
               <div class="stat-label text-secondary">其他異常</div>
               <div class="stat-value text-secondary" id="summary-other-error">0</div>

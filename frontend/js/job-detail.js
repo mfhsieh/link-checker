@@ -388,7 +388,7 @@ function getInternalStatusColorClass(code, errMsg) {
     const c = parseInt(code, 10);
     if (c === 401 || c === 403) return 'text-muted';
     if (c === 404 || c === 410) return 'text-warning';
-    if (c >= 500) return 'text-danger';
+    if (c >= 500 && c < 600) return 'text-danger';
     return 'text-secondary';
 }
 
@@ -405,7 +405,7 @@ function getInternalBadgeClass(code, errMsg) {
     const c = parseInt(code, 10);
     if (c === 401 || c === 403) return 'badge-pending';
     if (c === 404 || c === 410) return 'badge-warning';
-    if (c >= 500) return 'badge-danger';
+    if (c >= 500 && c < 600) return 'badge-danger';
     return 'badge-secondary';
 }
 
