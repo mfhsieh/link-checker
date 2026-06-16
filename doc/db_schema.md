@@ -5,13 +5,16 @@
 
 ---
 
-## 1. 爬蟲與資料庫效能優化 (SQLite Connection Optimization)
+## 1. 資料庫連線與效能優化 (Database Connection & Optimization)
 
-為了將高頻寫入與提交 (commit) 的磁碟 I/O 開銷降至最低，系統在建立 SQLite 連線時會自動套用以下 PRAGMA 優化參數（適用於 Auth DB 與 Crawler DB 連線）：
-* **WAL 模式** (`PRAGMA journal_mode=WAL`)：啟用預寫日誌模式，藉此允許併發讀寫並極大加速寫入速度。
-* **NORMAL 同步** (`PRAGMA synchronous=NORMAL`)：在 WAL 模式下可兼顧安全性與高寫入效能，避免磁碟刷寫的 I/O 阻塞。
-* **快取大小** (`PRAGMA cache_size=5000` / `10000`)：設定分頁快取記憶體以減少實體磁碟讀取次數。
-* **外鍵約束** (`PRAGMA foreign_keys=ON`)：啟用 SQLite 的外鍵約束檢查，確保關聯資料完整性。
+本系統支援 SQLite 與 PostgreSQL 雙資料庫引擎，並針對不同環境自動套用最佳化連線策略：
+
+* **SQLite 優化 (適用於開發與輕量環境)**：
+  建立連線時自動套用 `PRAGMA journal_mode=WAL` (預寫日誌模式)、`synchronous=NORMAL` 與擴大 `cache_size`，極大化降低磁碟 I/O 阻塞；並明確開啟 `foreign_keys=ON` 保障資料關聯完整性。
+* **PostgreSQL 優化 (適用於生產環境)**：
+  動態偵測 DSN 後，自動啟用 SQLAlchemy 進階連線池 (Connection Pool) 參數。
+  * **`pool_size` & `max_overflow`**：提升基礎連線數與突發溢發量，完美支撐 `ThreadPoolExecutor` 的高併發爬取與前端高頻 API 請求。
+  * **`pool_pre_ping` (斷線防護)**：每次從連線池取出連線前主動發送輕量級 `SELECT 1`，若因網路波動或伺服器重啟導致連線失效，系統將自動拋棄並重連，徹底解決 `Server closed the connection unexpectedly` 錯誤。
 
 ---
 

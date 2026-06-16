@@ -190,7 +190,6 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
         "progress": report["queue"],
         "external_link_count": report["external_links"],
         "is_running": _is_job_running(job_id),
-        "ui_poll_interval": int(os.environ.get("UI_POLL_INTERVAL", 10000)),
     }
 
 

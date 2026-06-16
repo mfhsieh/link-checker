@@ -14,7 +14,7 @@
 ## 2. 任務進度推送升級：Polling → SSE (Server-Sent Events)
 * **功能描述**：目前前台任務詳情頁面透過客戶端每 10 秒輪詢（Polling）`GET /api/jobs/{id}` 來取得進度更新，會造成不必要的無效請求。
 * **規劃方案**：後端實作 `GET /api/jobs/{id}/stream` SSE 端點，爬蟲子程序狀態變更時主動推送事件至前台；前台改用 `EventSource` API 訂閱，減少網路往返並提升即時性。
-* **狀態**：**待後續優化（Pending Review）**。
+* **狀態**：**已完成 (Completed)**。
 
 ---
 
@@ -28,4 +28,4 @@
 ## 4. PostgreSQL 連線池效能調校 (Connection Pool Optimization)
 * **功能描述**：系統底層已支援遷移為 PostgreSQL，但 `create_engine` 尚未配置專屬的連線池參數。在多執行緒並發爬取 (`ThreadPoolExecutor`) 加上前端高頻 API 存取的情境下，預設的連線池大小 (5) 可能被耗盡，導致 Timeout 或是連線中斷問題。
 * **規劃方案**：在 `backend/auth/db.py` 與 `crawler/manager.py` 初始化資料庫引擎時，若偵測連線字串非 SQLite (如 PostgreSQL)，則明確加入 `pool_size=20`、`max_overflow=20`，以及啟用斷線重連防護 `pool_pre_ping=True` 等進階連線池參數，徹底發揮 PostgreSQL 高併發潛力。
-* **狀態**：**待後續優化（Pending Review）**。
+* **狀態**：**已完成 (Completed)**。

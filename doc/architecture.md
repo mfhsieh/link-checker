@@ -48,6 +48,10 @@ ext-link-checker/
 │   ├── pids/           # 存放運行中爬蟲子程序的 PID 檔案
 │   └── crawler.log     # 系統主日誌檔
 ├── report/             # 外部連結分析報告之預設匯出目錄
+├── scripts/            # 系統維運與自動化腳本
+│   ├── job_sync.sh             # 跨環境任務備份與還原工具便利包
+│   ├── manage_job_data.py      # 任務資料跨庫 JSONL 匯出匯入核心
+│   └── migrate_sqlite_to_pg.py # PostgreSQL 平滑升級全自動遷移腳本
 ├── test/               # 一鍵式自動化整合測試套件 (基於 Pytest)
 │   ├── test_server/    # 本機 Mock HTTP 測試伺服器
 │   ├── test_api.py     # API 端點與 Web 後台 E2E 整合測試
@@ -59,14 +63,14 @@ ext-link-checker/
 
 * **系統架構解耦 (CLI-First)**：
   爬蟲核心 (`crawler/`)、後台網頁系統 (`backend/`) 與前台使用者介面 (`frontend/`) 三者徹底解耦。在沒有啟動 Web 伺服器的情況下，依然能單獨透過 `cli.py` 命令列程式完整運行與管理爬蟲任務。各模組應遵守單一職責原則 (SRP) 開發。
-* **資料庫實體分離**：
-  系統維護兩個獨立的資料庫：`crawler.db` (爬蟲業務資料) 與 `auth.db` (帳號與身分驗證資料)，兩者不共用連線池與 Schema，確保業務邏輯邊界清晰。針對高頻寫入的 SQLite，全域啟用了 **WAL (Write-Ahead Logging)**、**NORMAL** 同步模式與大容量快取 (`PRAGMA cache_size`) 以防 I/O 阻塞。
+* **資料庫實體分離與 PostgreSQL 支援**：
+  系統維護兩個獨立的資料庫：爬蟲業務資料庫與帳號身分驗證資料庫。系統支援 **SQLite 與 PostgreSQL 雙引擎無縫切換**：在 SQLite 下啟用 WAL 與大容量快取防 I/O 阻塞；在 PostgreSQL 生產環境下，則動態偵測並自動啟用進階連線池 (`pool_size`, `max_overflow`) 與 `pool_pre_ping` 防斷線重連機制，徹底發揮高併發寫入潛力。
 * **後端 Web API Server**：
   採用 **FastAPI** 作為後端框架，提供非同步、高效能的 RESTful API，並實作基於 HttpOnly Cookie 的安全 Session 管理與邀請制帳號機制。針對資料庫 I/O 等阻塞操作，嚴格規範採用同步 `def` 路由以交由底層執行緒池處理，保護主事件迴圈 (Event Loop Blocking 防禦)。
 * **Web 與爬蟲程序的橋接設計 (Subprocess Spawning)**：
-  Web 後端不直接在自身記憶體或執行緒中運行爬蟲。當使用者於介面觸發「啟動」時，後端服務會透過 `subprocess.Popen` 生成獨立的作業系統子程序 (執行專為後端內部呼叫設計的 `cli.py --api-spawn` 指令)，並於 `log/pids/` 目錄寫入 PID 檔案進行生命週期追蹤。此架構完美保證了 Web API 的高可用性，徹底杜絕爬蟲佔用伺服器主記憶體或引發 GIL (Global Interpreter Lock) 阻塞。
+  Web 後端不直接在自身記憶體或執行緒中運行爬蟲。當使用者觸發「啟動」時，後端透過 `subprocess.Popen` 生成獨立的子程序運行爬蟲。後端透過 **Server-Sent Events (SSE)** 監聽資料庫狀態變更並主動推送進度至前台，取代傳統的無效輪詢，大幅降低伺服器負載並確保 Web API 的極高可用性。
 * **前端 Web UI**：
-  堅持採用**輕量原生技術棧 (Vanilla JS + ESM / Vanilla CSS)**，不引入 React、Vue 等框架與打包工具，大幅降低供應鏈風險與長期維護成本。實作了基於 `hashchange` 的無刷新 SPA 路由，以及具備網路波動韌性 (Resilience) 與動態間隔的狀態輪詢機制。
+  堅持採用**輕量原生技術棧 (Vanilla JS + ESM / Vanilla CSS)**，不引入 React、Vue 等框架與打包工具，大幅降低供應鏈風險與長期維護成本。實作了基於 `hashchange` 的無刷新 SPA 路由，並全面升級為 Server-Sent Events (SSE) 即時通訊架構，提供極致流暢的操作體驗。
 * **網路連線與網頁解析**：
   採用 **HTTPX** 處理同步 HTTP/HTTPS 連線，並搭配 **BeautifulSoup 4** 進行 HTML 樹狀結構解析。針對外部連結的存活探測，引入 **`ThreadPoolExecutor`** 進行多執行緒並發處理，最大化診斷效能。
 * **進階反爬蟲與隱匿機制 (Anti-Bot Bypass)**：
@@ -85,6 +89,10 @@ ext-link-checker/
   佇列中明確記錄 `source_url`，能追蹤每一個外連的母來源頁面。系統亦具備防止重複記錄相同來源與目標連結的資料庫索引設計。
 * **巨量資料串流匯出 (Streaming Export)**：
   針對高達數十萬筆的外部連結報表，系統實作了基於生成器 (Generator) 與 SQLite `.yield_per()` 的串流寫入機制。能將極大容量的 CSV 邊讀邊即時寫入 ZIP 壓縮檔或 HTTP Response 中串流回傳，徹底防範 OOM (Out of Memory) 崩潰風險。
+* **系統維運與跨庫可攜性 (Ops & Data Portability)**：
+  提供 `job_sync.sh` 任務備份工具與 `migrate_sqlite_to_pg.py` 全自動移轉腳本。底層採用 JSON Lines 串流讀寫技術，完美解決開發機 (SQLite) 到生產環境 (PostgreSQL) 的平滑升級與跨機房任務備份交接。
+* **進階任務生命週期與報表 (Job Lifecycle & Diff Engine)**：
+  除基礎的暫停與重置外，系統實作了**局部失敗重試**、**任務擁有權移交**、**一鍵複製任務配置**。更內建了強大的**歷史任務差異比對引擎 (Job Diff Engine)**，提供 IP 發生異動、狀態劣化、安全降級等六大維度的精準比對報表，為長期的網站資安健康度追蹤提供強大火力。
 
 ## 相關參考文件
 

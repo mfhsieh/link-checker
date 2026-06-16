@@ -2,8 +2,11 @@
 任務管理相關 API 端點。
 """
 
+import asyncio
+import json
 import logging
 import os
+import typing
 
 import yaml
 from fastapi import (
@@ -11,15 +14,18 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    Request,
     status,
 )
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
 from backend.config import get_settings
 from backend.deps import get_auth_db, get_current_user, get_job_manager, require_csrf
 from backend.jobs.constants import ALLOWED_CRAWLER_CONFIG_KEYS
-from backend.jobs.schemas import CreateJobRequest, JobCreateConfig, TransferJobRequest
+from backend.jobs.schemas import CreateJobRequest, JobCreateConfig, JobDetailResponse, TransferJobRequest
 from backend.jobs.services import management as job_management
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
@@ -181,7 +187,7 @@ def get_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
-) -> dict[str, object]:
+) -> JobDetailResponse:
     """
     取得任務詳情（含進度）。
 
@@ -197,7 +203,7 @@ def get_job(
         HTTPException 404: 找不到任務或無權限時拋出。
     """
     try:
-        return job_management.get_job_detail(manager, job_id, current_user.id)
+        return JobDetailResponse(**job_management.get_job_detail(manager, job_id, current_user.id))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -423,3 +429,50 @@ def transfer_job(
         return {"message": f"任務已成功移交給 {body.target_email}。"}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+@router.get("/{job_id}/stream", include_in_schema=False)
+async def stream_job_updates(
+    job_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    manager: JobManager = Depends(get_job_manager),
+) -> StreamingResponse:
+    """
+    使用 Server-Sent Events (SSE) 串流任務進度更新。
+
+    Args:
+        job_id (str): 欲串流更新的任務 ID。
+        request (Request): FastAPI 請求物件，用於偵測客戶端連線中斷。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+
+    Returns:
+        StreamingResponse: SSE 事件串流回應。
+    """
+
+    async def event_generator() -> typing.AsyncGenerator[str, None]:
+        last_data_str = None
+        while True:
+            if await request.is_disconnected():
+                logger.info("SSE client for job %s disconnected.", job_id)
+                break
+
+            try:
+                job_detail = await run_in_threadpool(job_management.get_job_detail, manager, job_id, current_user.id)
+                current_data_str = json.dumps(job_detail)
+
+                if current_data_str != last_data_str:
+                    yield f"data: {current_data_str}\n\n"
+                    last_data_str = current_data_str
+
+                if job_detail["status"] in ["completed", "error", "paused", "pending"] and not job_detail["is_running"]:
+                    logger.info("Job %s stopped (status: %s). Closing SSE stream.", job_id, job_detail["status"])
+                    break
+
+                await asyncio.sleep(2)
+            except Exception:
+                logger.warning("Job %s not found or permission error for SSE stream. Closing.", job_id)
+                break
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

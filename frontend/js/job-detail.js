@@ -6,9 +6,7 @@ import * as api from './api.js';
 import { download } from './api.js';
 import { toast } from './toast.js';
 
-
-
-let _pollTimer = null;
+let _eventSource = null;
 let _currentJobId = null;
 let _currentJobConfig = null;
 let _currentFilter = null;
@@ -17,7 +15,6 @@ let _currentExcludeEnabled = true;
 let _currentGroupBy = 'none';
 let _currentPage = 1;
 let _eventsBound = false;
-let _pollInterval = 5000;
 let _currentTab = 'external';
 let _internalCurrentPage = 1;
 let _internalFilter = null;
@@ -30,14 +27,42 @@ let _internalColFilters = {};
 let _currentDetailHeaders = [];
 let _currentResultItems = [];
 
-function startPolling(jobId) {
-    if (_pollTimer) clearTimeout(_pollTimer);
-    // 使用 setTimeout 取代 setInterval，配合執行完畢後再次呼叫，避免非同步請求堆疊
-    _pollTimer = setTimeout(() => refreshJobDetail(jobId), _pollInterval);
+/**
+ * 啟動 Server-Sent Events (SSE) 串流以接收即時任務更新。
+ * @param {string} jobId - 任務 ID
+ * @returns {void} 無回傳值
+ */
+function startSseStream(jobId) {
+    if (_eventSource) {
+        _eventSource.close();
+    }
+
+    _eventSource = new EventSource(`/api/jobs/${jobId}/stream`);
+
+    _eventSource.onmessage = (event) => {
+        try {
+            const job = JSON.parse(event.data);
+            renderJobInfo(job);
+            if (['completed', 'error', 'paused', 'pending'].includes(job.status) && !job.is_running) {
+                stopSseStream();
+            }
+        } catch (e) {
+            console.error('Error parsing SSE data:', e);
+        }
+    };
+
+    _eventSource.onerror = () => {
+        if (_eventSource && _eventSource.readyState === EventSource.CLOSED) {
+            console.log('SSE connection closed by server or due to a network error.');
+        }
+    };
 }
 
-function stopPolling() {
-    if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
+function stopSseStream() {
+    if (_eventSource) {
+        _eventSource.close();
+        _eventSource = null;
+    }
 }
 
 function showConfirm(title, message, confirmText = '確定', isDanger = false) {
@@ -79,6 +104,8 @@ function showConfirm(title, message, confirmText = '確定', isDanger = false) {
  */
 export async function initJobDetailPage(jobId) {
     _currentJobId = jobId;
+    stopSseStream();
+
     _currentFilter = null;
 
     _currentTab = 'external';
@@ -155,40 +182,27 @@ export async function initJobDetailPage(jobId) {
 
 /**
  * 銷毀任務詳情頁面邏輯，停止輪詢
- * @returns {void} 無回傳值
  */
 export function destroyJobDetailPage() {
-    stopPolling();
+    stopSseStream();
 }
 
 async function refreshJobDetail(jobId) {
     try {
         const job = await api.get(`/api/jobs/${jobId}`);
-
-        // 動態更新輪詢間隔 (如果環境變數有變化)
-        if (job.ui_poll_interval && _pollInterval !== job.ui_poll_interval) {
-            _pollInterval = job.ui_poll_interval;
-            if (_pollTimer) stopPolling(); // 先停止，讓下方邏輯用新間隔重啟
-        }
-
         renderJobInfo(job);
 
         const isActuallyRunning = ['running', 'starting'].includes(job.status) || job.is_running;
         if (isActuallyRunning) {
-            startPolling(jobId);
+            if (!_eventSource) {
+                startSseStream(jobId);
+            }
         } else {
-            stopPolling();
+            stopSseStream();
         }
     } catch (err) {
         toast.error('無法取得任務資訊：' + err.message);
-        // 即使發生網路連線錯誤，仍持續輪詢，避免單次斷線導致畫面永久卡死
-        if (err.status !== 404 && err.status !== 401 && err.status !== 403) {
-            if (_currentJobId) {
-                startPolling(_currentJobId);
-            }
-        } else {
-            stopPolling();
-        }
+        stopSseStream();
     }
 }
 
@@ -627,16 +641,22 @@ function renderJobInfo(job) {
     const el = (id) => document.getElementById(id);
 
     const isPausing = job.status === 'paused' && job.is_running;
-    const isActuallyRunning = ['running', 'starting'].includes(job.status) || job.is_running;
+    const isActuallyRunning = ['running', 'starting'].includes(job.status) || (job.is_running && !['completed', 'error'].includes(job.status));
 
     _currentJobConfig = job.config;
 
     const statusEl = el('job-status');
     if (statusEl) {
         let displayStatus = job.status;
-        if (isPausing) displayStatus = 'paused';
-        else if (job.status === 'starting') displayStatus = 'starting';
-        else if (isActuallyRunning) displayStatus = 'running';
+        if (['completed', 'error'].includes(job.status)) {
+            displayStatus = job.status;
+        } else if (isPausing) {
+            displayStatus = 'paused';
+        } else if (job.status === 'starting') {
+            displayStatus = 'starting';
+        } else if (isActuallyRunning) {
+            displayStatus = 'running';
+        }
 
         statusEl.className = `badge badge-${displayStatus}`;
         statusEl.textContent = isPausing ? '暫停中...' : api.formatStatus(displayStatus);

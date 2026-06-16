@@ -54,17 +54,18 @@ class JobManager:
             if db_dir and not os.path.exists(db_dir):
                 os.makedirs(db_dir, exist_ok=True)
 
-        self.engine: Engine = create_engine(
-            db_url,
-            connect_args=(
-                {
-                    "check_same_thread": False,
-                    "timeout": int(os.environ.get("SQLITE_TIMEOUT", "30")),
-                }
-                if db_url.startswith("sqlite")
-                else {}
-            ),
-        )
+        engine_kwargs: dict[str, object] = {}
+        if db_url.startswith("sqlite"):
+            engine_kwargs["connect_args"] = {
+                "check_same_thread": False,
+                "timeout": int(os.environ.get("SQLITE_TIMEOUT", "30")),
+            }
+        else:
+            engine_kwargs["pool_size"] = int(os.environ.get("DB_POOL_SIZE", "20"))
+            engine_kwargs["max_overflow"] = int(os.environ.get("DB_MAX_OVERFLOW", "20"))
+            engine_kwargs["pool_pre_ping"] = os.environ.get("DB_POOL_PRE_PING", "true").lower() == "true"
+
+        self.engine: Engine = create_engine(db_url, **engine_kwargs)
         if db_url.startswith("sqlite:"):
 
             @event.listens_for(self.engine, "connect")

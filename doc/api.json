@@ -340,9 +340,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Job Api Jobs  Job Id  Get"
+                  "$ref": "#/components/schemas/JobDetailResponse"
                 }
               }
             }
@@ -723,7 +721,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(dead|broken|insecure|healthy|all)$"
+                  "pattern": "^(dead|broken|not_found|server_error|connection_error|other_error|blocked|insecure|healthy|all)$"
                 },
                 {
                   "type": "null"
@@ -775,6 +773,48 @@
               "pattern": "^(none|target|source|domain)$",
               "default": "none",
               "title": "Group By"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort By"
+            }
+          },
+          {
+            "name": "sort_asc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Sort Asc"
+            }
+          },
+          {
+            "name": "col_filters",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Col Filters"
             }
           },
           {
@@ -1057,7 +1097,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(not_found|server_error|access_denied|timeout|connection_error|other_error|all)$"
+                  "pattern": "^(not_found|server_error|access_denied|timeout|connection_error|other_error|warning|all)$"
                 },
                 {
                   "type": "null"
@@ -1098,6 +1138,48 @@
               "minimum": 1,
               "default": 50,
               "title": "Page Size"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort By"
+            }
+          },
+          {
+            "name": "sort_asc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Sort Asc"
+            }
+          },
+          {
+            "name": "col_filters",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Col Filters"
             }
           }
         ],
@@ -1153,7 +1235,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(dead|broken|insecure|healthy|all)$"
+                  "pattern": "^(dead|broken|not_found|server_error|connection_error|other_error|blocked|insecure|healthy|all)$"
                 },
                 {
                   "type": "null"
@@ -1249,7 +1331,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(not_found|server_error|access_denied|timeout|connection_error|other_error|all)$"
+                  "pattern": "^(not_found|server_error|access_denied|timeout|connection_error|other_error|warning|all)$"
                 },
                 {
                   "type": "null"
@@ -2659,6 +2741,123 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "JobConfigSnapshot": {
+        "properties": {
+          "target_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Target Domains"
+          },
+          "trusted_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Trusted Domains"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "target_domains",
+          "trusted_domains"
+        ],
+        "title": "JobConfigSnapshot",
+        "description": "任務設定快照的 Schema。"
+      },
+      "JobDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "start_url": {
+            "type": "string",
+            "title": "Start Url"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "config": {
+            "$ref": "#/components/schemas/JobConfigSnapshot"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/JobProgress"
+          },
+          "external_link_count": {
+            "type": "integer",
+            "title": "External Link Count"
+          },
+          "is_running": {
+            "type": "boolean",
+            "title": "Is Running"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start_url",
+          "status",
+          "created_at",
+          "updated_at",
+          "config",
+          "progress",
+          "external_link_count",
+          "is_running"
+        ],
+        "title": "JobDetailResponse",
+        "description": "任務詳情 API 回應的 Schema。"
+      },
+      "JobProgress": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed"
+          },
+          "warning": {
+            "type": "integer",
+            "title": "Warning"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped"
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "completed",
+          "warning",
+          "skipped",
+          "pending",
+          "failed"
+        ],
+        "title": "JobProgress",
+        "description": "任務進度統計的 Schema。"
       },
       "LoginRequest": {
         "properties": {

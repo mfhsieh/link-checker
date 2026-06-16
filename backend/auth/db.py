@@ -37,12 +37,18 @@ def _create_auth_engine() -> Engine:
 
     # sqlite 預設為單執行緒，使用 check_same_thread=False
     # 允許多執行緒共用 (FastAPI / Celery)
-    engine = create_engine(
-        db_url,
-        connect_args={"check_same_thread": False, "timeout": settings.SQLITE_TIMEOUT}
-        if db_url.startswith("sqlite")
-        else {},
-    )
+    engine_kwargs: dict[str, object] = {}
+    if db_url.startswith("sqlite"):
+        engine_kwargs["connect_args"] = {
+            "check_same_thread": False,
+            "timeout": settings.SQLITE_TIMEOUT,
+        }
+    else:
+        engine_kwargs["pool_size"] = settings.DB_POOL_SIZE
+        engine_kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
+        engine_kwargs["pool_pre_ping"] = settings.DB_POOL_PRE_PING
+
+    engine = create_engine(db_url, **engine_kwargs)
 
     if db_url.startswith("sqlite"):
 

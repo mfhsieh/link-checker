@@ -65,6 +65,11 @@ CREATE DATABASE crawler_db OWNER elc_user;
 # 目標 PostgreSQL 連線 DSN 設定
 AUTH_DB_URL=postgresql://elc_user:your_secure_password@localhost:5432/auth_db
 CRAWLER_DB_URL=postgresql://elc_user:your_secure_password@localhost:5432/crawler_db
+
+# PostgreSQL 進階連線池設定
+DB_POOL_SIZE=20
+DB_MAX_OVERFLOW=20
+DB_POOL_PRE_PING=true
 ```
 
 > [!WARNING]
@@ -85,7 +90,7 @@ CRAWLER_DB_URL=postgresql://elc_user:your_secure_password@localhost:5432/crawler
 ### 遷移安全機制說明：
 * **全新重建與自動優化**：遷移工具在寫入前，會自動清除目標 PostgreSQL 資料庫中現存的資料表（透過 `drop_all`）並**根據最新的 `models.py` 定義全新建立 Schema**。這確保了所有最新的**效能複合索引 (Composite Indexes)** 與 **`ON DELETE CASCADE` (防 OOM 級聯刪除)** 設定都會被自動套用，無需手動調整。
 * **外鍵約束暫停**：腳本在執行寫入時會自動在 session 中設定 `SET session_replication_role = 'replica';`，暫時停用外鍵約束與觸發器，以確保資料快速且不按順序地安全寫入，並於完成後自動恢復。
-* **分批分流寫入**：針對海量資料（如 `crawl_queue` 或 `external_links` 資料表可能多達數十萬筆），腳本會以 `batch_size = 1000` 進行分批寫入，防止記憶體溢出（OOM）。
+* **分批串流寫入防 OOM**：針對海量資料（如 `crawl_queue` 或 `external_links` 資料表可能多達數十萬筆），腳本會以 `limit` 與 `offset` 分頁讀取，並以 `batch_size = 1000` 分批寫入 PostgreSQL，徹底防止轉移過程中的記憶體溢出（OOM）。
 * **序列 (Sequence) 自動同步**：遷移結束後，腳本會自動同步並更新 PostgreSQL 的主鍵 Serial 序列值，防止後續新寫入資料時主鍵衝突。
 
 ### 執行遷移指令：

@@ -35,6 +35,9 @@ class Settings:  # pylint: disable=too-few-public-methods
     AUTH_DB_URL: str = os.environ.get("AUTH_DB_URL", "sqlite:///db/auth.db")
     CRAWLER_DB_URL: str = os.environ.get("CRAWLER_DB_URL", "sqlite:///db/crawler.db")
     SQLITE_TIMEOUT: int = int(os.environ.get("SQLITE_TIMEOUT", "30"))
+    DB_POOL_SIZE: int = int(os.environ.get("DB_POOL_SIZE", "20"))
+    DB_MAX_OVERFLOW: int = int(os.environ.get("DB_MAX_OVERFLOW", "20"))
+    DB_POOL_PRE_PING: bool = os.environ.get("DB_POOL_PRE_PING", "true").lower() == "true"
 
     # ── Session 安全設定 ───────────────────────────────────────────────────────
     SESSION_COOKIE_NAME: str = os.environ.get("SESSION_COOKIE_NAME", "session_token")

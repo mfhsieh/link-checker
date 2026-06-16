@@ -1100,6 +1100,47 @@ Crawler 區塊配置更新請求結構。
 
 ---
 
+## JobConfigSnapshot
+任務設定快照的 Schema。
+
+| 屬性名稱 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `target_domains` | array | 是 |  |
+| `trusted_domains` | array | 是 |  |
+
+---
+
+## JobDetailResponse
+任務詳情 API 回應的 Schema。
+
+| 屬性名稱 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `id` | string | 是 |  |
+| `start_url` | string | 是 |  |
+| `status` | string | 是 |  |
+| `created_at` | string | 是 |  |
+| `updated_at` | string | 是 |  |
+| `config` | JobConfigSnapshot | 是 |  |
+| `progress` | JobProgress | 是 |  |
+| `external_link_count` | integer | 是 |  |
+| `is_running` | boolean | 是 |  |
+
+---
+
+## JobProgress
+任務進度統計的 Schema。
+
+| 屬性名稱 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `total` | integer | 是 |  |
+| `completed` | integer | 是 |  |
+| `warning` | integer | 是 |  |
+| `skipped` | integer | 是 |  |
+| `pending` | integer | 是 |  |
+| `failed` | integer | 是 |  |
+
+---
+
 ## LoginRequest
 登入請求的 Schema。
 

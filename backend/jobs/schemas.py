@@ -282,3 +282,36 @@ class JobResultQuery:  # pylint: disable=too-few-public-methods,too-many-instanc
         valid_keys = cls.__annotations__.keys()
         filtered_kwargs = {k: v for k, v in vars(query_args).items() if k in valid_keys}
         return cls(job_id=job_id, user_id=user_id, **filtered_kwargs)
+
+
+class JobProgress(BaseModel):
+    """任務進度統計的 Schema。"""
+
+    total: int
+    completed: int
+    warning: int
+    skipped: int
+    pending: int
+    failed: int
+
+
+class JobConfigSnapshot(BaseModel):
+    """任務設定快照的 Schema。"""
+
+    model_config = {"extra": "allow"}
+    target_domains: list[str]
+    trusted_domains: list[str]
+
+
+class JobDetailResponse(BaseModel):
+    """任務詳情 API 回應的 Schema。"""
+
+    id: str
+    start_url: str
+    status: str
+    created_at: str
+    updated_at: str
+    config: JobConfigSnapshot
+    progress: JobProgress
+    external_link_count: int
+    is_running: bool

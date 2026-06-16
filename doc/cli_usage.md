@@ -384,3 +384,26 @@ python cli.py --create-admin "admin@example.com"
 python cli.py --serve  # 若為開發環境，可加上 --reload 啟用熱重載
 ```
 伺服器啟動後，將預設監聽 `0.0.0.0:8000`。您可透過終端機的標準輸出檢視存取紀錄，按下 `Ctrl+C` 即可安全關閉伺服器。
+
+---
+
+## 7. 跨環境任務備份與還原 (Job Sync)
+
+系統提供了一支便利的 Shell Script (`scripts/job_sync.sh`)，協助您在不同伺服器或不同資料庫（如 SQLite 與 PostgreSQL）之間，安全地轉移與備份爬蟲任務資料（包含設定、待爬佇列與外部連結結果）。
+
+### 備份任務（匯出）
+```bash
+./scripts/job_sync.sh export <JOB_ID> <存放備份的資料夾路徑或ZIP檔名>
+
+# 範例：將任務打包為 ZIP 壓縮檔
+./scripts/job_sync.sh export 5eebf2ac-250f-463d-a4cc-98a64d50b5fc ./my_job_backup.zip
+```
+
+### 還原任務（匯入）
+找出要接手該任務的目標使用者 ID，然後執行：
+```bash
+./scripts/job_sync.sh import <存放備份的資料夾路徑或ZIP檔名> <目標使用者的_USER_ID>
+
+# 範例：從 ZIP 壓縮檔還原，並指派給指定使用者
+./scripts/job_sync.sh import ./my_job_backup.zip user-uuid-1234
+```
