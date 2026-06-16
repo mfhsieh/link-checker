@@ -392,6 +392,14 @@ class CrawlerCore:
 
         try:
             soup: BeautifulSoup = BeautifulSoup(html, "html.parser")
+
+            # 解析 <base> 標籤以更新相對路徑的基準網址
+            base_tag = soup.find("base", href=True)
+            if base_tag:
+                href_val = base_tag.get("href")
+                if isinstance(href_val, str) and href_val.strip():
+                    base_url = urljoin(base_url, href_val.strip())
+
             links: list[str] = []
             raw_links: list[object] = []
 
