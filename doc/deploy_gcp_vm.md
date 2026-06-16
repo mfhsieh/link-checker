@@ -161,6 +161,8 @@ server {
         proxy_set_header Connection '';
         proxy_http_version 1.1;
         chunked_transfer_encoding off;
+        proxy_buffering off;
+        proxy_cache off;
 
         # 支援長時間運行的請求 (如爬蟲相關操作)
         proxy_read_timeout 300s;
