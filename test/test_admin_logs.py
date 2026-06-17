@@ -14,10 +14,6 @@ from datetime import datetime, timedelta
 # 將專案路徑加入 path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# 必須在載入 backend.main 之前設定，才能讓 background task 取到正確的測試 DB
-os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_admin.db"
-os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_admin.db"
-
 # pylint: disable=wrong-import-position
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
@@ -31,9 +27,9 @@ from crawler.models import Base as CrawlerBase
 # 測試用 SQLite DSN
 TEST_AUTH_DB_URL: str = "sqlite:///db/test_auth_admin.db"
 
-# 建立 Engine
-engine: Engine = create_engine(TEST_AUTH_DB_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# 延後建立 Engine，在 setUpClass 中依據正確的環境變數初始化
+engine: Engine | None = None
+TestingSessionLocal: sessionmaker | None = None
 
 
 # 覆寫 get_auth_db 依賴
@@ -131,12 +127,7 @@ def override_get_job_manager() -> MockJobManager:
     return MockJobManager()
 
 
-# 設定 dependency overrides
-app.dependency_overrides[get_auth_db] = override_get_auth_db
-app.dependency_overrides[get_crawler_db] = override_get_crawler_db
-app.dependency_overrides[get_job_manager] = override_get_job_manager
-app.dependency_overrides[require_admin] = lambda: mock_admin
-app.dependency_overrides[require_csrf] = lambda: None
+# dependency overrides 已移至 setUpClass 中，避免模組級別的全域副作用
 
 
 class TestAdminLogs(unittest.TestCase):
@@ -152,8 +143,14 @@ class TestAdminLogs(unittest.TestCase):
     def setUpClass(cls) -> None:
         """
         在所有測試開始前執行的初始化操作。
-        建立測試資料表、寫入初始使用者，並備份全域設定檔。
+        設定環境變數、建立測試資料表、寫入初始使用者，並備份全域設定檔。
         """
+        global engine, TestingSessionLocal  # pylint: disable=global-statement
+
+        # 設定測試用環境變數（避免模組級設定被其他模組覆蓋）
+        os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_admin.db"
+        os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_admin.db"
+
         # 確保刪除先前殘留的測試資料庫檔案，避免 IntegrityError
         for db_file in ["db/test_auth_admin.db", "db/test_crawler_admin.db"]:
             for suffix in ["", "-shm", "-wal"]:
@@ -164,10 +161,21 @@ class TestAdminLogs(unittest.TestCase):
                     except OSError:
                         pass
 
-        # 建立所有資料表
+        # 建立 Engine（此時環境變數已正確設定）
         os.makedirs("db", exist_ok=True)
+        engine = create_engine(TEST_AUTH_DB_URL, connect_args={"check_same_thread": False})
+        TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+        # 建立所有資料表
         AuthBase.metadata.create_all(bind=engine)
         CrawlerBase.metadata.create_all(bind=engine)
+
+        # 設定 dependency overrides（僅在此測試模組生效）
+        app.dependency_overrides[get_auth_db] = override_get_auth_db
+        app.dependency_overrides[get_crawler_db] = override_get_crawler_db
+        app.dependency_overrides[get_job_manager] = override_get_job_manager
+        app.dependency_overrides[require_admin] = lambda: mock_admin
+        app.dependency_overrides[require_csrf] = lambda: None
 
         # 建立一些測試資料
         db = TestingSessionLocal()
@@ -193,11 +201,15 @@ class TestAdminLogs(unittest.TestCase):
     def tearDownClass(cls) -> None:
         """
         在所有測試結束後執行的清理操作。
-        刪除測試資料表與檔案，並還原全域設定檔。
+        刪除測試資料表與檔案，清空 dependency overrides，並還原全域設定檔。
         """
+        # 清空 dependency overrides，避免影響其他測試模組
+        app.dependency_overrides.clear()
+
         # 刪除測試資料表
-        AuthBase.metadata.drop_all(bind=engine)
-        engine.dispose()
+        if engine is not None:
+            AuthBase.metadata.drop_all(bind=engine)
+            engine.dispose()
         for db_file in ["db/test_auth_admin.db", "db/test_crawler_admin.db"]:
             for suffix in ["", "-shm", "-wal"]:
                 target_file = db_file + suffix

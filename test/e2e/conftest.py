@@ -18,10 +18,6 @@ import httpx
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
-# Ensure we don't accidentally touch dev databases
-os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_e2e.db"
-os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_e2e.db"
-
 # 將專案路徑加入 path 以便引用 backend
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -34,6 +30,20 @@ PORT = 8085
 BASE_URL = f"http://127.0.0.1:{PORT}"
 
 
+def _set_e2e_test_env() -> None:
+    """
+    設定 E2E 測試專用的環境變數。
+
+    在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
+    避免被其他測試模組的模組級設定覆蓋。
+    """
+    os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_e2e.db"
+    os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_e2e.db"
+    # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
+    from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
+    refresh_settings_cache()
+
+
 def setup_databases() -> None:
     """
     清理並初始化 E2E 測試用資料庫。
@@ -42,6 +52,9 @@ def setup_databases() -> None:
     """
     import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
     import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    # 確保環境變數指向正確的測試 DB
+    _set_e2e_test_env()
 
     # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
     if auth_db._ENGINE is not None:

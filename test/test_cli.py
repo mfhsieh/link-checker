@@ -18,12 +18,23 @@ from test.utils import is_port_in_use, wait_for_server
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_cli.db"
-os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_cli.db"
-
 PORT: int = 8080
 DB_PATH: str = "db/test_crawler_cli.db"
 YAML_CONFIG: str = "job/test_job.yaml"
+
+
+def _set_cli_test_env() -> None:
+    """
+    設定 CLI 測試專用的環境變數。
+
+    在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
+    避免被其他測試模組的模組級設定覆蓋。
+    """
+    os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_cli.db"
+    os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_cli.db"
+    # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
+    from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
+    refresh_settings_cache()
 
 
 def setup_databases() -> None:
@@ -33,6 +44,9 @@ def setup_databases() -> None:
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
+
+    # 確保環境變數指向正確的測試 DB
+    _set_cli_test_env()
 
     # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
     if auth_db._ENGINE is not None:

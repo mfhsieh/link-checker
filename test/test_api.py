@@ -18,13 +18,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from test.utils import is_port_in_use, wait_for_server  # pylint: disable=wrong-import-order
 
-# Ensure we don't accidentally touch dev databases
-os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_api.db"
-os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_api.db"
-
-# We must bypass background tasks blocking during fast test execution if any.
-# In fastapi, BackgroundTasks run after the response is returned. TestClient awaits them.
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # pylint: disable=wrong-import-position, duplicate-code, protected-access
@@ -35,6 +28,20 @@ from backend.auth.models import User
 from backend.auth.password import hash_password
 from backend.deps import get_job_manager
 from backend.main import app
+
+
+def _set_api_test_env() -> None:
+    """
+    設定 API 測試專用的環境變數。
+
+    在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
+    避免被其他測試模組的模組級設定覆蓋。
+    """
+    os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_api.db"
+    os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_api.db"
+    # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
+    from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
+    refresh_settings_cache()
 
 
 def setup_databases() -> None:
@@ -48,6 +55,9 @@ def setup_databases() -> None:
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
+
+    # 確保環境變數指向正確的測試 DB
+    _set_api_test_env()
 
     # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
     if auth_db._ENGINE is not None:
