@@ -22,12 +22,12 @@ def test_create_job(page: Page, base_url: str) -> None:
     page.goto(f"{base_url}/index.html")
     page.fill('input[type="email"]', "admin@test.com")
     page.fill('input[type="password"]', "Admin@12345678")
-    page.click('button[type="submit"]')
 
     # 等待頁面跳轉與載入完成 (確保 JS 已完整執行並綁定事件)
     with page.expect_response(lambda response: "/api/jobs" in response.url and response.request.method == "GET"):
-        expect(page).to_have_url(re.compile(r".*/app\.html"))
+        page.click('button[type="submit"]')
 
+    expect(page).to_have_url(re.compile(r".*/app\.html"))
     page.wait_for_selector("text=我的任務")
 
     # 點擊建立任務按鈕

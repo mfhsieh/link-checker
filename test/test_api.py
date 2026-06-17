@@ -272,7 +272,7 @@ def _run_api_full_flow() -> None:
         "target_domains": ["example.com"],
         "trusted_domains": [],
         "delay": 1,
-        "timeout": 30,
+        "timeout": 2,
         "connect_timeout": 5,
         "external_check_timeout": 10,
         "retries": 3,
@@ -403,12 +403,11 @@ def test_api_real_scenario_flow() -> None:
 
     server_cmd = [sys.executable, "test/test_server/server.py", str(port)]
     print(f"Starting Mock Server on port {port}...")
-    server_proc = subprocess.Popen(server_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    server_proc = subprocess.Popen(server_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
 
     try:
         if not wait_for_server(port):
-            _, stderr = server_proc.communicate(timeout=1)
-            assert False, f"Mock Server failed to start: {stderr}"
+            assert False, "Mock Server failed to start."
 
         # 1. 初始化資料庫與使用者
         setup_databases()
@@ -428,13 +427,22 @@ def test_api_real_scenario_flow() -> None:
         assert res.status_code in (200, 201, 202), f"Login failed: {res.text}"
         csrf_token = get_csrf_token(res, csrf_token)
 
+        # 2.5 Update global config to allow small timeouts
+        config_data = {
+            "crawler": {
+                "min_timeout": 1,
+                "min_external_check_timeout": 0.1,
+            }
+        }
+        client.patch("/api/admin/config", json=config_data, headers={"X-CSRF-Token": csrf_token})
+
         # 3. 建立任務
         job_data = {
             "start_url": f"http://127.0.0.1:{port}/index.html",
             "target_domains": ["127.0.0.1", "localhost"],
             "trusted_domains": [],
             "delay": 0.1,
-            "timeout": 30,
+            "timeout": 2,
             "connect_timeout": 5,
             "external_check_timeout": 5,
             "retries": 1,

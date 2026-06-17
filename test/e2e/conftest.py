@@ -168,15 +168,14 @@ def test_server() -> Generator[str, None, None]:
     server_proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         text=True,
     )
 
     if not wait_for_server(PORT):
         server_proc.terminate()
-        stdout, stderr = server_proc.communicate()
-        raise RuntimeError(f"FastAPI Server failed to start.\\nSTDOUT: {stdout}\\nSTDERR: {stderr}")
+        raise RuntimeError("FastAPI Server failed to start.")
 
     yield BASE_URL
 

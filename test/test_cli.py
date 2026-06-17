@@ -206,15 +206,12 @@ def test_cli_full_flow() -> None:
     # 4. 啟動 Mock HTTP Server
     server_cmd = [sys.executable, "test/test_server/server.py", str(PORT)]
     print(f"Starting Mock Server: {' '.join(server_cmd)}")
-    server_proc = subprocess.Popen(server_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    server_proc = subprocess.Popen(server_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
 
     try:
         # 等待伺服器就緒
         if not wait_for_server(PORT):
             print("Error: Mock Server failed to start or bind to port.")
-            # 輸出伺服器的錯誤日誌
-            stdout, stderr = server_proc.communicate(timeout=1)
-            print(f"Server stderr:\n{stderr}")
             sys.exit(1)
 
         print("Mock Server is ready.")
@@ -222,6 +219,17 @@ def test_cli_full_flow() -> None:
         # 5. 執行第一個測試：無限制爬行，驗證功能正確性與 is_secure
         print("Setting up fresh test databases...")
         setup_databases()
+
+        # 動態產生全域設定檔，允許更小的 timeout
+        os.makedirs("config", exist_ok=True)
+        TEST_GLOBAL_CONFIG = "config/test_global.yaml"
+        with open(TEST_GLOBAL_CONFIG, "w", encoding="utf-8") as f:
+            f.write("""\
+crawler:
+  min_timeout: 1
+  min_connect_timeout: 0.1
+  min_external_check_timeout: 0.1
+""")
 
         # 動態產生主測試設定檔，確保 PORT 與最新欄位名稱正確
         os.makedirs("job", exist_ok=True)
@@ -235,7 +243,7 @@ trusted_domains:
 crawler:
   retries: 0
   delay: 0.1
-  timeout: 30
+  timeout: 2
   social_domains:
     - "127.0.0.1"
 """)
@@ -243,7 +251,7 @@ crawler:
         # Allow local IPs for testing SSRF bypass
         os.environ["CRAWLER_ALLOW_LOCAL_IPS"] = "true"
 
-        crawler_cmd = [sys.executable, "cli.py", "-c", YAML_CONFIG]
+        crawler_cmd = [sys.executable, "cli.py", "-g", TEST_GLOBAL_CONFIG, "-c", YAML_CONFIG]
         print(f"Running Crawler: {' '.join(crawler_cmd)}")
         crawler_proc = subprocess.run(crawler_cmd, capture_output=True, text=True)
 
@@ -723,11 +731,12 @@ trusted_domains:
 crawler:
   retries: 0
   delay: 0.1
+  timeout: 2
   max_depth: 1
   max_pages: 3
 """)
 
-        limit_crawler_cmd = [sys.executable, "cli.py", "-c", limit_yaml]
+        limit_crawler_cmd = [sys.executable, "cli.py", "-g", TEST_GLOBAL_CONFIG, "-c", limit_yaml]
         print(f"Running Limit Crawler: {' '.join(limit_crawler_cmd)}")
         limit_proc = subprocess.run(limit_crawler_cmd, capture_output=True, text=True)
         print("--- Limit Crawler stdout ---")
@@ -788,12 +797,12 @@ trusted_domains:
 crawler:
   retries: 0
   delay: 0.1
-  timeout: 5
-  connect_timeout: 2.0
-  external_check_timeout: 2.0
+  timeout: 2
+  connect_timeout: 1.0
+  external_check_timeout: 1.0
 """)
 
-        advanced_cmd = [sys.executable, "cli.py", "-c", advanced_yaml]
+        advanced_cmd = [sys.executable, "cli.py", "-g", TEST_GLOBAL_CONFIG, "-c", advanced_yaml]
         print(f"Running Advanced Crawler: {' '.join(advanced_cmd)}")
         adv_proc = subprocess.run(advanced_cmd, capture_output=True, text=True)
         print("--- Advanced Crawler stdout ---")
@@ -858,6 +867,8 @@ crawler:
             os.remove(YAML_CONFIG)
         if os.path.exists("job/test_limit_job.yaml"):
             os.remove("job/test_limit_job.yaml")
+        if os.path.exists(TEST_GLOBAL_CONFIG):
+            os.remove(TEST_GLOBAL_CONFIG)
 
         print("All CLI Integration Tests Passed Successfully!")
 

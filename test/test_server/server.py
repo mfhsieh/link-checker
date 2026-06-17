@@ -59,7 +59,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         # 2. 測試：網路超時 (Slow Response)
         if self.path == "/slow-response":
-            time.sleep(15)  # 阻礙 15 秒以觸發爬蟲的 timeout (預設 10 秒)
+            time.sleep(1)  # 阻礙 1 秒 (原 15 秒，避免測試過久，且在 timeout=2 內完成)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -138,7 +138,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         # 9. 測試：Tarpit 端點 (Timeout Simulation)
         if self.path == "/tarpit":
-            time.sleep(10)  # 阻礙 10 秒以觸發進階測試的 external_check_timeout (2.0s)
+            time.sleep(2)  # 阻礙 2 秒以觸發進階測試的 external_check_timeout
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -218,7 +218,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         模擬 Tarpit 超時，其餘路徑回傳 501 以符合 mock-social-media 測試期待。
         """
         if self.path == "/tarpit":
-            time.sleep(10)
+            time.sleep(2)
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
