@@ -11,6 +11,8 @@
 | `POST` | `/api/auth/logout` | 登出並清除 Session Token。 | 已登入 |
 | `GET` | `/api/auth/me` | 取得當前已登入使用者的基本資訊。 | 已登入 |
 | `PATCH` | `/api/auth/password` | 已登入使用者修改密碼（需提供現有密碼進行驗證）。 | 已登入 |
+| `POST` | `/api/auth/forgot-password` | 申請重設密碼。 | 已登入 |
+| `POST` | `/api/auth/reset-password` | 重設密碼。 | 已登入 |
 
 ## 2. 任務管理 API (`/api/jobs`)
 

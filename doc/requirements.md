@@ -257,7 +257,19 @@
 
 * 已登入的使用者可主動在「帳號設定」中修改密碼，需先輸入現有密碼進行驗證後才可設定新密碼，新密碼同樣需符合 §6.2 的密碼安全標準。
 
-### 6.5 帳號狀態管理
+### 6.5 忘記密碼與重設機制 (Forgot Password)
+
+* **防禦帳號列舉 (Anti-Enumeration)**：使用者輸入 Email 申請重設密碼時，無論該信箱是否存在於系統中，系統皆回傳相同的成功提示與一致的回應時間，徹底防範攻擊者刺探帳號是否存在。
+* **申請限速防護 (Rate Limiting)**：為防範惡意濫發重設郵件，系統需針對單一客戶端 IP 實施申請頻率限制（例如 15 分鐘內最多允許 3 次申請，參數可由環境變數動態配置）。
+* **Token 安全性與時效**：
+  * 產生高強度隨機字串作為重設憑證，為防範資料庫外洩遭直接盜用，資料庫中僅能儲存該 Token 的雜湊值 (Hash)。
+  * 重設連結具備嚴格時效性（預設 1 小時），逾期後自動失效。
+  * Token 為單次使用，密碼重設成功後該憑證立即作廢。
+* **密碼重設與強制登出 (Session Invalidation)**：
+  * 使用者點擊連結後，可設定新密碼（新密碼需符合 §6.2 之密碼安全標準）。
+  * 密碼重設成功後，為確保帳號安全並防範帳號遭惡意接管，系統必須**自動強制登出該使用者的所有現行有效 Session**，要求其使用新密碼重新登入。
+
+### 6.6 帳號狀態管理
 
 | 狀態 | 說明 |
 |------|------|
@@ -266,18 +278,19 @@
 | Suspended | 由管理員停用，禁止登入 |
 | Expired | 邀請連結過期且尚未首次登入，需重新寄送邀請 |
 
-### 6.6 帳號資料庫（Auth DB）Schema 規範
+### 6.7 帳號資料庫（Auth DB）Schema 規範
 
 帳號相關資料**獨立存放於專屬的帳號資料庫**，與爬蟲資料庫實體分離（詳見 §4.1）。Auth DB 需涵蓋以下資料表：
 
 * **`users`**：儲存使用者基本資料（id、email、password_hash、role、status、created_at、last_login_at）。
 * **`invitations`**：儲存邀請憑證（id、user_id、uuid、expires_at、used_at、created_at）；UUID 使用後立即標記 `used_at`。
 * **`sessions`**：儲存有效的 Session Token（token_hash、user_id、expires_at、created_at、ip_address、user_agent）；登出後立即刪除或標記失效。
+* **`password_reset_tokens`**：儲存密碼重設憑證（id、user_id、token_hash、expires_at、used_at、created_at）；使用後立即標記 `used_at`。
 * **`auth_logs`**：儲存登入 / 登出 / 失敗 / 鎖定等身分驗證事件，以及後台敏感的高風險管理操作事件（如全域配置變更、任務強制操作、使用者帳號狀態變更與刪除等）（user_id、event_type、ip_address、detail、created_at）。其 `detail` 欄位以 JSON 格式儲存詳細的操作前後差異與目標資訊。
 
 > Session Token 本身不得以明文儲存於資料庫，需儲存其雜湊值（Hash），以防資料庫外洩時 Token 被直接複用。
 
-### 6.7 Session Token 有效期與續期策略
+### 6.8 Session Token 有效期與續期策略
 
 * **有效期限**：Session Token 預設有效期為 **8 小時**（可於環境變數中配置）。
 * **續期機制（Sliding Window）**：使用者在 Token 有效期內持續操作時，後端在每次 API 請求成功後自動將 Token 有效期順延（重置為 8 小時），無需使用者重新登入。
@@ -288,7 +301,7 @@
   * Token 已超過最大絕對有效期（如 7 天，不論是否持續操作）。
 * **同時登入**：系統允許同一帳號在多個裝置上同時持有有效 Session（`sessions` 表中可存在多筆有效記錄），各 Session 獨立管理有效期。
 
-### 6.8 初始管理員帳號 Bootstrap 機制
+### 6.9 初始管理員帳號 Bootstrap 機制
 
 邀請制系統中，第一個管理員帳號須透過以下機制建立，而非透過前台或後台介面：
 

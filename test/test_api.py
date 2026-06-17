@@ -179,6 +179,14 @@ def test_api_full_flow() -> None:
 
 
 def _run_api_full_flow() -> None:
+    """
+    執行所有的 API 整合測試流程。
+
+    包含所有的 API 端點存取與斷言檢查。
+
+    Raises:
+        AssertionError: 當 API 測試未達預期結果時拋出。
+    """
     print("--- Starting API Tests ---")
     client = TestClient(app)
 
@@ -384,6 +392,9 @@ def test_api_real_scenario_flow() -> None:
     4. 透過 API 啟動該爬蟲任務。
     5. 透過 API 輪詢 (Polling) 任務狀態，直到爬行結束。
     6. 透過 API 讀取最終報表，並驗證系統是否確實爬取了靶機上各種特殊情境的外部連結。
+
+    Raises:
+        AssertionError: 測試中任何檢查未通過或發生非預期結果時拋出。
     """
     port = 8081
     if is_port_in_use(port):

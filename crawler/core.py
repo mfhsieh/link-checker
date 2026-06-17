@@ -87,6 +87,14 @@ class CrawlerCore:
 
     負責處理 HTML 內容的抓取、連結的擷取，並根據提供的網域規則
     將連結分類為內部連結與外部目標連結。
+
+    Attributes:
+        config (CrawlerConfig): 爬蟲引擎配置物件。
+        ignore_regex_compiled (list[re.Pattern]): 預先編譯的忽略路徑正規表示式。
+        enable_dynamic_headers (bool): 是否啟用動態標頭 (當未自訂 User-Agent 時)。
+        user_agent (str): 使用的 User-Agent 標頭。
+        client (httpx.Client): 預設的 HTTPX 客戶端。
+        exempt_client (httpx.Client): 豁免 SSL 驗證的 HTTPX 客戶端。
     """
 
     @staticmethod

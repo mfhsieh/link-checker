@@ -779,7 +779,14 @@ class DateQueryArgs:  # pylint: disable=too-few-public-methods
         self,
         start_date: str | None = Query(None, description="開始日期 (YYYY-MM-DD 或 ISO 格式)"),
         end_date: str | None = Query(None, description="結束日期 (YYYY-MM-DD 或 ISO 格式)"),
-    ):
+    ) -> None:
+        """
+        初始化日期範圍查詢參數。
+
+        Args:
+            start_date (str | None): 開始日期。
+            end_date (str | None): 結束日期。
+        """
         self.start_date = start_date
         self.end_date = end_date
 
@@ -791,7 +798,14 @@ class PaginationArgs:  # pylint: disable=too-few-public-methods
         self,
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
-    ):
+    ) -> None:
+        """
+        初始化分頁查詢參數。
+
+        Args:
+            page (int): 頁碼。
+            page_size (int): 每頁筆數。
+        """
         self.page = page
         self.page_size = page_size
 
@@ -805,7 +819,16 @@ class LogQueryArgs:  # pylint: disable=too-few-public-methods
         user_id: str | None = Query(None),
         dates: DateQueryArgs = Depends(),
         pagination: PaginationArgs = Depends(),
-    ):
+    ) -> None:
+        """
+        初始化日誌查詢參數。
+
+        Args:
+            event_type (str | None): 事件類型過濾。
+            user_id (str | None): 使用者 ID 過濾。
+            dates (DateQueryArgs): 日期範圍過濾。
+            pagination (PaginationArgs): 分頁參數。
+        """
         self.event_type = event_type
         self.user_id = user_id
         self.start_date = dates.start_date

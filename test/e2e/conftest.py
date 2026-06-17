@@ -156,6 +156,9 @@ def test_server() -> Generator[str, None, None]:
 
     Yields:
         str: 測試伺服器的 Base URL。
+
+    Raises:
+        RuntimeError: 當 FastAPI 伺服器無法啟動時拋出。
     """
     setup_databases()
     create_admin_user()

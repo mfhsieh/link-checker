@@ -6,6 +6,10 @@ import * as api from './api.js';
 
 let _eventsBound = false;
 
+/**
+ * 綁定複製任務相關事件
+ * @returns {void}
+ */
 function bindDuplicateEvents() {
     const formEl = document.getElementById('duplicate-view-form');
     if (!formEl) return;

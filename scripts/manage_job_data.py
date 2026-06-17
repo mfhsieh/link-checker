@@ -253,6 +253,9 @@ def import_job(input_path: str, new_user_id: str) -> None:
 def main() -> None:
     """
     解析指令並執行對應操作。
+
+    Raises:
+        SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["export", "import"])

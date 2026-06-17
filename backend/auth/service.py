@@ -20,14 +20,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.orm.exc import StaleDataError
 
-from backend.auth.models import AuthLog, Invitation, Session, User
+from backend.auth.models import AuthLog, Invitation, Session, User, PasswordResetToken
 from backend.auth.password import (
     hash_password,
     validate_password_strength,
     verify_password,
 )
 from backend.config import get_settings
-from backend.email_sender import send_invitation_email
+from backend.email_sender import send_invitation_email, send_password_reset_email
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -666,3 +666,108 @@ def run_session_gc_task() -> None:
     # 脫離 Auth DB session 範圍再執行跨庫清理，避免長時間鎖定
     for uid in deleted_user_ids:
         cleanup_deleted_user_task(uid)
+
+
+# ── 忘記密碼與重設 ─────────────────────────────────────────────────────────────
+
+
+def request_password_reset(db: DBSession, email: str, ip: str | None = None) -> None:
+    """
+    申請重設密碼。
+
+    包含簡易的 IP 限速防護，並防禦帳號列舉攻擊（找不到帳號也不會拋出例外，且確保耗時相近）。
+
+    Args:
+        db (DBSession): Auth DB Session。
+        email (str): 申請重設的信箱。
+        ip (str | None): 客戶端 IP 位址。
+
+    Raises:
+        ValueError: 若該 IP 請求過於頻繁時拋出。
+    """
+    settings = get_settings()
+    # 簡易限速：同一 IP 在設定時間內最多允許的申請次數
+    if ip:
+        recent_requests = (
+            db
+            .query(AuthLog)
+            .filter(
+                AuthLog.event_type == "password_reset_requested",
+                AuthLog.ip_address == ip,
+                AuthLog.created_at >= _utc_now() - timedelta(seconds=settings.PASSWORD_RESET_WINDOW_SECONDS),
+            )
+            .count()
+        )
+        if recent_requests >= settings.PASSWORD_RESET_MAX_ATTEMPTS:
+            logger.warning("IP %s 申請重設密碼頻率過高", ip)
+            raise ValueError("請求過於頻繁，請稍後再試。")
+
+    _log_event(db, "password_reset_requested", ip_address=ip, detail=email)
+
+    user = db.query(User).filter(User.email == email).first()
+
+    # 為了防禦 Timing Attack，即使帳號不存在，我們也做一次無用的雜湊運算
+    dummy_token = secrets.token_urlsafe(32)
+    _hash_token(dummy_token)
+
+    if not user or user.status not in ("active", "suspended"):
+        # 找不到帳號或狀態不允許，直接返回，不透露資訊
+        return
+
+    # 產生 Token 並儲存 Hash (1 小時過期)
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = _hash_token(raw_token)
+    expires_at = _utc_now() + timedelta(hours=1)
+
+    reset_token = PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+    db.add(reset_token)
+    db.commit()
+
+    # 寄送重設信件
+    send_password_reset_email(email, raw_token)
+
+
+def reset_password(db: DBSession, token: str, new_password: str, ip: str | None = None) -> None:
+    """
+    透過重設 Token 設定新密碼。
+
+    Args:
+        db (DBSession): Auth DB Session。
+        token (str): 郵件中的重設 Token。
+        new_password (str): 新密碼。
+        ip (str | None): 客戶端 IP 位址。
+
+    Raises:
+        ValueError: Token 無效、過期，或新密碼強度不足。
+    """
+    token_hash = _hash_token(token)
+    reset_record = db.query(PasswordResetToken).filter(PasswordResetToken.token_hash == token_hash).first()
+
+    if not reset_record or reset_record.used_at is not None:
+        raise ValueError("無效的或已使用的重設連結。")
+
+    if reset_record.expires_at < _utc_now():
+        raise ValueError("重設連結已過期，請重新申請。")
+
+    user = db.query(User).filter(User.id == reset_record.user_id).first()
+    if not user:
+        raise ValueError("無效的重設連結。")
+
+    errors = validate_password_strength(new_password, user.email)
+    if errors:
+        raise ValueError("新密碼不符合安全標準：" + " ".join(errors))
+
+    user.password_hash = hash_password(new_password)
+    reset_record.used_at = _utc_now()
+    user.failed_login_count = 0
+    user.locked_until = None
+
+    db.commit()
+
+    # 清除該使用者的所有現有 Session，強制重新登入
+    invalidate_all_user_sessions(db, user.id)
+    _log_event(db, "password_reset_success", user_id=user.id, ip_address=ip)

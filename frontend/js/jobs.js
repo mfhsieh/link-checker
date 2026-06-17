@@ -163,6 +163,11 @@ export function renderJobList(jobs, containerEl) {
   _listContainerEl.appendChild(wrapperEl);
 }
 
+/**
+ * 渲染任務列表的單一行
+ * @param {Object} job - 任務資料
+ * @returns {HTMLTableRowElement} 表格的行元素
+ */
 function renderJobRow(job) {
   const statusClass = `badge-${job.status}`;
   const label = api.formatStatus(job.status);

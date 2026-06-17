@@ -7,6 +7,10 @@ import { toast } from './toast.js';
 
 let _eventsBound = false;
 
+/**
+ * 綁定任務移交相關事件
+ * @returns {void}
+ */
 function bindTransferEvents() {
     const runBtn = document.getElementById('btn-run-transfer');
     const formEl = document.getElementById('transfer-view-form');

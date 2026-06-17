@@ -181,6 +181,32 @@ if os.path.isdir(_frontend_dir):
         """
         return _serve_html_with_nonce("set-password.html", request)
 
+    @app.get("/forgot-password.html", include_in_schema=False, response_model=None)
+    def serve_forgot_password(request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        提供忘記密碼申請介面。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 forgot-password.html 回應。
+        """
+        return _serve_html_with_nonce("forgot-password.html", request)
+
+    @app.get("/reset-password.html", include_in_schema=False, response_model=None)
+    def serve_reset_password(request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        提供重設密碼介面。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 reset-password.html 回應。
+        """
+        return _serve_html_with_nonce("reset-password.html", request)
+
     @app.get("/", include_in_schema=False, response_model=None)
     def serve_index(request: Request) -> HTMLResponse | RedirectResponse:
         """

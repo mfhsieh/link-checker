@@ -20,6 +20,9 @@ from scripts.test_url import get_test_crawler_config
 def main() -> None:
     """
     解析命令列參數，並針對目標外部連結進行存活探測。
+
+    Raises:
+        SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
     """
     parser = argparse.ArgumentParser(description="測試單一外部連結存活狀態")
     parser.add_argument("url", help="欲測試的外部連結網址")

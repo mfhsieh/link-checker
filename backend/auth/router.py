@@ -73,6 +73,19 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    """忘記密碼申請的 Schema。"""
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """重設密碼的 Schema。"""
+
+    token: str
+    new_password: str
+
+
 # ── 輔助：設定 Session Cookie 與 CSRF Cookie ────────────────────────────────────
 
 
@@ -358,3 +371,63 @@ def change_password(
         ) from e
 
     return {"message": "密碼已成功更新。"}
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+def forgot_password(
+    body: ForgotPasswordRequest,
+    request: Request,
+    db: DBSession = Depends(get_auth_db),
+) -> dict[str, str]:
+    """
+    申請重設密碼。
+
+    無論信箱是否存在，皆回傳相同成功訊息，防止帳號列舉攻擊。
+
+    Args:
+        body (ForgotPasswordRequest): 包含 email 的請求內容。
+        request (Request): FastAPI 請求物件。
+        db (DBSession): Auth DB Session。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+    """
+    client_ip = request.client.host if request.client else None
+    try:
+        auth_service.request_password_reset(db, body.email, ip=client_ip)
+    except ValueError as e:
+        # 捕捉限速等明確錯誤
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e)) from e
+
+    return {"message": "若該信箱存在於系統中，我們已發送重設密碼信件。"}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+def reset_password(
+    body: ResetPasswordRequest,
+    request: Request,
+    db: DBSession = Depends(get_auth_db),
+) -> dict[str, str]:
+    """
+    重設密碼。
+
+    驗證 Token 後設定新密碼，並使該使用者所有 Session 失效。
+
+    Args:
+        body (ResetPasswordRequest): 包含 token 與新密碼的請求內容。
+        request (Request): FastAPI 請求物件。
+        db (DBSession): Auth DB Session。
+
+    Returns:
+        dict[str, str]: 成功訊息。
+
+    Raises:
+        HTTPException 400: 若 Token 無效、過期，或新密碼強度不足。
+    """
+    client_ip = request.client.host if request.client else None
+    try:
+        auth_service.reset_password(db, body.token, body.new_password, ip=client_ip)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+    return {"message": "密碼已重設成功，請重新登入。"}

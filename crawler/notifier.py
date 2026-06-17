@@ -29,7 +29,15 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @dataclass
 class JobStats:
-    """外部連結統計資訊。"""
+    """外部連結統計資訊。
+
+    Attributes:
+        total (int): 外部連結總數。
+        healthy (int): 正常連結數。
+        broken (int): 損壞連結數 (實質失效或連線異常)。
+        dead (int): 失效連結數 (DNS 解析失敗)。
+        blocked (int): 權限阻擋數。
+    """
 
     total: int
     healthy: int

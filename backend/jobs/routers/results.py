@@ -138,6 +138,9 @@ def get_internal_results_summary(
 
     Returns:
         dict[str, object]: 內部結果統計。
+
+    Raises:
+        HTTPException 404: 找不到任務或無權限存取時拋出。
     """
     try:
         return job_results.get_internal_results_summary(db, job_id, current_user.id, group_by)

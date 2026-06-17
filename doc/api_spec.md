@@ -149,6 +149,66 @@
 - **422**: Validation Error
 ---
 
+## POST /api/auth/forgot-password
+**摘要**: Forgot Password
+
+**說明**: 申請重設密碼。
+
+無論信箱是否存在，皆回傳相同成功訊息，防止帳號列舉攻擊。
+
+
+**Args**:
+- `body` (ForgotPasswordRequest): 包含 email 的請求內容。
+- `request` (Request): FastAPI 請求物件。
+- `db` (DBSession): Auth DB Session。
+
+
+**Returns**:
+- `dict[str, str]`: 成功訊息。
+
+**標籤**: auth
+
+### 請求內容 (Request Body)
+- **Content-Type**: `application/json`
+- **Schema**: `ForgotPasswordRequest` (參考下方 Schema 定義)
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
+## POST /api/auth/reset-password
+**摘要**: Reset Password
+
+**說明**: 重設密碼。
+
+驗證 Token 後設定新密碼，並使該使用者所有 Session 失效。
+
+
+**Args**:
+- `body` (ResetPasswordRequest): 包含 token 與新密碼的請求內容。
+- `request` (Request): FastAPI 請求物件。
+- `db` (DBSession): Auth DB Session。
+
+
+**Returns**:
+- `dict[str, str]`: 成功訊息。
+
+
+**Raises**:
+- `HTTPException 400`: 若 Token 無效、過期，或新密碼強度不足。
+
+**標籤**: auth
+
+### 請求內容 (Request Body)
+- **Content-Type**: `application/json`
+- **Schema**: `ResetPasswordRequest` (參考下方 Schema 定義)
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
 ## GET /api/jobs/default-config
 **摘要**: Get Default Config
 
@@ -542,6 +602,10 @@
 
 **Returns**:
 - `dict[str, object]`: 內部結果統計。
+
+
+**Raises**:
+- `HTTPException 404`: 找不到任務或無權限存取時拋出。
 
 **標籤**: jobs
 
@@ -1093,6 +1157,15 @@ Crawler 區塊配置更新請求結構。
 
 ---
 
+## ForgotPasswordRequest
+忘記密碼申請的 Schema。
+
+| 屬性名稱 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `email` | string | 是 |  |
+
+---
+
 ## HTTPValidationError
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
@@ -1159,6 +1232,16 @@ MimeType 過濾設定。
 |---|---|---|---|
 | `enabled` | boolean | 是 |  |
 | `allowed_types` | array | 是 |  |
+
+---
+
+## ResetPasswordRequest
+重設密碼的 Schema。
+
+| 屬性名稱 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `token` | string | 是 |  |
+| `new_password` | string | 是 |  |
 
 ---
 

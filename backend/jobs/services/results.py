@@ -169,6 +169,15 @@ def get_job_results(
     import json
 
     def apply_py_filter_sort(items_list: list[dict[str, object]]) -> list[dict[str, object]]:
+        """
+        在記憶體中套用前端指定的欄位過濾與排序邏輯。
+
+        Args:
+            items_list (list[dict[str, object]]): 尚未過濾與排序的項目清單。
+
+        Returns:
+            list[dict[str, object]]: 過濾與排序後的項目清單。
+        """
         if query_args.col_filters:
             try:
                 filters = json.loads(query_args.col_filters)
@@ -198,6 +207,15 @@ def get_job_results(
             rev = not query_args.sort_asc
 
             def sort_key(x: dict[str, object]) -> object:
+                """
+                產生排序用的鍵值。
+
+                Args:
+                    x (dict[str, object]): 單筆項目。
+
+                Returns:
+                    object: 用於排序的比較鍵值。
+                """
                 val = x.get(sort_k)
                 if val is None:
                     return ""
@@ -979,6 +997,18 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
 def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group_by: str = "none") -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的統計摘要。
+
+    Args:
+        db (DBSession): Crawler DB Session。
+        job_id (str): 任務 ID。
+        user_id (str): 請求查詢的使用者 ID。
+        group_by (str): 聚合方式。
+
+    Returns:
+        dict[str, object]: 內部失敗統計摘要。
+
+    Raises:
+        ValueError: 找不到任務或無權限存取時拋出。
     """
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job or job.user_id != user_id:
@@ -1128,6 +1158,15 @@ def get_internal_errors(
     import json
 
     def apply_py_filter_sort(items_list: list[dict[str, object]]) -> list[dict[str, object]]:
+        """
+        在記憶體中套用前端指定的欄位過濾與排序邏輯。
+
+        Args:
+            items_list (list[dict[str, object]]): 尚未過濾與排序的項目清單。
+
+        Returns:
+            list[dict[str, object]]: 過濾與排序後的項目清單。
+        """
         if col_filters:
             try:
                 filters = json.loads(col_filters)
@@ -1152,6 +1191,15 @@ def get_internal_errors(
             rev = not sort_asc
 
             def sort_key(x: dict[str, object]) -> object:
+                """
+                產生排序用的鍵值。
+
+                Args:
+                    x (dict[str, object]): 單筆項目。
+
+                Returns:
+                    object: 用於排序的比較鍵值。
+                """
                 val = x.get(sort_by)
                 if val is None:
                     return ""

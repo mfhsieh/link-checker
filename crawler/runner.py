@@ -10,6 +10,7 @@ import random
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from collections.abc import Callable
 
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
@@ -25,7 +26,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class JobRunnerState:
-    """爬蟲任務狀態追蹤資料類別。"""
+    """爬蟲任務狀態追蹤資料類別。
+
+    Attributes:
+        crawled_count (int): 已爬取完成的頁面數量。
+        checked_links_cache (dict[str, tuple[str | None, int | None, str | None]]): 外部連結存活檢查的記憶體快取。
+        target_domains_list (list[str]): 允許遍歷的目標網域陣列。
+        trusted_domains_list (list[str]): 視為信任的網域陣列。
+    """
 
     crawled_count: int = 0
     checked_links_cache: dict[str, tuple[str | None, int | None, str | None]] = field(default_factory=dict)
@@ -72,14 +80,14 @@ class JobRunner:
 
     def __init__(
         self,
-        session_factory,
+        session_factory: Callable[[], Session],
         job_id: str,
-    ):
+    ) -> None:
         """初始化 JobRunner。
 
         Args:
-            session_factory: SQLAlchemy Session 工廠。
-            job_id: 目標任務 ID。
+            session_factory (Callable[[], Session]): SQLAlchemy Session 工廠。
+            job_id (str): 目標任務 ID。
         """
         self.session_factory = session_factory
         self.job_id = job_id
@@ -466,6 +474,15 @@ class JobRunner:
             def check_single(
                 ext_link: str,
             ) -> tuple[str, str | None, int | None, str | None]:
+                """
+                呼叫爬蟲引擎對單一外部連結進行存活探測。
+
+                Args:
+                    ext_link (str): 外部連結網址。
+
+                Returns:
+                    tuple[str, str | None, int | None, str | None]: (目標網址, IP, 狀態碼, 錯誤訊息)。
+                """
                 return self._check_single_link(ext_link, crawler)
 
             results = list(self.executor.map(check_single, needs_check))

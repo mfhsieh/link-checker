@@ -17,7 +17,15 @@ from backend.main import app  # pylint: disable=wrong-import-position,import-err
 
 
 def _format_description_markdown(desc: str) -> str:
-    """將 Python docstring 中的 Args/Returns 等區段轉換為更適合 Markdown 呈現的格式。"""
+    """
+    將 Python docstring 中的 Args/Returns 等區段轉換為更適合 Markdown 呈現的格式。
+
+    Args:
+        desc (str): 原始的 docstring 說明字串。
+
+    Returns:
+        str: 格式化為 Markdown 的字串。
+    """
     lines = desc.split("\n")
     out_lines = []
     in_section = False

@@ -154,7 +154,14 @@ class PaginationArgs:  # pylint: disable=too-few-public-methods
         self,
         page: int = Query(1, ge=1),
         page_size: int = Query(50, ge=1, le=200),
-    ):
+    ) -> None:
+        """
+        初始化分頁查詢參數。
+
+        Args:
+            page (int): 頁碼。
+            page_size (int): 每頁筆數。
+        """
         self.page = page
         self.page_size = page_size
 
@@ -175,7 +182,19 @@ class ResultsFilterArgs:  # pylint: disable=too-few-public-methods
         sort_by: str | None = Query(None),
         sort_asc: bool = Query(True),
         col_filters: str | None = Query(None),
-    ):
+    ) -> None:
+        """
+        初始化任務結果篩選參數。
+
+        Args:
+            status_filter (str | None): 狀態篩選條件。
+            search (str | None): 搜尋關鍵字。
+            exclude (str | None): 要排除的目標網域。
+            group_by (str): 聚合方式。
+            sort_by (str | None): 排序依據的欄位。
+            sort_asc (bool): 是否升冪排序。
+            col_filters (str | None): 特定欄位的過濾條件 (JSON 格式)。
+        """
         self.status_filter = status_filter
         self.search = search
         self.exclude = exclude

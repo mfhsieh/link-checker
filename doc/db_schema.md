@@ -30,6 +30,7 @@ erDiagram
     users ||--o{ invitations : "has many"
     users ||--o{ sessions : "has many"
     users ||--o{ auth_logs : "has many"
+    users ||--o{ password_reset_tokens : "has many"
 
     users {
         String(36) id PK "使用者主鍵 (UUID)"
@@ -62,6 +63,15 @@ erDiagram
         DateTime created_at "建立時間"
         String(45) ip_address "來源 IP"
         Text user_agent "User-Agent"
+    }
+
+    password_reset_tokens {
+        String(36) id PK "憑證主鍵 (UUID)"
+        String(36) user_id FK "關聯的使用者 ID"
+        String(64) token_hash "Token SHA-256 雜湊"
+        DateTime expires_at "有效期限"
+        DateTime used_at "使用時間"
+        DateTime created_at "建立時間"
     }
 
     auth_logs {
@@ -125,6 +135,22 @@ erDiagram
 ##### 索引資訊 (Indexes)
 * **`uq_sessions_token_hash`**: `(token_hash)` 唯一約束。
 * **`ix_sessions_user_id`**: `(user_id)` 支援同一帳號多裝置登入管理。
+
+#### `password_reset_tokens` (密碼重設憑證表)
+記錄使用者忘記密碼時申請的重設憑證。憑證以雜湊儲存防範外洩，且具備時效與單次使用限制。
+
+| 欄位名稱 | 型別 | 限制/預設值 | 說明 |
+| :--- | :--- | :--- | :--- |
+| `id` | `String(36)` | **Primary Key** | 憑證紀錄的主鍵，UUID v4 字串。 |
+| `user_id` | `String(36)` | **Logical FK**, `NOT NULL` | 關聯的受邀使用者 ID (`users.id`)。於應用層控管關聯，未設定實體外鍵約束。 |
+| `token_hash` | `String(64)` | `UNIQUE`, `NOT NULL` | 重設 Token 的 SHA-256 雜湊值。 |
+| `expires_at` | `DateTime` | `NOT NULL` | 此重設連結的有效期限。 |
+| `used_at` | `DateTime` | `Nullable` | 憑證被使用的時間（`NULL` 代表尚未使用）。 |
+| `created_at` | `DateTime` | `Default: 當下 UTC 時間` | 憑證建立的 UTC 時間戳記。 |
+
+##### 索引資訊 (Indexes)
+* **`uq_password_reset_tokens_token_hash`**: `(token_hash)` 唯一約束。
+* **`ix_password_reset_tokens_user_id`**: `(user_id)` 快速查詢使用者的重設紀錄。
 
 #### `auth_logs` (身分驗證日誌表)
 記錄系統中與身分驗證相關的所有重大安全性事件，作為後續安全稽核的依據。

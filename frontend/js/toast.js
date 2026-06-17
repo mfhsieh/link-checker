@@ -6,6 +6,10 @@
 
 let _containerEl = null;
 
+/**
+ * 取得或建立 Toast 容器
+ * @returns {HTMLElement} Toast 容器元素
+ */
 function getContainer() {
     if (!_containerEl) {
         _containerEl = document.createElement('div');
@@ -56,6 +60,14 @@ export function showToast(message, type = 'info', duration = 4000) {
     }
 }
 
+/**
+ * 提供不同類型 Toast 通知的快捷方法
+ * @namespace
+ * @property {function(string, number=): void} success - 顯示成功訊息
+ * @property {function(string, number=): void} warning - 顯示警告訊息
+ * @property {function(string, number=): void} error - 顯示錯誤訊息
+ * @property {function(string, number=): void} info - 顯示資訊訊息
+ */
 export const toast = {
     success: (msg, d) => showToast(msg, 'success', d),
     warning: (msg, d) => showToast(msg, 'warning', d),

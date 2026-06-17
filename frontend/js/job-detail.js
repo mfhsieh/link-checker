@@ -58,6 +58,10 @@ function startSseStream(jobId) {
     };
 }
 
+/**
+ * 停止 Server-Sent Events (SSE) 串流
+ * @returns {void}
+ */
 function stopSseStream() {
     if (_eventSource) {
         _eventSource.close();
@@ -65,6 +69,14 @@ function stopSseStream() {
     }
 }
 
+/**
+ * 顯示自訂的確認對話框
+ * @param {string} title - 對話框標題
+ * @param {string} message - 提示訊息
+ * @param {string} [confirmText='確定'] - 確認按鈕文字
+ * @param {boolean} [isDanger=false] - 是否為危險操作 (紅色按鈕)
+ * @returns {Promise<boolean>} 使用者點擊確認回傳 true，取消則回傳 false
+ */
 function showConfirm(title, message, confirmText = '確定', isDanger = false) {
     return new Promise((resolve) => {
         const modal = document.getElementById('confirm-modal');
@@ -187,6 +199,11 @@ export function destroyJobDetailPage() {
     stopSseStream();
 }
 
+/**
+ * 重新載入任務詳情
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function refreshJobDetail(jobId) {
     try {
         const job = await api.get(`/api/jobs/${jobId}`);
@@ -206,6 +223,11 @@ async function refreshJobDetail(jobId) {
     }
 }
 
+/**
+ * 載入內部連結結果頁面
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function loadInternalResultsPage(jobId) {
     const containerEl = document.getElementById('internal-results-container');
     if (!containerEl) return;
@@ -254,6 +276,11 @@ async function loadInternalResultsPage(jobId) {
     }
 }
 
+/**
+ * 渲染內部連結診斷摘要卡片
+ * @param {Object} summary - 統計摘要資料
+ * @returns {void}
+ */
 function renderInternalSummary(summary) {
     setTextContent('int-summary-total', summary.total ?? 0);
     setTextContent('int-summary-server-error', summary.server_error ?? 0);
@@ -265,6 +292,12 @@ function renderInternalSummary(summary) {
     setTextContent('int-summary-access-denied', summary.access_denied ?? 0);
 }
 
+/**
+ * 渲染內部連結診斷結果表格架構
+ * @param {Object} res - API 回傳的結果物件
+ * @param {HTMLElement} containerEl - 表格容器元素
+ * @returns {void}
+ */
 function renderInternalResultsTable(res, containerEl) {
     _internalResultItems = res.items || [];
 
@@ -375,6 +408,12 @@ function renderInternalResultsTable(res, containerEl) {
     renderInternalTbody(tableEl);
 }
 
+/**
+ * 取得內部連結狀態對應的顏色類別
+ * @param {number|string} code - HTTP 狀態碼
+ * @param {string} errMsg - 錯誤訊息
+ * @returns {string} 顏色類別名稱
+ */
 function getInternalStatusColorClass(code, errMsg) {
     if (!code || code === '-' || code === 'Error' || code === 'DNS Failed') {
         const msg = String(errMsg || '').toLowerCase();
@@ -392,6 +431,12 @@ function getInternalStatusColorClass(code, errMsg) {
     return 'text-secondary';
 }
 
+/**
+ * 取得內部連結狀態對應的標籤類別
+ * @param {number|string} code - HTTP 狀態碼
+ * @param {string} errMsg - 錯誤訊息
+ * @returns {string} 標籤類別名稱
+ */
 function getInternalBadgeClass(code, errMsg) {
     if (!code || code === '-' || code === 'Error' || code === 'DNS Failed') {
         const msg = String(errMsg || '').toLowerCase();
@@ -409,6 +454,11 @@ function getInternalBadgeClass(code, errMsg) {
     return 'badge-secondary';
 }
 
+/**
+ * 渲染內部連結診斷表格內容
+ * @param {HTMLTableElement} tableEl - 表格元素
+ * @returns {void}
+ */
 function renderInternalTbody(tableEl) {
     let data = [..._internalResultItems];
 
@@ -556,6 +606,12 @@ function renderInternalTbody(tableEl) {
     });
 }
 
+/**
+ * 渲染內部連結結果分頁列
+ * @param {Object} res - API 回傳的分頁結果物件
+ * @param {string} jobId - 任務 ID
+ * @returns {void}
+ */
 function renderInternalPagination(res, jobId) {
     const paginationEl = document.getElementById('internal-results-pagination');
     if (!paginationEl) return;
@@ -637,6 +693,11 @@ function renderInternalPagination(res, jobId) {
     paginationEl.appendChild(paginationDivEl);
 }
 
+/**
+ * 渲染任務基本資訊與進度
+ * @param {Object} job - 任務詳細資料
+ * @returns {void}
+ */
 function renderJobInfo(job) {
     const el = (id) => document.getElementById(id);
 
@@ -709,6 +770,10 @@ function renderJobInfo(job) {
     toggleDisplay('btn-retry-failed-job', canRetry);
 }
 
+/**
+ * 綁定操作任務的控制按鈕事件
+ * @returns {void}
+ */
 function bindControlButtons() {
     bindBtn('btn-start-job', async () => {
         const confirmed = await showConfirm('啟動任務', '確定要開始執行此爬蟲任務嗎？', '啟動');
@@ -899,6 +964,11 @@ function bindControlButtons() {
     }
 }
 
+/**
+ * 載入外部/內部結果主邏輯
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function loadResults(jobId) {
     const containerEl = document.getElementById('results-container');
     if (!containerEl) return;
@@ -922,6 +992,11 @@ async function loadResults(jobId) {
     }
 }
 
+/**
+ * 載入外部結果頁面
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function loadResultsPage(jobId) {
     const containerEl = document.getElementById('results-container');
     if (!containerEl) return;
@@ -968,6 +1043,11 @@ async function loadResultsPage(jobId) {
     }
 }
 
+/**
+ * 渲染外部結果統計摘要卡片
+ * @param {Object} summary - 統計摘要資料
+ * @returns {void}
+ */
 function renderResultsSummary(summary) {
     setTextContent('summary-total', summary.total_external_links ?? 0);
     setTextContent('summary-healthy', summary.healthy_count ?? 0);
@@ -980,6 +1060,12 @@ function renderResultsSummary(summary) {
     setTextContent('summary-insecure', summary.insecure_count ?? 0);
 }
 
+/**
+ * 渲染外部結果表格架構
+ * @param {Object} res - API 回傳的結果物件
+ * @param {HTMLElement} containerEl - 表格容器元素
+ * @returns {void}
+ */
 function renderResultsTable(res, containerEl) {
     _currentResultItems = res.items || [];
 
@@ -1087,6 +1173,11 @@ function renderResultsTable(res, containerEl) {
     renderResultsTbody(tableEl);
 }
 
+/**
+ * 渲染外部結果表格內容
+ * @param {HTMLTableElement} tableEl - 表格元素
+ * @returns {void}
+ */
 function renderResultsTbody(tableEl) {
     let data = [..._currentResultItems];
 
@@ -1413,6 +1504,12 @@ function renderResultsTbody(tableEl) {
     });
 }
 
+/**
+ * 渲染外部結果分頁列
+ * @param {Object} res - API 回傳的分頁結果物件
+ * @param {string} jobId - 任務 ID
+ * @returns {void}
+ */
 function renderPagination(res, jobId) {
     const paginationEl = document.getElementById('results-pagination');
     if (!paginationEl) return;
@@ -1499,6 +1596,10 @@ function renderPagination(res, jobId) {
     paginationEl.appendChild(paginationDivEl);
 }
 
+/**
+ * 綁定結果表格篩選與排序控制項
+ * @returns {void}
+ */
 function bindResultsControls() {
     document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(chip => {
         chip.addEventListener('click', async () => {
@@ -1661,16 +1762,34 @@ function bindResultsControls() {
     });
 }
 
+/**
+ * 設定指定元素的文字內容
+ * @param {string} id - 元素 ID
+ * @param {string|number} value - 欲設定的文字值
+ * @returns {void}
+ */
 function setTextContent(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value ?? '-';
 }
 
+/**
+ * 切換元素的顯示狀態
+ * @param {string} id - 元素 ID
+ * @param {boolean} show - 是否顯示
+ * @returns {void}
+ */
 function toggleDisplay(id, show) {
     const el = document.getElementById(id);
     if (el) el.style.display = show ? '' : 'none';
 }
 
+/**
+ * 綁定按鈕點擊事件，處理讀取狀態與錯誤捕捉
+ * @param {string} id - 按鈕 ID
+ * @param {Function} handler - 處理非同步邏輯的函式
+ * @returns {void}
+ */
 function bindBtn(id, handler) {
     const btn = document.getElementById(id);
     if (!btn) return;

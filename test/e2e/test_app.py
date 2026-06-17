@@ -14,6 +14,9 @@ def test_create_job(page: Page, base_url: str) -> None:
     Args:
         page (Page): Playwright 的網頁操作物件。
         base_url (str): 測試伺服器的根網址。
+
+    Raises:
+        AssertionError: 任務建立失敗或發生非預期錯誤時拋出。
     """
     # 必須先登入
     page.goto(f"{base_url}/index.html")

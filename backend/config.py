@@ -57,9 +57,13 @@ class Settings:  # pylint: disable=too-few-public-methods
 
     # ── 登入保護設定 ───────────────────────────────────────────────────────────
     # 連續登入失敗次數閾值，超過後暫時鎖定帳號
-    LOGIN_MAX_ATTEMPTS: int = int(os.environ.get("LOGIN_MAX_ATTEMPTS") or "5")
+    LOGIN_MAX_ATTEMPTS: int = int(os.environ.get("LOGIN_MAX_ATTEMPTS") or "3")
     # 帳號鎖定時間（秒），預設 15 分鐘
     LOGIN_LOCKOUT_SECONDS: int = int(os.environ.get("LOGIN_LOCKOUT_SECONDS") or "900")
+    # 同一 IP 申請重設密碼的次數上限
+    PASSWORD_RESET_MAX_ATTEMPTS: int = int(os.environ.get("PASSWORD_RESET_MAX_ATTEMPTS") or "3")
+    # 重設密碼申請的限速時間窗口（秒）
+    PASSWORD_RESET_WINDOW_SECONDS: int = int(os.environ.get("PASSWORD_RESET_WINDOW_SECONDS") or "900")
 
     # ── SMTP 郵件設定（透過環境變數提供，不存入資料庫）─────────────────────────
     SMTP_HOST: str = os.environ.get("SMTP_HOST", "localhost")

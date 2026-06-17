@@ -452,6 +452,12 @@ async def stream_job_updates(
     """
 
     async def event_generator() -> typing.AsyncGenerator[str, None]:
+        """
+        產生 SSE 事件的非同步產生器。
+
+        Yields:
+            str: 格式化後的 SSE 資料區塊。
+        """
         last_data_str = None
         while True:
             if await request.is_disconnected():

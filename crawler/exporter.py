@@ -24,7 +24,13 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @dataclass
 class ExportOptions:
-    """匯出結果的進階選項"""
+    """匯出結果的進階選項
+
+    Attributes:
+        status_filter (str | None): 狀態篩選條件。
+        group_by (str): 聚合方式。
+        exclude (str | None): 欲排除的網域。
+    """
 
     status_filter: str | None = None
     group_by: str = "none"

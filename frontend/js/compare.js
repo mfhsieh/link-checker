@@ -12,6 +12,12 @@ let _compareSort = { key: null, asc: true };
 let _compareColFilters = {};
 let _currentCompareHeaders = [];
 
+/**
+ * 設定指定元素的文字內容
+ * @param {string} id - 元素 ID
+ * @param {string|number} value - 欲設定的文字值
+ * @returns {void}
+ */
 function setTextContent(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value ?? '-';
@@ -245,6 +251,12 @@ function renderCompareTab(tabName) {
     renderCompareTbody(tableEl, tabName);
 }
 
+/**
+ * 渲染差異表格內容
+ * @param {HTMLTableElement} tableEl - 欲渲染的表格元素
+ * @param {string} tabName - 目前選中的頁籤名稱
+ * @returns {void}
+ */
 function renderCompareTbody(tableEl, tabName) {
     const data = _getFilteredData();
     let tbody = tableEl.querySelector('tbody');
@@ -495,6 +507,10 @@ function renderCompareTbody(tableEl, tabName) {
     });
 }
 
+/**
+ * 取得經過過濾與排序後的差異資料
+ * @returns {Array<Object>} 處理後的資料陣列
+ */
 function _getFilteredData() {
     if (!_currentDiffData || !_currentDiffData.details[_currentTab]) return [];
     let data = [..._currentDiffData.details[_currentTab]];
@@ -566,6 +582,10 @@ function _getFilteredData() {
     return data;
 }
 
+/**
+ * 匯出差異資料為 JSON 格式
+ * @returns {void}
+ */
 function exportCompareJson() {
     const data = _getFilteredData();
     if (!data.length) {
@@ -583,11 +603,20 @@ function exportCompareJson() {
     URL.revokeObjectURL(url);
 }
 
+/**
+ * 淨化 CSV 欄位數值以防範注入攻擊
+ * @param {any} val - 欲淨化的數值
+ * @returns {any} 淨化後的數值
+ */
 function _sanitizeCsv(val) {
     if (typeof val === 'string' && /^[=+\-@]/.test(val)) return "'" + val;
     return val;
 }
 
+/**
+ * 匯出差異資料為 CSV 格式
+ * @returns {void}
+ */
 function exportCompareCsv() {
     const data = _getFilteredData();
     if (!data.length) {

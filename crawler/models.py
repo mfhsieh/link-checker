@@ -38,7 +38,22 @@ def get_utc_now() -> datetime:
 
 @dataclass
 class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
-    """爬蟲引擎的全域與進階配置物件。"""
+    """爬蟲引擎的全域與進階配置物件。
+
+    Attributes:
+        timeout (int): 網頁請求等待回應的最大秒數。
+        connect_timeout (float): TCP 建立連線等待時間。
+        external_check_timeout (float): 外連存活檢查等待時間。
+        ignore_extensions (list[str]): 忽略的副檔名清單。
+        mime_type_filter (dict[str, object]): MIME 類型過濾設定。
+        ignore_regexes (list[str]): 忽略的路徑規則清單。
+        user_agent (str | None): 自訂 User-Agent 標頭。
+        ssl_exempt_domains (list[str]): 自簽憑證豁免網域清單。
+        proxy_url (str | None): 代理伺服器網址。
+        max_content_length (int): 最大下載容量限制 (Bytes)。
+        max_redirects (int): 最大重導向次數限制。
+        social_domains (list[str]): 社群與反爬蟲網域清單。
+    """
 
     timeout: int = _DEF["timeout"]
     connect_timeout: float = _DEF["connect_timeout"]

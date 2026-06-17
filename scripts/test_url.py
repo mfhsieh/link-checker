@@ -78,6 +78,9 @@ def get_test_crawler_config(
 def main() -> None:
     """
     解析命令列參數，並針對目標網址進行單次頁面爬取測試。
+
+    Raises:
+        SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
     """
     parser = argparse.ArgumentParser(description="測試單一頁面爬取 (限定 1 頁)")
     parser.add_argument("url", help="欲爬取的目標網址")

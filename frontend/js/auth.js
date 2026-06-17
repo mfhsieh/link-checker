@@ -7,7 +7,11 @@ import { toast } from './toast.js';
 
 // ── 密碼強度顯示 ──────────────────────────────────────────────
 
-/** 計算密碼強度等級（0–4）*/
+/** 
+ * 計算密碼強度等級（0–4）
+ * @param {string} password - 密碼字串
+ * @returns {number} 密碼強度分數
+ */
 function calcPasswordStrength(password) {
     let score = 0;
     if (password.length >= 12) score++;
@@ -18,6 +22,11 @@ function calcPasswordStrength(password) {
     return Math.min(score, 4);
 }
 
+/**
+ * 依據分數渲染對應的強度標籤與顏色
+ * @param {number} score - 密碼強度分數
+ * @returns {{label: string, color: string}} 標籤與顏色的物件
+ */
 function renderPasswordStrength(score) {
     const labels = ['', '弱', '普通', '良好', '強'];
     const colors = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'];

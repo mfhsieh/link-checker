@@ -23,7 +23,15 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @dataclass
 class JobCreateOptions:
-    """任務建立選項。"""
+    """任務建立選項。
+
+    Attributes:
+        start_url (str): 任務起始網址。
+        target_domains (list[str]): 允許爬蟲深入遍歷的目標網域清單。
+        trusted_domains (list[str]): 視為信任的網域清單。
+        crawler_config (dict[str, object] | None): 爬蟲設定參數字典。
+        user_id (str | None): 任務擁有者 ID。
+    """
 
     start_url: str
     target_domains: list[str]

@@ -86,6 +86,65 @@ def _build_invitation_email(
     return msg
 
 
+def _build_password_reset_email(
+    to_email: str,
+    reset_token: str,
+) -> EmailMessage:
+    """
+    組建重設密碼郵件的 EmailMessage 物件。
+
+    Args:
+        to_email (str): 收件者電子郵件地址。
+        reset_token (str): 密碼重設的 Token。
+
+    Returns:
+        EmailMessage: 組建完成的郵件物件。
+    """
+    settings = get_settings()
+    reset_url = f"{settings.BASE_URL}/reset-password.html?token={reset_token}"
+
+    plain_text = (
+        f"您好，\n\n"
+        f"我們收到了您要求重設「{settings.APP_NAME}」密碼的申請。\n\n"
+        f"請點擊以下網址重設您的密碼（該連結 1 小時內有效）：\n"
+        f"{reset_url}\n\n"
+        f"若您並未申請重設密碼，請忽略此郵件。\n\n"
+        f"此為系統自動發送的郵件，請勿回覆。"
+    )
+
+    html_body = f"""\
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+  <h2 style="color:#1a1a2e">{settings.APP_NAME} 密碼重設</h2>
+  <p>您好，</p>
+  <p>我們收到了您要求重設密碼的申請。請點擊下方按鈕或連結來設定新密碼：</p>
+  <div style="margin:24px 0;">
+    <a href="{reset_url}" style="background:#2563eb;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">重設密碼</a>
+  </div>
+  <p style="margin:0 0 16px 0;font-size:0.875rem;color:#666;">
+    或複製以下網址至瀏覽器貼上：<br>
+    <a href="{reset_url}" style="color:#2563eb;text-decoration:none;word-break:break-all;">{reset_url}</a>
+  </p>
+  <p style="color:#666;font-size:0.875rem">
+    此連結有效期為 <strong>1 小時</strong>，逾期後將失效。若您並未申請重設密碼，請忽略此封郵件。
+  </p>
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+  <p style="color:#999;font-size:0.75rem">此為系統自動發送的郵件，請勿回覆。</p>
+</body>
+</html>"""
+
+    msg = EmailMessage()
+    msg["Subject"] = f"【{settings.APP_NAME}】密碼重設通知"
+    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+    msg["To"] = to_email
+    msg.set_content(plain_text)
+    msg.add_alternative(html_body, subtype="html")
+
+    return msg
+
+
 def _send_email(msg: EmailMessage) -> None:
     """
     執行實際的 SMTP 發送邏輯。
@@ -144,6 +203,39 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
         return True
     except (smtplib.SMTPException, OSError) as e:
         logger.error("寄送邀請郵件至 %s 時發生錯誤: %s", to_email, e)
+        return False
+
+
+def send_password_reset_email(to_email: str, reset_token: str) -> bool:
+    """
+    發送重設密碼郵件。
+
+    Args:
+        to_email (str): 收件者電子郵件地址。
+        reset_token (str): 密碼重設的 Token。
+
+    Returns:
+        bool: 寄送成功回傳 True，失敗回傳 False。
+    """
+    settings = get_settings()
+    msg = _build_password_reset_email(to_email, reset_token)
+
+    if settings.SMTP_CONSOLE_MODE:
+        reset_url = f"{settings.BASE_URL}/reset-password.html?token={reset_token}"
+        logger.info(
+            "[SMTP Console Mode] 重設密碼郵件（未實際寄送）:\n  收件者: %s\n  Subject: %s\n  重設連結: %s",
+            to_email,
+            msg["Subject"],
+            reset_url,
+        )
+        return True
+
+    try:
+        _send_email(msg)
+        logger.info("重設密碼郵件已成功寄送至 %s", to_email)
+        return True
+    except (smtplib.SMTPException, OSError) as e:
+        logger.error("寄送重設密碼郵件至 %s 時發生錯誤: %s", to_email, e)
         return False
 
 

@@ -153,3 +153,26 @@ class AuthLog(AuthBase):  # pylint: disable=too-few-public-methods
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
+
+
+class PasswordResetToken(AuthBase):  # pylint: disable=too-few-public-methods
+    """
+    密碼重設憑證資料表。
+
+    Attributes:
+        id (str): 主鍵，UUID v4 字串。
+        user_id (str): 關聯的使用者 ID。
+        token_hash (str): 重設 Token 的 SHA-256 雜湊值。
+        expires_at (datetime): 憑證有效期限。
+        used_at (datetime | None): 憑證使用時間（None 代表尚未使用）。
+        created_at (datetime): 建立時間。
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)

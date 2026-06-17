@@ -30,7 +30,7 @@
 | `--export` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
 | `--export-full` | *(無)*| 字串 | 指定任務 ID，匯出該任務的完整報表 (ZIP 壓縮檔，含爬取紀錄與外連清單)。亦可搭配 `--output` 自訂檔名。 | 無 |
 | `--output` | *(無)* | 字串 | (選填) 搭配 `--export` 或 `--export-full` 使用，自訂輸出路徑。 | 依格式而定，如 `report/<JOB_ID>.csv` 或 `.zip` |
-| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容。支援 `dead`、`broken`、`blocked`、`insecure`。 | 無 |
+| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容 (支援 `dead`, `broken`, `not_found`, `server_error`, `insecure` 等多種狀態，詳見下方提示)。 | 無 |
 | `--exclude`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，排除指定的目標網域（多個以逗號分隔）。 | 無 |
 | `--group-by`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，聚合模式：`target` (依外連)、`source` (依來源頁面)、`domain` (依網域)。 | `none` |
 | `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及 `--export` 的 JSON 檔案導出。 | 無 |
@@ -51,9 +51,15 @@
 > * **路徑自動補齊**：使用 `-c` 參數啟動時，若指定設定檔在 `job/` 底下，您可以直接簡寫為 `python cli.py -c my_task.yaml`（程式會自動補齊路徑並在 `job/` 目錄中搜尋）。
 > * `--filter` 篩選條件說明：
 >   * `dead`：特指 **「DNS 解析失敗 (IP 位址為空) 的無效外部連結」**（例如網域已過期）。
->   * `broken`：特指 **「HTTP 狀態碼為實質異常 (如 404, 500) 或連線失敗的超連結與資源」**。
+>   * `broken`：廣義的失效連結，包含 HTTP 狀態碼為實質異常 (如 404, 500) 或連線失敗的資源。
+>   * `not_found`：精確篩選 **「資源遺失 (404, 410)」** 的連結。
+>   * `server_error`：精確篩選 **「伺服器異常 (500~599)」** 的連結。
+>   * `connection_error`：精確篩選 **「底層異常 (連線逾時、憑證無效等，無 HTTP 狀態碼)」** 的連結。
+>   * `other_error`：精確篩選 **「其他未歸類的 HTTP 異常 (如 400, 406 或 >=600)」** 的連結。
 >   * `blocked`：特指 **「遭目標網站防火牆 (WAF) 阻擋或權限不足 (如 401, 403, 429)」**，屬低風險連結。
 >   * `insecure`：特指 **「使用明文 HTTP 傳輸的非安全外部連結」**。
+>   * `healthy`：正常存活連結 (有 IP 且 HTTP 狀態碼 < 400)。
+>   * `all`：不進行篩選，匯出所有結果。
 > * 爬蟲執行過程中的日誌會依據全域設定，同時輸出至畫面並備份至 `log/crawler.log`。
 
 ---
@@ -124,6 +130,10 @@ crawler:
     - "fb.com"
     - "youtube.com"
     - "youtu.be"
+    - "instagram.com"
+    - "twitter.com"
+    - "linkedin.com"
+    - "line.me"
 
   # 預設略過且不進行 HTML 抓取解析的副檔名清單（會與個別任務清單聯集合併）
   ignore_extensions:

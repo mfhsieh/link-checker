@@ -242,6 +242,12 @@ def export_internal_results(
     if fmt == "json":
 
         def json_generator() -> Generator[str, None, None]:
+            """
+            產生 JSON 格式輸出字串的產生器。
+
+            Yields:
+                str: 區塊的 JSON 字串。
+            """
             yield "[\n"
             first = True
             for item in job_results.stream_internal_errors(db, job_id, current_user.id, query_filter, group_by):
@@ -258,6 +264,12 @@ def export_internal_results(
         )
 
     def csv_generator() -> Generator[str, None, None]:
+        """
+        產生 CSV 格式輸出字串的產生器。
+
+        Yields:
+            str: 區塊的 CSV 字串。
+        """
         yield "\ufeff"
         output = io.StringIO()
         writer = None

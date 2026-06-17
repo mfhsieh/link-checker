@@ -192,6 +192,98 @@
         }
       }
     },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Forgot Password",
+        "description": "申請重設密碼。\n\n無論信箱是否存在，皆回傳相同成功訊息，防止帳號列舉攻擊。\n\nArgs:\n    body (ForgotPasswordRequest): 包含 email 的請求內容。\n    request (Request): FastAPI 請求物件。\n    db (DBSession): Auth DB Session。\n\nReturns:\n    dict[str, str]: 成功訊息。",
+        "operationId": "forgot_password_api_auth_forgot_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Forgot Password Api Auth Forgot Password Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Reset Password",
+        "description": "重設密碼。\n\n驗證 Token 後設定新密碼，並使該使用者所有 Session 失效。\n\nArgs:\n    body (ResetPasswordRequest): 包含 token 與新密碼的請求內容。\n    request (Request): FastAPI 請求物件。\n    db (DBSession): Auth DB Session。\n\nReturns:\n    dict[str, str]: 成功訊息。\n\nRaises:\n    HTTPException 400: 若 Token 無效、過期，或新密碼強度不足。",
+        "operationId": "reset_password_api_auth_reset_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Reset Password Api Auth Reset Password Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/jobs/default-config": {
       "get": {
         "tags": [
@@ -1021,7 +1113,7 @@
           "jobs"
         ],
         "summary": "Get Internal Results Summary",
-        "description": "取得任務內部網頁爬取失敗的統計摘要。\n\nArgs:\n    job_id (str): 任務 ID。\n    group_by (str): 聚合方式。\n    current_user (User): 當前登入的使用者。\n    db (DBSession): Crawler DB Session。\n\nReturns:\n    dict[str, object]: 內部結果統計。",
+        "description": "取得任務內部網頁爬取失敗的統計摘要。\n\nArgs:\n    job_id (str): 任務 ID。\n    group_by (str): 聚合方式。\n    current_user (User): 當前登入的使用者。\n    db (DBSession): Crawler DB Session。\n\nReturns:\n    dict[str, object]: 內部結果統計。\n\nRaises:\n    HTTPException 404: 找不到任務或無權限存取時拋出。",
         "operationId": "get_internal_results_summary_api_jobs__job_id__internal_results_summary_get",
         "parameters": [
           {
@@ -2729,6 +2821,21 @@
         "title": "CreateUserRequest",
         "description": "建立使用者的請求結構。"
       },
+      "ForgotPasswordRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPasswordRequest",
+        "description": "忘記密碼申請的 Schema。"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2917,6 +3024,25 @@
         ],
         "title": "MimeTypeFilterConfig",
         "description": "MimeType 過濾設定。"
+      },
+      "ResetPasswordRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "new_password": {
+            "type": "string",
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "ResetPasswordRequest",
+        "description": "重設密碼的 Schema。"
       },
       "SendTestEmailRequest": {
         "properties": {

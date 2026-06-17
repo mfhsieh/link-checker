@@ -296,8 +296,19 @@ def parse_args() -> argparse.Namespace | None:
     group_report.add_argument(
         "--filter",
         type=str,
-        choices=["dead", "broken", "blocked", "insecure"],
-        help="(選填) 搭配 --export 使用，篩選匯出內容 (dead, broken, blocked, insecure)",
+        choices=[
+            "dead",
+            "broken",
+            "not_found",
+            "server_error",
+            "connection_error",
+            "other_error",
+            "blocked",
+            "insecure",
+            "healthy",
+            "all",
+        ],
+        help="(選填) 搭配 --export 使用，篩選匯出內容",
     )
     group_report.add_argument(
         "--exclude",
@@ -388,6 +399,9 @@ def _handle_report(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含報表 ID 與 json 選項。
+
+    Raises:
+        SystemExit: 當找不到任務時拋出並結束程式。
     """
     report = manager.get_job_report(args.report)
     if not report:
@@ -424,6 +438,9 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含匯出目標、篩選與群組等選項。
+
+    Raises:
+        SystemExit: 當匯出失敗時拋出並結束程式。
     """
     ext = ".json" if args.json else ".csv"
     output_path = args.output if args.output else f"report/{args.export}{ext}"
@@ -452,6 +469,9 @@ def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含匯出目標等選項。
+
+    Raises:
+        SystemExit: 當匯出失敗時拋出並結束程式。
     """
     output_path = args.output if args.output else f"report/{args.export_full}_full_report.zip"
     if not output_path.endswith(".zip"):
@@ -473,6 +493,9 @@ def _handle_pause(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲暫停的任務 ID (args.pause)。
+
+    Raises:
+        SystemExit: 當暫停操作失敗時拋出並結束程式。
     """
     logging.info("準備暫停任務 %s...", args.pause)
     if not manager.pause_job(args.pause):
@@ -489,6 +512,9 @@ def _handle_delete(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲刪除的任務 ID (args.delete)。
+
+    Raises:
+        SystemExit: 當刪除操作失敗時拋出並結束程式。
     """
     logging.info("準備刪除任務 %s...", args.delete)
     if not manager.delete_job(args.delete):
@@ -505,6 +531,9 @@ def _handle_reset(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲重設的任務 ID (args.reset)。
+
+    Raises:
+        SystemExit: 當重設操作失敗時拋出並結束程式。
     """
     logging.info("準備重設任務 %s...", args.reset)
     if not manager.reset_job(args.reset):
@@ -521,6 +550,9 @@ def _handle_retry_failed(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲重試的任務 ID (args.retry_failed)。
+
+    Raises:
+        SystemExit: 當重試操作失敗時拋出並結束程式。
     """
     logging.info("準備局部重試任務 %s 的失敗項目...", args.retry_failed)
     if not manager.retry_failed_job(args.retry_failed):
@@ -581,6 +613,10 @@ def _handle_resume(manager: JobManager, args: argparse.Namespace) -> None:
 def _handle_api_spawn(manager: JobManager, args: argparse.Namespace) -> None:
     """
     處理 API 在背景產生的任務啟動指令。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含 API 啟動的任務 ID (args.api_spawn) 與強制選項。
     """
     logging.info("API 觸發任務啟動程序: %s", args.api_spawn)
     manager.run_job(job_id=args.api_spawn, force=args.force, is_api_spawn=True)

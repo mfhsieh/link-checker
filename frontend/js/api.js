@@ -10,7 +10,11 @@
 
 const BASE_URL = '';  // 同源，不需前綴
 
-/** 從 Cookie 讀取指定名稱的值 */
+/**
+ * 從 Cookie 讀取指定名稱的值
+ * @param {string} name - Cookie 名稱
+ * @returns {string|null} Cookie 值或 null
+ */
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -171,6 +175,8 @@ export async function download(path) {
 
 /**
  * 格式化時間：將後端回傳的 Naive UTC 字串轉換為瀏覽器當地時間
+ * @param {string} dateStr - UTC 時間字串
+ * @returns {string} 格式化後的當地時間字串
  */
 export function formatLocalTime(dateStr) {
   if (!dateStr) return '-';
@@ -193,6 +199,8 @@ export function formatLocalTime(dateStr) {
 
 /**
  * 格式化 UUID：取前 5 碼與後 5 碼，中間以 ... 連接（例如 ABCDE...FGHIJ）
+ * @param {string} uuid - 原始 UUID 字串
+ * @returns {string} 格式化後的簡短 UUID 字串
  */
 export function formatShortUuid(uuid) {
   if (!uuid) return '-';
@@ -216,6 +224,7 @@ export function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+/** @type {Object<string, string>} 任務狀態對應的中文標籤字典 */
 export const STATUS_LABELS = {
   pending: '等待中',
   starting: '啟動中',
@@ -225,10 +234,21 @@ export const STATUS_LABELS = {
   error: '錯誤',
 };
 
+/**
+ * 格式化任務狀態為中文標籤
+ * @param {string} status - 原始狀態字串
+ * @returns {string} 格式化後的狀態標籤
+ */
 export function formatStatus(status) {
   return STATUS_LABELS[status] || status;
 }
 
+/**
+ * 建立篩選輸入框
+ * @param {string} initialValue - 初始值
+ * @param {Function} onInput - 輸入事件的處理函式
+ * @returns {HTMLInputElement} 建立完成的輸入框元素
+ */
 export function createFilterInput(initialValue, onInput) {
   const filterInput = document.createElement('input');
   filterInput.type = 'text';
@@ -247,6 +267,12 @@ export function createFilterInput(initialValue, onInput) {
   return filterInput;
 }
 
+/**
+ * 建立可截斷顯示文字的 span 元素
+ * @param {string} text - 欲顯示的文字
+ * @param {string} [maxWidth='280px'] - 最大寬度
+ * @returns {HTMLSpanElement} 建立完成的 span 元素
+ */
 export function createTruncatedSpan(text, maxWidth = '280px') {
   const span = document.createElement('span');
   span.className = 'truncate';
@@ -257,6 +283,13 @@ export function createTruncatedSpan(text, maxWidth = '280px') {
   return span;
 }
 
+/**
+ * 更新表格排序圖示
+ * @param {HTMLElement} containerEl - 包含圖示的容器元素
+ * @param {string} activeKey - 目前排序的欄位鍵值
+ * @param {boolean} isAsc - 是否為升冪排序
+ * @returns {void}
+ */
 export function updateSortIcons(containerEl, activeKey, isAsc) {
   if (!containerEl) return;
   containerEl.querySelectorAll('.sort-icon').forEach(icon => {
