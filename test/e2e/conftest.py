@@ -26,8 +26,8 @@ from backend.auth.models import User  # pylint: disable=wrong-import-position
 from backend.auth.password import hash_password  # pylint: disable=wrong-import-position
 from backend.deps import get_job_manager  # pylint: disable=wrong-import-position
 
-PORT = 8085
-BASE_URL = f"http://127.0.0.1:{PORT}"
+PORT: int = 8085
+BASE_URL: str = f"http://127.0.0.1:{PORT}"
 
 
 def _set_e2e_test_env() -> None:
@@ -41,6 +41,7 @@ def _set_e2e_test_env() -> None:
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_e2e.db"
     # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
     from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
+
     refresh_settings_cache()
 
 
@@ -228,7 +229,8 @@ def base_url() -> str:
 @pytest.fixture(autouse=True)
 def clean_database_state() -> None:
     """
-    每個測試案例前可以清理狀態。
+    在每個測試案例執行前清理資料庫狀態。
 
-    為了 E2E 流暢度，這裡只做示範，真實的狀態分離可透過 UI 操作或是重建資料庫來達成。
+    此 fixture 會自動在每個測試案例執行前被呼叫，用以重置或清理
+    資料庫中的狀態，確保各個 E2E 測試案例之間的獨立性，避免互相干擾。
     """

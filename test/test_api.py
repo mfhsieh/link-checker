@@ -41,6 +41,7 @@ def _set_api_test_env() -> None:
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_api.db"
     # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
     from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
+
     refresh_settings_cache()
 
 

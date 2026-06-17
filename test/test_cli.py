@@ -14,7 +14,7 @@ import zipfile
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from test.utils import is_port_in_use, wait_for_server
+from test.utils import is_port_in_use, wait_for_server  # pylint: disable=wrong-import-order
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -34,6 +34,7 @@ def _set_cli_test_env() -> None:
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_cli.db"
     # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
     from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
+
     refresh_settings_cache()
 
 
@@ -236,8 +237,8 @@ def test_cli_full_flow() -> None:
 
         # 動態產生全域設定檔，允許更小的 timeout
         os.makedirs("config", exist_ok=True)
-        TEST_GLOBAL_CONFIG = "config/test_global.yaml"
-        with open(TEST_GLOBAL_CONFIG, "w", encoding="utf-8") as f:
+        test_global_config = "config/test_global.yaml"
+        with open(test_global_config, "w", encoding="utf-8") as f:
             f.write("""\
 crawler:
   min_timeout: 1
@@ -265,7 +266,7 @@ crawler:
         # Allow local IPs for testing SSRF bypass
         os.environ["CRAWLER_ALLOW_LOCAL_IPS"] = "true"
 
-        crawler_cmd = [sys.executable, "cli.py", "-g", TEST_GLOBAL_CONFIG, "-c", YAML_CONFIG]
+        crawler_cmd = [sys.executable, "cli.py", "-g", test_global_config, "-c", YAML_CONFIG]
         print(f"Running Crawler: {' '.join(crawler_cmd)}")
         crawler_proc = subprocess.run(crawler_cmd, capture_output=True, text=True)
 
@@ -283,6 +284,9 @@ crawler:
         print("Crawler finished successfully.")
 
         # 6. 斷言驗證資料庫結果
+        print(f"DEBUG: Current Working Directory = {os.getcwd()}")
+        print(f"DEBUG: Absolute DB_PATH = {os.path.abspath(DB_PATH)}")
+        print(f"DEBUG: db/ directory contents = {os.listdir('db') if os.path.exists('db') else 'db/ does not exist'}")
         if not os.path.exists(DB_PATH):
             print(f"Error: Database file not created at {DB_PATH}")
             sys.exit(1)
@@ -750,7 +754,7 @@ crawler:
   max_pages: 3
 """)
 
-        limit_crawler_cmd = [sys.executable, "cli.py", "-g", TEST_GLOBAL_CONFIG, "-c", limit_yaml]
+        limit_crawler_cmd = [sys.executable, "cli.py", "-g", test_global_config, "-c", limit_yaml]
         print(f"Running Limit Crawler: {' '.join(limit_crawler_cmd)}")
         limit_proc = subprocess.run(limit_crawler_cmd, capture_output=True, text=True)
         print("--- Limit Crawler stdout ---")
@@ -790,8 +794,8 @@ crawler:
         # 8. 執行進階測試：失敗重試 (Flaky) 與 Tarpit 防禦 (Timeout)
         # =====================================================================
         print("\nRunning Advanced Validation: Flaky Retry and Tarpit Defense...")
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{PORT}/reset_flaky").read()
@@ -816,7 +820,7 @@ crawler:
   external_check_timeout: 1.0
 """)
 
-        advanced_cmd = [sys.executable, "cli.py", "-g", TEST_GLOBAL_CONFIG, "-c", advanced_yaml]
+        advanced_cmd = [sys.executable, "cli.py", "-g", test_global_config, "-c", advanced_yaml]
         print(f"Running Advanced Crawler: {' '.join(advanced_cmd)}")
         adv_proc = subprocess.run(advanced_cmd, capture_output=True, text=True)
         print("--- Advanced Crawler stdout ---")
@@ -881,8 +885,8 @@ crawler:
             os.remove(YAML_CONFIG)
         if os.path.exists("job/test_limit_job.yaml"):
             os.remove("job/test_limit_job.yaml")
-        if os.path.exists(TEST_GLOBAL_CONFIG):
-            os.remove(TEST_GLOBAL_CONFIG)
+        if os.path.exists(test_global_config):
+            os.remove(test_global_config)
 
         print("All CLI Integration Tests Passed Successfully!")
 

@@ -8,6 +8,7 @@
 """
 
 import os
+from collections.abc import Generator
 
 import pytest
 
@@ -32,7 +33,7 @@ def refresh_settings_cache() -> None:
 
 
 @pytest.fixture(autouse=True, scope="module")
-def _reset_singletons_and_overrides():
+def _reset_singletons_and_overrides() -> Generator[None, None, None]:
     """
     在每個測試模組執行前，重設所有 backend singleton 並清空 dependency overrides。
 
@@ -67,6 +68,7 @@ def _reset_singletons_and_overrides():
 
     # ── 清空 FastAPI dependency overrides（防止前一模組的 mock 影響後續模組）──
     from backend.main import app
+
     app.dependency_overrides.clear()
 
     # ── 清除 get_settings 快取（防止前一模組的 Settings 被後續模組繼承）──
