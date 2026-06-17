@@ -646,6 +646,19 @@
                 </div>
                 <div class="grid-2" style="margin-bottom:1.5rem">
                   <div class="form-group">
+                    <label class="form-label" for="job-ssl-exempt">自簽憑證豁免網域</label>
+                    <textarea class="form-textarea" id="job-ssl-exempt" rows="2" placeholder="example.com"></textarea>
+                    <div class="form-hint" id="hint-ssl-exempt">每行一個。忽略這些網域的 SSL 驗證，將與系統全域設定 <button type="button"
+                        id="btn-view-ssl" title="檢視預設豁免網域"
+                        style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg></button> 合併疊加生效
+                      <strong>【聯集】</strong>。
+                    </div>
+                  </div>
+                  <div class="form-group">
                     <label class="form-label" for="job-domain-delays">特定網域延遲 (秒)</label>
                     <textarea class="form-textarea" id="job-domain-delays" rows="2"
                       placeholder="example.com: 5.0"></textarea>
@@ -657,19 +670,6 @@
                             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg></button> 衝突時以任務設定為準
                       <strong>【字典合併與優先覆寫】</strong>。
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="job-ssl-exempt">自簽憑證豁免網域</label>
-                    <textarea class="form-textarea" id="job-ssl-exempt" rows="2" placeholder="example.com"></textarea>
-                    <div class="form-hint" id="hint-ssl-exempt">每行一個。忽略這些網域的 SSL 驗證，將與系統全域設定 <button type="button"
-                        id="btn-view-ssl" title="檢視預設豁免網域"
-                        style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
-                          viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg></button> 合併疊加生效
-                      <strong>【聯集】</strong>。
                     </div>
                   </div>
                 </div>

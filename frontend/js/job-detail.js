@@ -866,27 +866,27 @@ function bindControlButtons() {
                     ]));
 
                     wrapper.appendChild(createSection('🛡️ 進階過濾與網路', [
-                        { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } },
                         { label: '忽略路徑規則', value: el => formatList(c.ignore_regexes, el) },
+                        { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } },
+                        { label: '社群與反爬蟲', value: el => formatList(c.social_domains, el) },
+                        { label: '自簽憑證豁免', value: el => formatList(c.ssl_exempt_domains, el) },
                         {
                             label: '特定網域延遲', value: el => formatList(
                                 c.domain_delays ? Object.entries(c.domain_delays).map(([k, v]) => `${k}: ${v}s`) : [], el
                             )
                         },
-                        { label: '自簽憑證豁免', value: el => formatList(c.ssl_exempt_domains, el) },
-                        { label: '社群與反爬蟲', value: el => formatList(c.social_domains, el) },
                         { label: '自訂 User-Agent', value: c.user_agent || '系統預設 (自動輪替)', valClass: 'text-xs text-muted' },
                         c.proxy_url !== undefined ? { label: '代理伺服器', value: c.proxy_url || '-', valClass: 'font-mono text-xs', valStyle: { wordBreak: 'break-all' } } : null
                     ]));
 
                     wrapper.appendChild(createSection('⚙️ 資源與限制', [
-                        { label: '最大爬取深度', value: c.max_depth === null ? '不限制' : c.max_depth },
-                        { label: '最大抓取頁數', value: c.max_pages === null ? '不限制' : c.max_pages },
-                        { label: '請求延遲', value: `${c.delay ?? '-'} 秒` },
                         { label: '總連線逾時', value: `${c.timeout ?? '-'} 秒` },
                         { label: 'TCP 連線逾時', value: `${c.connect_timeout ?? '-'} 秒` },
                         { label: '外連探測逾時', value: `${c.external_check_timeout ?? '-'} 秒` },
-                        { label: '失敗重試次數', value: `${c.retries ?? '-'} 次` }
+                        { label: '請求延遲', value: `${c.delay ?? '-'} 秒` },
+                        { label: '失敗重試次數', value: `${c.retries ?? '-'} 次` },
+                        { label: '最大爬取深度', value: c.max_depth === null ? '不限制' : c.max_depth },
+                        { label: '最大抓取頁數', value: c.max_pages === null ? '不限制' : c.max_pages }
                     ]));
 
                     container.appendChild(wrapper);
