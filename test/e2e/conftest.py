@@ -4,7 +4,7 @@ E2E 自動化整合測試的 Pytest Fixture 配置模組。
 提供測試伺服器生命週期管理、資料庫初始化，以及 Playwright 相關設定。
 """
 
-# pylint: disable=protected-access, broad-exception-caught, duplicate-code, consider-using-with
+# pylint: disable=protected-access, duplicate-code, consider-using-with
 
 import os
 import subprocess
@@ -16,6 +16,7 @@ from typing import Any
 
 import httpx
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 # Ensure we don't accidentally touch dev databases
 os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_e2e.db"
@@ -46,7 +47,7 @@ def setup_databases() -> None:
     if auth_db._ENGINE is not None:
         try:
             auth_db._ENGINE.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     auth_db._ENGINE = None
     auth_db._SESSION_LOCAL = None
@@ -54,7 +55,7 @@ def setup_databases() -> None:
     if backend_deps._JOB_MANAGER is not None:
         try:
             backend_deps._JOB_MANAGER.engine.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     backend_deps._JOB_MANAGER = None
 
@@ -83,7 +84,7 @@ def teardown_databases() -> None:
     if auth_db._ENGINE is not None:
         try:
             auth_db._ENGINE.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     auth_db._ENGINE = None
     auth_db._SESSION_LOCAL = None
@@ -91,7 +92,7 @@ def teardown_databases() -> None:
     if backend_deps._JOB_MANAGER is not None:
         try:
             backend_deps._JOB_MANAGER.engine.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     backend_deps._JOB_MANAGER = None
 

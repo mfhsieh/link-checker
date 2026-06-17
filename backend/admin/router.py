@@ -631,10 +631,11 @@ def get_config(
         with open(config_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
             return data if data else DEFAULT_GLOBAL_CONFIG
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
+        logger.error("讀取設定檔失敗: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"讀取設定檔失敗: {e}",
+            detail="讀取設定檔失敗，請聯繫管理員。",
         ) from e
 
 
@@ -706,10 +707,11 @@ def update_config(
         auth_db.commit()
 
         return {"message": "全域配置已更新。"}
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
+        logger.error("寫入設定檔失敗: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"寫入設定檔失敗: {e}",
+            detail="寫入設定檔失敗，請聯繫管理員。",
         ) from e
 
 

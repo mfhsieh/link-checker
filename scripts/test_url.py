@@ -38,7 +38,7 @@ def get_test_crawler_config(
         try:
             with open(global_config_path, "r", encoding="utf-8") as f:
                 global_config = yaml.safe_load(f) or {}
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (OSError, yaml.YAMLError) as e:
             print(f"[!] 讀取全域設定檔發生錯誤: {e}")
 
     user_config: dict[str, object] = {

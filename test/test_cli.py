@@ -2,7 +2,7 @@
 E2E integration test script for external link checker.
 """
 
-# pylint: disable=protected-access, broad-exception-caught, duplicate-code
+# pylint: disable=protected-access, duplicate-code
 
 import json
 import os
@@ -11,6 +11,8 @@ import subprocess
 import sys
 import time
 import zipfile
+
+from sqlalchemy.exc import SQLAlchemyError
 
 from test.utils import is_port_in_use, wait_for_server
 
@@ -36,7 +38,7 @@ def setup_databases() -> None:
     if auth_db._ENGINE is not None:
         try:
             auth_db._ENGINE.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     auth_db._ENGINE = None
     auth_db._SESSION_LOCAL = None
@@ -44,7 +46,7 @@ def setup_databases() -> None:
     if backend_deps._JOB_MANAGER is not None:
         try:
             backend_deps._JOB_MANAGER.engine.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     backend_deps._JOB_MANAGER = None
 
@@ -77,7 +79,7 @@ def teardown_databases() -> None:
     if auth_db._ENGINE is not None:
         try:
             auth_db._ENGINE.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     auth_db._ENGINE = None
     auth_db._SESSION_LOCAL = None
@@ -85,7 +87,7 @@ def teardown_databases() -> None:
     if backend_deps._JOB_MANAGER is not None:
         try:
             backend_deps._JOB_MANAGER.engine.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     backend_deps._JOB_MANAGER = None
 
@@ -103,7 +105,7 @@ def teardown_databases() -> None:
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 # pylint: disable=import-outside-toplevel, import-error, protected-access
 # pylint: disable=subprocess-run-check, unspecified-encoding, multiple-statements
-# pylint: disable=consider-using-with, unused-variable, broad-exception-caught
+# pylint: disable=consider-using-with, unused-variable
 def test_cli_full_flow() -> None:
     """
     執行端到端 (E2E) 整合測試與各核心組件的單元測試。
@@ -766,10 +768,11 @@ crawler:
         # =====================================================================
         print("\nRunning Advanced Validation: Flaky Retry and Tarpit Defense...")
         import urllib.request
+        import urllib.error
 
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{PORT}/reset_flaky").read()
-        except Exception:
+        except (urllib.error.URLError, OSError):
             pass
 
         setup_databases()

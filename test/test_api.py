@@ -14,6 +14,7 @@ import time
 from datetime import datetime, timezone
 
 import httpx
+from sqlalchemy.exc import SQLAlchemyError
 
 from test.utils import is_port_in_use, wait_for_server  # pylint: disable=wrong-import-order
 
@@ -26,7 +27,7 @@ os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_api.db"
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# pylint: disable=wrong-import-position, duplicate-code, protected-access, broad-exception-caught
+# pylint: disable=wrong-import-position, duplicate-code, protected-access
 from fastapi.testclient import TestClient
 
 from backend.auth.db import get_auth_engine, get_auth_session_local
@@ -44,7 +45,7 @@ def setup_databases() -> None:
     接著呼叫 `get_auth_engine()` 與 `get_job_manager()` 來重新建立對應的資料表與初始化狀態。
     確保每次測試都在乾淨的環境下執行。
     """
-    # pylint: disable=import-outside-toplevel, protected-access, broad-exception-caught
+    # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
 
@@ -52,7 +53,7 @@ def setup_databases() -> None:
     if auth_db._ENGINE is not None:
         try:
             auth_db._ENGINE.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     auth_db._ENGINE = None
     auth_db._SESSION_LOCAL = None
@@ -60,7 +61,7 @@ def setup_databases() -> None:
     if backend_deps._JOB_MANAGER is not None:
         try:
             backend_deps._JOB_MANAGER.engine.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     backend_deps._JOB_MANAGER = None
 
@@ -82,7 +83,7 @@ def teardown_databases() -> None:
     """
     清理測試所產生的資料庫檔案。
     """
-    # pylint: disable=import-outside-toplevel, protected-access, broad-exception-caught
+    # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
 
@@ -90,7 +91,7 @@ def teardown_databases() -> None:
     if auth_db._ENGINE is not None:
         try:
             auth_db._ENGINE.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     auth_db._ENGINE = None
     auth_db._SESSION_LOCAL = None
@@ -98,7 +99,7 @@ def teardown_databases() -> None:
     if backend_deps._JOB_MANAGER is not None:
         try:
             backend_deps._JOB_MANAGER.engine.dispose()
-        except Exception:
+        except (SQLAlchemyError, OSError):
             pass
     backend_deps._JOB_MANAGER = None
 

@@ -84,8 +84,8 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 for _ in range(100):
                     self.wfile.write(b"0" * 1024)
                     time.sleep(0.1)
-            except Exception:  # pylint: disable=broad-exception-caught
-                # 預期會因為爬蟲主動 Close 連線而拋出 BrokenPipeError
+            except (BrokenPipeError, ConnectionResetError):
+                # 預期會因為爬蟲主動 Close 連線而拋出 BrokenPipeError 等連線中斷例外
                 pass
             return
 

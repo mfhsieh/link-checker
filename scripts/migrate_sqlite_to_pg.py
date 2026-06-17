@@ -14,6 +14,7 @@ import os
 import sys
 
 from sqlalchemy import create_engine, select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 # 將專案根目錄加入 PYTHONPATH
@@ -237,8 +238,7 @@ def main() -> None:
         migrate_auth_db(sqlite_auth_url, pg_auth_url)
         migrate_crawler_db(sqlite_crawler_url, pg_crawler_url)
         logger.info("資料庫全數遷移成功！現在您可以啟動 Web 服務並改用 PostgreSQL 運行了。")
-    # pylint: disable=broad-exception-caught
-    except Exception as e:
+    except (SQLAlchemyError, OSError) as e:
         logger.exception("遷移過程中發生嚴重錯誤: %s", e)
         sys.exit(1)
 

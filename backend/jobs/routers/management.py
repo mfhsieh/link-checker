@@ -477,8 +477,8 @@ async def stream_job_updates(
                     break
 
                 await asyncio.sleep(2)
-            except Exception:  # pylint: disable=broad-except
-                logger.warning("Job %s not found or permission error for SSE stream. Closing.", job_id)
+            except ValueError as e:
+                logger.warning("Job %s not found or permission error for SSE stream: %s. Closing.", job_id, e)
                 break
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

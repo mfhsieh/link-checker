@@ -198,7 +198,7 @@ def get_job_results(  # pylint: disable=too-many-locals, too-many-branches, too-
                     if match:
                         filtered.append(item)
                 items_list = filtered
-            except Exception:  # pylint: disable=broad-except
+            except (json.JSONDecodeError, AttributeError, TypeError):
                 pass
 
         if query_args.sort_by:
@@ -224,7 +224,7 @@ def get_job_results(  # pylint: disable=too-many-locals, too-many-branches, too-
 
             try:
                 items_list.sort(key=sort_key, reverse=rev)
-            except Exception:  # pylint: disable=broad-except
+            except TypeError:
                 pass
         return items_list
 
@@ -261,7 +261,7 @@ def get_job_results(  # pylint: disable=too-many-locals, too-many-branches, too-
                         query = query.filter(cast(ExternalLink.http_status_code, String).ilike(f"%{v_str}%"))
                     elif k == "error_message":
                         query = query.filter(ExternalLink.error_message.ilike(f"%{v_str}%"))
-            except Exception:  # pylint: disable=broad-except
+            except (json.JSONDecodeError, AttributeError, TypeError):
                 pass
 
         if query_args.sort_by:
@@ -1182,7 +1182,7 @@ def get_internal_errors(
                     if match:
                         filtered.append(item)
                 items_list = filtered
-            except Exception:  # pylint: disable=broad-except
+            except (json.JSONDecodeError, AttributeError, TypeError):
                 pass
         if sort_by:
             rev = not sort_asc
@@ -1206,7 +1206,7 @@ def get_internal_errors(
 
             try:
                 items_list.sort(key=sort_key, reverse=rev)
-            except Exception:  # pylint: disable=broad-except
+            except TypeError:
                 pass
         return items_list
 
@@ -1260,7 +1260,7 @@ def get_internal_errors(
                     query = query.filter(cast(CrawlQueue.status_code, String).ilike(f"%{v_str}%"))
                 elif k == "Error Message":
                     query = query.filter(CrawlQueue.error_message.ilike(f"%{v_str}%"))
-        except Exception:  # pylint: disable=broad-except
+        except (json.JSONDecodeError, AttributeError, TypeError):
             pass
 
     if sort_by:

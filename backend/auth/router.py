@@ -383,6 +383,7 @@ def forgot_password(
     申請重設密碼。
 
     無論信箱是否存在，皆回傳相同成功訊息，防止帳號列舉攻擊。
+    （註：此為未認證訪客端點，無 Session/Cookie 依賴，故不實施 CSRF 防禦，改採 IP 限速機制）
 
     Args:
         body (ForgotPasswordRequest): 包含 email 的請求內容。
@@ -412,6 +413,7 @@ def reset_password(
     重設密碼。
 
     驗證 Token 後設定新密碼，並使該使用者所有 Session 失效。
+    （註：此為未認證訪客端點，無 Session/Cookie 依賴，故不實施 CSRF 防禦）
 
     Args:
         body (ResetPasswordRequest): 包含 token 與新密碼的請求內容。
