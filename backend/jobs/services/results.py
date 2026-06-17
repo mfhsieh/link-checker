@@ -89,13 +89,15 @@ def _group_by_domain(links: Iterable[ExternalLink]) -> list[dict[str, object]]:
 
     result = []
     for v in agg.values():
-        result.append({
-            "domain": v["domain"],
-            "occurrence_count": v["occurrence_count"],
-            "unique_urls_count": len(v["unique_urls"]),
-            "unique_urls": sorted(list(v["unique_urls"])[:10]),
-            "source_urls": sorted(list(v["source_urls"])[:10]),
-        })
+        result.append(
+            {
+                "domain": v["domain"],
+                "occurrence_count": v["occurrence_count"],
+                "unique_urls_count": len(v["unique_urls"]),
+                "unique_urls": sorted(list(v["unique_urls"])[:10]),
+                "source_urls": sorted(list(v["source_urls"])[:10]),
+            }
+        )
     # 依出現次數降冪排序
     result.sort(key=lambda x: x["occurrence_count"], reverse=True)
     return result
@@ -129,12 +131,14 @@ def _group_by_source(links: Iterable[ExternalLink]) -> list[dict[str, object]]:
             else ("DNS Failed" if not lnk.ip_address else "Error")
         )
         if len(d["targets"]) < 10:
-            d["targets"].append({
-                "url": lnk.target_url,
-                "status": status_str,
-                "is_secure": lnk.is_secure,
-                "error_message": lnk.error_message,
-            })
+            d["targets"].append(
+                {
+                    "url": lnk.target_url,
+                    "status": status_str,
+                    "is_secure": lnk.is_secure,
+                    "error_message": lnk.error_message,
+                }
+            )
 
     return [{**v} for v in agg.values()]
 
@@ -592,12 +596,14 @@ def _process_diff_common_url(
         diff_lists (dict[str, list[dict[str, object]]]): 存放差異結果的字典。
     """
     if item_a["ip"] and item_b["ip"] and item_a["ip"] != item_b["ip"]:
-        diff_lists["ip_changed"].append({
-            "target_url": url,
-            "old_ip": item_a["ip"],
-            "new_ip": item_b["ip"],
-            "sources": sorted(list(item_b["sources"])[:10]),
-        })
+        diff_lists["ip_changed"].append(
+            {
+                "target_url": url,
+                "old_ip": item_a["ip"],
+                "new_ip": item_b["ip"],
+                "sources": sorted(list(item_b["sources"])[:10]),
+            }
+        )
     if item_a["is_secure"] and not item_b["is_secure"]:
         diff_lists["security_downgraded"].append({"target_url": url, "sources": sorted(list(item_b["sources"])[:10])})
 
@@ -605,23 +611,27 @@ def _process_diff_common_url(
     b_bad = _is_bad_link(item_b)
 
     if not a_bad and b_bad:
-        diff_lists["degraded"].append({
-            "target_url": url,
-            "old_status": item_a["status_code"],
-            "old_error": item_a["error"],
-            "new_status": item_b["status_code"],
-            "new_error": item_b["error"],
-            "sources": sorted(list(item_b["sources"])[:10]),
-        })
+        diff_lists["degraded"].append(
+            {
+                "target_url": url,
+                "old_status": item_a["status_code"],
+                "old_error": item_a["error"],
+                "new_status": item_b["status_code"],
+                "new_error": item_b["error"],
+                "sources": sorted(list(item_b["sources"])[:10]),
+            }
+        )
     elif a_bad and not b_bad:
-        diff_lists["recovered"].append({
-            "target_url": url,
-            "old_status": item_a["status_code"],
-            "old_error": item_a["error"],
-            "new_status": item_b["status_code"],
-            "new_error": item_b["error"],
-            "sources": sorted(list(item_b["sources"])[:10]),
-        })
+        diff_lists["recovered"].append(
+            {
+                "target_url": url,
+                "old_status": item_a["status_code"],
+                "old_error": item_a["error"],
+                "new_status": item_b["status_code"],
+                "new_error": item_b["error"],
+                "sources": sorted(list(item_b["sources"])[:10]),
+            }
+        )
 
 
 def get_job_diff(
@@ -803,13 +813,15 @@ def _stream_group_by_domain(cursor) -> Iterator[dict[str, object]]:
 
     result = []
     for v in agg.values():
-        result.append({
-            "domain": v["domain"],
-            "occurrence_count": v["occurrence_count"],
-            "unique_urls_count": len(v["unique_urls"]),
-            "unique_urls": sorted(list(v["unique_urls"])),
-            "source_urls": sorted(list(v["source_urls"])),
-        })
+        result.append(
+            {
+                "domain": v["domain"],
+                "occurrence_count": v["occurrence_count"],
+                "unique_urls_count": len(v["unique_urls"]),
+                "unique_urls": sorted(list(v["unique_urls"])),
+                "source_urls": sorted(list(v["source_urls"])),
+            }
+        )
     result.sort(key=lambda x: x["occurrence_count"], reverse=True)
     yield from result
 
@@ -834,12 +846,14 @@ def _stream_group_by_source(cursor) -> Iterator[dict[str, object]]:
             if lnk.http_status_code is not None
             else ("DNS Failed" if not lnk.ip_address else "Error")
         )
-        d["targets"].append({
-            "url": lnk.target_url,
-            "status": status_str,
-            "is_secure": lnk.is_secure,
-            "error_message": lnk.error_message,
-        })
+        d["targets"].append(
+            {
+                "url": lnk.target_url,
+                "status": status_str,
+                "is_secure": lnk.is_secure,
+                "error_message": lnk.error_message,
+            }
+        )
     yield from agg.values()
 
 
@@ -1221,11 +1235,13 @@ def get_internal_errors(
             d["source_url"] = s_url
             d["occurrence_count"] += 1
             if not truncate_lists or len(d["targets"]) < 10:
-                d["targets"].append({
-                    "url": q.url,
-                    "status": str(q.status_code) if q.status_code is not None else "Error",
-                    "error_message": q.error_message,
-                })
+                d["targets"].append(
+                    {
+                        "url": q.url,
+                        "status": str(q.status_code) if q.status_code is not None else "Error",
+                        "error_message": q.error_message,
+                    }
+                )
 
         items_list = list(agg.values())
         if not sort_by:

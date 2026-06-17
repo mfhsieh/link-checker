@@ -13,7 +13,7 @@
 所有跨測試模組共用的隔離邏輯，皆統一集中於根目錄的 `test/conftest.py` 中。其核心職責是提供一個在**每個測試檔案 (`test_*.py`) 執行前後**都會自動運行的 Fixture：
 
 *   **`_reset_singletons_and_overrides`**：此為最核心的隔離 Fixture，其生命週期為 `scope="module"`。它會在**每個測試檔案執行前**，自動完成以下隔離操作：
-    1.  **重設全域單例 (Reset Singletons)**：強制將 `backend` 模組中所有快取的全域單例物件（如 `_ENGINE`, `_SESSION_LOCAL`, `_JOB_MANAGER`）設為 `None`。這確保了每個測試檔案在首次使用這些物件時，都會根據自己設定的環境變數重新初始化，不會繼承到上一個檔案的連線池或狀態。
+    1.  **安全釋放與重設單例 (Dispose & Reset Singletons)**：強制關閉連線池 (`dispose()`) 以解除 SQLite 的檔案鎖定，並將 `backend` 模組中快取的全域單例物件（如 `_ENGINE`, `_SESSION_LOCAL`, `_JOB_MANAGER`）設為 `None`。這確保了每個測試檔案在首次使用這些物件時，都會根據其專屬的環境變數重新初始化，徹底阻絕狀態污染。
     2.  **清除依賴覆寫 (Clear Dependency Overrides)**：強制呼叫 `app.dependency_overrides.clear()`，移除上一個測試檔案可能設定的任何 Mock 或依賴覆寫，防止測試之間的 Mock 污染。
     3.  **刷新設定快取 (Refresh Settings Cache)**：強制清除 `get_settings()` 的 `lru_cache`，確保每個測試檔案都能讀取到自己專屬的 `AUTH_DB_URL` 與 `CRAWLER_DB_URL` 環境變數。
 

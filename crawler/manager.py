@@ -434,8 +434,7 @@ class JobManager:
 
             # 找出包含失效外連的來源網頁
             failed_ext_links = (
-                session
-                .query(ExternalLink.source_url)
+                session.query(ExternalLink.source_url)
                 .filter(ExternalLink.job_id == job_id, failed_ext_condition)
                 .distinct()
                 .all()

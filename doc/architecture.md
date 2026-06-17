@@ -50,7 +50,10 @@ ext-link-checker/
 │   └── utils.py        # 工具程式 (IP 解析、網域比對邏輯)
 ├── db/                 # 存放 SQLite 本地資料庫 (crawler.db, auth.db)
 ├── doc/                # 系統架構、Schema 與需求規格說明文件
+│   ├── api.json, api_routes.md, api_spec.md # API 規格與路由清單
 │   ├── deploy_gcp_vm.md      # GCP 雲端部署指南
+│   ├── testing_strategy.md   # 自動化測試策略與執行指南
+│   ├── system_review_report.md # 系統全面檢視與資安 Code Review 報告
 │   └── python_coding_style.md # Python 程式風格與開發規範
 ├── job/                # 存放個別任務 YAML 設定檔的安全目錄
 ├── log/                # 存放系統日誌與進程狀態
@@ -62,12 +65,21 @@ ext-link-checker/
 │   ├── job_sync.sh             # 跨環境任務備份與還原工具便利包
 │   ├── manage_job_data.py      # 任務資料跨庫 JSONL 匯出匯入核心
 │   ├── migrate_sqlite_to_pg.py # PostgreSQL 平滑升級全自動遷移腳本
+│   ├── run_all_tests.sh        # 全域自動化測試套件啟動腳本
 │   ├── test_ext.py             # 單一外部連結存活測試腳本
 │   └── test_url.py             # 單一頁面爬取測試腳本
 ├── test/               # 一鍵式自動化整合測試套件 (基於 Pytest)
-│   ├── test_server/    # 本機 Mock HTTP 測試伺服器
-│   ├── test_api.py     # API 端點與 Web 後台 E2E 整合測試
-│   └── test_cli.py     # CLI 爬蟲核心與調度 E2E 整合測試
+│   ├── conftest.py     # 模組級隔離與全域 Fixture
+│   ├── utils.py        # 測試輔助工具 (Port 與 Server 監控)
+│   ├── test_api.py     # API 端點與 Web 後台整合測試
+│   ├── test_cli.py     # CLI 爬蟲核心與調度整合測試
+│   ├── test_admin_logs.py # 後台安全稽核日誌整合測試
+│   ├── test_server/    # 本機 Mock HTTP 測試伺服器靶機
+│   └── e2e/            # Playwright 前端介面自動化測試
+│       ├── conftest.py
+│       ├── test_admin.py
+│       ├── test_app.py
+│       └── test_auth.py
 └── tmp/                # 暫存檔與備份目錄
 ```
 

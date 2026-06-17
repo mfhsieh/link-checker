@@ -159,7 +159,7 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | `Integer` | **Primary Key**, `Auto-Increment` | 日誌的主鍵。 |
 | `user_id` | `String(36)` | **Logical FK**, `Nullable` | 關聯的使用者 ID（部分事件可能無法確定使用者）。於應用層控管關聯，未設定實體外鍵約束。 |
-| `event_type` | `String(50)` | `NOT NULL` | 事件類型：`first_login_attempt`, `login_success`, `login_failed`, `logout`, `locked`, `password_set`, `password_changed`, `invitation_sent`, `user_status_changed`, `user_deleted`, `job_force_action`, `config_change` 等。 |
+| `event_type` | `String(50)` | `NOT NULL` | 事件類型：`first_login_attempt`, `login_success`, `login_failed`, `logout`, `locked`, `password_set`, `password_changed`, `password_reset_requested`, `password_reset_success`, `invitation_sent`, `user_status_changed`, `user_deleted`, `job_force_action`, `config_change` 等。 |
 | `ip_address` | `String(45)` | `Nullable` | 事件發生時的客戶端來源 IP 位址。 |
 | `detail` | `Text` | `Nullable` | 附加描述資訊（如登入失敗原因，或在敏感操作時以 JSON 格式記錄變更前後差異細節）。 |
 | `created_at` | `DateTime` | `Default: 當下 UTC 時間` | 事件發生的 UTC 時間戳記。 |
@@ -254,8 +254,8 @@ erDiagram
 | `job_id` | `String(36)` | **Foreign Key** (`jobs.id`, `ON DELETE CASCADE`) | 該網址隸屬於哪一個任務。 |
 | `url` | `Text` | `NOT NULL` | 準備或已經被爬取之頁面網址。 |
 | `source_url` | `Text` | `Nullable` | 發現此網址的來源網頁網址 (若是任務的起始網址則為 NULL)。 |
-| `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗), `skip` (因 MIME 或副檔名不符而跳過)。 |
-| `status_code` | `Integer` | `Nullable` | 記錄爬取最終的 HTTP 狀態碼。前端與匯出引擎藉由綜合判斷此欄位與 `error_message`，將內部失敗動態歸類為 6 大失效樣態 (資源遺失、伺服器異常、權限不足、連線逾時、底層異常、其他)。 |
+| `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗), `skip` (因 MIME 或副檔名不符而跳過), `warning` (因超過容量上限被截斷)。 |
+| `status_code` | `Integer` | `Nullable` | 記錄爬取最終的 HTTP 狀態碼。前端與匯出引擎藉由綜合判斷此欄位與 `error_message`，將內部失敗動態歸類為 7 大失效樣態 (資源遺失、伺服器異常、權限不足、連線逾時、底層異常、網頁截斷、其他)。 |
 | `retry_count` | `Integer` | `Default: 0` | 爬取發生錯誤並重試的次數，由全域與任務設定控制上限。 |
 | `depth` | `Integer` | `Default: 0` | 記錄此網址被發現的爬取深度。起始網址深度為 `0`，子網址為 `current_depth + 1`。 |
 | `error_message` | `Text` | `Nullable` | 若爬取最後狀態為 `failed`，此欄位會記錄最終發生的例外錯誤訊息。 |

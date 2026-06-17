@@ -106,8 +106,8 @@ python scripts/migrate_sqlite_to_pg.py
 2026-06-14 22:10:00 [INFO] ========================================
 2026-06-14 22:10:00 [INFO] 來源 SQLite Auth DSN   : sqlite:///db/auth.db
 2026-06-14 22:10:00 [INFO] 來源 SQLite Crawler DSN: sqlite:///db/crawler.db
-2026-06-14 22:10:00 [INFO] 目標 PostgreSQL Auth DSN   : localhost:5432/linkchecker_auth
-2026-06-14 22:10:00 [INFO] 目標 PostgreSQL Crawler DSN: localhost:5432/linkchecker_crawler
+2026-06-14 22:10:00 [INFO] 目標 PostgreSQL Auth DSN   : localhost:5432/auth_db
+2026-06-14 22:10:00 [INFO] 目標 PostgreSQL Crawler DSN: localhost:5432/crawler_db
 2026-06-14 22:10:00 [INFO] ========================================
 2026-06-14 22:10:01 [INFO] 開始遷移 Auth DB...
 ...

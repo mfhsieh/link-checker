@@ -198,7 +198,7 @@
           "auth"
         ],
         "summary": "Forgot Password",
-        "description": "申請重設密碼。\n\n無論信箱是否存在，皆回傳相同成功訊息，防止帳號列舉攻擊。\n\nArgs:\n    body (ForgotPasswordRequest): 包含 email 的請求內容。\n    request (Request): FastAPI 請求物件。\n    db (DBSession): Auth DB Session。\n\nReturns:\n    dict[str, str]: 成功訊息。",
+        "description": "申請重設密碼。\n\n無論信箱是否存在，皆回傳相同成功訊息，防止帳號列舉攻擊。\n（註：此為未認證訪客端點，無 Session/Cookie 依賴，故不實施 CSRF 防禦，改採 IP 限速機制）\n\nArgs:\n    body (ForgotPasswordRequest): 包含 email 的請求內容。\n    request (Request): FastAPI 請求物件。\n    db (DBSession): Auth DB Session。\n\nReturns:\n    dict[str, str]: 成功訊息。",
         "operationId": "forgot_password_api_auth_forgot_password_post",
         "requestBody": {
           "content": {
@@ -244,7 +244,7 @@
           "auth"
         ],
         "summary": "Reset Password",
-        "description": "重設密碼。\n\n驗證 Token 後設定新密碼，並使該使用者所有 Session 失效。\n\nArgs:\n    body (ResetPasswordRequest): 包含 token 與新密碼的請求內容。\n    request (Request): FastAPI 請求物件。\n    db (DBSession): Auth DB Session。\n\nReturns:\n    dict[str, str]: 成功訊息。\n\nRaises:\n    HTTPException 400: 若 Token 無效、過期，或新密碼強度不足。",
+        "description": "重設密碼。\n\n驗證 Token 後設定新密碼，並使該使用者所有 Session 失效。\n（註：此為未認證訪客端點，無 Session/Cookie 依賴，故不實施 CSRF 防禦）\n\nArgs:\n    body (ResetPasswordRequest): 包含 token 與新密碼的請求內容。\n    request (Request): FastAPI 請求物件。\n    db (DBSession): Auth DB Session。\n\nReturns:\n    dict[str, str]: 成功訊息。\n\nRaises:\n    HTTPException 400: 若 Token 無效、過期，或新密碼強度不足。",
         "operationId": "reset_password_api_auth_reset_password_post",
         "requestBody": {
           "content": {

@@ -304,7 +304,7 @@ http://<您的 VM 外部 IP>/
 ## 進階維護：資料庫備份與 PostgreSQL 升級
 
 * **單一任務備份**：系統提供 `./scripts/job_sync.sh export <JOB_ID> backup.zip` 工具，能將任務以 JSONL 格式無損打包，方便您下載回本機或其他伺服器還原。
-* **升級至 PostgreSQL**：當您的系統規模擴大，SQLite 的檔案鎖定機制出現瓶頸時，建議升級至 PostgreSQL。請參考專案內的 **migrate_to_postgresql.md** 指南，安裝資料庫並執行 `./scripts/migrate_sqlite_to_pg.py`，即可一鍵無痛完成移轉。
+* **升級至 PostgreSQL**：當您的系統規模擴大，SQLite 的檔案鎖定機制出現瓶頸時，建議升級至 PostgreSQL。請參考專案內的 **doc/migrate_to_postgresql.md** 指南，安裝資料庫並執行 `python scripts/migrate_sqlite_to_pg.py`，即可一鍵無痛完成移轉。
 
 ---
 
