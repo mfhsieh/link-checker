@@ -190,6 +190,7 @@ def test_api_full_flow() -> None:
         teardown_databases()
 
 
+# pylint: disable=too-many-locals
 def _run_api_full_flow() -> None:
     """
     執行所有的 API 整合測試流程。
@@ -282,11 +283,13 @@ def _run_api_full_flow() -> None:
         "start_url": "https://example.com",
         "target_domains": ["example.com"],
         "trusted_domains": [],
-        "delay": 1,
+        "delay": 0.0,
         "timeout": 2,
-        "connect_timeout": 5,
-        "external_check_timeout": 10,
-        "retries": 3,
+        "connect_timeout": 1,
+        "external_check_timeout": 1,
+        "retries": 0,
+        "max_pages": 1,
+        "max_depth": 1,
         "ignore_regexes": [],
     }
     res = client.post("/api/jobs", json=job_data, headers={"X-CSRF-Token": csrf_token})
@@ -297,6 +300,11 @@ def _run_api_full_flow() -> None:
     res = client.get("/api/jobs")
     assert res.status_code in (200, 201, 202), res.text
     assert len(res.json()) == 1
+
+    # 15.5. Admin - Jobs List
+    res = client.get("/api/admin/jobs")
+    assert res.status_code in (200, 201, 202), res.text
+    assert len(res.json()) >= 1
 
     # 16. Jobs - Detail
     res = client.get(f"/api/jobs/{job_id}")
@@ -358,6 +366,12 @@ def _run_api_full_flow() -> None:
     res = client.delete(f"/api/admin/jobs/{job_id}", headers={"X-CSRF-Token": csrf_token})
     assert res.status_code in (200, 201, 202), res.text
 
+    # 24.5 User delete job API
+    res = client.post("/api/jobs", json=job_data, headers={"X-CSRF-Token": csrf_token})
+    job_to_delete = res.json()["job_id"]
+    res = client.delete(f"/api/jobs/{job_to_delete}", headers={"X-CSRF-Token": csrf_token})
+    assert res.status_code in (200, 201, 202), res.text
+
     # 25. Jobs Result APIs (Create a dummy job with results)
     res = client.post("/api/jobs", json=job_data, headers={"X-CSRF-Token": csrf_token})
     job_id_2 = res.json()["job_id"]
@@ -371,6 +385,9 @@ def _run_api_full_flow() -> None:
     res = client.get(f"/api/jobs/{job_id_2}/internal-results")
     assert res.status_code in (200, 201, 202), res.text
 
+    res = client.get(f"/api/jobs/{job_id_2}/internal-results/summary")
+    assert res.status_code in (200, 201, 202), res.text
+
     # Diff API requires a target_job_id
     res = client.post("/api/jobs", json=job_data, headers={"X-CSRF-Token": csrf_token})
     job_id_3 = res.json()["job_id"]
@@ -382,8 +399,32 @@ def _run_api_full_flow() -> None:
     res = client.get(f"/api/jobs/{job_id_2}/results/export")
     assert res.status_code in (200, 201, 202), res.text
 
+    res = client.get(f"/api/jobs/{job_id_2}/internal-results/export")
+    assert res.status_code in (200, 201, 202), res.text
+
     res = client.get(f"/api/jobs/{job_id_2}/export/full")
     assert res.status_code in (200, 201, 202), res.text
+
+    # SSE Stream 進度串流
+    with client.stream("GET", f"/api/jobs/{job_id_2}/stream") as response:
+        assert response.status_code == 200
+        for line in response.iter_lines():
+            if line:
+                assert line.startswith("data: ")
+                break
+
+    # 25.5 Auth Extra endpoints (set-password, forgot-password, reset-password)
+    # 一般 Session 呼叫 set-password 應被 403 拒絕
+    res = client.post(
+        "/api/auth/set-password", json={"new_password": "NewPassword@1234"}, headers={"X-CSRF-Token": csrf_token}
+    )
+    assert res.status_code == 403, res.text
+
+    res = client.post("/api/auth/forgot-password", json={"email": "forgot@test.com"})
+    assert res.status_code in (200, 429), res.text
+
+    res = client.post("/api/auth/reset-password", json={"token": "invalid-token", "new_password": "NewPassword@1234"})
+    assert res.status_code == 400, res.text
 
     # 26. Auth Logout
     res = client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf_token})
@@ -443,6 +484,7 @@ def test_api_real_scenario_flow() -> None:
             "crawler": {
                 "min_timeout": 1,
                 "min_external_check_timeout": 0.1,
+                "min_delay": 0.0,
             }
         }
         client.patch("/api/admin/config", json=config_data, headers={"X-CSRF-Token": csrf_token})
@@ -452,10 +494,10 @@ def test_api_real_scenario_flow() -> None:
             "start_url": f"http://127.0.0.1:{port}/index.html",
             "target_domains": ["127.0.0.1", "localhost"],
             "trusted_domains": [],
-            "delay": 0.1,
+            "delay": 0.0,
             "timeout": 2,
-            "connect_timeout": 5,
-            "external_check_timeout": 5,
+            "connect_timeout": 1.0,
+            "external_check_timeout": 1.0,
             "retries": 1,
             "ignore_regexes": [],
         }
@@ -482,7 +524,7 @@ def test_api_real_scenario_flow() -> None:
                 break
             if status == "error":
                 assert False, "Crawler job failed with error status"
-            time.sleep(1)
+            time.sleep(0.5)
             attempts += 1
 
         assert is_completed, "Crawler job timed out before completion"

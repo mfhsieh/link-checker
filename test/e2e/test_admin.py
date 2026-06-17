@@ -48,3 +48,103 @@ def test_admin_config(page: Page, base_url: str) -> None:
     # 驗證是否有成功提示，例如 toast 訊息
     # class 為 toast-container 的內部
     expect(page.locator(".toast-container").last).to_contain_text(re.compile("成功|儲存|已"))
+
+
+# pylint: disable=too-many-statements
+def test_admin_user_management_ui(page: Page, base_url: str) -> None:
+    """
+    測試管理員在後台管理使用者的 UI 互動，包含邀請、重寄邀請、停用/啟用、權限提降、刪除。
+
+    Args:
+        page (Page): Playwright 的網頁操作物件。
+        base_url (str): 測試伺服器的根網址。
+
+    Raises:
+        AssertionError: 當操作結果與預期不合或 API 發生錯誤時拋出。
+    """
+    # 1. 登入並進入管理後台
+    page.goto(f"{base_url}/index.html")
+    page.fill('input[type="email"]', "admin@test.com")
+    page.fill('input[type="password"]', "Admin@12345678")
+    page.click('button[type="submit"]')
+    page.wait_for_url(re.compile(r".*/app\.html.*"), timeout=10000)
+
+    page.goto(f"{base_url}/admin.html")
+    page.wait_for_selector("#users-table-container")
+
+    # 2. 邀請新使用者
+    page.wait_for_selector("#invite-user-btn", state="visible")
+    page.click("#invite-user-btn")
+    page.wait_for_selector("#invite-email", state="visible")
+    page.fill("#invite-email", "invited_user@test.com")
+
+    with page.expect_response("**/api/admin/users", timeout=5000) as response_info:
+        page.click("#invite-user-submit")
+
+    response = response_info.value
+    assert response.ok, f"User invitation failed: {response.status}"
+    expect(page.locator(".toast-container").last).to_contain_text(re.compile("邀請已寄送|成功"))
+
+    # 確保列表已重新載入並出現新使用者
+    expect(page.locator('tr:has-text("invited_user@test.com")')).to_be_visible()
+
+    # 3. 重新寄送邀請
+    page.click('tr:has-text("invited_user@test.com") button[data-action="resend"]')
+    page.wait_for_selector("#confirm-modal-submit", state="visible")
+
+    with page.expect_response("**/resend-invite"):
+        page.click("#confirm-modal-submit")
+
+    expect(page.locator(".toast-container").last).to_contain_text(re.compile("重新寄送|成功"))
+
+    # 4. 變更使用者角色：設為管理員 ➔ 取消管理員
+    # 設為管理員 (Promote)
+    page.click('tr:has-text("invited_user@test.com") button[data-action="promote"]')
+    page.wait_for_selector("#confirm-modal-submit", state="visible")
+
+    with page.expect_response(lambda r: "/api/admin/users/" in r.url and r.request.method == "PATCH"):
+        page.click("#confirm-modal-submit")
+
+    expect(page.locator(".toast-container").last).to_contain_text(re.compile("角色已變更|成功"))
+    expect(page.locator('tr:has-text("invited_user@test.com")')).to_contain_text("管理員")
+
+    # 取消管理員 (Demote)
+    page.click('tr:has-text("invited_user@test.com") button[data-action="demote"]')
+    page.wait_for_selector("#confirm-modal-submit", state="visible")
+
+    with page.expect_response(lambda r: "/api/admin/users/" in r.url and r.request.method == "PATCH"):
+        page.click("#confirm-modal-submit")
+
+    expect(page.locator(".toast-container").last).to_contain_text(re.compile("角色已變更|成功"))
+    expect(page.locator('tr:has-text("invited_user@test.com")')).to_contain_text("使用者")
+
+    # 5. 帳號停用與啟用
+    # 停用 (Suspend)
+    page.click('tr:has-text("invited_user@test.com") button[data-action="suspend"]')
+    page.wait_for_selector("#confirm-modal-submit", state="visible")
+
+    with page.expect_response(lambda r: "/api/admin/users/" in r.url and r.request.method == "PATCH"):
+        page.click("#confirm-modal-submit")
+
+    expect(page.locator(".toast-container").last).to_contain_text(re.compile("已停用|成功"))
+    expect(page.locator('tr:has-text("invited_user@test.com")')).to_contain_text("已停用")
+
+    # 啟用 (Activate)
+    page.click('tr:has-text("invited_user@test.com") button[data-action="activate"]')
+    page.wait_for_selector("#confirm-modal-submit", state="visible")
+
+    with page.expect_response(lambda r: "/api/admin/users/" in r.url and r.request.method == "PATCH"):
+        page.click("#confirm-modal-submit")
+
+    expect(page.locator(".toast-container").last).to_contain_text(re.compile("啟用|成功"))
+    expect(page.locator('tr:has-text("invited_user@test.com")')).to_contain_text("正常")
+
+    # 6. 刪除使用者 (Delete)
+    page.click('tr:has-text("invited_user@test.com") button[data-action="delete"]')
+    page.wait_for_selector("#confirm-modal-submit", state="visible")
+
+    with page.expect_response(lambda r: "/api/admin/users/" in r.url and r.request.method == "DELETE"):
+        page.click("#confirm-modal-submit")
+
+    expect(page.locator(".toast-container").last).to_contain_text(re.compile("已進入刪除排程|成功"))
+    expect(page.locator("#users-table-container")).not_to_contain_text("invited_user@test.com")

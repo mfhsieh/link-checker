@@ -244,6 +244,7 @@ crawler:
   min_timeout: 1
   min_connect_timeout: 0.1
   min_external_check_timeout: 0.1
+  min_delay: 0.0
 """)
 
         # 動態產生主測試設定檔，確保 PORT 與最新欄位名稱正確
@@ -257,8 +258,10 @@ trusted_domains:
   - "localhost"
 crawler:
   retries: 0
-  delay: 0.1
+  delay: 0.0
   timeout: 2
+  connect_timeout: 1.0
+  external_check_timeout: 1.0
   social_domains:
     - "127.0.0.1"
 """)
@@ -362,7 +365,7 @@ crawler:
         assert ext_dict[status_500_url]["is_secure"] == 1, "httpbin 500 is_secure should be 1"
 
         # 斷言 4: DNS 失敗連結
-        dns_fail_url = "https://this-dns-does-not-exist-at-all-123456789.com"
+        dns_fail_url = "https://this-dns-does-not-exist.invalid"
         assert dns_fail_url in ext_dict, "DNS fail link not found in DB"
         assert ext_dict[dns_fail_url]["ip"] is None, (
             f"DNS fail link IP should be None, got {ext_dict[dns_fail_url]['ip']}"
@@ -500,9 +503,7 @@ crawler:
         with open(dead_file, "r") as f:
             dead_data = json.load(f)
         assert len(dead_data) == 1, f"Expected 1 dead link, got {len(dead_data)}"
-        assert dead_data[0]["target_url"] == "https://this-dns-does-not-exist-at-all-123456789.com", (
-            "Dead link target mismatch"
-        )
+        assert dead_data[0]["target_url"] == "https://this-dns-does-not-exist.invalid", "Dead link target mismatch"
         os.remove(dead_file)
 
         # 測試 --filter broken
@@ -748,8 +749,10 @@ trusted_domains:
   - "localhost"
 crawler:
   retries: 0
-  delay: 0.1
+  delay: 0.0
   timeout: 2
+  connect_timeout: 1.0
+  external_check_timeout: 1.0
   max_depth: 1
   max_pages: 3
 """)
@@ -814,7 +817,7 @@ trusted_domains:
   - "127.0.0.1"
 crawler:
   retries: 0
-  delay: 0.1
+  delay: 0.0
   timeout: 2
   connect_timeout: 1.0
   external_check_timeout: 1.0
