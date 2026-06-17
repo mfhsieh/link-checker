@@ -3,11 +3,12 @@
 任務結果與統計查詢邏輯。
 """
 
+import json
 import logging
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
 
-from sqlalchemy import case, cast, String, asc, desc
+from sqlalchemy import String, asc, case, cast, desc
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.sql.functions import count
@@ -138,7 +139,7 @@ def _group_by_source(links: Iterable[ExternalLink]) -> list[dict[str, object]]:
     return [{**v} for v in agg.values()]
 
 
-def get_job_results(
+def get_job_results(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     db: DBSession,
     query_args: JobResultQuery,
 ) -> dict[str, object]:
@@ -165,8 +166,6 @@ def get_job_results(
     query = apply_job_result_filters(
         query, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
     )
-
-    import json
 
     def apply_py_filter_sort(items_list: list[dict[str, object]]) -> list[dict[str, object]]:
         """
@@ -199,7 +198,7 @@ def get_job_results(
                     if match:
                         filtered.append(item)
                 items_list = filtered
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
 
         if query_args.sort_by:
@@ -225,7 +224,7 @@ def get_job_results(
 
             try:
                 items_list.sort(key=sort_key, reverse=rev)
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
         return items_list
 
@@ -262,7 +261,7 @@ def get_job_results(
                         query = query.filter(cast(ExternalLink.http_status_code, String).ilike(f"%{v_str}%"))
                     elif k == "error_message":
                         query = query.filter(ExternalLink.error_message.ilike(f"%{v_str}%"))
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
 
         if query_args.sort_by:
@@ -325,7 +324,7 @@ def get_job_results(
     }
 
 
-def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
+def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:  # pylint: disable=too-many-locals, too-many-branches
     """
     計算分組後的聚合統計結果。
 
@@ -367,7 +366,7 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
         is_not_found = c in (404, 410)
         is_server_error = c is not None and 500 <= c < 600
         is_connection_error = c is None and bool(lnk.ip_address)
-        is_other_error = c is not None and ((c >= 400 and c < 500 and not is_blocked and not is_not_found) or c >= 600)
+        is_other_error = c is not None and ((c >= 400 and c < 500 and not is_blocked and not is_not_found) or c >= 600)  # pylint: disable=chained-comparison
 
         if is_dns_failed:
             set_dns_failed.add(key)
@@ -399,7 +398,7 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
     }
 
 
-def get_results_summary(
+def get_results_summary(  # pylint: disable=too-many-locals
     db: DBSession, job_id: str, user_id: str, exclude: str | None = None, group_by: str = "none"
 ) -> dict[str, object]:
     """
@@ -1116,7 +1115,7 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
     }
 
 
-# pylint: disable=too-many-arguments, too-many-locals
+# pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
 def get_internal_errors(
     db: DBSession,
     job_id: str,
@@ -1155,8 +1154,6 @@ def get_internal_errors(
     query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
     query = apply_internal_result_filters(query, status_filter)
 
-    import json
-
     def apply_py_filter_sort(items_list: list[dict[str, object]]) -> list[dict[str, object]]:
         """
         在記憶體中套用前端指定的欄位過濾與排序邏輯。
@@ -1185,7 +1182,7 @@ def get_internal_errors(
                     if match:
                         filtered.append(item)
                 items_list = filtered
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
         if sort_by:
             rev = not sort_asc
@@ -1209,7 +1206,7 @@ def get_internal_errors(
 
             try:
                 items_list.sort(key=sort_key, reverse=rev)
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
         return items_list
 
@@ -1263,7 +1260,7 @@ def get_internal_errors(
                     query = query.filter(cast(CrawlQueue.status_code, String).ilike(f"%{v_str}%"))
                 elif k == "Error Message":
                     query = query.filter(CrawlQueue.error_message.ilike(f"%{v_str}%"))
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
 
     if sort_by:

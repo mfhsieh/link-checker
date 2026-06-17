@@ -8,9 +8,9 @@ import logging
 import os
 import random
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from collections.abc import Callable
 
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
@@ -230,8 +230,7 @@ class JobRunner:
         )
 
         self.state.crawled_count = (
-            session
-            .query(CrawlQueue)
+            session.query(CrawlQueue)
             .filter(
                 CrawlQueue.job_id == self.job_id,
                 (CrawlQueue.status.in_(["completed", "failed", "warning"]))
@@ -278,8 +277,7 @@ class JobRunner:
                 break
 
             queue_item: CrawlQueue | None = (
-                session
-                .query(CrawlQueue)
+                session.query(CrawlQueue)
                 .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
                 .order_by(CrawlQueue.id)
                 .first()
@@ -384,8 +382,7 @@ class JobRunner:
         ):
             for link in internal_links:
                 exists = (
-                    session
-                    .query(CrawlQueue)
+                    session.query(CrawlQueue)
                     .filter(
                         CrawlQueue.job_id == self.job_id,
                         CrawlQueue.url == link,
@@ -422,8 +419,7 @@ class JobRunner:
         links_needing_http_check = []
         for link in unique_external_links:
             exists = (
-                session
-                .query(ExternalLink)
+                session.query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == self.job_id,
                     ExternalLink.source_url == current_url,
@@ -504,8 +500,7 @@ class JobRunner:
         for res_link, res_ip, res_code, res_err in results:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
             exists = (
-                session
-                .query(ExternalLink)
+                session.query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == self.job_id,
                     ExternalLink.source_url == current_url,

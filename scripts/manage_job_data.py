@@ -34,7 +34,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger: logging.Logger = logging.getLogger("job_sync")
 
 
-def export_job(job_id: str, output_path: str) -> None:
+def export_job(job_id: str, output_path: str) -> None:  # pylint: disable=too-many-locals
     """
     匯出任務資料。
 
@@ -131,7 +131,7 @@ def export_job(job_id: str, output_path: str) -> None:
         logger.info("已將任務備份壓縮至 %s", output_path)
 
 
-def import_job(input_path: str, new_user_id: str) -> None:
+def import_job(input_path: str, new_user_id: str) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     """
     匯入任務資料。
 

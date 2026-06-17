@@ -5,14 +5,14 @@ Auth DB 的資料庫連線設定。
 與爬蟲資料庫（Crawler DB）完全分離，不共用連線池或 Session。
 """
 
-import os
 from collections.abc import Callable
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.auth.models import AuthBase
 from backend.config import get_settings
+from crawler.utils import create_optimized_engine
 
 
 def _create_auth_engine() -> Engine:
@@ -24,49 +24,22 @@ def _create_auth_engine() -> Engine:
 
     Returns:
         Engine: 已設定完成的 SQLAlchemy engine。
+
+    Raises:
+        OSError: 若建立資料庫目錄失敗時拋出。
+        SQLAlchemyError: 若建立資料表失敗時拋出。
     """
     settings = get_settings()
     db_url = settings.AUTH_DB_URL
 
-    # 自動建立資料庫目錄
-    if db_url.startswith("sqlite:///"):
-        db_path = db_url.replace("sqlite:///", "")
-        db_dir = os.path.dirname(db_path)
-        if db_dir:
-            os.makedirs(db_dir, exist_ok=True)
-
-    # sqlite 預設為單執行緒，使用 check_same_thread=False
-    # 允許多執行緒共用 (FastAPI / Celery)
-    engine_kwargs: dict[str, object] = {}
-    if db_url.startswith("sqlite"):
-        engine_kwargs["connect_args"] = {
-            "check_same_thread": False,
-            "timeout": settings.SQLITE_TIMEOUT,
-        }
-    else:
-        engine_kwargs["pool_size"] = settings.DB_POOL_SIZE
-        engine_kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
-        engine_kwargs["pool_pre_ping"] = settings.DB_POOL_PRE_PING
-
-    engine = create_engine(db_url, **engine_kwargs)
-
-    if db_url.startswith("sqlite"):
-
-        @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
-            """
-            設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。
-
-            Args:
-                dbapi_connection (object): SQLite 資料庫連線物件。
-                _connection_record (object): SQLAlchemy 連線紀錄物件（此處未使用）。
-            """
-            cursor = dbapi_connection.cursor()
-            cursor.execute("PRAGMA journal_mode=WAL")
-            cursor.execute("PRAGMA synchronous=NORMAL")
-            cursor.execute("PRAGMA cache_size=5000")
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.close()
+    engine = create_optimized_engine(
+        db_url=db_url,
+        sqlite_timeout=settings.SQLITE_TIMEOUT,
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
+        pool_pre_ping=settings.DB_POOL_PRE_PING,
+        sqlite_cache_size=5000,
+    )
 
     # 建立所有資料表（若尚未存在）
     AuthBase.metadata.create_all(engine)
@@ -85,6 +58,10 @@ def get_auth_engine() -> Engine:
 
     Returns:
         Engine: Auth DB engine。
+
+    Raises:
+        OSError: 若建立資料庫目錄失敗時拋出。
+        SQLAlchemyError: 若初始化資料表失敗時拋出。
     """
     global _ENGINE  # pylint: disable=global-statement
     if _ENGINE is None:

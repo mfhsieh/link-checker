@@ -161,8 +161,7 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
 
         # 統計外部連結狀態
         dead_count = (
-            session
-            .query(ExternalLink)
+            session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
                 (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
@@ -170,8 +169,7 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
             .count()
         )
         blocked_count = (
-            session
-            .query(ExternalLink)
+            session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
                 ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]),
@@ -179,8 +177,7 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
             .count()
         )
         broken_count = (
-            session
-            .query(ExternalLink)
+            session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
                 (

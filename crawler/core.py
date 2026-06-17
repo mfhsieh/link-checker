@@ -374,7 +374,7 @@ class CrawlerCore:
                             return result
                     except (httpx.RequestError, socket.gaierror) as retry_err:
                         logger.warning("HTTPS 重試亦失敗: %s，回傳最初的錯誤", retry_err)
-                        raise e
+                        raise e from retry_err
                 else:
                     raise
             except (ValueError, TypeError, UnicodeError) as e:
@@ -385,7 +385,7 @@ class CrawlerCore:
         return None, None, "skip", current_url, request_sent, "超過最大重導向次數"
 
     # pylint: disable=too-many-locals
-    def extract_links(self, html: str, base_url: str) -> list[str]:
+    def extract_links(self, html: str, base_url: str) -> list[str]:  # pylint: disable=too-many-branches
         """從給定的 HTML 內容中擷取所有有效且絕對路徑的連結與外連資源（如超連結、script、stylesheet、iframe、img、embed、form、object 等）。
 
         Args:

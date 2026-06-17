@@ -11,12 +11,13 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from crawler.models import Base, CrawlQueue, ExternalLink, Job
 from crawler.notifier import send_job_status_notification
 from crawler.runner import JobRunner
+from crawler.utils import create_optimized_engine
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -55,42 +56,19 @@ class JobManager:
 
         Args:
             db_url (str): 資料庫的連線字串。預設為 'sqlite:///db/crawler.db'。
+
+        Raises:
+            OSError: 若建立資料庫目錄失敗時拋出。
+            SQLAlchemyError: 若建立資料表失敗時拋出。
         """
-        if db_url.startswith("sqlite:///"):
-            db_path = db_url.replace("sqlite:///", "")
-            db_dir = os.path.dirname(db_path)
-            if db_dir and not os.path.exists(db_dir):
-                os.makedirs(db_dir, exist_ok=True)
-
-        engine_kwargs: dict[str, object] = {}
-        if db_url.startswith("sqlite"):
-            engine_kwargs["connect_args"] = {
-                "check_same_thread": False,
-                "timeout": int(os.environ.get("SQLITE_TIMEOUT", "30")),
-            }
-        else:
-            engine_kwargs["pool_size"] = int(os.environ.get("DB_POOL_SIZE", "20"))
-            engine_kwargs["max_overflow"] = int(os.environ.get("DB_MAX_OVERFLOW", "20"))
-            engine_kwargs["pool_pre_ping"] = os.environ.get("DB_POOL_PRE_PING", "true").lower() == "true"
-
-        self.engine: Engine = create_engine(db_url, **engine_kwargs)
-        if db_url.startswith("sqlite:"):
-
-            @event.listens_for(self.engine, "connect")
-            def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
-                """
-                設定 SQLite 的 PRAGMA 參數，提升效能。
-
-                Args:
-                    dbapi_connection (object): SQLite 連線物件。
-                    _connection_record (object): SQLAlchemy 連線紀錄。
-                """
-                cursor = dbapi_connection.cursor()
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA synchronous=NORMAL")
-                cursor.execute("PRAGMA cache_size=10000")
-                cursor.execute("PRAGMA foreign_keys=ON")
-                cursor.close()
+        self.engine: Engine = create_optimized_engine(
+            db_url=db_url,
+            sqlite_timeout=int(os.environ.get("SQLITE_TIMEOUT", "30")),
+            pool_size=int(os.environ.get("DB_POOL_SIZE", "20")),
+            max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "20")),
+            pool_pre_ping=os.environ.get("DB_POOL_PRE_PING", "true").lower() == "true",
+            sqlite_cache_size=10000,
+        )
 
         Base.metadata.create_all(self.engine)
         self.session_factory: Callable[[], Session] = sessionmaker(bind=self.engine)
@@ -107,6 +85,9 @@ class JobManager:
 
         Returns:
             str: 新建立任務的 ID。
+
+        Raises:
+            SQLAlchemyError: 當資料庫寫入操作失敗時拋出。
         """
         config_str: str | None = json.dumps(options.crawler_config) if options.crawler_config is not None else None
 
@@ -144,6 +125,9 @@ class JobManager:
 
         Returns:
             Job | None: 若找到對應的任務物件則回傳，否則回傳 None。
+
+        Raises:
+            SQLAlchemyError: 當資料庫查詢失敗時拋出。
         """
         with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -180,6 +164,9 @@ class JobManager:
 
         Returns:
             list[dict[str, object]]: 包含任務基本資訊的字典陣列。
+
+        Raises:
+            SQLAlchemyError: 當資料庫查詢失敗時拋出。
         """
         with self.session_factory() as session:
             query = session.query(Job)
@@ -209,6 +196,9 @@ class JobManager:
 
         Returns:
             dict[str, object] | None: 任務的詳細統計資料。若任務不存在則回傳 None。
+
+        Raises:
+            SQLAlchemyError: 當資料庫查詢失敗時拋出。
         """
         with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -258,6 +248,9 @@ class JobManager:
 
         Returns:
             bool: 成功暫停回傳 True，否則回傳 False。
+
+        Raises:
+            SQLAlchemyError: 當資料庫寫入操作失敗時拋出。
         """
         with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -280,6 +273,9 @@ class JobManager:
 
         Returns:
             bool: 成功刪除回傳 True，若任務不存在則回傳 False。
+
+        Raises:
+            SQLAlchemyError: 當資料庫寫入操作失敗時拋出。
         """
         with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -300,6 +296,9 @@ class JobManager:
 
         Returns:
             bool: 成功回傳 True。
+
+        Raises:
+            SQLAlchemyError: 當資料庫寫入操作失敗時拋出。
         """
         with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -323,6 +322,9 @@ class JobManager:
 
         Returns:
             bool: 成功移交回傳 True，若任務不存在則回傳 False。
+
+        Raises:
+            SQLAlchemyError: 當資料庫寫入操作失敗時拋出。
         """
         with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -342,6 +344,9 @@ class JobManager:
 
         Returns:
             bool: 成功重設回傳 True，若任務不存在則回傳 False。
+
+        Raises:
+            SQLAlchemyError: 當資料庫寫入操作失敗時拋出。
         """
         with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()
@@ -392,6 +397,9 @@ class JobManager:
 
         Returns:
             bool: 成功發出重試指令回傳 True，若無法重試則回傳 False。
+
+        Raises:
+            SQLAlchemyError: 當資料庫寫入操作失敗時拋出。
         """
         with self.session_factory() as session:
             job = session.query(Job).filter(Job.id == job_id).first()

@@ -6,8 +6,8 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from crawler.manager import JobManager
 from backend.jobs.constants import _ACTIVE_PROCESSES, PID_DIR
+from crawler.manager import JobManager
 
 logger: logging.Logger = logging.getLogger(__name__)
 

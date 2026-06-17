@@ -99,7 +99,7 @@ ruff check --select I --fix .
 ruff format .
 
 # 2. 執行 Pylint 進行靜態分析 (包含主程式與測試腳本)
-pylint backend/ crawler/ cli.py test/
+pylint backend/ crawler/ cli.py scripts/ test/
 
 # 3. 執行 Pytest 整合測試
 pytest test/

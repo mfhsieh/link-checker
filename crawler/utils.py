@@ -10,6 +10,8 @@ import os
 import socket
 import urllib.parse
 
+from sqlalchemy import Engine, create_engine, event
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -115,3 +117,64 @@ def normalize_url(url: str, base_url: str) -> str:
     joined_url = urllib.parse.urljoin(base_url, url)
     parsed, _ = urllib.parse.urldefrag(joined_url)
     return parsed
+
+
+def create_optimized_engine(  # pylint: disable=too-many-arguments
+    db_url: str,
+    sqlite_timeout: int = 30,
+    pool_size: int = 20,
+    max_overflow: int = 20,
+    pool_pre_ping: bool = True,
+    sqlite_cache_size: int = 10000,
+) -> Engine:
+    """
+    建立並設定最佳化參數的 SQLAlchemy 資料庫引擎。
+
+    Args:
+        db_url (str): 資料庫連線字串。
+        sqlite_timeout (int): SQLite 連線鎖定等待超時 (秒)。
+        pool_size (int): 連線池大小 (適用於 PostgreSQL 等)。
+        max_overflow (int): 最大溢出連線數 (適用於 PostgreSQL 等)。
+        pool_pre_ping (bool): 是否開啟連線池自動偵測重連機制。
+        sqlite_cache_size (int): SQLite 快取大小 (分頁數)。
+
+    Returns:
+        Engine: 設定完成的 SQLAlchemy Engine。
+
+    Raises:
+        OSError: 若建立資料庫目錄失敗時拋出。
+    """
+    if db_url.startswith("sqlite:///"):
+        db_path = db_url.replace("sqlite:///", "")
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+
+    engine_kwargs: dict[str, object] = {}
+    if db_url.startswith("sqlite"):
+        engine_kwargs["connect_args"] = {"check_same_thread": False, "timeout": sqlite_timeout}
+    else:
+        engine_kwargs["pool_size"] = pool_size
+        engine_kwargs["max_overflow"] = max_overflow
+        engine_kwargs["pool_pre_ping"] = pool_pre_ping
+
+    engine = create_engine(db_url, **engine_kwargs)
+    if db_url.startswith("sqlite"):
+
+        @event.listens_for(engine, "connect")
+        def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
+            """
+            設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。
+
+            Args:
+                dbapi_connection (object): SQLite 資料庫連線物件。
+                _connection_record (object): SQLAlchemy 連線紀錄物件（此處未使用）。
+            """
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute(f"PRAGMA cache_size={sqlite_cache_size}")
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+    return engine

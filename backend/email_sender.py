@@ -121,7 +121,9 @@ def _build_password_reset_email(
   <p>您好，</p>
   <p>我們收到了您要求重設密碼的申請。請點擊下方按鈕或連結來設定新密碼：</p>
   <div style="margin:24px 0;">
-    <a href="{reset_url}" style="background:#2563eb;color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">重設密碼</a>
+    <a href="{reset_url}"
+       style="background:#2563eb;color:#ffffff;padding:12px 24px;text-decoration:none;
+              border-radius:6px;font-weight:bold;display:inline-block;">重設密碼</a>
   </div>
   <p style="margin:0 0 16px 0;font-size:0.875rem;color:#666;">
     或複製以下網址至瀏覽器貼上：<br>

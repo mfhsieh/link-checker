@@ -20,7 +20,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.orm.exc import StaleDataError
 
-from backend.auth.models import AuthLog, Invitation, Session, User, PasswordResetToken
+from backend.auth.models import AuthLog, Invitation, PasswordResetToken, Session, User
 from backend.auth.password import (
     hash_password,
     validate_password_strength,
@@ -239,8 +239,7 @@ def authenticate_with_invitation(
         raise ValueError("此帳號已完成設定，請使用密碼登入。")
 
     invitation = (
-        db
-        .query(Invitation)
+        db.query(Invitation)
         .filter(
             Invitation.user_id == user.id,
             Invitation.token == token,
@@ -420,8 +419,7 @@ def get_session_by_token(db: DBSession, raw_token: str) -> Session | None:
     token_hash = _hash_token(raw_token)
     now = _utc_now()
     return (
-        db
-        .query(Session)
+        db.query(Session)
         .filter(
             Session.token_hash == token_hash,
             Session.expires_at > now,
@@ -689,8 +687,7 @@ def request_password_reset(db: DBSession, email: str, ip: str | None = None) -> 
     # 簡易限速：同一 IP 在設定時間內最多允許的申請次數
     if ip:
         recent_requests = (
-            db
-            .query(AuthLog)
+            db.query(AuthLog)
             .filter(
                 AuthLog.event_type == "password_reset_requested",
                 AuthLog.ip_address == ip,

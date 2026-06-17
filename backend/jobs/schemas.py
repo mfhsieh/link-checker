@@ -169,7 +169,7 @@ class PaginationArgs:  # pylint: disable=too-few-public-methods
 class ResultsFilterArgs:  # pylint: disable=too-few-public-methods
     """任務結果篩選參數。"""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         status_filter: str | None = Query(
             None,
@@ -204,7 +204,7 @@ class ResultsFilterArgs:  # pylint: disable=too-few-public-methods
         self.col_filters = col_filters
 
 
-class ResultsQueryArgs:  # pylint: disable=too-few-public-methods
+class ResultsQueryArgs:  # pylint: disable=too-few-public-methods, too-many-instance-attributes
     """任務結果查詢參數。"""
 
     def __init__(

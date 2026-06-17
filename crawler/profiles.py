@@ -76,12 +76,14 @@ def get_random_profile(url: str | None = None) -> dict[str, str]:
     is_secure = url is None or url.startswith("https://")
 
     if is_secure:
-        headers.update({
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "none",
-            "Sec-Fetch-User": "?1",
-        })
+        headers.update(
+            {
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+            }
+        )
 
         # 針對不同瀏覽器補齊專屬 Headers
         if "Chrome" in user_agent and "Edg" not in user_agent:

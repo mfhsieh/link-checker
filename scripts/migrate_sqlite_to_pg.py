@@ -9,9 +9,10 @@
 請在執行此腳本前，先於 `.env` 中設定好對應的 `AUTH_DB_URL` 與 `CRAWLER_DB_URL` 為 PostgreSQL 連線字串。
 """
 
+import logging
 import os
 import sys
-import logging
+
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import sessionmaker
 
@@ -19,9 +20,10 @@ from sqlalchemy.orm import sessionmaker
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
+from backend.auth.models import AuthBase, AuthLog, Invitation, User
+from backend.auth.models import Session as AuthSession
 from backend.config import get_settings
-from backend.auth.models import AuthBase, User, Invitation, Session as AuthSession, AuthLog
-from crawler.models import Base, Job, CrawlQueue, ExternalLink
+from crawler.models import Base, CrawlQueue, ExternalLink, Job
 
 # 初始化日誌
 logging.basicConfig(
