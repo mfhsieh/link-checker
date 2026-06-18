@@ -22,3 +22,10 @@
 * **功能描述**：目前完整匯出的 ZIP 檔中僅包含 `crawl_records.csv` (全部爬取紀錄) 與 `external_links.csv` (外部連結)。雖然 `crawl_records.csv` 已涵蓋所有失敗資訊，但缺乏預先分類的內部失效名單，較不便於非技術人員快速查閱。
 * **規劃方案**：在 `export_full_report` 匯出打包 ZIP 的過程中，額外過濾並產出一份 `job_{id}_internal_errors.csv` 檔案，專門條列 `failed` 與 `warning` 狀態的內部連結。
 * **狀態**：**待後續優化（Pending Review）**。
+
+---
+
+## 4. 任務排程與並發數量上限控制 (Task Scheduling & Concurrency Limit)
+* **功能描述**：為了保護伺服器資源，當系統中正在執行的爬取任務數量到達上限時，新啟動（或暫停後重新啟動）的任務不能直接執行，而是加入等待排程中。等到系統發現執行中的任務低於上限時，再依先進先出的順序，自動將排程中的任務啟動作業。
+* **規劃方案**：在全域設定中增加最大並發任務數限制（如 `max_concurrent_jobs`），並擴充任務狀態（如新增 `queued` 狀態）。實作一個背景排程器 (Scheduler) 或在現有 `JobManager` 的任務結束掛勾中，自動輪詢並依序喚醒下一個排程中的任務。
+* **狀態**：**待後續優化（Pending Review）**。

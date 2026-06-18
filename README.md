@@ -82,8 +82,8 @@ python cli.py --serve  # 若為開發環境，可加上 --reload 啟用熱重載
 除了 Web 介面，您依然可以直接使用 CLI 操作爬蟲核心。
 
 ```bash
-# 執行單次爬蟲任務（讀取 YAML 設定檔）
-python cli.py -c y_job_config.yaml
+# 執行單次爬蟲任務（讀取專案內建的 YAML 範例設定檔）
+python cli.py -c job/config_job.yaml.example
 
 # 列出所有任務
 python cli.py --list-jobs
@@ -101,7 +101,12 @@ python cli.py --help
 
 * **[系統架構說明](doc/architecture.md)**：了解系統目錄結構與核心技術選型。
 * **[命令列 (CLI) 操作指南](doc/cli_usage.md)**：完整的 CLI 參數、功能介紹與全域設定檔說明。
-* **[API 路由清單](doc/api_routes.md)**：後端 RESTful API 規格說明。
-* **[系統需求規格書](doc/requirements.md)**：詳細的功能需求與業務邏輯邊界。
-* **資料庫 Schema**：[Crawler DB](doc/db_schema_crawler.md) / [Auth DB](doc/db_schema_auth.md)
+* **[API 路由清單](doc/api_routes.md)** 與 **[API 完整規格書](doc/api_spec.md)**：後端 RESTful API 規格與傳輸 Schema。
+* **[系統需求規格書](doc/requirements.md)**：詳細的功能需求、資安防護與業務邏輯邊界。
+* **[爬蟲引擎參數設定指南](doc/crawler_parameters.md)**：爬蟲核心進階參數、白名單與資源限制說明。
+* **[資料庫 Schema 說明](doc/db_schema.md)**：Crawler DB 與 Auth DB 實體關聯圖與詳細結構。
+* **[GCP VM 部署指南](doc/deploy_gcp_vm.md)** 與 **[PostgreSQL 升級指南](doc/migrate_to_postgresql.md)**：雲端建置、Nginx 反向代理與資料庫平滑移轉。
+* **[自動化測試策略](doc/testing_strategy.md)**：模組級隔離架構與自動化測試執行指引。
+* **程式風格與開發規範**：[Python 規範](doc/python_coding_style.md) / [JavaScript 規範](doc/js_coding_style.md)
+* **[系統全面檢視與資安審查報告](doc/system_review_report.md)**：全站程式碼品質與資訊安全深度審查結果。
 * **[待辦清單與後續規劃](doc/todo.md)**
