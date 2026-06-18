@@ -25,7 +25,7 @@ load_dotenv()
 # isort: off
 from crawler.config_utils import merge_and_validate_crawler_config  # noqa: E402
 from crawler.exporter import export_full_report, export_job_results, ExportOptions  # noqa: E402
-from crawler.manager import JobManager, JobCreateOptions  # noqa: E402
+from crawler.manager import JobManager, JobCreateOptions, Job  # noqa: E402
 # isort: on
 
 # 設定初始的 logging，只輸出到畫面，確保 setup_logging 呼叫前的錯誤能被顯示
@@ -444,22 +444,29 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
     """
     ext = ".json" if args.json else ".csv"
     output_path = args.output if args.output else f"report/{args.export}{ext}"
-    group_by = args.group_by
     logging.info("準備將任務 %s 匯出至 %s...", args.export, output_path)
-    success = export_job_results(
-        manager.session_factory,
-        job_id=args.export,
-        output_path=output_path,
-        options=ExportOptions(
+
+    with manager.session_factory() as db:
+        job = db.query(Job).filter(Job.id == args.export).first()
+        if not job:
+            logging.error("找不到任務 %s", args.export)
+            sys.exit(1)
+
+        options = ExportOptions(
             status_filter=args.filter,
-            group_by=group_by,
+            group_by=args.group_by or "none",
             exclude=args.exclude,
-        ),
-    )
-    if success:
-        logging.info("匯出成功！")
-    else:
-        sys.exit(1)
+        )
+        success = export_job_results(
+            session_factory=manager.session_factory,
+            job_id=args.export,
+            output_path=output_path,
+            options=options,
+        )
+        if success:
+            logging.info("匯出成功！")
+        else:
+            sys.exit(1)
 
 
 def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:

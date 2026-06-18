@@ -36,11 +36,11 @@ def backfill() -> None:
     """
     settings = get_settings()
     engine = create_engine(settings.CRAWLER_DB_URL)
-    SessionFactory = sessionmaker(bind=engine)
+    session_factory = sessionmaker(bind=engine)
 
     logger.info("開始回填 external_links.target_domain 欄位...")
 
-    with SessionFactory() as session:
+    with session_factory() as session:
         total_processed = 0
         batch_size = 2000
 

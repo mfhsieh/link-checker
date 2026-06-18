@@ -14,11 +14,60 @@ from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.sql.functions import count, max as sql_max, min as sql_min, sum as sql_sum
 
 from backend.jobs.schemas import JobResultQuery
-from crawler.exporter import format_crawl_queue_item
 from crawler.models import CrawlQueue, ExternalLink, Job, apply_job_result_filters
-from crawler.utils import JSONGroupArray, JSONObject, get_domain
+from crawler.utils import JSONGroupArray, JSONObject, format_crawl_queue_item, get_domain
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _parse_json_list(val: object) -> list:
+    """
+    解析 JSON 字串為列表，用於反序列化資料庫聚合的 JSON 陣列。
+    """
+    if isinstance(val, str):
+        try:
+            return json.loads(val) or []
+        except json.JSONDecodeError:
+            return []
+    return list(val) if val else []
+
+
+def _apply_col_filters(
+    query: Query,
+    col_filters_str: str | None,
+    filter_map: dict[str, object],
+    is_having: bool = False,
+) -> Query:
+    """
+    動態套用欄位過濾器，減少主函式的區域變數與複雜度。
+    """
+    if not col_filters_str:
+        return query
+    try:
+        filters = json.loads(col_filters_str)
+        for k, v in filters.items():
+            if v and k in filter_map:
+                cond = filter_map[k](str(v).lower())
+                query = query.having(cond) if is_having else query.filter(cond)
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        pass
+    return query
+
+
+def _apply_sorting(
+    query: Query,
+    sort_by: str | None,
+    sort_asc: bool,
+    sort_map: dict[str, object],
+    default_sort: object,
+) -> Query:
+    """
+    動態套用排序規則，減少主函式的區域變數與複雜度。
+    """
+    if sort_by and sort_by in sort_map:
+        order_func = asc if sort_asc else desc
+        return query.order_by(order_func(sort_map[sort_by]))
+    return query.order_by(default_sort)
 
 
 def _get_job_results_grouped_by_target(
@@ -29,9 +78,7 @@ def _get_job_results_grouped_by_target(
     查詢任務的外連結果，並依目標網址 (Target URL) 聚合。
     """
     # 1. 建立基礎查詢，取得目標網址與來源網址的對應關係
-    base_q = db.query(ExternalLink.target_url, ExternalLink.source_url).filter(
-        ExternalLink.job_id == query_args.job_id
-    )
+    base_q = db.query(ExternalLink.target_url, ExternalLink.source_url).filter(ExternalLink.job_id == query_args.job_id)
     base_q = apply_job_result_filters(
         base_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
     )
@@ -70,72 +117,39 @@ def _get_job_results_grouped_by_target(
         sources_agg.c.source_urls,
     ).outerjoin(sources_agg, target_stats.c.target_url == sources_agg.c.target_url)
 
-    if query_args.col_filters:
-        try:
-            filters = json.loads(query_args.col_filters)
-            for k, v in filters.items():
-                if not v:
-                    continue
-                v_str = str(v).lower()
-                if k == "target_url":
-                    main_q = main_q.filter(target_stats.c.target_url.ilike(f"%{v_str}%"))
-                elif k == "ip_address":
-                    main_q = main_q.filter(target_stats.c.ip_address.ilike(f"%{v_str}%"))
-                elif k == "is_secure":
-                    is_sec = 1 if v_str in ("true", "1", "yes", "✓", "v", "t") else 0
-                    main_q = main_q.filter(target_stats.c.is_secure == is_sec)
-                elif k == "http_status_code":
-                    main_q = main_q.filter(cast(target_stats.c.http_status_code, String).ilike(f"%{v_str}%"))
-                elif k == "error_message":
-                    main_q = main_q.filter(target_stats.c.error_message.ilike(f"%{v_str}%"))
-                elif k == "occurrence_count":
-                    main_q = main_q.filter(cast(target_stats.c.occurrence_count, String).ilike(f"%{v_str}%"))
-                elif k == "source_urls":
-                    main_q = main_q.filter(cast(sources_agg.c.source_urls, String).ilike(f"%{v_str}%"))
-        except (json.JSONDecodeError, AttributeError, TypeError):
-            pass
+    filter_map = {
+        "target_url": lambda v: target_stats.c.target_url.ilike(f"%{v}%"),
+        "ip_address": lambda v: target_stats.c.ip_address.ilike(f"%{v}%"),
+        "is_secure": lambda v: target_stats.c.is_secure == (1 if v in ("true", "1", "yes", "✓", "v", "t") else 0),
+        "http_status_code": lambda v: cast(target_stats.c.http_status_code, String).ilike(f"%{v}%"),
+        "error_message": lambda v: target_stats.c.error_message.ilike(f"%{v}%"),
+        "occurrence_count": lambda v: cast(target_stats.c.occurrence_count, String).ilike(f"%{v}%"),
+        "source_urls": lambda v: cast(sources_agg.c.source_urls, String).ilike(f"%{v}%"),
+    }
+    main_q = _apply_col_filters(main_q, query_args.col_filters, filter_map)
 
     # 7. 動態套用排序規則
-    if query_args.sort_by:
-        k = query_args.sort_by
-        sort_col = None
-        if k == "target_url":
-            sort_col = target_stats.c.target_url
-        elif k == "ip_address":
-            sort_col = target_stats.c.ip_address
-        elif k == "is_secure":
-            sort_col = target_stats.c.is_secure
-        elif k == "http_status_code":
-            sort_col = target_stats.c.http_status_code
-        elif k == "error_message":
-            sort_col = target_stats.c.error_message
-        elif k == "occurrence_count":
-            sort_col = target_stats.c.occurrence_count
-        elif k == "source_urls":
-            sort_col = cast(sources_agg.c.source_urls, String)
-
-        if sort_col is not None:
-            order_func = asc if query_args.sort_asc else desc
-            main_q = main_q.order_by(order_func(sort_col))
-    else:
-        main_q = main_q.order_by(desc(target_stats.c.occurrence_count))
+    sort_map = {
+        "target_url": target_stats.c.target_url,
+        "ip_address": target_stats.c.ip_address,
+        "is_secure": target_stats.c.is_secure,
+        "http_status_code": target_stats.c.http_status_code,
+        "error_message": target_stats.c.error_message,
+        "occurrence_count": target_stats.c.occurrence_count,
+        "source_urls": cast(sources_agg.c.source_urls, String),
+    }
+    main_q = _apply_sorting(
+        main_q,
+        query_args.sort_by,
+        query_args.sort_asc,
+        sort_map,
+        desc(target_stats.c.occurrence_count),
+    )
 
     # 8. 執行分頁查詢
     total = main_q.count()
-    offset = (query_args.page - 1) * query_args.page_size
-    results = main_q.offset(offset).limit(query_args.page_size).all()
-
     items_list = []
-    for row in results:
-        src_urls = row[6]
-        if isinstance(src_urls, str):
-            try:
-                src_urls = json.loads(src_urls)
-            except json.JSONDecodeError:
-                src_urls = []
-        if src_urls is None:
-            src_urls = []
-
+    for row in main_q.offset((query_args.page - 1) * query_args.page_size).limit(query_args.page_size).all():
         items_list.append({
             "target_url": row[0],
             "ip_address": row[1],
@@ -143,16 +157,15 @@ def _get_job_results_grouped_by_target(
             "http_status_code": row[3],
             "error_message": row[4],
             "occurrence_count": row[5],
-            "source_urls": sorted(list(src_urls))[:10],
+            "source_urls": sorted(_parse_json_list(row[6]))[:10],
         })
 
-    total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
     return {
         "items": items_list,
         "total": total,
         "page": query_args.page,
         "page_size": query_args.page_size,
-        "total_pages": total_pages,
+        "total_pages": (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1,
     }
 
 
@@ -192,38 +205,26 @@ def _get_job_results_grouped_by_source(
     main_q = main_q.group_by(ExternalLink.source_url)
 
     # 3. 動態套用欄位過濾器 (利用 .having 對聚合後的欄位過濾)
-    if query_args.col_filters:
-        try:
-            filters = json.loads(query_args.col_filters)
-            for k, v in filters.items():
-                if not v:
-                    continue
-                v_str = str(v).lower()
-                if k == "source_url":
-                    main_q = main_q.having(ExternalLink.source_url.ilike(f"%{v_str}%"))
-                elif k == "occurrence_count":
-                    main_q = main_q.having(cast(count(ExternalLink.id), String).ilike(f"%{v_str}%"))
-                elif k == "targets":
-                    main_q = main_q.having(cast(JSONGroupArray(target_obj), String).ilike(f"%{v_str}%"))
-        except (json.JSONDecodeError, AttributeError, TypeError):
-            pass
+    filter_map = {
+        "source_url": lambda v: ExternalLink.source_url.ilike(f"%{v}%"),
+        "occurrence_count": lambda v: cast(count(ExternalLink.id), String).ilike(f"%{v}%"),
+        "targets": lambda v: cast(JSONGroupArray(target_obj), String).ilike(f"%{v}%"),
+    }
+    main_q = _apply_col_filters(main_q, query_args.col_filters, filter_map, is_having=True)
 
     # 4. 動態套用排序規則
-    if query_args.sort_by:
-        k = query_args.sort_by
-        sort_col = None
-        if k == "source_url":
-            sort_col = ExternalLink.source_url
-        elif k == "occurrence_count":
-            sort_col = count(ExternalLink.id)
-        elif k == "targets":
-            sort_col = cast(JSONGroupArray(target_obj), String)
-
-        if sort_col is not None:
-            order_func = asc if query_args.sort_asc else desc
-            main_q = main_q.order_by(order_func(sort_col))
-    else:
-        main_q = main_q.order_by(desc(count(ExternalLink.id)))
+    sort_map = {
+        "source_url": ExternalLink.source_url,
+        "occurrence_count": count(ExternalLink.id),
+        "targets": cast(JSONGroupArray(target_obj), String),
+    }
+    main_q = _apply_sorting(
+        main_q,
+        query_args.sort_by,
+        query_args.sort_asc,
+        sort_map,
+        desc(count(ExternalLink.id)),
+    )
 
     # 5. 執行分頁查詢
     total = main_q.count()
@@ -280,10 +281,7 @@ def _get_job_results_grouped_by_domain(
 
     # 3. 建立子查詢，過濾不重複的目標網址，並按網域計算數量與聚合成 JSON 陣列
     distinct_urls = (
-        base_q
-        .with_entities(ExternalLink.target_domain, ExternalLink.target_url)
-        .distinct()
-        .subquery("distinct_urls")
+        base_q.with_entities(ExternalLink.target_domain, ExternalLink.target_url).distinct().subquery("distinct_urls")
     )
     urls_agg = (
         db
@@ -325,82 +323,49 @@ def _get_job_results_grouped_by_domain(
     )
 
     # 6. 動態套用欄位過濾器 (利用 .filter 進行過濾，因資料已在子查詢聚合完畢)
-    if query_args.col_filters:
-        try:
-            filters = json.loads(query_args.col_filters)
-            for k, v in filters.items():
-                if not v:
-                    continue
-                v_str = str(v).lower()
-                if k == "domain":
-                    main_q = main_q.filter(domain_stats.c.target_domain.ilike(f"%{v_str}%"))
-                elif k == "occurrence_count":
-                    main_q = main_q.filter(cast(domain_stats.c.occurrence_count, String).ilike(f"%{v_str}%"))
-                elif k == "unique_urls_count":
-                    main_q = main_q.filter(cast(urls_agg.c.unique_urls_count, String).ilike(f"%{v_str}%"))
-                elif k == "unique_urls":
-                    main_q = main_q.filter(cast(urls_agg.c.unique_urls, String).ilike(f"%{v_str}%"))
-                elif k == "source_urls":
-                    main_q = main_q.filter(cast(sources_agg.c.source_urls, String).ilike(f"%{v_str}%"))
-        except (json.JSONDecodeError, AttributeError, TypeError):
-            pass
+    filter_map = {
+        "domain": lambda v: domain_stats.c.target_domain.ilike(f"%{v}%"),
+        "occurrence_count": lambda v: cast(domain_stats.c.occurrence_count, String).ilike(f"%{v}%"),
+        "unique_urls_count": lambda v: cast(urls_agg.c.unique_urls_count, String).ilike(f"%{v}%"),
+        "unique_urls": lambda v: cast(urls_agg.c.unique_urls, String).ilike(f"%{v}%"),
+        "source_urls": lambda v: cast(sources_agg.c.source_urls, String).ilike(f"%{v}%"),
+    }
+    main_q = _apply_col_filters(main_q, query_args.col_filters, filter_map)
 
     # 7. 動態套用排序規則
-    if query_args.sort_by:
-        k = query_args.sort_by
-        sort_col = None
-        if k == "domain":
-            sort_col = domain_stats.c.target_domain
-        elif k == "occurrence_count":
-            sort_col = domain_stats.c.occurrence_count
-        elif k == "unique_urls_count":
-            sort_col = urls_agg.c.unique_urls_count
-        elif k == "unique_urls":
-            sort_col = cast(urls_agg.c.unique_urls, String)
-        elif k == "source_urls":
-            sort_col = cast(sources_agg.c.source_urls, String)
-
-        if sort_col is not None:
-            order_func = asc if query_args.sort_asc else desc
-            main_q = main_q.order_by(order_func(sort_col))
-    else:
-        main_q = main_q.order_by(desc(domain_stats.c.occurrence_count))
+    sort_map = {
+        "domain": domain_stats.c.target_domain,
+        "occurrence_count": domain_stats.c.occurrence_count,
+        "unique_urls_count": urls_agg.c.unique_urls_count,
+        "unique_urls": cast(urls_agg.c.unique_urls, String),
+        "source_urls": cast(sources_agg.c.source_urls, String),
+    }
+    main_q = _apply_sorting(
+        main_q,
+        query_args.sort_by,
+        query_args.sort_asc,
+        sort_map,
+        desc(domain_stats.c.occurrence_count),
+    )
 
     # 8. 執行分頁查詢
     total = main_q.count()
-    offset = (query_args.page - 1) * query_args.page_size
-    results = main_q.offset(offset).limit(query_args.page_size).all()
-
     items_list = []
-    for row in results:
-        u_urls = row[3]
-        s_urls = row[4]
-        if isinstance(u_urls, str):
-            try:
-                u_urls = json.loads(u_urls)
-            except json.JSONDecodeError:
-                u_urls = []
-        if isinstance(s_urls, str):
-            try:
-                s_urls = json.loads(s_urls)
-            except json.JSONDecodeError:
-                s_urls = []
-
+    for row in main_q.offset((query_args.page - 1) * query_args.page_size).limit(query_args.page_size).all():
         items_list.append({
             "domain": row[0] or "unknown",
             "occurrence_count": row[1],
             "unique_urls_count": row[2] or 0,
-            "unique_urls": sorted(list(u_urls or []))[:10],
-            "source_urls": sorted(list(s_urls or []))[:10],
+            "unique_urls": sorted(_parse_json_list(row[3]))[:10],
+            "source_urls": sorted(_parse_json_list(row[4]))[:10],
         })
 
-    total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
     return {
         "items": items_list,
         "total": total,
         "page": query_args.page,
         "page_size": query_args.page_size,
-        "total_pages": total_pages,
+        "total_pages": (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1,
     }
 
 
@@ -411,48 +376,31 @@ def _get_job_results_no_grouping(
     """
     查詢任務的外連結果，無聚合模式。
     """
-    if query_args.col_filters:
-        try:
-            filters = json.loads(query_args.col_filters)
-            for k, v in filters.items():
-                if not v:
-                    continue
-                v_str = str(v).lower()
-                if k == "target_url":
-                    query = query.filter(ExternalLink.target_url.ilike(f"%{v_str}%"))
-                elif k == "source_url":
-                    query = query.filter(ExternalLink.source_url.ilike(f"%{v_str}%"))
-                elif k == "ip_address":
-                    query = query.filter(ExternalLink.ip_address.ilike(f"%{v_str}%"))
-                elif k == "is_secure":
-                    is_sec = v_str in ("true", "1", "yes", "✓", "v", "t")
-                    query = query.filter(ExternalLink.is_secure.is_(is_sec))
-                elif k == "http_status_code":
-                    query = query.filter(cast(ExternalLink.http_status_code, String).ilike(f"%{v_str}%"))
-                elif k == "error_message":
-                    query = query.filter(ExternalLink.error_message.ilike(f"%{v_str}%"))
-        except (json.JSONDecodeError, AttributeError, TypeError):
-            pass
+    filter_map = {
+        "target_url": lambda v: ExternalLink.target_url.ilike(f"%{v}%"),
+        "source_url": lambda v: ExternalLink.source_url.ilike(f"%{v}%"),
+        "ip_address": lambda v: ExternalLink.ip_address.ilike(f"%{v}%"),
+        "is_secure": lambda v: ExternalLink.is_secure.is_(v in ("true", "1", "yes", "✓", "v", "t")),
+        "http_status_code": lambda v: cast(ExternalLink.http_status_code, String).ilike(f"%{v}%"),
+        "error_message": lambda v: ExternalLink.error_message.ilike(f"%{v}%"),
+    }
+    query = _apply_col_filters(query, query_args.col_filters, filter_map)
 
-    if query_args.sort_by:
-        col = None
-        if query_args.sort_by == "target_url":
-            col = ExternalLink.target_url
-        elif query_args.sort_by == "source_url":
-            col = ExternalLink.source_url
-        elif query_args.sort_by == "ip_address":
-            col = ExternalLink.ip_address
-        elif query_args.sort_by == "is_secure":
-            col = ExternalLink.is_secure
-        elif query_args.sort_by == "http_status_code":
-            col = ExternalLink.http_status_code
-        elif query_args.sort_by == "error_message":
-            col = ExternalLink.error_message
-        if col is not None:
-            order_func = asc if query_args.sort_asc else desc
-            query = query.order_by(order_func(col))
-    else:
-        query = query.order_by(ExternalLink.created_at)
+    sort_map = {
+        "target_url": ExternalLink.target_url,
+        "source_url": ExternalLink.source_url,
+        "ip_address": ExternalLink.ip_address,
+        "is_secure": ExternalLink.is_secure,
+        "http_status_code": ExternalLink.http_status_code,
+        "error_message": ExternalLink.error_message,
+    }
+    query = _apply_sorting(
+        query,
+        query_args.sort_by,
+        query_args.sort_asc,
+        sort_map,
+        ExternalLink.created_at,
+    )
 
     total = query.count()
     offset = (query_args.page - 1) * query_args.page_size
@@ -505,16 +453,16 @@ def get_job_results(
 
     if query_args.group_by == "target":
         return _get_job_results_grouped_by_target(db, query_args)
-    elif query_args.group_by == "source":
+    if query_args.group_by == "source":
         return _get_job_results_grouped_by_source(db, query_args)
-    elif query_args.group_by == "domain":
+    if query_args.group_by == "domain":
         return _get_job_results_grouped_by_domain(db, query_args)
-    else:
-        query = db.query(ExternalLink).filter(ExternalLink.job_id == query_args.job_id)
-        query = apply_job_result_filters(
-            query, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
-        )
-        return _get_job_results_no_grouping(query, query_args)
+
+    query = db.query(ExternalLink).filter(ExternalLink.job_id == query_args.job_id)
+    query = apply_job_result_filters(
+        query, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
+    )
+    return _get_job_results_no_grouping(query, query_args)
 
 
 def _classify_link_status(lnk: ExternalLink) -> tuple[bool, bool, bool, bool, bool, bool, bool, bool]:
@@ -530,7 +478,7 @@ def _classify_link_status(lnk: ExternalLink) -> tuple[bool, bool, bool, bool, bo
     is_not_found = c in (404, 410)
     is_server_error = c is not None and 500 <= c < 600
     is_connection_error = c is None and bool(lnk.ip_address)
-    is_other_error = c is not None and ((c >= 400 and c < 500 and not is_blocked and not is_not_found) or c >= 600)
+    is_other_error = c is not None and ((400 <= c < 500 and not is_blocked and not is_not_found) or c >= 600)
 
     return (
         is_dns_failed,
@@ -555,66 +503,57 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
     Returns:
         dict[str, int]: 包含 total, healthy_count, dns_failed_count, http_error_count, insecure_count 的統計結果。
     """
-    set_all = set()
-    set_dns_failed = set()
-    set_not_found = set()
-    set_server_error = set()
-    set_connection_error = set()
-    set_other_error = set()
-    set_blocked = set()
-    set_insecure = set()
-    set_healthy = set()
+    sets = defaultdict(set)
+    status_keys = (
+        "dns_failed",
+        "not_found",
+        "server_error",
+        "connection_error",
+        "other_error",
+        "blocked",
+        "insecure",
+        "healthy_count",
+    )
+
+    if group_by == "target":
+
+        def key_func(lnk: ExternalLink) -> str:
+            return lnk.target_url
+
+    elif group_by == "source":
+
+        def key_func(lnk: ExternalLink) -> str:
+            return lnk.source_url
+
+    elif group_by == "domain":
+
+        def key_func(lnk: ExternalLink) -> str:
+            return get_domain(lnk.target_url) or "unknown"
+
+    else:
+
+        def key_func(lnk: ExternalLink) -> object:
+            return lnk.id
 
     for lnk in query.yield_per(2000):
-        if group_by == "target":
-            key = lnk.target_url
-        elif group_by == "source":
-            key = lnk.source_url
-        elif group_by == "domain":
-            key = get_domain(lnk.target_url) or "unknown"
-        else:
-            key = lnk.id
+        key = key_func(lnk)
+        sets["all"].add(key)
 
-        set_all.add(key)
-
-        (
-            is_dns_failed,
-            is_not_found,
-            is_server_error,
-            is_connection_error,
-            is_other_error,
-            is_blocked,
-            is_insecure,
-            is_healthy,
-        ) = _classify_link_status(lnk)
-
-        if is_dns_failed:
-            set_dns_failed.add(key)
-        if is_not_found:
-            set_not_found.add(key)
-        if is_server_error:
-            set_server_error.add(key)
-        if is_connection_error:
-            set_connection_error.add(key)
-        if is_other_error:
-            set_other_error.add(key)
-        if is_blocked:
-            set_blocked.add(key)
-        if is_insecure:
-            set_insecure.add(key)
-        if is_healthy:
-            set_healthy.add(key)
+        statuses = _classify_link_status(lnk)
+        for status_name, is_active in zip(status_keys, statuses):
+            if is_active:
+                sets[status_name].add(key)
 
     return {
-        "total_external": len(set_all),
-        "dns_failed": len(set_dns_failed),
-        "not_found": len(set_not_found),
-        "server_error": len(set_server_error),
-        "connection_error": len(set_connection_error),
-        "other_error": len(set_other_error),
-        "blocked": len(set_blocked),
-        "insecure": len(set_insecure),
-        "healthy_count": len(set_healthy),
+        "total_external": len(sets["all"]),
+        "dns_failed": len(sets["dns_failed"]),
+        "not_found": len(sets["not_found"]),
+        "server_error": len(sets["server_error"]),
+        "connection_error": len(sets["connection_error"]),
+        "other_error": len(sets["other_error"]),
+        "blocked": len(sets["blocked"]),
+        "insecure": len(sets["insecure"]),
+        "healthy_count": len(sets["healthy_count"]),
     }
 
 
@@ -680,9 +619,7 @@ def _get_results_summary_no_grouping(db: DBSession, job_id: str, exclude: str | 
     blocked = int(stats.blocked) if stats and stats.blocked else 0
     insecure = int(stats.insecure) if stats and stats.insecure else 0
 
-    healthy_count = (
-        total_external - dns_failed - not_found - server_error - connection_error - other_error - blocked
-    )
+    healthy_count = total_external - dns_failed - not_found - server_error - connection_error - other_error - blocked
 
     return {
         "total_external": total_external,
@@ -1239,7 +1176,116 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
     return query
 
 
-# pylint: disable=too-many-locals
+def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, int]:
+    """
+    計算無分組下的內部網頁失敗統計結果。
+    """
+    query = db.query(
+        count(CrawlQueue.id).label("total"),
+        sql_sum(case((CrawlQueue.status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
+        sql_sum(case(((CrawlQueue.status_code >= 500) & (CrawlQueue.status_code < 600), 1), else_=0)).label(
+            "server_error"
+        ),
+        sql_sum(case((CrawlQueue.status_code.in_([401, 403]), 1), else_=0)).label("access_denied"),
+        sql_sum(
+            case(
+                (
+                    (CrawlQueue.status == "failed")
+                    & (CrawlQueue.status_code.is_(None))
+                    & ((CrawlQueue.error_message.ilike("%timeout%")) | (CrawlQueue.error_message.ilike("%timed out%"))),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("timeout"),
+        sql_sum(
+            case(
+                (
+                    (CrawlQueue.status == "failed")
+                    & (CrawlQueue.status_code.is_(None))
+                    & (~CrawlQueue.error_message.ilike("%timeout%"))
+                    & (~CrawlQueue.error_message.ilike("%timed out%")),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("connection_error"),
+        sql_sum(case((CrawlQueue.status == "warning", 1), else_=0)).label("warning"),
+    ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
+
+    stats = query.first()
+    total = int(stats.total) if stats and stats.total else 0
+    not_found = int(stats.not_found) if stats and stats.not_found else 0
+    server_error = int(stats.server_error) if stats and stats.server_error else 0
+    access_denied = int(stats.access_denied) if stats and stats.access_denied else 0
+    timeout = int(stats.timeout) if stats and stats.timeout else 0
+    connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
+    warning = int(stats.warning) if stats and stats.warning else 0
+    other_error = total - not_found - server_error - access_denied - timeout - connection_error - warning
+
+    return {
+        "total": total,
+        "server_error": server_error,
+        "connection_error": connection_error,
+        "timeout": timeout,
+        "not_found": not_found,
+        "other_error": other_error,
+        "warning": warning,
+        "access_denied": access_denied,
+    }
+
+
+def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: str) -> dict[str, int]:
+    """
+    計算分組後的內部網頁失敗統計結果。
+    """
+    sets = defaultdict(set)
+    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
+
+    if group_by == "source":
+
+        def key_func(q: CrawlQueue) -> str:
+            return q.source_url or ""
+
+    else:
+
+        def key_func(q: CrawlQueue) -> object:
+            return q.id
+
+    for q in query.yield_per(2000):
+        key = key_func(q)
+        sets["all"].add(key)
+
+        c = q.status_code
+        msg = str(q.error_message or "").lower()
+
+        if q.status == "warning":
+            sets["warning"].add(key)
+        elif c in (404, 410):
+            sets["not_found"].add(key)
+        elif c is not None and 500 <= c < 600:
+            sets["server_error"].add(key)
+        elif c in (401, 403):
+            sets["access_denied"].add(key)
+        elif c is None and ("timeout" in msg or "timed out" in msg):
+            sets["timeout"].add(key)
+        elif c is None:
+            sets["connection_error"].add(key)
+        else:
+            sets["other_error"].add(key)
+
+    return {
+        "total": len(sets["all"]),
+        "server_error": len(sets["server_error"]),
+        "connection_error": len(sets["connection_error"]),
+        "timeout": len(sets["timeout"]),
+        "not_found": len(sets["not_found"]),
+        "other_error": len(sets["other_error"]),
+        "warning": len(sets["warning"]),
+        "access_denied": len(sets["access_denied"]),
+    }
+
+
 def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group_by: str = "none") -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的統計摘要。
@@ -1261,108 +1307,10 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
         raise ValueError("無權限存取此任務。")
 
     if group_by == "none":
-        query = db.query(
-            count(CrawlQueue.id).label("total"),
-            sql_sum(case((CrawlQueue.status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
-            sql_sum(case(((CrawlQueue.status_code >= 500) & (CrawlQueue.status_code < 600), 1), else_=0)).label(
-                "server_error"
-            ),
-            sql_sum(case((CrawlQueue.status_code.in_([401, 403]), 1), else_=0)).label("access_denied"),
-            sql_sum(
-                case(
-                    (
-                        (CrawlQueue.status == "failed")
-                        & (CrawlQueue.status_code.is_(None))
-                        & (
-                            (CrawlQueue.error_message.ilike("%timeout%"))
-                            | (CrawlQueue.error_message.ilike("%timed out%"))
-                        ),
-                        1,
-                    ),
-                    else_=0,
-                )
-            ).label("timeout"),
-            sql_sum(
-                case(
-                    (
-                        (CrawlQueue.status == "failed")
-                        & (CrawlQueue.status_code.is_(None))
-                        & (~CrawlQueue.error_message.ilike("%timeout%"))
-                        & (~CrawlQueue.error_message.ilike("%timed out%")),
-                        1,
-                    ),
-                    else_=0,
-                )
-            ).label("connection_error"),
-            sql_sum(case((CrawlQueue.status == "warning", 1), else_=0)).label("warning"),
-        ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
-
-        stats = query.first()
-        total = int(stats.total) if stats and stats.total else 0
-        not_found = int(stats.not_found) if stats and stats.not_found else 0
-        server_error = int(stats.server_error) if stats and stats.server_error else 0
-        access_denied = int(stats.access_denied) if stats and stats.access_denied else 0
-        timeout = int(stats.timeout) if stats and stats.timeout else 0
-        connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
-        warning = int(stats.warning) if stats and stats.warning else 0
-        other_error = total - not_found - server_error - access_denied - timeout - connection_error - warning
-
-        return {
-            "total": total,
-            "server_error": server_error,
-            "connection_error": connection_error,
-            "timeout": timeout,
-            "not_found": not_found,
-            "other_error": other_error,
-            "warning": warning,
-            "access_denied": access_denied,
-        }
-
-    set_all = set()
-    set_not_found = set()
-    set_server_error = set()
-    set_access_denied = set()
-    set_timeout = set()
-    set_connection_error = set()
-    set_other_error = set()
-    set_warning = set()
-
-    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
-    for q in query.yield_per(2000):
-        key = q.source_url or "" if group_by == "source" else q.id
-        set_all.add(key)
-
-        c = q.status_code
-        msg = str(q.error_message or "").lower()
-
-        if q.status == "warning":
-            set_warning.add(key)
-        elif c in (404, 410):
-            set_not_found.add(key)
-        elif c is not None and 500 <= c < 600:
-            set_server_error.add(key)
-        elif c in (401, 403):
-            set_access_denied.add(key)
-        elif c is None and ("timeout" in msg or "timed out" in msg):
-            set_timeout.add(key)
-        elif c is None and not ("timeout" in msg or "timed out" in msg):
-            set_connection_error.add(key)
-        else:
-            set_other_error.add(key)
-
-    return {
-        "total": len(set_all),
-        "server_error": len(set_server_error),
-        "connection_error": len(set_connection_error),
-        "timeout": len(set_timeout),
-        "not_found": len(set_not_found),
-        "other_error": len(set_other_error),
-        "warning": len(set_warning),
-        "access_denied": len(set_access_denied),
-    }
+        return _get_internal_results_summary_none(db, job_id)
+    return _get_internal_results_summary_grouped(db, job_id, group_by)
 
 
-# pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
 def _get_internal_errors_grouped_by_source(
     db: DBSession,
     job_id: str,
@@ -1401,65 +1349,43 @@ def _get_internal_errors_grouped_by_source(
     main_q = main_q.group_by(CrawlQueue.source_url)
 
     # 3. 動態套用欄位過濾器
-    if col_filters:
-        try:
-            filters = json.loads(col_filters)
-            for k, v in filters.items():
-                if not v:
-                    continue
-                v_str = str(v).lower()
-                if k == "source_url":
-                    main_q = main_q.having(CrawlQueue.source_url.ilike(f"%{v_str}%"))
-                elif k == "occurrence_count":
-                    main_q = main_q.having(cast(count(CrawlQueue.id), String).ilike(f"%{v_str}%"))
-                elif k == "targets":
-                    main_q = main_q.having(cast(JSONGroupArray(target_obj), String).ilike(f"%{v_str}%"))
-        except (json.JSONDecodeError, AttributeError, TypeError):
-            pass
+    filter_map = {
+        "source_url": lambda v: CrawlQueue.source_url.ilike(f"%{v}%"),
+        "occurrence_count": lambda v: cast(count(CrawlQueue.id), String).ilike(f"%{v}%"),
+        "targets": lambda v: cast(JSONGroupArray(target_obj), String).ilike(f"%{v}%"),
+    }
+    main_q = _apply_col_filters(main_q, col_filters, filter_map, is_having=True)
 
     # 4. 動態套用排序規則
-    if sort_by:
-        sort_col = None
-        if sort_by == "source_url":
-            sort_col = CrawlQueue.source_url
-        elif sort_by == "occurrence_count":
-            sort_col = count(CrawlQueue.id)
-        elif sort_by == "targets":
-            sort_col = cast(JSONGroupArray(target_obj), String)
-
-        if sort_col is not None:
-            order_func = asc if sort_asc else desc
-            main_q = main_q.order_by(order_func(sort_col))
-    else:
-        main_q = main_q.order_by(desc(count(CrawlQueue.id)))
+    sort_map = {
+        "source_url": CrawlQueue.source_url,
+        "occurrence_count": count(CrawlQueue.id),
+        "targets": cast(JSONGroupArray(target_obj), String),
+    }
+    main_q = _apply_sorting(
+        main_q,
+        sort_by,
+        sort_asc,
+        sort_map,
+        desc(count(CrawlQueue.id)),
+    )
 
     # 5. 執行分頁查詢
     total = main_q.count()
-    offset = (page - 1) * page_size
-    results = main_q.offset(offset).limit(page_size).all()
-
     items_list = []
-    for row in results:
-        targets = row[2]
-        if isinstance(targets, str):
-            try:
-                targets = json.loads(targets)
-            except json.JSONDecodeError:
-                targets = []
-
+    for row in main_q.offset((page - 1) * page_size).limit(page_size).all():
         items_list.append({
             "source_url": row[0] or "",
             "occurrence_count": row[1],
-            "targets": targets[:10] if truncate_lists else targets,
+            "targets": _parse_json_list(row[2])[:10] if truncate_lists else _parse_json_list(row[2]),
         })
 
-    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
     return {
         "items": items_list,
         "total": total,
         "page": page,
         "page_size": page_size,
-        "total_pages": total_pages,
+        "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
     }
 
 
@@ -1474,54 +1400,37 @@ def _get_internal_errors_no_grouping(
     """
     取得任務內部網頁爬取失敗的紀錄列表，無聚合模式。
     """
-    if col_filters:
-        try:
-            filters = json.loads(col_filters)
-            for k, v in filters.items():
-                if not v:
-                    continue
-                v_str = str(v).lower()
-                if k == "URL":
-                    query = query.filter(CrawlQueue.url.ilike(f"%{v_str}%"))
-                elif k == "Source URL":
-                    query = query.filter(CrawlQueue.source_url.ilike(f"%{v_str}%"))
-                elif k == "HTTP Status Code":
-                    query = query.filter(cast(CrawlQueue.status_code, String).ilike(f"%{v_str}%"))
-                elif k == "Error Message":
-                    query = query.filter(CrawlQueue.error_message.ilike(f"%{v_str}%"))
-        except (json.JSONDecodeError, AttributeError, TypeError):
-            pass
+    filter_map = {
+        "URL": lambda v: CrawlQueue.url.ilike(f"%{v}%"),
+        "Source URL": lambda v: CrawlQueue.source_url.ilike(f"%{v}%"),
+        "HTTP Status Code": lambda v: cast(CrawlQueue.status_code, String).ilike(f"%{v}%"),
+        "Error Message": lambda v: CrawlQueue.error_message.ilike(f"%{v}%"),
+    }
+    query = _apply_col_filters(query, col_filters, filter_map)
 
-    if sort_by:
-        col = None
-        if sort_by == "URL":
-            col = CrawlQueue.url
-        elif sort_by == "Source URL":
-            col = CrawlQueue.source_url
-        elif sort_by == "HTTP Status Code":
-            col = CrawlQueue.status_code
-        elif sort_by == "Error Message":
-            col = CrawlQueue.error_message
-        if col is not None:
-            order_func = asc if sort_asc else desc
-            query = query.order_by(order_func(col))
-    else:
-        query = query.order_by(CrawlQueue.id)
+    sort_map = {
+        "URL": CrawlQueue.url,
+        "Source URL": CrawlQueue.source_url,
+        "HTTP Status Code": CrawlQueue.status_code,
+        "Error Message": CrawlQueue.error_message,
+    }
+    query = _apply_sorting(
+        query,
+        sort_by,
+        sort_asc,
+        sort_map,
+        CrawlQueue.id,
+    )
 
     total = query.count()
-    offset = (page - 1) * page_size
-    items = query.offset(offset).limit(page_size).all()
-
-    items_list = [format_crawl_queue_item(q) for q in items]
-
-    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+    items_list = [format_crawl_queue_item(q) for q in query.offset((page - 1) * page_size).limit(page_size).all()]
 
     return {
         "items": items_list,
         "total": total,
         "page": page,
         "page_size": page_size,
-        "total_pages": total_pages,
+        "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
     }
 
 
@@ -1572,14 +1481,14 @@ def get_internal_errors(
             sort_asc=sort_asc,
             col_filters=col_filters,
         )
-    else:
-        query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
-        query = apply_internal_result_filters(query, status_filter)
-        return _get_internal_errors_no_grouping(
-            query=query,
-            page=page,
-            page_size=page_size,
-            sort_by=sort_by,
-            sort_asc=sort_asc,
-            col_filters=col_filters,
-        )
+
+    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
+    query = apply_internal_result_filters(query, status_filter)
+    return _get_internal_errors_no_grouping(
+        query=query,
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_asc=sort_asc,
+        col_filters=col_filters,
+    )

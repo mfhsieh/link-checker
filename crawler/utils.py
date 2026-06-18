@@ -15,6 +15,8 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import JSON
 
+from crawler.models import CrawlQueue
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -120,6 +122,28 @@ def normalize_url(url: str, base_url: str) -> str:
     joined_url = urllib.parse.urljoin(base_url, url)
     parsed, _ = urllib.parse.urldefrag(joined_url)
     return parsed
+
+
+def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
+    """
+    格式化 CrawlQueue 項目為字典供報表使用。
+
+    Args:
+        q (CrawlQueue): 欲格式化的佇列項目。
+
+    Returns:
+        dict[str, object]: 包含佇列項目詳細資訊的字典。
+    """
+    return {
+        "Source URL": q.source_url if q.source_url else "",
+        "URL": q.url,
+        "Status": q.status,
+        "Depth": q.depth,
+        "Retry Count": q.retry_count,
+        "HTTP Status Code": q.status_code if q.status_code is not None else "",
+        "Error Message": q.error_message if q.error_message else "",
+        "Created At": q.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+    }
 
 
 class JSONGroupArray(FunctionElement):
