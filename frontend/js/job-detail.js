@@ -1729,55 +1729,71 @@ function renderPagination(res, jobId) {
 function bindResultsControls() {
     document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(chip => {
         chip.addEventListener('click', async () => {
-            const filter = chip.dataset.filter;
-            _currentFilter = (_currentFilter === filter || filter === 'all') ? null : filter;
-            _currentPage = 1;
+            const container = chip.closest('.grid-stats');
+            if (container.style.pointerEvents === 'none') return;
+            container.style.pointerEvents = 'none';
 
-            let activeDesc = '';
-            let activeColor = 'var(--color-brand-400)';
+            try {
+                const filter = chip.dataset.filter;
+                _currentFilter = (_currentFilter === filter || filter === 'all') ? null : filter;
+                _currentPage = 1;
 
-            document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(c => {
-                const isActive = _currentFilter === c.dataset.filter || (_currentFilter === null && c.dataset.filter === 'all');
-                c.classList.toggle('active', isActive);
-                if (isActive) {
-                    activeDesc = c.dataset.desc;
-                    activeColor = c.dataset.color || 'var(--color-brand-400)';
+                let activeDesc = '';
+                let activeColor = 'var(--color-brand-400)';
+
+                document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(c => {
+                    const isActive = _currentFilter === c.dataset.filter || (_currentFilter === null && c.dataset.filter === 'all');
+                    c.classList.toggle('active', isActive);
+                    if (isActive) {
+                        activeDesc = c.dataset.desc;
+                        activeColor = c.dataset.color || 'var(--color-brand-400)';
+                    }
+                });
+                const descBox = document.getElementById('ext-filter-desc');
+                if (descBox) {
+                    descBox.style.borderLeftColor = activeColor;
+                    const span = descBox.querySelector('span');
+                    if (span) span.textContent = activeDesc;
                 }
-            });
-            const descBox = document.getElementById('ext-filter-desc');
-            if (descBox) {
-                descBox.style.borderLeftColor = activeColor;
-                const span = descBox.querySelector('span');
-                if (span) span.textContent = activeDesc;
+                await loadResultsPage(_currentJobId);
+            } finally {
+                container.style.pointerEvents = '';
             }
-            await loadResultsPage(_currentJobId);
         });
     });
 
     document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(chip => {
         chip.addEventListener('click', async () => {
-            const filter = chip.dataset.filter;
-            _internalFilter = (_internalFilter === filter || filter === 'all') ? null : filter;
-            _internalCurrentPage = 1;
+            const container = chip.closest('.grid-stats');
+            if (container.style.pointerEvents === 'none') return;
+            container.style.pointerEvents = 'none';
 
-            let activeDesc = '';
-            let activeColor = 'var(--color-brand-400)';
+            try {
+                const filter = chip.dataset.filter;
+                _internalFilter = (_internalFilter === filter || filter === 'all') ? null : filter;
+                _internalCurrentPage = 1;
 
-            document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
-                const isActive = _internalFilter === c.dataset.filter || (_internalFilter === null && c.dataset.filter === 'all');
-                c.classList.toggle('active', isActive);
-                if (isActive) {
-                    activeDesc = c.dataset.desc;
-                    activeColor = c.dataset.color || 'var(--color-brand-400)';
+                let activeDesc = '';
+                let activeColor = 'var(--color-brand-400)';
+
+                document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
+                    const isActive = _internalFilter === c.dataset.filter || (_internalFilter === null && c.dataset.filter === 'all');
+                    c.classList.toggle('active', isActive);
+                    if (isActive) {
+                        activeDesc = c.dataset.desc;
+                        activeColor = c.dataset.color || 'var(--color-brand-400)';
+                    }
+                });
+                const descBox = document.getElementById('int-filter-desc');
+                if (descBox) {
+                    descBox.style.borderLeftColor = activeColor;
+                    const span = descBox.querySelector('span');
+                    if (span) span.textContent = activeDesc;
                 }
-            });
-            const descBox = document.getElementById('int-filter-desc');
-            if (descBox) {
-                descBox.style.borderLeftColor = activeColor;
-                const span = descBox.querySelector('span');
-                if (span) span.textContent = activeDesc;
+                await loadInternalResultsPage(_currentJobId);
+            } finally {
+                container.style.pointerEvents = '';
             }
-            await loadInternalResultsPage(_currentJobId);
         });
     });
 
