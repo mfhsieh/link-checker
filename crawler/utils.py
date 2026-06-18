@@ -11,6 +11,9 @@ import socket
 import urllib.parse
 
 from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.functions import FunctionElement
+from sqlalchemy.types import JSON
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -117,6 +120,48 @@ def normalize_url(url: str, base_url: str) -> str:
     joined_url = urllib.parse.urljoin(base_url, url)
     parsed, _ = urllib.parse.urldefrag(joined_url)
     return parsed
+
+
+class JSONGroupArray(FunctionElement):
+    """
+    跨資料庫的 JSON 陣列聚合函數。
+    SQLite 編譯為 json_group_array，PostgreSQL 編譯為 json_agg。
+    """
+
+    name = "json_group_array"
+    type_ = JSON()
+    inherit_cache = True
+
+
+@compiles(JSONGroupArray, "sqlite")
+def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler, **kw) -> str:  # type: ignore
+    return f"json_group_array({compiler.process(element.clauses, **kw)})"
+
+
+@compiles(JSONGroupArray, "postgresql")
+def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler, **kw) -> str:  # type: ignore
+    return f"json_agg({compiler.process(element.clauses, **kw)})"
+
+
+class JSONObject(FunctionElement):
+    """
+    跨資料庫的 JSON 物件建構函數。
+    SQLite 編譯為 json_object，PostgreSQL 編譯為 json_build_object。
+    """
+
+    name = "json_object"
+    type_ = JSON()
+    inherit_cache = True
+
+
+@compiles(JSONObject, "sqlite")
+def _compile_json_object_sqlite(element: JSONObject, compiler, **kw) -> str:  # type: ignore
+    return f"json_object({compiler.process(element.clauses, **kw)})"
+
+
+@compiles(JSONObject, "postgresql")
+def _compile_json_object_postgresql(element: JSONObject, compiler, **kw) -> str:  # type: ignore
+    return f"json_build_object({compiler.process(element.clauses, **kw)})"
 
 
 def create_optimized_engine(  # pylint: disable=too-many-arguments

@@ -110,6 +110,7 @@ def export_job(job_id: str, output_path: str) -> None:  # pylint: disable=too-ma
                 ext_data = {
                     "source_url": ext.source_url,
                     "target_url": ext.target_url,
+                    "target_domain": ext.target_domain,
                     "ip_address": ext.ip_address,
                     "is_secure": ext.is_secure,
                     "http_status_code": ext.http_status_code,
@@ -230,6 +231,7 @@ def import_job(input_path: str, new_user_id: str) -> None:  # pylint: disable=to
                             job_id=new_job_id,
                             source_url=ext_data["source_url"],
                             target_url=ext_data["target_url"],
+                            target_domain=ext_data.get("target_domain", ""),
                             ip_address=ext_data["ip_address"],
                             is_secure=ext_data["is_secure"],
                             http_status_code=ext_data["http_status_code"],

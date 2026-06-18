@@ -190,6 +190,7 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
     job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     target_url: Mapped[str] = mapped_column(Text, nullable=False)
+    target_domain: Mapped[str] = mapped_column(String(255), nullable=False, server_default="")
 
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     is_secure: Mapped[bool] = mapped_column(default=True)
