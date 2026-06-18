@@ -184,6 +184,7 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
         ),
         Index("ix_external_links_job_created", "job_id", "created_at"),
         Index("ix_external_links_job_status_ip", "job_id", "http_status_code", "ip_address"),
+        Index("ix_external_links_job_domain", "job_id", "target_domain"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
