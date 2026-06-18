@@ -21,7 +21,466 @@ from crawler.utils import JSONGroupArray, JSONObject, get_domain
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def get_job_results(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def _get_job_results_grouped_by_target(
+    db: DBSession,
+    query_args: JobResultQuery,
+) -> dict[str, object]:
+    """
+    查詢任務的外連結果，並依目標網址 (Target URL) 聚合。
+    """
+    # 1. 建立基礎查詢，取得目標網址與來源網址的對應關係
+    base_q = db.query(ExternalLink.target_url, ExternalLink.source_url).filter(
+        ExternalLink.job_id == query_args.job_id
+    )
+    base_q = apply_job_result_filters(
+        base_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
+    )
+    # 2. 建立子查詢，過濾出不重複的目標與來源網址組合
+    distinct_sources = base_q.distinct().subquery("distinct_sources")
+
+    # 3. 建立子查詢，將不重複的來源網址按目標網址聚合成 JSON 陣列
+    sources_agg = (
+        db
+        .query(distinct_sources.c.target_url, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
+        .group_by(distinct_sources.c.target_url)
+        .subquery("sources_agg")
+    )
+
+    # 4. 建立子查詢，計算各目標網址的統計數據（如 IP、HTTP 狀態、發生次數等）
+    target_stats = db.query(
+        ExternalLink.target_url,
+        sql_max(ExternalLink.ip_address).label("ip_address"),
+        sql_min(cast(ExternalLink.is_secure, Integer)).label("is_secure"),
+        sql_max(ExternalLink.http_status_code).label("http_status_code"),
+        sql_max(ExternalLink.error_message).label("error_message"),
+        count(ExternalLink.id).label("occurrence_count"),
+    ).filter(ExternalLink.job_id == query_args.job_id)
+    target_stats = apply_job_result_filters(
+        target_stats, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
+    )
+    target_stats = target_stats.group_by(ExternalLink.target_url).subquery("target_stats")
+
+    main_q = db.query(
+        target_stats.c.target_url,
+        target_stats.c.ip_address,
+        target_stats.c.is_secure,
+        target_stats.c.http_status_code,
+        target_stats.c.error_message,
+        target_stats.c.occurrence_count,
+        sources_agg.c.source_urls,
+    ).outerjoin(sources_agg, target_stats.c.target_url == sources_agg.c.target_url)
+
+    if query_args.col_filters:
+        try:
+            filters = json.loads(query_args.col_filters)
+            for k, v in filters.items():
+                if not v:
+                    continue
+                v_str = str(v).lower()
+                if k == "target_url":
+                    main_q = main_q.filter(target_stats.c.target_url.ilike(f"%{v_str}%"))
+                elif k == "ip_address":
+                    main_q = main_q.filter(target_stats.c.ip_address.ilike(f"%{v_str}%"))
+                elif k == "is_secure":
+                    is_sec = 1 if v_str in ("true", "1", "yes", "✓", "v", "t") else 0
+                    main_q = main_q.filter(target_stats.c.is_secure == is_sec)
+                elif k == "http_status_code":
+                    main_q = main_q.filter(cast(target_stats.c.http_status_code, String).ilike(f"%{v_str}%"))
+                elif k == "error_message":
+                    main_q = main_q.filter(target_stats.c.error_message.ilike(f"%{v_str}%"))
+                elif k == "occurrence_count":
+                    main_q = main_q.filter(cast(target_stats.c.occurrence_count, String).ilike(f"%{v_str}%"))
+                elif k == "source_urls":
+                    main_q = main_q.filter(cast(sources_agg.c.source_urls, String).ilike(f"%{v_str}%"))
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
+
+    # 7. 動態套用排序規則
+    if query_args.sort_by:
+        k = query_args.sort_by
+        sort_col = None
+        if k == "target_url":
+            sort_col = target_stats.c.target_url
+        elif k == "ip_address":
+            sort_col = target_stats.c.ip_address
+        elif k == "is_secure":
+            sort_col = target_stats.c.is_secure
+        elif k == "http_status_code":
+            sort_col = target_stats.c.http_status_code
+        elif k == "error_message":
+            sort_col = target_stats.c.error_message
+        elif k == "occurrence_count":
+            sort_col = target_stats.c.occurrence_count
+        elif k == "source_urls":
+            sort_col = cast(sources_agg.c.source_urls, String)
+
+        if sort_col is not None:
+            order_func = asc if query_args.sort_asc else desc
+            main_q = main_q.order_by(order_func(sort_col))
+    else:
+        main_q = main_q.order_by(desc(target_stats.c.occurrence_count))
+
+    # 8. 執行分頁查詢
+    total = main_q.count()
+    offset = (query_args.page - 1) * query_args.page_size
+    results = main_q.offset(offset).limit(query_args.page_size).all()
+
+    items_list = []
+    for row in results:
+        src_urls = row[6]
+        if isinstance(src_urls, str):
+            try:
+                src_urls = json.loads(src_urls)
+            except json.JSONDecodeError:
+                src_urls = []
+        if src_urls is None:
+            src_urls = []
+
+        items_list.append({
+            "target_url": row[0],
+            "ip_address": row[1],
+            "is_secure": bool(row[2]),
+            "http_status_code": row[3],
+            "error_message": row[4],
+            "occurrence_count": row[5],
+            "source_urls": sorted(list(src_urls))[:10],
+        })
+
+    total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
+    return {
+        "items": items_list,
+        "total": total,
+        "page": query_args.page,
+        "page_size": query_args.page_size,
+        "total_pages": total_pages,
+    }
+
+
+def _get_job_results_grouped_by_source(
+    db: DBSession,
+    query_args: JobResultQuery,
+) -> dict[str, object]:
+    """
+    查詢任務的外連結果，並依來源網頁 (Source URL) 聚合。
+    """
+    # 1. 定義目標物件的 JSON 結構，動態判斷狀態字串與錯誤訊息
+    target_obj = JSONObject(
+        "url",
+        ExternalLink.target_url,
+        "status",
+        case(
+            (ExternalLink.http_status_code.isnot(None), cast(ExternalLink.http_status_code, String)),
+            ((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""), "DNS Failed"),
+            else_="Error",
+        ),
+        "is_secure",
+        ExternalLink.is_secure,
+        "error_message",
+        ExternalLink.error_message,
+    )
+
+    # 2. 建立主查詢，按來源網址分群，計算總發生次數，並將目標物件聚合成 JSON 陣列
+    main_q = db.query(
+        ExternalLink.source_url,
+        count(ExternalLink.id).label("occurrence_count"),
+        JSONGroupArray(target_obj).label("targets"),
+    ).filter(ExternalLink.job_id == query_args.job_id)
+
+    main_q = apply_job_result_filters(
+        main_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
+    )
+    main_q = main_q.group_by(ExternalLink.source_url)
+
+    # 3. 動態套用欄位過濾器 (利用 .having 對聚合後的欄位過濾)
+    if query_args.col_filters:
+        try:
+            filters = json.loads(query_args.col_filters)
+            for k, v in filters.items():
+                if not v:
+                    continue
+                v_str = str(v).lower()
+                if k == "source_url":
+                    main_q = main_q.having(ExternalLink.source_url.ilike(f"%{v_str}%"))
+                elif k == "occurrence_count":
+                    main_q = main_q.having(cast(count(ExternalLink.id), String).ilike(f"%{v_str}%"))
+                elif k == "targets":
+                    main_q = main_q.having(cast(JSONGroupArray(target_obj), String).ilike(f"%{v_str}%"))
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
+
+    # 4. 動態套用排序規則
+    if query_args.sort_by:
+        k = query_args.sort_by
+        sort_col = None
+        if k == "source_url":
+            sort_col = ExternalLink.source_url
+        elif k == "occurrence_count":
+            sort_col = count(ExternalLink.id)
+        elif k == "targets":
+            sort_col = cast(JSONGroupArray(target_obj), String)
+
+        if sort_col is not None:
+            order_func = asc if query_args.sort_asc else desc
+            main_q = main_q.order_by(order_func(sort_col))
+    else:
+        main_q = main_q.order_by(desc(count(ExternalLink.id)))
+
+    # 5. 執行分頁查詢
+    total = main_q.count()
+    offset = (query_args.page - 1) * query_args.page_size
+    results = main_q.offset(offset).limit(query_args.page_size).all()
+
+    items_list = []
+    for row in results:
+        targets = row[2]
+        if isinstance(targets, str):
+            try:
+                targets = json.loads(targets)
+            except json.JSONDecodeError:
+                targets = []
+
+        items_list.append({
+            "source_url": row[0],
+            "occurrence_count": row[1],
+            "targets": targets[:10],
+        })
+
+    total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
+    return {
+        "items": items_list,
+        "total": total,
+        "page": query_args.page,
+        "page_size": query_args.page_size,
+        "total_pages": total_pages,
+    }
+
+
+def _get_job_results_grouped_by_domain(
+    db: DBSession,
+    query_args: JobResultQuery,
+) -> dict[str, object]:
+    """
+    查詢任務的外連結果，並依外部網域 (Domain) 聚合。
+    """
+    # 1. 建立基礎查詢，提取目標網域、目標網址與來源網址的關係
+    base_q = db.query(ExternalLink.target_domain, ExternalLink.target_url, ExternalLink.source_url).filter(
+        ExternalLink.job_id == query_args.job_id
+    )
+    base_q = apply_job_result_filters(
+        base_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
+    )
+
+    # 2. 建立子查詢，計算各目標網域的總出現次數
+    domain_stats = (
+        base_q
+        .with_entities(ExternalLink.target_domain, count(ExternalLink.id).label("occurrence_count"))
+        .group_by(ExternalLink.target_domain)
+        .subquery("domain_stats")
+    )
+
+    # 3. 建立子查詢，過濾不重複的目標網址，並按網域計算數量與聚合成 JSON 陣列
+    distinct_urls = (
+        base_q
+        .with_entities(ExternalLink.target_domain, ExternalLink.target_url)
+        .distinct()
+        .subquery("distinct_urls")
+    )
+    urls_agg = (
+        db
+        .query(
+            distinct_urls.c.target_domain,
+            count(distinct_urls.c.target_url).label("unique_urls_count"),
+            JSONGroupArray(distinct_urls.c.target_url).label("unique_urls"),
+        )
+        .group_by(distinct_urls.c.target_domain)
+        .subquery("urls_agg")
+    )
+
+    # 4. 建立子查詢，過濾不重複的來源網址，並按網域聚合成 JSON 陣列
+    distinct_sources = (
+        base_q
+        .with_entities(ExternalLink.target_domain, ExternalLink.source_url)
+        .distinct()
+        .subquery("distinct_sources")
+    )
+    sources_agg = (
+        db
+        .query(distinct_sources.c.target_domain, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
+        .group_by(distinct_sources.c.target_domain)
+        .subquery("sources_agg")
+    )
+
+    # 5. 組合主查詢，以 domain_stats 為基準，外部關聯 urls_agg 與 sources_agg
+    main_q = (
+        db
+        .query(
+            domain_stats.c.target_domain.label("domain"),
+            domain_stats.c.occurrence_count,
+            urls_agg.c.unique_urls_count,
+            urls_agg.c.unique_urls,
+            sources_agg.c.source_urls,
+        )
+        .outerjoin(urls_agg, domain_stats.c.target_domain == urls_agg.c.target_domain)
+        .outerjoin(sources_agg, domain_stats.c.target_domain == sources_agg.c.target_domain)
+    )
+
+    # 6. 動態套用欄位過濾器 (利用 .filter 進行過濾，因資料已在子查詢聚合完畢)
+    if query_args.col_filters:
+        try:
+            filters = json.loads(query_args.col_filters)
+            for k, v in filters.items():
+                if not v:
+                    continue
+                v_str = str(v).lower()
+                if k == "domain":
+                    main_q = main_q.filter(domain_stats.c.target_domain.ilike(f"%{v_str}%"))
+                elif k == "occurrence_count":
+                    main_q = main_q.filter(cast(domain_stats.c.occurrence_count, String).ilike(f"%{v_str}%"))
+                elif k == "unique_urls_count":
+                    main_q = main_q.filter(cast(urls_agg.c.unique_urls_count, String).ilike(f"%{v_str}%"))
+                elif k == "unique_urls":
+                    main_q = main_q.filter(cast(urls_agg.c.unique_urls, String).ilike(f"%{v_str}%"))
+                elif k == "source_urls":
+                    main_q = main_q.filter(cast(sources_agg.c.source_urls, String).ilike(f"%{v_str}%"))
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
+
+    # 7. 動態套用排序規則
+    if query_args.sort_by:
+        k = query_args.sort_by
+        sort_col = None
+        if k == "domain":
+            sort_col = domain_stats.c.target_domain
+        elif k == "occurrence_count":
+            sort_col = domain_stats.c.occurrence_count
+        elif k == "unique_urls_count":
+            sort_col = urls_agg.c.unique_urls_count
+        elif k == "unique_urls":
+            sort_col = cast(urls_agg.c.unique_urls, String)
+        elif k == "source_urls":
+            sort_col = cast(sources_agg.c.source_urls, String)
+
+        if sort_col is not None:
+            order_func = asc if query_args.sort_asc else desc
+            main_q = main_q.order_by(order_func(sort_col))
+    else:
+        main_q = main_q.order_by(desc(domain_stats.c.occurrence_count))
+
+    # 8. 執行分頁查詢
+    total = main_q.count()
+    offset = (query_args.page - 1) * query_args.page_size
+    results = main_q.offset(offset).limit(query_args.page_size).all()
+
+    items_list = []
+    for row in results:
+        u_urls = row[3]
+        s_urls = row[4]
+        if isinstance(u_urls, str):
+            try:
+                u_urls = json.loads(u_urls)
+            except json.JSONDecodeError:
+                u_urls = []
+        if isinstance(s_urls, str):
+            try:
+                s_urls = json.loads(s_urls)
+            except json.JSONDecodeError:
+                s_urls = []
+
+        items_list.append({
+            "domain": row[0] or "unknown",
+            "occurrence_count": row[1],
+            "unique_urls_count": row[2] or 0,
+            "unique_urls": sorted(list(u_urls or []))[:10],
+            "source_urls": sorted(list(s_urls or []))[:10],
+        })
+
+    total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
+    return {
+        "items": items_list,
+        "total": total,
+        "page": query_args.page,
+        "page_size": query_args.page_size,
+        "total_pages": total_pages,
+    }
+
+
+def _get_job_results_no_grouping(
+    query: Query,
+    query_args: JobResultQuery,
+) -> dict[str, object]:
+    """
+    查詢任務的外連結果，無聚合模式。
+    """
+    if query_args.col_filters:
+        try:
+            filters = json.loads(query_args.col_filters)
+            for k, v in filters.items():
+                if not v:
+                    continue
+                v_str = str(v).lower()
+                if k == "target_url":
+                    query = query.filter(ExternalLink.target_url.ilike(f"%{v_str}%"))
+                elif k == "source_url":
+                    query = query.filter(ExternalLink.source_url.ilike(f"%{v_str}%"))
+                elif k == "ip_address":
+                    query = query.filter(ExternalLink.ip_address.ilike(f"%{v_str}%"))
+                elif k == "is_secure":
+                    is_sec = v_str in ("true", "1", "yes", "✓", "v", "t")
+                    query = query.filter(ExternalLink.is_secure.is_(is_sec))
+                elif k == "http_status_code":
+                    query = query.filter(cast(ExternalLink.http_status_code, String).ilike(f"%{v_str}%"))
+                elif k == "error_message":
+                    query = query.filter(ExternalLink.error_message.ilike(f"%{v_str}%"))
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
+
+    if query_args.sort_by:
+        col = None
+        if query_args.sort_by == "target_url":
+            col = ExternalLink.target_url
+        elif query_args.sort_by == "source_url":
+            col = ExternalLink.source_url
+        elif query_args.sort_by == "ip_address":
+            col = ExternalLink.ip_address
+        elif query_args.sort_by == "is_secure":
+            col = ExternalLink.is_secure
+        elif query_args.sort_by == "http_status_code":
+            col = ExternalLink.http_status_code
+        elif query_args.sort_by == "error_message":
+            col = ExternalLink.error_message
+        if col is not None:
+            order_func = asc if query_args.sort_asc else desc
+            query = query.order_by(order_func(col))
+    else:
+        query = query.order_by(ExternalLink.created_at)
+
+    total = query.count()
+    offset = (query_args.page - 1) * query_args.page_size
+    links = query.offset(offset).limit(query_args.page_size).all()
+    items_list = [
+        {
+            "id": lnk.id,
+            "source_url": lnk.source_url,
+            "target_url": lnk.target_url,
+            "ip_address": lnk.ip_address,
+            "is_secure": lnk.is_secure,
+            "http_status_code": lnk.http_status_code,
+            "error_message": lnk.error_message,
+            "created_at": lnk.created_at.isoformat(),
+        }
+        for lnk in links
+    ]
+    total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
+    return {
+        "items": items_list,
+        "total": total,
+        "page": query_args.page,
+        "page_size": query_args.page_size,
+        "total_pages": total_pages,
+    }
+
+
+def get_job_results(
     db: DBSession,
     query_args: JobResultQuery,
 ) -> dict[str, object]:
@@ -44,460 +503,48 @@ def get_job_results(  # pylint: disable=too-many-locals, too-many-branches, too-
     if job.user_id != query_args.user_id:
         raise ValueError("無權限存取此任務。")
 
-    query = db.query(ExternalLink).filter(ExternalLink.job_id == query_args.job_id)
-    query = apply_job_result_filters(
-        query, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
+    if query_args.group_by == "target":
+        return _get_job_results_grouped_by_target(db, query_args)
+    elif query_args.group_by == "source":
+        return _get_job_results_grouped_by_source(db, query_args)
+    elif query_args.group_by == "domain":
+        return _get_job_results_grouped_by_domain(db, query_args)
+    else:
+        query = db.query(ExternalLink).filter(ExternalLink.job_id == query_args.job_id)
+        query = apply_job_result_filters(
+            query, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
+        )
+        return _get_job_results_no_grouping(query, query_args)
+
+
+def _classify_link_status(lnk: ExternalLink) -> tuple[bool, bool, bool, bool, bool, bool, bool, bool]:
+    """
+    分類外連的狀態。
+    """
+    is_dns_failed = not lnk.ip_address
+    c = lnk.http_status_code
+    is_blocked = c in (401, 403, 405, 406, 429)
+    is_insecure = not lnk.is_secure
+    is_healthy = bool(lnk.ip_address) and c is not None and c < 400
+
+    is_not_found = c in (404, 410)
+    is_server_error = c is not None and 500 <= c < 600
+    is_connection_error = c is None and bool(lnk.ip_address)
+    is_other_error = c is not None and ((c >= 400 and c < 500 and not is_blocked and not is_not_found) or c >= 600)
+
+    return (
+        is_dns_failed,
+        is_not_found,
+        is_server_error,
+        is_connection_error,
+        is_other_error,
+        is_blocked,
+        is_insecure,
+        is_healthy,
     )
 
-    if query_args.group_by == "target":
-        # =====================================================================
-        # 聚合模式：依目標網址 (Target URL)
-        # =====================================================================
 
-        # 1. 建立基礎查詢，取得目標網址與來源網址的對應關係
-        base_q = db.query(ExternalLink.target_url, ExternalLink.source_url).filter(
-            ExternalLink.job_id == query_args.job_id
-        )
-        base_q = apply_job_result_filters(
-            base_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
-        )
-        # 2. 建立子查詢，過濾出不重複的目標與來源網址組合
-        distinct_sources = base_q.distinct().subquery("distinct_sources")
-
-        # 3. 建立子查詢，將不重複的來源網址按目標網址聚合成 JSON 陣列
-        sources_agg = (
-            db
-            .query(distinct_sources.c.target_url, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
-            .group_by(distinct_sources.c.target_url)
-            .subquery("sources_agg")
-        )
-
-        # 4. 建立子查詢，計算各目標網址的統計數據（如 IP、HTTP 狀態、發生次數等）
-        target_stats = db.query(
-            ExternalLink.target_url,
-            sql_max(ExternalLink.ip_address).label("ip_address"),
-            sql_min(cast(ExternalLink.is_secure, Integer)).label("is_secure"),
-            sql_max(ExternalLink.http_status_code).label("http_status_code"),
-            sql_max(ExternalLink.error_message).label("error_message"),
-            count(ExternalLink.id).label("occurrence_count"),
-        ).filter(ExternalLink.job_id == query_args.job_id)
-        target_stats = apply_job_result_filters(
-            target_stats, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
-        )
-        target_stats = target_stats.group_by(ExternalLink.target_url).subquery("target_stats")
-
-        main_q = db.query(
-            target_stats.c.target_url,
-            target_stats.c.ip_address,
-            target_stats.c.is_secure,
-            target_stats.c.http_status_code,
-            target_stats.c.error_message,
-            target_stats.c.occurrence_count,
-            sources_agg.c.source_urls,
-        ).outerjoin(sources_agg, target_stats.c.target_url == sources_agg.c.target_url)
-
-        if query_args.col_filters:
-            try:
-                filters = json.loads(query_args.col_filters)
-                for k, v in filters.items():
-                    if not v:
-                        continue
-                    v_str = str(v).lower()
-                    if k == "target_url":
-                        main_q = main_q.filter(target_stats.c.target_url.ilike(f"%{v_str}%"))
-                    elif k == "ip_address":
-                        main_q = main_q.filter(target_stats.c.ip_address.ilike(f"%{v_str}%"))
-                    elif k == "is_secure":
-                        is_sec = 1 if v_str in ("true", "1", "yes", "✓", "v", "t") else 0
-                        main_q = main_q.filter(target_stats.c.is_secure == is_sec)
-                    elif k == "http_status_code":
-                        main_q = main_q.filter(cast(target_stats.c.http_status_code, String).ilike(f"%{v_str}%"))
-                    elif k == "error_message":
-                        main_q = main_q.filter(target_stats.c.error_message.ilike(f"%{v_str}%"))
-                    elif k == "occurrence_count":
-                        main_q = main_q.filter(cast(target_stats.c.occurrence_count, String).ilike(f"%{v_str}%"))
-                    elif k == "source_urls":
-                        main_q = main_q.filter(cast(sources_agg.c.source_urls, String).ilike(f"%{v_str}%"))
-            except (json.JSONDecodeError, AttributeError, TypeError):
-                pass
-
-        # 7. 動態套用排序規則
-        if query_args.sort_by:
-            k = query_args.sort_by
-            sort_col = None
-            if k == "target_url":
-                sort_col = target_stats.c.target_url
-            elif k == "ip_address":
-                sort_col = target_stats.c.ip_address
-            elif k == "is_secure":
-                sort_col = target_stats.c.is_secure
-            elif k == "http_status_code":
-                sort_col = target_stats.c.http_status_code
-            elif k == "error_message":
-                sort_col = target_stats.c.error_message
-            elif k == "occurrence_count":
-                sort_col = target_stats.c.occurrence_count
-            elif k == "source_urls":
-                sort_col = cast(sources_agg.c.source_urls, String)
-
-            if sort_col is not None:
-                order_func = asc if query_args.sort_asc else desc
-                main_q = main_q.order_by(order_func(sort_col))
-        else:
-            main_q = main_q.order_by(desc(target_stats.c.occurrence_count))
-
-        # 8. 執行分頁查詢
-        total = main_q.count()
-        offset = (query_args.page - 1) * query_args.page_size
-        results = main_q.offset(offset).limit(query_args.page_size).all()
-
-        items_list = []
-        for row in results:
-            src_urls = row[6]
-            if isinstance(src_urls, str):
-                try:
-                    src_urls = json.loads(src_urls)
-                except json.JSONDecodeError:
-                    src_urls = []
-            if src_urls is None:
-                src_urls = []
-
-            items_list.append({
-                "target_url": row[0],
-                "ip_address": row[1],
-                "is_secure": bool(row[2]),
-                "http_status_code": row[3],
-                "error_message": row[4],
-                "occurrence_count": row[5],
-                "source_urls": sorted(list(src_urls))[:10],
-            })
-
-        total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
-        return {
-            "items": items_list,
-            "total": total,
-            "page": query_args.page,
-            "page_size": query_args.page_size,
-            "total_pages": total_pages,
-        }
-
-    elif query_args.group_by == "source":
-        # =====================================================================
-        # 聚合模式：依來源網頁 (Source URL)
-        # =====================================================================
-
-        # 1. 定義目標物件的 JSON 結構，動態判斷狀態字串與錯誤訊息
-        target_obj = JSONObject(
-            "url",
-            ExternalLink.target_url,
-            "status",
-            case(
-                (ExternalLink.http_status_code.isnot(None), cast(ExternalLink.http_status_code, String)),
-                ((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""), "DNS Failed"),
-                else_="Error",
-            ),
-            "is_secure",
-            ExternalLink.is_secure,
-            "error_message",
-            ExternalLink.error_message,
-        )
-
-        # 2. 建立主查詢，按來源網址分群，計算總發生次數，並將目標物件聚合成 JSON 陣列
-        main_q = db.query(
-            ExternalLink.source_url,
-            count(ExternalLink.id).label("occurrence_count"),
-            JSONGroupArray(target_obj).label("targets"),
-        ).filter(ExternalLink.job_id == query_args.job_id)
-
-        main_q = apply_job_result_filters(
-            main_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
-        )
-        main_q = main_q.group_by(ExternalLink.source_url)
-
-        # 3. 動態套用欄位過濾器 (利用 .having 對聚合後的欄位過濾)
-        if query_args.col_filters:
-            try:
-                filters = json.loads(query_args.col_filters)
-                for k, v in filters.items():
-                    if not v:
-                        continue
-                    v_str = str(v).lower()
-                    if k == "source_url":
-                        main_q = main_q.having(ExternalLink.source_url.ilike(f"%{v_str}%"))
-                    elif k == "occurrence_count":
-                        main_q = main_q.having(cast(count(ExternalLink.id), String).ilike(f"%{v_str}%"))
-                    elif k == "targets":
-                        main_q = main_q.having(cast(JSONGroupArray(target_obj), String).ilike(f"%{v_str}%"))
-            except (json.JSONDecodeError, AttributeError, TypeError):
-                pass
-
-        # 4. 動態套用排序規則
-        if query_args.sort_by:
-            k = query_args.sort_by
-            sort_col = None
-            if k == "source_url":
-                sort_col = ExternalLink.source_url
-            elif k == "occurrence_count":
-                sort_col = count(ExternalLink.id)
-            elif k == "targets":
-                sort_col = cast(JSONGroupArray(target_obj), String)
-
-            if sort_col is not None:
-                order_func = asc if query_args.sort_asc else desc
-                main_q = main_q.order_by(order_func(sort_col))
-        else:
-            main_q = main_q.order_by(desc(count(ExternalLink.id)))
-
-        # 5. 執行分頁查詢
-        total = main_q.count()
-        offset = (query_args.page - 1) * query_args.page_size
-        results = main_q.offset(offset).limit(query_args.page_size).all()
-
-        items_list = []
-        for row in results:
-            targets = row[2]
-            if isinstance(targets, str):
-                try:
-                    targets = json.loads(targets)
-                except json.JSONDecodeError:
-                    targets = []
-
-            items_list.append({
-                "source_url": row[0],
-                "occurrence_count": row[1],
-                "targets": targets[:10],
-            })
-
-        total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
-        return {
-            "items": items_list,
-            "total": total,
-            "page": query_args.page,
-            "page_size": query_args.page_size,
-            "total_pages": total_pages,
-        }
-
-    elif query_args.group_by == "domain":
-        # =====================================================================
-        # 聚合模式：依外部網域 (Domain)
-        # =====================================================================
-
-        # 1. 建立基礎查詢，提取目標網域、目標網址與來源網址的關係
-        base_q = db.query(ExternalLink.target_domain, ExternalLink.target_url, ExternalLink.source_url).filter(
-            ExternalLink.job_id == query_args.job_id
-        )
-        base_q = apply_job_result_filters(
-            base_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
-        )
-
-        # 2. 建立子查詢，計算各目標網域的總出現次數
-        domain_stats = (
-            base_q
-            .with_entities(ExternalLink.target_domain, count(ExternalLink.id).label("occurrence_count"))
-            .group_by(ExternalLink.target_domain)
-            .subquery("domain_stats")
-        )
-
-        # 3. 建立子查詢，過濾不重複的目標網址，並按網域計算數量與聚合成 JSON 陣列
-        distinct_urls = (
-            base_q
-            .with_entities(ExternalLink.target_domain, ExternalLink.target_url)
-            .distinct()
-            .subquery("distinct_urls")
-        )
-        urls_agg = (
-            db
-            .query(
-                distinct_urls.c.target_domain,
-                count(distinct_urls.c.target_url).label("unique_urls_count"),
-                JSONGroupArray(distinct_urls.c.target_url).label("unique_urls"),
-            )
-            .group_by(distinct_urls.c.target_domain)
-            .subquery("urls_agg")
-        )
-
-        # 4. 建立子查詢，過濾不重複的來源網址，並按網域聚合成 JSON 陣列
-        distinct_sources = (
-            base_q
-            .with_entities(ExternalLink.target_domain, ExternalLink.source_url)
-            .distinct()
-            .subquery("distinct_sources")
-        )
-        sources_agg = (
-            db
-            .query(distinct_sources.c.target_domain, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
-            .group_by(distinct_sources.c.target_domain)
-            .subquery("sources_agg")
-        )
-
-        # 5. 組合主查詢，以 domain_stats 為基準，外部關聯 urls_agg 與 sources_agg
-        main_q = (
-            db
-            .query(
-                domain_stats.c.target_domain.label("domain"),
-                domain_stats.c.occurrence_count,
-                urls_agg.c.unique_urls_count,
-                urls_agg.c.unique_urls,
-                sources_agg.c.source_urls,
-            )
-            .outerjoin(urls_agg, domain_stats.c.target_domain == urls_agg.c.target_domain)
-            .outerjoin(sources_agg, domain_stats.c.target_domain == sources_agg.c.target_domain)
-        )
-
-        # 6. 動態套用欄位過濾器 (利用 .filter 進行過濾，因資料已在子查詢聚合完畢)
-        if query_args.col_filters:
-            try:
-                filters = json.loads(query_args.col_filters)
-                for k, v in filters.items():
-                    if not v:
-                        continue
-                    v_str = str(v).lower()
-                    if k == "domain":
-                        main_q = main_q.filter(domain_stats.c.target_domain.ilike(f"%{v_str}%"))
-                    elif k == "occurrence_count":
-                        main_q = main_q.filter(cast(domain_stats.c.occurrence_count, String).ilike(f"%{v_str}%"))
-                    elif k == "unique_urls_count":
-                        main_q = main_q.filter(cast(urls_agg.c.unique_urls_count, String).ilike(f"%{v_str}%"))
-                    elif k == "unique_urls":
-                        main_q = main_q.filter(cast(urls_agg.c.unique_urls, String).ilike(f"%{v_str}%"))
-                    elif k == "source_urls":
-                        main_q = main_q.filter(cast(sources_agg.c.source_urls, String).ilike(f"%{v_str}%"))
-            except (json.JSONDecodeError, AttributeError, TypeError):
-                pass
-
-        # 7. 動態套用排序規則
-        if query_args.sort_by:
-            k = query_args.sort_by
-            sort_col = None
-            if k == "domain":
-                sort_col = domain_stats.c.target_domain
-            elif k == "occurrence_count":
-                sort_col = domain_stats.c.occurrence_count
-            elif k == "unique_urls_count":
-                sort_col = urls_agg.c.unique_urls_count
-            elif k == "unique_urls":
-                sort_col = cast(urls_agg.c.unique_urls, String)
-            elif k == "source_urls":
-                sort_col = cast(sources_agg.c.source_urls, String)
-
-            if sort_col is not None:
-                order_func = asc if query_args.sort_asc else desc
-                main_q = main_q.order_by(order_func(sort_col))
-        else:
-            main_q = main_q.order_by(desc(domain_stats.c.occurrence_count))
-
-        # 8. 執行分頁查詢
-        total = main_q.count()
-        offset = (query_args.page - 1) * query_args.page_size
-        results = main_q.offset(offset).limit(query_args.page_size).all()
-
-        items_list = []
-        for row in results:
-            u_urls = row[3]
-            s_urls = row[4]
-            if isinstance(u_urls, str):
-                try:
-                    u_urls = json.loads(u_urls)
-                except json.JSONDecodeError:
-                    u_urls = []
-            if isinstance(s_urls, str):
-                try:
-                    s_urls = json.loads(s_urls)
-                except json.JSONDecodeError:
-                    s_urls = []
-
-            items_list.append({
-                "domain": row[0] or "unknown",
-                "occurrence_count": row[1],
-                "unique_urls_count": row[2] or 0,
-                "unique_urls": sorted(list(u_urls or []))[:10],
-                "source_urls": sorted(list(s_urls or []))[:10],
-            })
-
-        total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
-        return {
-            "items": items_list,
-            "total": total,
-            "page": query_args.page,
-            "page_size": query_args.page_size,
-            "total_pages": total_pages,
-        }
-
-    else:
-        # =====================================================================
-        # 模式：不分群，平鋪列表 (None)
-        # =====================================================================
-
-        if query_args.col_filters:
-            try:
-                filters = json.loads(query_args.col_filters)
-                for k, v in filters.items():
-                    if not v:
-                        continue
-                    v_str = str(v).lower()
-                    if k == "target_url":
-                        query = query.filter(ExternalLink.target_url.ilike(f"%{v_str}%"))
-                    elif k == "source_url":
-                        query = query.filter(ExternalLink.source_url.ilike(f"%{v_str}%"))
-                    elif k == "ip_address":
-                        query = query.filter(ExternalLink.ip_address.ilike(f"%{v_str}%"))
-                    elif k == "is_secure":
-                        is_sec = v_str in ("true", "1", "yes", "✓", "v", "t")
-                        query = query.filter(ExternalLink.is_secure.is_(is_sec))
-                    elif k == "http_status_code":
-                        query = query.filter(cast(ExternalLink.http_status_code, String).ilike(f"%{v_str}%"))
-                    elif k == "error_message":
-                        query = query.filter(ExternalLink.error_message.ilike(f"%{v_str}%"))
-            except (json.JSONDecodeError, AttributeError, TypeError):
-                pass
-
-        if query_args.sort_by:
-            col = None
-            if query_args.sort_by == "target_url":
-                col = ExternalLink.target_url
-            elif query_args.sort_by == "source_url":
-                col = ExternalLink.source_url
-            elif query_args.sort_by == "ip_address":
-                col = ExternalLink.ip_address
-            elif query_args.sort_by == "is_secure":
-                col = ExternalLink.is_secure
-            elif query_args.sort_by == "http_status_code":
-                col = ExternalLink.http_status_code
-            elif query_args.sort_by == "error_message":
-                col = ExternalLink.error_message
-            if col is not None:
-                order_func = asc if query_args.sort_asc else desc
-                query = query.order_by(order_func(col))
-        else:
-            query = query.order_by(ExternalLink.created_at)
-
-        total = query.count()
-        offset = (query_args.page - 1) * query_args.page_size
-        links = query.offset(offset).limit(query_args.page_size).all()
-        items_list = [
-            {
-                "id": lnk.id,
-                "source_url": lnk.source_url,
-                "target_url": lnk.target_url,
-                "ip_address": lnk.ip_address,
-                "is_secure": lnk.is_secure,
-                "http_status_code": lnk.http_status_code,
-                "error_message": lnk.error_message,
-                "created_at": lnk.created_at.isoformat(),
-            }
-            for lnk in links
-        ]
-        total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
-        return {
-            "items": items_list,
-            "total": total,
-            "page": query_args.page,
-            "page_size": query_args.page_size,
-            "total_pages": total_pages,
-        }
-
-
-def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:  # pylint: disable=too-many-locals, too-many-branches
+def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
     """
     計算分組後的聚合統計結果。
 
@@ -530,16 +577,16 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
 
         set_all.add(key)
 
-        is_dns_failed = not lnk.ip_address
-        c = lnk.http_status_code
-        is_blocked = c in (401, 403, 405, 406, 429)
-        is_insecure = not lnk.is_secure
-        is_healthy = bool(lnk.ip_address) and c is not None and c < 400
-
-        is_not_found = c in (404, 410)
-        is_server_error = c is not None and 500 <= c < 600
-        is_connection_error = c is None and bool(lnk.ip_address)
-        is_other_error = c is not None and ((c >= 400 and c < 500 and not is_blocked and not is_not_found) or c >= 600)  # pylint: disable=chained-comparison
+        (
+            is_dns_failed,
+            is_not_found,
+            is_server_error,
+            is_connection_error,
+            is_other_error,
+            is_blocked,
+            is_insecure,
+            is_healthy,
+        ) = _classify_link_status(lnk)
 
         if is_dns_failed:
             set_dns_failed.add(key)
@@ -571,7 +618,106 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
     }
 
 
-def get_results_summary(  # pylint: disable=too-many-locals
+def _get_results_summary_no_grouping(db: DBSession, job_id: str, exclude: str | None = None) -> dict[str, int]:
+    """
+    計算無分組下的外連結果統計摘要。
+    """
+    # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
+    query = db.query(
+        count(ExternalLink.id).label("total"),
+        sql_sum(
+            case(
+                (
+                    (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("dns_failed"),
+        sql_sum(case((ExternalLink.http_status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
+        sql_sum(
+            case(((ExternalLink.http_status_code >= 500) & (ExternalLink.http_status_code < 600), 1), else_=0)
+        ).label("server_error"),
+        sql_sum(
+            case(
+                (
+                    (ExternalLink.http_status_code.is_(None))
+                    & (ExternalLink.ip_address.isnot(None))
+                    & (ExternalLink.ip_address != ""),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("connection_error"),
+        sql_sum(
+            case(
+                (
+                    (
+                        (ExternalLink.http_status_code >= 400)
+                        & (ExternalLink.http_status_code < 500)
+                        & (~ExternalLink.http_status_code.in_([404, 410, 401, 403, 405, 406, 429]))
+                    )
+                    | (ExternalLink.http_status_code >= 600),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("other_error"),
+        sql_sum(case((ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]), 1), else_=0)).label("blocked"),
+        sql_sum(case((ExternalLink.is_secure.is_(False), 1), else_=0)).label("insecure"),
+    ).filter(ExternalLink.job_id == job_id)
+
+    query = apply_job_result_filters(query, exclude=exclude)
+
+    stats = query.first()
+
+    total_external = int(stats.total) if stats and stats.total else 0
+    dns_failed = int(stats.dns_failed) if stats and stats.dns_failed else 0
+    not_found = int(stats.not_found) if stats and stats.not_found else 0
+    server_error = int(stats.server_error) if stats and stats.server_error else 0
+    connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
+    other_error = int(stats.other_error) if stats and stats.other_error else 0
+    blocked = int(stats.blocked) if stats and stats.blocked else 0
+    insecure = int(stats.insecure) if stats and stats.insecure else 0
+
+    healthy_count = (
+        total_external - dns_failed - not_found - server_error - connection_error - other_error - blocked
+    )
+
+    return {
+        "total_external": total_external,
+        "dns_failed": dns_failed,
+        "not_found": not_found,
+        "server_error": server_error,
+        "connection_error": connection_error,
+        "other_error": other_error,
+        "blocked": blocked,
+        "insecure": insecure,
+        "healthy_count": healthy_count,
+    }
+
+
+def _get_results_summary_grouped(db: DBSession, job_id: str, exclude: str | None, group_by: str) -> dict[str, int]:
+    """
+    計算分組聚合下的外連結果統計摘要。
+    """
+    query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
+    query = apply_job_result_filters(query, exclude=exclude)
+    stats_dict = _get_grouped_results_summary(query, group_by)
+    return {
+        "total_external": stats_dict["total_external"],
+        "dns_failed": stats_dict["dns_failed"],
+        "not_found": stats_dict["not_found"],
+        "server_error": stats_dict["server_error"],
+        "connection_error": stats_dict["connection_error"],
+        "other_error": stats_dict["other_error"],
+        "blocked": stats_dict["blocked"],
+        "insecure": stats_dict["insecure"],
+        "healthy_count": stats_dict["healthy_count"],
+    }
+
+
+def get_results_summary(
     db: DBSession, job_id: str, user_id: str, exclude: str | None = None, group_by: str = "none"
 ) -> dict[str, object]:
     """
@@ -599,94 +745,22 @@ def get_results_summary(  # pylint: disable=too-many-locals
     total_queue = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
 
     if group_by == "none":
-        # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
-        query = db.query(
-            count(ExternalLink.id).label("total"),
-            sql_sum(
-                case(
-                    (
-                        (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
-                        1,
-                    ),
-                    else_=0,
-                )
-            ).label("dns_failed"),
-            sql_sum(case((ExternalLink.http_status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
-            sql_sum(
-                case(((ExternalLink.http_status_code >= 500) & (ExternalLink.http_status_code < 600), 1), else_=0)
-            ).label("server_error"),
-            sql_sum(
-                case(
-                    (
-                        (ExternalLink.http_status_code.is_(None))
-                        & (ExternalLink.ip_address.isnot(None))
-                        & (ExternalLink.ip_address != ""),
-                        1,
-                    ),
-                    else_=0,
-                )
-            ).label("connection_error"),
-            sql_sum(
-                case(
-                    (
-                        (
-                            (ExternalLink.http_status_code >= 400)
-                            & (ExternalLink.http_status_code < 500)
-                            & (~ExternalLink.http_status_code.in_([404, 410, 401, 403, 405, 406, 429]))
-                        )
-                        | (ExternalLink.http_status_code >= 600),
-                        1,
-                    ),
-                    else_=0,
-                )
-            ).label("other_error"),
-            sql_sum(case((ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]), 1), else_=0)).label("blocked"),
-            sql_sum(case((ExternalLink.is_secure.is_(False), 1), else_=0)).label("insecure"),
-        ).filter(ExternalLink.job_id == job_id)
-
-        query = apply_job_result_filters(query, exclude=exclude)
-
-        stats = query.first()
-
-        total_external = int(stats.total) if stats and stats.total else 0
-        dns_failed = int(stats.dns_failed) if stats and stats.dns_failed else 0
-        not_found = int(stats.not_found) if stats and stats.not_found else 0
-        server_error = int(stats.server_error) if stats and stats.server_error else 0
-        connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
-        other_error = int(stats.other_error) if stats and stats.other_error else 0
-        blocked = int(stats.blocked) if stats and stats.blocked else 0
-        insecure = int(stats.insecure) if stats and stats.insecure else 0
-
-        healthy_count = (
-            total_external - dns_failed - not_found - server_error - connection_error - other_error - blocked
-        )
-
+        stats = _get_results_summary_no_grouping(db, job_id, exclude)
     else:
-        query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
-        query = apply_job_result_filters(query, exclude=exclude)
-        stats_dict = _get_grouped_results_summary(query, group_by)
-        total_external = stats_dict["total_external"]
-        dns_failed = stats_dict["dns_failed"]
-        not_found = stats_dict["not_found"]
-        server_error = stats_dict["server_error"]
-        connection_error = stats_dict["connection_error"]
-        other_error = stats_dict["other_error"]
-        blocked = stats_dict["blocked"]
-        insecure = stats_dict["insecure"]
-        healthy_count = stats_dict["healthy_count"]
+        stats = _get_results_summary_grouped(db, job_id, exclude, group_by)
 
     return {
         "job_id": job_id,
         "total_crawled_pages": total_queue,
-        "total_external_links": total_external,
-        "healthy_count": healthy_count,
-        "dns_failed_count": dns_failed,
-        "not_found_count": not_found,
-        "server_error_count": server_error,
-        "connection_error_count": connection_error,
-        "other_error_count": other_error,
-        "blocked_count": blocked,
-        "insecure_count": insecure,
+        "total_external_links": stats["total_external"],
+        "healthy_count": stats["healthy_count"],
+        "dns_failed_count": stats["dns_failed"],
+        "not_found_count": stats["not_found"],
+        "server_error_count": stats["server_error"],
+        "connection_error_count": stats["connection_error"],
+        "other_error_count": stats["other_error"],
+        "blocked_count": stats["blocked"],
+        "insecure_count": stats["insecure"],
     }
 
 
@@ -1289,139 +1363,118 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
 
 
 # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
-def get_internal_errors(
+def _get_internal_errors_grouped_by_source(
     db: DBSession,
     job_id: str,
-    user_id: str,
-    status_filter: str | None = None,
-    group_by: str = "none",
-    page: int = 1,
-    page_size: int = 50,
-    truncate_lists: bool = True,
-    sort_by: str | None = None,
-    sort_asc: bool = True,
-    col_filters: str | None = None,
+    status_filter: str | None,
+    page: int,
+    page_size: int,
+    truncate_lists: bool,
+    sort_by: str | None,
+    sort_asc: bool,
+    col_filters: str | None,
 ) -> dict[str, object]:
     """
-    取得任務內部網頁爬取失敗的紀錄列表。
-
-    Args:
-        db (DBSession): Crawler DB Session。
-        job_id (str): 任務 ID。
-        user_id (str): 請求查詢的使用者 ID。
-        status_filter (str | None): 狀態篩選。
-        group_by (str): 聚合方式。
-        page (int): 頁碼。
-        page_size (int): 每頁筆數。
-
-    Returns:
-        dict[str, object]: 查詢結果的字典。
-
-    Raises:
-        ValueError: 找不到任務或無權限存取時拋出。
+    取得任務內部網頁爬取失敗的紀錄列表，並依來源網頁 (Source URL) 聚合。
     """
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job or job.user_id != user_id:
-        raise ValueError("無權限存取此任務。")
+    # 1. 定義目標物件的 JSON 結構
+    target_obj = JSONObject(
+        "url",
+        CrawlQueue.url,
+        "status",
+        case(
+            (CrawlQueue.status_code.isnot(None), cast(CrawlQueue.status_code, String)),
+            else_="Error",
+        ),
+        "error_message",
+        CrawlQueue.error_message,
+    )
 
-    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
-    query = apply_internal_result_filters(query, status_filter)
+    # 2. 建立主查詢，按來源網址分群，計算失敗次數，並將失效目標聚合成 JSON 陣列
+    main_q = db.query(
+        CrawlQueue.source_url,
+        count(CrawlQueue.id).label("occurrence_count"),
+        JSONGroupArray(target_obj).label("targets"),
+    ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
 
-    if group_by == "source":
-        # =====================================================================
-        # 內部失效連結聚合：依來源網頁 (Source URL)
-        # =====================================================================
+    main_q = apply_internal_result_filters(main_q, status_filter)
+    main_q = main_q.group_by(CrawlQueue.source_url)
 
-        # 1. 定義目標物件的 JSON 結構
-        target_obj = JSONObject(
-            "url",
-            CrawlQueue.url,
-            "status",
-            case(
-                (CrawlQueue.status_code.isnot(None), cast(CrawlQueue.status_code, String)),
-                else_="Error",
-            ),
-            "error_message",
-            CrawlQueue.error_message,
-        )
-
-        # 2. 建立主查詢，按來源網址分群，計算失敗次數，並將失效目標聚合成 JSON 陣列
-        main_q = db.query(
-            CrawlQueue.source_url,
-            count(CrawlQueue.id).label("occurrence_count"),
-            JSONGroupArray(target_obj).label("targets"),
-        ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
-
-        main_q = apply_internal_result_filters(main_q, status_filter)
-        main_q = main_q.group_by(CrawlQueue.source_url)
-
-        # 3. 動態套用欄位過濾器
-        if col_filters:
-            try:
-                filters = json.loads(col_filters)
-                for k, v in filters.items():
-                    if not v:
-                        continue
-                    v_str = str(v).lower()
-                    if k == "source_url":
-                        main_q = main_q.having(CrawlQueue.source_url.ilike(f"%{v_str}%"))
-                    elif k == "occurrence_count":
-                        main_q = main_q.having(cast(count(CrawlQueue.id), String).ilike(f"%{v_str}%"))
-                    elif k == "targets":
-                        main_q = main_q.having(cast(JSONGroupArray(target_obj), String).ilike(f"%{v_str}%"))
-            except (json.JSONDecodeError, AttributeError, TypeError):
-                pass
-
-        # 4. 動態套用排序規則
-        if sort_by:
-            sort_col = None
-            if sort_by == "source_url":
-                sort_col = CrawlQueue.source_url
-            elif sort_by == "occurrence_count":
-                sort_col = count(CrawlQueue.id)
-            elif sort_by == "targets":
-                sort_col = cast(JSONGroupArray(target_obj), String)
-
-            if sort_col is not None:
-                order_func = asc if sort_asc else desc
-                main_q = main_q.order_by(order_func(sort_col))
-        else:
-            main_q = main_q.order_by(desc(count(CrawlQueue.id)))
-
-        # 5. 執行分頁查詢
-        total = main_q.count()
-        offset = (page - 1) * page_size
-        results = main_q.offset(offset).limit(page_size).all()
-
-        items_list = []
-        for row in results:
-            targets = row[2]
-            if isinstance(targets, str):
-                try:
-                    targets = json.loads(targets)
-                except json.JSONDecodeError:
-                    targets = []
-
-            items_list.append({
-                "source_url": row[0] or "",
-                "occurrence_count": row[1],
-                "targets": targets[:10] if truncate_lists else targets,
-            })
-
-        total_pages = (total + page_size - 1) // page_size if total > 0 else 1
-        return {
-            "items": items_list,
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": total_pages,
-        }
-
+    # 3. 動態套用欄位過濾器
     if col_filters:
-        # =====================================================================
-        # 內部失效連結模式：平鋪列表 (None)
-        # =====================================================================
+        try:
+            filters = json.loads(col_filters)
+            for k, v in filters.items():
+                if not v:
+                    continue
+                v_str = str(v).lower()
+                if k == "source_url":
+                    main_q = main_q.having(CrawlQueue.source_url.ilike(f"%{v_str}%"))
+                elif k == "occurrence_count":
+                    main_q = main_q.having(cast(count(CrawlQueue.id), String).ilike(f"%{v_str}%"))
+                elif k == "targets":
+                    main_q = main_q.having(cast(JSONGroupArray(target_obj), String).ilike(f"%{v_str}%"))
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
 
+    # 4. 動態套用排序規則
+    if sort_by:
+        sort_col = None
+        if sort_by == "source_url":
+            sort_col = CrawlQueue.source_url
+        elif sort_by == "occurrence_count":
+            sort_col = count(CrawlQueue.id)
+        elif sort_by == "targets":
+            sort_col = cast(JSONGroupArray(target_obj), String)
+
+        if sort_col is not None:
+            order_func = asc if sort_asc else desc
+            main_q = main_q.order_by(order_func(sort_col))
+    else:
+        main_q = main_q.order_by(desc(count(CrawlQueue.id)))
+
+    # 5. 執行分頁查詢
+    total = main_q.count()
+    offset = (page - 1) * page_size
+    results = main_q.offset(offset).limit(page_size).all()
+
+    items_list = []
+    for row in results:
+        targets = row[2]
+        if isinstance(targets, str):
+            try:
+                targets = json.loads(targets)
+            except json.JSONDecodeError:
+                targets = []
+
+        items_list.append({
+            "source_url": row[0] or "",
+            "occurrence_count": row[1],
+            "targets": targets[:10] if truncate_lists else targets,
+        })
+
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 1
+    return {
+        "items": items_list,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+    }
+
+
+def _get_internal_errors_no_grouping(
+    query: Query,
+    page: int,
+    page_size: int,
+    sort_by: str | None,
+    sort_asc: bool,
+    col_filters: str | None,
+) -> dict[str, object]:
+    """
+    取得任務內部網頁爬取失敗的紀錄列表，無聚合模式。
+    """
+    if col_filters:
         try:
             filters = json.loads(col_filters)
             for k, v in filters.items():
@@ -1470,3 +1523,63 @@ def get_internal_errors(
         "page_size": page_size,
         "total_pages": total_pages,
     }
+
+
+def get_internal_errors(
+    db: DBSession,
+    job_id: str,
+    user_id: str,
+    status_filter: str | None = None,
+    group_by: str = "none",
+    page: int = 1,
+    page_size: int = 50,
+    truncate_lists: bool = True,
+    sort_by: str | None = None,
+    sort_asc: bool = True,
+    col_filters: str | None = None,
+) -> dict[str, object]:
+    """
+    取得任務內部網頁爬取失敗的紀錄列表。
+
+    Args:
+        db (DBSession): Crawler DB Session。
+        job_id (str): 任務 ID。
+        user_id (str): 請求查詢的使用者 ID。
+        status_filter (str | None): 狀態篩選。
+        group_by (str): 聚合方式。
+        page (int): 頁碼。
+        page_size (int): 每頁筆數。
+
+    Returns:
+        dict[str, object]: 查詢結果的字典。
+
+    Raises:
+        ValueError: 找不到任務或無權限存取時拋出。
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job or job.user_id != user_id:
+        raise ValueError("無權限存取此任務。")
+
+    if group_by == "source":
+        return _get_internal_errors_grouped_by_source(
+            db=db,
+            job_id=job_id,
+            status_filter=status_filter,
+            page=page,
+            page_size=page_size,
+            truncate_lists=truncate_lists,
+            sort_by=sort_by,
+            sort_asc=sort_asc,
+            col_filters=col_filters,
+        )
+    else:
+        query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
+        query = apply_internal_result_filters(query, status_filter)
+        return _get_internal_errors_no_grouping(
+            query=query,
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_asc=sort_asc,
+            col_filters=col_filters,
+        )
