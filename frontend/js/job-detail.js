@@ -1842,22 +1842,32 @@ function bindResultsControls() {
     const groupSelectEl = document.getElementById('results-group-select');
     if (groupSelectEl) {
         groupSelectEl.addEventListener('change', async () => {
-            _currentGroupBy = groupSelectEl.value;
-            _currentPage = 1;
-            _detailSort = { key: null, asc: true };
-            _detailColFilters = {};
-            await loadResults(_currentJobId);
+            groupSelectEl.disabled = true;
+            try {
+                _currentGroupBy = groupSelectEl.value;
+                _currentPage = 1;
+                _detailSort = { key: null, asc: true };
+                _detailColFilters = {};
+                await loadResults(_currentJobId);
+            } finally {
+                groupSelectEl.disabled = false;
+            }
         });
     }
 
     const internalGroupSelectEl = document.getElementById('internal-results-group-select');
     if (internalGroupSelectEl) {
         internalGroupSelectEl.addEventListener('change', async () => {
-            _internalGroupBy = internalGroupSelectEl.value;
-            _internalCurrentPage = 1;
-            _internalSort = { key: null, asc: true };
-            _internalColFilters = {};
-            await loadInternalResults(_currentJobId);
+            internalGroupSelectEl.disabled = true;
+            try {
+                _internalGroupBy = internalGroupSelectEl.value;
+                _internalCurrentPage = 1;
+                _internalSort = { key: null, asc: true };
+                _internalColFilters = {};
+                await loadInternalResults(_currentJobId);
+            } finally {
+                internalGroupSelectEl.disabled = false;
+            }
         });
     }
 
