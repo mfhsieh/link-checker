@@ -110,6 +110,80 @@ function showConfirm(title, message, confirmText = '確定', isDanger = false) {
 }
 
 /**
+ * 清除外部結果的統計卡片數字
+ * @returns {void}
+ */
+function clearResultsSummaryUI() {
+    const stats = [
+        'summary-total', 'summary-healthy', 'summary-dns-failed', 'summary-not-found',
+        'summary-server-error', 'summary-connection-error', 'summary-other-error',
+        'summary-blocked', 'summary-insecure'
+    ];
+    stats.forEach(id => setTextContent(id, '-'));
+}
+
+/**
+ * 清除內部結果的統計卡片數字
+ * @returns {void}
+ */
+function clearInternalSummaryUI() {
+    const stats = [
+        'int-summary-total', 'int-summary-server-error', 'int-summary-connection-error',
+        'int-summary-timeout', 'int-summary-not-found', 'int-summary-other-error',
+        'int-summary-warning', 'int-summary-access-denied'
+    ];
+    stats.forEach(id => setTextContent(id, '-'));
+}
+
+/**
+ * 清除上一個任務的 UI 狀態，避免載入新任務時發生舊資料閃爍
+ * @returns {void}
+ */
+function clearJobDetailUI() {
+    const el = (id) => document.getElementById(id);
+
+    const statusEl = el('job-status');
+    if (statusEl) {
+        statusEl.className = 'badge badge-pending';
+        statusEl.textContent = '載入中...';
+    }
+
+    const startUrlEl = el('job-start-url');
+    if (startUrlEl) {
+        startUrlEl.textContent = '-';
+        startUrlEl.removeAttribute('href');
+    }
+
+    setTextContent('job-created-at', '-');
+    setTextContent('job-updated-at', '-');
+    setTextContent('job-external-count', '-');
+
+    const progressFillEl = el('job-progress-fill');
+    const progressTextEl = el('job-progress-text');
+    if (progressFillEl) progressFillEl.style.width = '0%';
+    if (progressTextEl) progressTextEl.textContent = '0%';
+
+    const stats = [
+        'stat-total', 'stat-completed', 'stat-warning', 'stat-pending', 'stat-skipped', 'stat-failed'
+    ];
+    stats.forEach(id => setTextContent(id, '-'));
+
+    clearResultsSummaryUI();
+    clearInternalSummaryUI();
+
+    const extContainer = el('results-container');
+    if (extContainer) delete extContainer.dataset.renderedGroup;
+
+    const intContainer = el('internal-results-container');
+    if (intContainer) delete intContainer.dataset.renderedInternalGroup;
+
+    ['btn-start-job', 'btn-resume-job', 'btn-pause-job', 'btn-goto-compare', 'btn-transfer-job', 'btn-reset-job', 'btn-retry-failed-job'].forEach(id => {
+        const btn = el(id);
+        if (btn) btn.style.display = 'none';
+    });
+}
+
+/**
  * 初始化任務詳情頁面邏輯
  * @param {string} jobId - 任務 ID
  * @returns {Promise<void>} 無回傳值
@@ -182,6 +256,9 @@ export async function initJobDetailPage(jobId) {
         openExcludeBtn.style.background = isActive ? 'hsla(221, 83%, 53%, 0.1)' : '';
     }
 
+    // 清除舊畫面避免閃爍
+    clearJobDetailUI();
+
     if (!_eventsBound) {
         bindControlButtons();
         bindResultsControls();
@@ -243,15 +320,6 @@ async function loadInternalResultsPage(jobId) {
     } else {
         tableEl.style.opacity = '0.5';
     }
-
-    try {
-        const params = {};
-        if (_internalGroupBy && _internalGroupBy !== 'none') {
-            params.group_by = _internalGroupBy;
-        }
-        const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
-        renderInternalSummary(summary);
-    } catch (_) { /* 忽略 */ }
 
     try {
         const params = { group_by: _internalGroupBy, page: _internalCurrentPage, page_size: 50, sort_by: _internalSort.key || undefined, sort_asc: _internalSort.asc };
@@ -965,13 +1033,15 @@ function bindControlButtons() {
 }
 
 /**
- * 載入外部/內部結果主邏輯
+ * 載入外部結果主邏輯
  * @param {string} jobId - 任務 ID
  * @returns {Promise<void>}
  */
-async function loadResults(jobId) {
+async function loadExternalResults(jobId) {
     const containerEl = document.getElementById('results-container');
     if (!containerEl) return;
+
+    clearResultsSummaryUI();
 
     try {
         const params = {};
@@ -985,10 +1055,42 @@ async function loadResults(jobId) {
         renderResultsSummary(summary);
     } catch (_) { /* 忽略 */ }
 
+    await loadResultsPage(jobId);
+}
+
+/**
+ * 載入內部結果主邏輯
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
+async function loadInternalResults(jobId) {
+    const containerEl = document.getElementById('internal-results-container');
+    if (!containerEl) return;
+
+    clearInternalSummaryUI();
+
+    try {
+        const params = {};
+        if (_internalGroupBy && _internalGroupBy !== 'none') {
+            params.group_by = _internalGroupBy;
+        }
+        const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
+        renderInternalSummary(summary);
+    } catch (_) { /* 忽略 */ }
+
+    await loadInternalResultsPage(jobId);
+}
+
+/**
+ * 依據當前 Tab 載入對應的結果主邏輯
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
+async function loadResults(jobId) {
     if (_currentTab === 'external') {
-        await loadResultsPage(jobId);
+        await loadExternalResults(jobId);
     } else {
-        await loadInternalResultsPage(jobId);
+        await loadInternalResults(jobId);
     }
 }
 
@@ -1731,7 +1833,7 @@ function bindResultsControls() {
             _internalCurrentPage = 1;
             _internalSort = { key: null, asc: true };
             _internalColFilters = {};
-            await loadInternalResultsPage(_currentJobId);
+            await loadInternalResults(_currentJobId);
         });
     }
 
