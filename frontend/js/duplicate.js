@@ -4,6 +4,7 @@
 
 import * as api from './api.js';
 
+/** @type {boolean} 是否已綁定複製任務事件 */
 let _eventsBound = false;
 
 /**

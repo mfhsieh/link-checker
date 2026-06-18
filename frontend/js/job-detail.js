@@ -6,25 +6,45 @@ import * as api from './api.js';
 import { download } from './api.js';
 import { toast } from './toast.js';
 
+/** @type {EventSource|null} SSE 連線物件 */
 let _eventSource = null;
+/** @type {string|null} 目前的任務 ID */
 let _currentJobId = null;
+/** @type {Object|null} 目前任務的設定快照 */
 let _currentJobConfig = null;
+/** @type {string|null} 目前外部連結的篩選狀態 (如 'dead', 'healthy' 等) */
 let _currentFilter = null;
+/** @type {string} 目前排除的網域字串 (以逗號分隔) */
 let _currentExclude = '';
+/** @type {boolean} 是否啟用排除網域過濾 */
 let _currentExcludeEnabled = true;
+/** @type {string} 目前外部連結的聚合模式 ('none', 'target', 'source', 'domain') */
 let _currentGroupBy = 'none';
+/** @type {number} 外部連結列表目前頁碼 */
 let _currentPage = 1;
+/** @type {boolean} 是否已綁定任務詳情事件 */
 let _eventsBound = false;
+/** @type {string} 目前任務詳情的頁籤 ('external' 或 'internal') */
 let _currentTab = 'external';
+/** @type {number} 內部失效連結列表目前頁碼 */
 let _internalCurrentPage = 1;
+/** @type {string|null} 目前內部失效連結的篩選狀態 */
 let _internalFilter = null;
+/** @type {string} 目前內部失效連結的聚合模式 ('none', 'source') */
 let _internalGroupBy = 'none';
+/** @type {Array<Object>} 內部失效連結當頁結果暫存 */
 let _internalResultItems = [];
+/** @type {{key: string|null, asc: boolean}} 外部連結表格排序狀態 */
 let _detailSort = { key: null, asc: true };
+/** @type {Object<string, string>} 外部連結表格各欄位篩選條件 */
 let _detailColFilters = {};
+/** @type {{key: string|null, asc: boolean}} 內部失效連結表格排序狀態 */
 let _internalSort = { key: null, asc: true };
+/** @type {Object<string, string>} 內部失效連結表格各欄位篩選條件 */
 let _internalColFilters = {};
+/** @type {Array<{label: string, key: string|null, sortable?: boolean, filterable?: boolean}>} 外部連結當前表頭設定 */
 let _currentDetailHeaders = [];
+/** @type {Array<Object>} 外部連結當頁結果暫存 */
 let _currentResultItems = [];
 
 /**
@@ -1043,19 +1063,21 @@ async function loadExternalResults(jobId) {
 
     clearResultsSummaryUI();
 
-    try {
-        const params = {};
-        if (_currentExcludeEnabled && _currentExclude) {
-            params.exclude = _currentExclude;
-        }
-        if (_currentGroupBy && _currentGroupBy !== 'none') {
-            params.group_by = _currentGroupBy;
-        }
-        const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
-        renderResultsSummary(summary);
-    } catch (_) { /* 忽略 */ }
+    const summaryPromise = (async () => {
+        try {
+            const params = {};
+            if (_currentExcludeEnabled && _currentExclude) {
+                params.exclude = _currentExclude;
+            }
+            if (_currentGroupBy && _currentGroupBy !== 'none') {
+                params.group_by = _currentGroupBy;
+            }
+            const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
+            renderResultsSummary(summary);
+        } catch (_) { /* 忽略 */ }
+    })();
 
-    await loadResultsPage(jobId);
+    await Promise.all([summaryPromise, loadResultsPage(jobId)]);
 }
 
 /**
@@ -1069,16 +1091,18 @@ async function loadInternalResults(jobId) {
 
     clearInternalSummaryUI();
 
-    try {
-        const params = {};
-        if (_internalGroupBy && _internalGroupBy !== 'none') {
-            params.group_by = _internalGroupBy;
-        }
-        const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
-        renderInternalSummary(summary);
-    } catch (_) { /* 忽略 */ }
+    const summaryPromise = (async () => {
+        try {
+            const params = {};
+            if (_internalGroupBy && _internalGroupBy !== 'none') {
+                params.group_by = _internalGroupBy;
+            }
+            const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
+            renderInternalSummary(summary);
+        } catch (_) { /* 忽略 */ }
+    })();
 
-    await loadInternalResultsPage(jobId);
+    await Promise.all([summaryPromise, loadInternalResultsPage(jobId)]);
 }
 
 /**

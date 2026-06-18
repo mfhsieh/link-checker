@@ -4,6 +4,7 @@
  * 全域 Toast 通知工具，提供 success / warning / error / info 四種類型。
  */
 
+/** @type {HTMLElement|null} Toast 訊息容器元素 */
 let _containerEl = null;
 
 /**

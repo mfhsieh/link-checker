@@ -5,11 +5,17 @@
 import * as api from './api.js';
 import { toast } from './toast.js';
 
+/** @type {Object|null} 目前比對的差異資料 */
 let _currentDiffData = null;
+/** @type {boolean} 是否已綁定比對事件 */
 let _eventsBound = false;
+/** @type {string} 目前選取的差異頁籤 */
 let _currentTab = 'ip_changed';
+/** @type {{key: string|null, asc: boolean}} 差異表格的排序狀態 */
 let _compareSort = { key: null, asc: true };
+/** @type {Object<string, string>} 差異表格的各欄位篩選條件 */
 let _compareColFilters = {};
+/** @type {Array<{label: string, key: string|null, sortable?: boolean, filterable?: boolean}>} 目前差異表格的表頭設定 */
 let _currentCompareHeaders = [];
 
 /**

@@ -8,7 +8,8 @@
  * - JSON 序列化 / 反序列化
  */
 
-const BASE_URL = '';  // 同源，不需前綴
+/** @type {string} API 請求的基礎 URL，同源情況下為空字串 */
+const BASE_URL = '';
 
 /**
  * 從 Cookie 讀取指定名稱的值

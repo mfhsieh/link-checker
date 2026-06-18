@@ -7,9 +7,13 @@ import { toast } from './toast.js';
 
 
 
+/** @type {Array<Object>} 目前載入的所有任務列表 */
 let _currentJobs = [];
+/** @type {{key: string|null, asc: boolean}} 目前的排序狀態 */
 let _jobSort = { key: 'created_at', asc: false };
+/** @type {Object<string, string>} 各欄位的篩選條件 */
 let _jobColFilters = {};
+/** @type {HTMLElement|null} 列表容器元素 */
 let _listContainerEl = null;
 
 /**
@@ -235,6 +239,11 @@ function renderJobRow(job) {
   return tr;
 }
 
+/**
+ * 導覽至任務詳情頁面 (附加於 window 物件供行內點擊事件呼叫)
+ * @param {string} jobId - 任務 ID
+ * @returns {void}
+ */
 window.viewJob = (jobId) => {
   window.location.hash = `#/jobs/${jobId}`;
 };
