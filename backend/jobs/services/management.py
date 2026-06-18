@@ -70,7 +70,7 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError(f"找不到任務 ID: {job_id}")
     if job.user_id != user_id:
         raise ValueError("無權限操作此任務。")
-    if job.status not in ("pending", "paused"):
+    if job.status not in ("pending", "paused", "error"):
         raise ValueError(f"任務目前狀態為 {job.status}，無法啟動。")
 
     _cleanup_finished_processes()
@@ -81,7 +81,7 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     # 將任務狀態設為 starting
     with manager.session_factory() as session:
         j = session.query(Job).filter(Job.id == job_id).first()
-        if j and j.status in ("pending", "paused"):
+        if j and j.status in ("pending", "paused", "error"):
             j.status = "starting"
             session.commit()
         else:

@@ -289,14 +289,14 @@ def resume_job(
         HTTPException 400: 若任務非暫停狀態時拋出。
     """
     try:
-        # 先確認任務狀態，resume 只允許 paused 狀態
+        # 先確認任務狀態，resume 只允許 paused 或 error 狀態
         job = manager.get_job(job_id)
         if not job:
             raise ValueError(f"找不到任務 ID: {job_id}")
         if job.user_id != current_user.id:
             raise ValueError("無權限操作此任務。")
-        if job.status != "paused":
-            raise ValueError(f"任務目前狀態為 {job.status}，resume 只允許恢復 paused 狀態的任務。")
+        if job.status not in ("paused", "error"):
+            raise ValueError(f"任務目前狀態為 {job.status}，resume 只允許恢復 paused 或 error 狀態的任務。")
         job_management.start_job(manager, job_id, current_user.id)
         return {"message": "任務已恢復執行。"}
     except ValueError as e:

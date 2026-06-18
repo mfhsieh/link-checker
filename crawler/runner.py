@@ -174,14 +174,15 @@ class JobRunner:
             logger.error("找不到指定的任務 ID: %s", self.job_id)
             return None
 
-        if job.status in ["completed", "error"]:
-            logger.warning("任務 %s 的狀態已經是 %s，無法再次執行。", self.job_id, job.status)
+        if job.status == "completed":
+            logger.warning("任務 %s 已經完成，無法再次執行。", self.job_id)
             return None
 
-        if job.status == "running" and not force:
+        if job.status in ("running", "error") and not force:
             logger.error(
-                "任務 %s 目前正在執行中。如果確定前次程序已經意外終止，請加上 -f 或 --force 參數強制接管任務。",
+                "任務 %s 目前狀態為 %s。如果確定前次程序已經意外終止，請加上 -f 或 --force 參數強制接續執行。",
                 self.job_id,
+                job.status,
             )
             return None
 
@@ -230,7 +231,8 @@ class JobRunner:
         )
 
         self.state.crawled_count = (
-            session.query(CrawlQueue)
+            session
+            .query(CrawlQueue)
             .filter(
                 CrawlQueue.job_id == self.job_id,
                 (CrawlQueue.status.in_(["completed", "failed", "warning"]))
@@ -277,7 +279,8 @@ class JobRunner:
                 break
 
             queue_item: CrawlQueue | None = (
-                session.query(CrawlQueue)
+                session
+                .query(CrawlQueue)
                 .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
                 .order_by(CrawlQueue.id)
                 .first()
@@ -382,7 +385,8 @@ class JobRunner:
         ):
             for link in internal_links:
                 exists = (
-                    session.query(CrawlQueue)
+                    session
+                    .query(CrawlQueue)
                     .filter(
                         CrawlQueue.job_id == self.job_id,
                         CrawlQueue.url == link,
@@ -419,7 +423,8 @@ class JobRunner:
         links_needing_http_check = []
         for link in unique_external_links:
             exists = (
-                session.query(ExternalLink)
+                session
+                .query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == self.job_id,
                     ExternalLink.source_url == current_url,
@@ -500,7 +505,8 @@ class JobRunner:
         for res_link, res_ip, res_code, res_err in results:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
             exists = (
-                session.query(ExternalLink)
+                session
+                .query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == self.job_id,
                     ExternalLink.source_url == current_url,

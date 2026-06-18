@@ -841,7 +841,7 @@ function renderJobInfo(job) {
     setTextContent('stat-skipped', progress.skipped || 0);
     setTextContent('stat-failed', progress.failed || 0);
 
-    const canStart = ['pending', 'paused'].includes(job.status) && !job.is_running;
+    const canStart = ['pending', 'paused', 'error'].includes(job.status) && !job.is_running;
     const canPause = isActuallyRunning && !isPausing;
     const canCompare = job.status === 'completed';
     const canTransfer = !isActuallyRunning;
@@ -864,7 +864,7 @@ function renderJobInfo(job) {
  */
 function bindControlButtons() {
     bindBtn('btn-start-job', async () => {
-        const confirmed = await showConfirm('啟動任務', '確定要開始執行此爬蟲任務嗎？', '啟動');
+        const confirmed = await showConfirm('啟動任務', '確定要開始（或接續）執行此爬蟲任務嗎？', '啟動');
         if (!confirmed) return;
         await api.post(`/api/jobs/${_currentJobId}/start`);
         toast.success('任務已啟動！');
@@ -1063,21 +1063,21 @@ async function loadExternalResults(jobId) {
 
     clearResultsSummaryUI();
 
-    const summaryPromise = (async () => {
-        try {
-            const params = {};
-            if (_currentExcludeEnabled && _currentExclude) {
-                params.exclude = _currentExclude;
-            }
-            if (_currentGroupBy && _currentGroupBy !== 'none') {
-                params.group_by = _currentGroupBy;
-            }
-            const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
-            renderResultsSummary(summary);
-        } catch (_) { /* 忽略 */ }
-    })();
+    // 先載入結果列表，讓使用者優先看到資料
+    await loadResultsPage(jobId);
 
-    await Promise.all([summaryPromise, loadResultsPage(jobId)]);
+    // 列表載入完成後再請求統計摘要，減輕後端同時運算的並發壓力
+    try {
+        const params = {};
+        if (_currentExcludeEnabled && _currentExclude) {
+            params.exclude = _currentExclude;
+        }
+        if (_currentGroupBy && _currentGroupBy !== 'none') {
+            params.group_by = _currentGroupBy;
+        }
+        const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
+        renderResultsSummary(summary);
+    } catch (_) { /* 忽略 */ }
 }
 
 /**
@@ -1091,18 +1091,18 @@ async function loadInternalResults(jobId) {
 
     clearInternalSummaryUI();
 
-    const summaryPromise = (async () => {
-        try {
-            const params = {};
-            if (_internalGroupBy && _internalGroupBy !== 'none') {
-                params.group_by = _internalGroupBy;
-            }
-            const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
-            renderInternalSummary(summary);
-        } catch (_) { /* 忽略 */ }
-    })();
+    // 先載入結果列表
+    await loadInternalResultsPage(jobId);
 
-    await Promise.all([summaryPromise, loadInternalResultsPage(jobId)]);
+    // 列表載入完成後再請求統計摘要
+    try {
+        const params = {};
+        if (_internalGroupBy && _internalGroupBy !== 'none') {
+            params.group_by = _internalGroupBy;
+        }
+        const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
+        renderInternalSummary(summary);
+    } catch (_) { /* 忽略 */ }
 }
 
 /**
