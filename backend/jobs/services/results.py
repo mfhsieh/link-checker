@@ -13,7 +13,7 @@ from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.sql.functions import count, max as sql_max, min as sql_min, sum as sql_sum
 
-from backend.jobs.schemas import JobResultQuery
+from backend.jobs.schemas import InternalResultQuery, JobResultQuery
 from crawler.models import CrawlQueue, ExternalLink, Job, apply_job_result_filters
 from crawler.utils import JSONGroupArray, JSONObject, format_crawl_queue_item, get_domain
 
@@ -1091,20 +1091,14 @@ def stream_internal_results(db: DBSession, job_id: str, user_id: str) -> Iterato
 
 def stream_internal_errors(
     db: DBSession,
-    job_id: str,
-    user_id: str,
-    status_filter: str | None = None,
-    group_by: str = "none",
+    query_args: InternalResultQuery,
 ) -> Iterator[dict[str, object]]:
     """
     查詢任務的內部失效紀錄，並以 yield 串流回傳。
 
     Args:
         db (DBSession): Crawler DB Session。
-        job_id (str): 任務 ID。
-        user_id (str): 請求查詢的使用者 ID。
-        status_filter (str | None): 狀態篩選。
-        group_by (str): 聚合方式。
+        query_args (InternalResultQuery): 內部結果查詢參數。
 
     Yields:
         dict[str, object]: 單筆內部失敗結果字典。
@@ -1112,18 +1106,28 @@ def stream_internal_errors(
     Raises:
         ValueError: 找不到任務或無權限存取時拋出。
     """
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job or job.user_id != user_id:
+    job = db.query(Job).filter(Job.id == query_args.job_id).first()
+    if not job or job.user_id != query_args.user_id:
         raise ValueError("無權限存取此任務。")
 
-    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
-    query = apply_internal_result_filters(query, status_filter)
+    query = db.query(CrawlQueue).filter(
+        CrawlQueue.job_id == query_args.job_id,
+        CrawlQueue.status.in_(["failed", "warning"]),
+    )
+    query = apply_internal_result_filters(query, query_args.status_filter)
 
-    if group_by == "source":
+    if query_args.group_by == "source":
         # 呼叫既有的分頁查詢函數，但直接索取所有匹配結果並利用它實作的聚合演算法
-        results = get_internal_errors(
-            db, job_id, user_id, status_filter, group_by, page=1, page_size=9999999, truncate_lists=False
+        fetch_args = InternalResultQuery(
+            job_id=query_args.job_id,
+            user_id=query_args.user_id,
+            status_filter=query_args.status_filter,
+            group_by=query_args.group_by,
+            page=1,
+            page_size=9999999,
+            truncate_lists=False,
         )
+        results = get_internal_errors(db, fetch_args)
         yield from results["items"]  # type: ignore
     else:
         cursor = query.order_by(CrawlQueue.id).yield_per(2000)
@@ -1313,14 +1317,7 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
 
 def _get_internal_errors_grouped_by_source(
     db: DBSession,
-    job_id: str,
-    status_filter: str | None,
-    page: int,
-    page_size: int,
-    truncate_lists: bool,
-    sort_by: str | None,
-    sort_asc: bool,
-    col_filters: str | None,
+    query_args: InternalResultQuery,
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表，並依來源網頁 (Source URL) 聚合。
@@ -1343,9 +1340,9 @@ def _get_internal_errors_grouped_by_source(
         CrawlQueue.source_url,
         count(CrawlQueue.id).label("occurrence_count"),
         JSONGroupArray(target_obj).label("targets"),
-    ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
+    ).filter(CrawlQueue.job_id == query_args.job_id, CrawlQueue.status.in_(["failed", "warning"]))
 
-    main_q = apply_internal_result_filters(main_q, status_filter)
+    main_q = apply_internal_result_filters(main_q, query_args.status_filter)
     main_q = main_q.group_by(CrawlQueue.source_url)
 
     # 3. 動態套用欄位過濾器
@@ -1354,7 +1351,7 @@ def _get_internal_errors_grouped_by_source(
         "occurrence_count": lambda v: cast(count(CrawlQueue.id), String).ilike(f"%{v}%"),
         "targets": lambda v: cast(JSONGroupArray(target_obj), String).ilike(f"%{v}%"),
     }
-    main_q = _apply_col_filters(main_q, col_filters, filter_map, is_having=True)
+    main_q = _apply_col_filters(main_q, query_args.col_filters, filter_map, is_having=True)
 
     # 4. 動態套用排序規則
     sort_map = {
@@ -1364,8 +1361,8 @@ def _get_internal_errors_grouped_by_source(
     }
     main_q = _apply_sorting(
         main_q,
-        sort_by,
-        sort_asc,
+        query_args.sort_by,
+        query_args.sort_asc,
         sort_map,
         desc(count(CrawlQueue.id)),
     )
@@ -1373,29 +1370,26 @@ def _get_internal_errors_grouped_by_source(
     # 5. 執行分頁查詢
     total = main_q.count()
     items_list = []
-    for row in main_q.offset((page - 1) * page_size).limit(page_size).all():
+    offset = (query_args.page - 1) * query_args.page_size
+    for row in main_q.offset(offset).limit(query_args.page_size).all():
         items_list.append({
             "source_url": row[0] or "",
             "occurrence_count": row[1],
-            "targets": _parse_json_list(row[2])[:10] if truncate_lists else _parse_json_list(row[2]),
+            "targets": _parse_json_list(row[2])[:10] if query_args.truncate_lists else _parse_json_list(row[2]),
         })
 
     return {
         "items": items_list,
         "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
+        "page": query_args.page,
+        "page_size": query_args.page_size,
+        "total_pages": (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1,
     }
 
 
 def _get_internal_errors_no_grouping(
     query: Query,
-    page: int,
-    page_size: int,
-    sort_by: str | None,
-    sort_asc: bool,
-    col_filters: str | None,
+    query_args: InternalResultQuery,
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表，無聚合模式。
@@ -1406,7 +1400,7 @@ def _get_internal_errors_no_grouping(
         "HTTP Status Code": lambda v: cast(CrawlQueue.status_code, String).ilike(f"%{v}%"),
         "Error Message": lambda v: CrawlQueue.error_message.ilike(f"%{v}%"),
     }
-    query = _apply_col_filters(query, col_filters, filter_map)
+    query = _apply_col_filters(query, query_args.col_filters, filter_map)
 
     sort_map = {
         "URL": CrawlQueue.url,
@@ -1416,48 +1410,38 @@ def _get_internal_errors_no_grouping(
     }
     query = _apply_sorting(
         query,
-        sort_by,
-        sort_asc,
+        query_args.sort_by,
+        query_args.sort_asc,
         sort_map,
         CrawlQueue.id,
     )
 
     total = query.count()
-    items_list = [format_crawl_queue_item(q) for q in query.offset((page - 1) * page_size).limit(page_size).all()]
+    offset = (query_args.page - 1) * query_args.page_size
+    items_list = [
+        format_crawl_queue_item(q)
+        for q in query.offset(offset).limit(query_args.page_size).all()
+    ]
 
     return {
         "items": items_list,
         "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size if total > 0 else 1,
+        "page": query_args.page,
+        "page_size": query_args.page_size,
+        "total_pages": (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1,
     }
 
 
 def get_internal_errors(
     db: DBSession,
-    job_id: str,
-    user_id: str,
-    status_filter: str | None = None,
-    group_by: str = "none",
-    page: int = 1,
-    page_size: int = 50,
-    truncate_lists: bool = True,
-    sort_by: str | None = None,
-    sort_asc: bool = True,
-    col_filters: str | None = None,
+    query_args: InternalResultQuery,
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表。
 
     Args:
         db (DBSession): Crawler DB Session。
-        job_id (str): 任務 ID。
-        user_id (str): 請求查詢的使用者 ID。
-        status_filter (str | None): 狀態篩選。
-        group_by (str): 聚合方式。
-        page (int): 頁碼。
-        page_size (int): 每頁筆數。
+        query_args (InternalResultQuery): 查詢內部失效結果的參數封裝。
 
     Returns:
         dict[str, object]: 查詢結果的字典。
@@ -1465,30 +1449,16 @@ def get_internal_errors(
     Raises:
         ValueError: 找不到任務或無權限存取時拋出。
     """
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job or job.user_id != user_id:
+    job = db.query(Job).filter(Job.id == query_args.job_id).first()
+    if not job or job.user_id != query_args.user_id:
         raise ValueError("無權限存取此任務。")
 
-    if group_by == "source":
-        return _get_internal_errors_grouped_by_source(
-            db=db,
-            job_id=job_id,
-            status_filter=status_filter,
-            page=page,
-            page_size=page_size,
-            truncate_lists=truncate_lists,
-            sort_by=sort_by,
-            sort_asc=sort_asc,
-            col_filters=col_filters,
-        )
+    if query_args.group_by == "source":
+        return _get_internal_errors_grouped_by_source(db, query_args)
 
-    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
-    query = apply_internal_result_filters(query, status_filter)
-    return _get_internal_errors_no_grouping(
-        query=query,
-        page=page,
-        page_size=page_size,
-        sort_by=sort_by,
-        sort_asc=sort_asc,
-        col_filters=col_filters,
+    query = db.query(CrawlQueue).filter(
+        CrawlQueue.job_id == query_args.job_id,
+        CrawlQueue.status.in_(["failed", "warning"]),
     )
+    query = apply_internal_result_filters(query, query_args.status_filter)
+    return _get_internal_errors_no_grouping(query, query_args)

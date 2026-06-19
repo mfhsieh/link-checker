@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
 from backend.deps import get_crawler_db, get_current_user
-from backend.jobs.schemas import JobResultQuery, ResultsQueryArgs
+from backend.jobs.schemas import InternalResultQuery, JobResultQuery, ResultsQueryArgs
 from backend.jobs.services import results as job_results
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -183,8 +183,18 @@ def get_internal_results(
         HTTPException 404: 找不到任務或無權限存取時拋出。
     """
     try:
-        return job_results.get_internal_errors(
-            db, job_id, current_user.id, status_filter, group_by, page, page_size, True, sort_by, sort_asc, col_filters
+        query_args = InternalResultQuery(
+            job_id=job_id,
+            user_id=current_user.id,
+            status_filter=status_filter,
+            group_by=group_by,
+            page=page,
+            page_size=page_size,
+            truncate_lists=True,
+            sort_by=sort_by,
+            sort_asc=sort_asc,
+            col_filters=col_filters,
         )
+        return job_results.get_internal_errors(db, query_args)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e

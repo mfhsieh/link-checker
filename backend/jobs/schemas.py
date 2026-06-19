@@ -334,3 +334,19 @@ class JobDetailResponse(BaseModel):
     progress: JobProgress
     external_link_count: int
     is_running: bool
+
+
+@dataclass
+class InternalResultQuery:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
+    """查詢內部失效結果的參數封裝。"""
+
+    job_id: str
+    user_id: str
+    status_filter: str | None = None
+    group_by: str = "none"
+    page: int = 1
+    page_size: int = 50
+    truncate_lists: bool = True
+    sort_by: str | None = None
+    sort_asc: bool = True
+    col_filters: str | None = None

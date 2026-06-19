@@ -27,6 +27,7 @@ from backend.auth.models import User
 from backend.deps import get_crawler_db, get_current_user
 from backend.jobs.schemas import (
     ExportQueryArgs,
+    InternalResultQuery,
     JobResultQuery,
 )
 from backend.jobs.services import results as job_results
@@ -239,6 +240,13 @@ def export_internal_results(
     if group_by != "none":
         filename += f"_by_{group_by}"
 
+    query_args = InternalResultQuery(
+        job_id=job_id,
+        user_id=current_user.id,
+        status_filter=query_filter,
+        group_by=group_by,
+    )
+
     if fmt == "json":
 
         def json_generator() -> Generator[str, None, None]:
@@ -250,7 +258,7 @@ def export_internal_results(
             """
             yield "[\n"
             first = True
-            for item in job_results.stream_internal_errors(db, job_id, current_user.id, query_filter, group_by):
+            for item in job_results.stream_internal_errors(db, query_args):
                 if not first:
                     yield ",\n"
                 yield json.dumps(item, ensure_ascii=False, indent=2)
@@ -273,7 +281,7 @@ def export_internal_results(
         yield "\ufeff"
         output = io.StringIO()
         writer = None
-        for item in job_results.stream_internal_errors(db, job_id, current_user.id, query_filter, group_by):
+        for item in job_results.stream_internal_errors(db, query_args):
             if group_by == "source":
                 fieldnames = ["Source URL", "Failure Count", "Target URLs"]
                 row_data = {
