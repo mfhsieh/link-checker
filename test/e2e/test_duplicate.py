@@ -53,18 +53,18 @@ def test_duplicate_job_filters_defaults(page: Page, base_url: str) -> None:
     expect(page).to_have_url(re.compile(r".*/app\.html#/new\?clone=" + job_id))
     page.wait_for_load_state("networkidle")
 
-    # 4. 驗證回填的欄位值是否被正確過濾
+    # 4. 驗證回填的欄位值是否被正確過濾或保留
     # 自訂的 delay 應該被正確回填為 5.5
     delay_val = page.eval_on_selector('input[id="job-delay"]', "el => el.value")
     assert delay_val == "5.5", f"delay 欄位應為 '5.5'，但得到 '{delay_val}'"
 
-    # 與預設值相同的 timeout (預設值為 30) 應該被過濾而留空 (空字串)
+    # 單一覆寫欄位如 timeout (預設值為 60) 即使與預設相同也應直接回填，不應留空
     timeout_val = page.eval_on_selector('input[id="job-timeout"]', "el => el.value")
-    assert timeout_val == "", f"timeout 欄位應為空字串，但得到 '{timeout_val}'"
+    assert timeout_val == "60", f"timeout 欄位應為 '60'，但得到 '{timeout_val}'"
 
-    # 與預設值相同的 retries (預設值為 3) 應該被過濾而留空
+    # 單一覆寫欄位如 retries (預設值為 3) 即使與預設相同也應直接回填，不應留空
     retries_val = page.eval_on_selector('input[id="job-retries"]', "el => el.value")
-    assert retries_val == "", f"retries 欄位應為空字串，但得到 '{retries_val}'"
+    assert retries_val == "3", f"retries 欄位應為 '3'，但得到 '{retries_val}'"
 
     # 5. 修改 URL 並提交複製的新任務
     page.fill('input[id="job-url"]', "https://example-clone-target.com")

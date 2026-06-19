@@ -1495,6 +1495,10 @@
         destroyJobDetailPage();
         await loadJobDefaults();
 
+        // 每次進入新建/複製頁面，都先重置表單以避免舊有狀態殘留
+        const form = document.getElementById('create-job-form');
+        if (form) form.reset();
+
         const params = new URLSearchParams(hash.split('?')[1] || '');
         const cloneId = params.get('clone');
         if (cloneId) {
@@ -1505,6 +1509,12 @@
             const isEquivalent = (a, b) => {
               if (a === b) return true;
               if (a == null || b == null) return false;
+
+              // 容錯處理：若兩者皆能轉為非空數字，則以數值大小進行比對，相容字串數字與數值型態
+              if (a !== '' && b !== '' && !isNaN(Number(a)) && !isNaN(Number(b))) {
+                if (Number(a) === Number(b)) return true;
+              }
+
               if (Array.isArray(a) && Array.isArray(b)) {
                 if (a.length !== b.length) return false;
                 const sortedA = [...a].sort();
@@ -1531,8 +1541,12 @@
 
             const setVal = (id, val) => {
               const el = document.getElementById(id);
-              if (el && val !== undefined && val !== null) {
-                el.value = Array.isArray(val) ? val.join('\n') : val;
+              if (el) {
+                if (val !== undefined && val !== null) {
+                  el.value = Array.isArray(val) ? val.join('\n') : val;
+                } else {
+                  el.value = '';
+                }
               }
             };
 
@@ -1543,11 +1557,12 @@
             setVal('job-ignore-regexes', getFilteredValue('ignore_regexes', c.ignore_regexes));
             setVal('job-ssl-exempt', getFilteredValue('ssl_exempt_domains', c.ssl_exempt_domains));
             setVal('job-social-domains', getFilteredValue('social_domains', c.social_domains));
-            setVal('job-user-agent', getFilteredValue('user_agent', c.user_agent));
+            
+            // 單一覆寫型欄位，複製時直接填入原始快照值，不再進行全域濾除
+            setVal('job-user-agent', c.user_agent);
 
-            const filteredProxy = getFilteredValue('proxy_url', c.proxy_url);
-            if (filteredProxy && !filteredProxy.includes('***')) {
-              setVal('job-proxy-url', filteredProxy);
+            if (c.proxy_url && !c.proxy_url.includes('***')) {
+              setVal('job-proxy-url', c.proxy_url);
             } else if (c.proxy_url && c.proxy_url.includes('***')) {
               setVal('job-proxy-url', '');
               toast.warning('已隱藏原始任務的 Proxy 密碼，請重新輸入代理伺服器位址 (若需要)。');
@@ -1555,14 +1570,15 @@
               setVal('job-proxy-url', '');
             }
 
-            setVal('job-timeout', getFilteredValue('timeout', c.timeout));
-            setVal('job-connect-timeout', getFilteredValue('connect_timeout', c.connect_timeout));
-            setVal('job-ext-check-timeout', getFilteredValue('external_check_timeout', c.external_check_timeout));
-            setVal('job-delay', getFilteredValue('delay', c.delay));
-            setVal('job-retries', getFilteredValue('retries', c.retries));
-            setVal('job-max-depth', getFilteredValue('max_depth', c.max_depth));
-            setVal('job-max-pages', getFilteredValue('max_pages', c.max_pages));
+            setVal('job-timeout', c.timeout);
+            setVal('job-connect-timeout', c.connect_timeout);
+            setVal('job-ext-check-timeout', c.external_check_timeout);
+            setVal('job-delay', c.delay);
+            setVal('job-retries', c.retries);
+            setVal('job-max-depth', c.max_depth);
+            setVal('job-max-pages', c.max_pages);
 
+            // domain_delays 屬於字典合併，依然需要進行過濾，防止全域網域延遲被寫死回表單
             const filteredDomainDelays = getFilteredValue('domain_delays', c.domain_delays);
             if (filteredDomainDelays) {
               const ddLines = Object.entries(filteredDomainDelays).map(([k, v]) => `${k}: ${v}`);
@@ -1573,9 +1589,6 @@
           } catch (err) {
             toast.error('無法載入欲複製的任務：' + err.message);
           }
-        } else {
-          const form = document.getElementById('create-job-form');
-          if (form) form.reset();
         }
       } else if (jobMatch) {
         const jobId = jobMatch[1];

@@ -30,6 +30,7 @@ from backend.jobs.services import management as job_management
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
     merge_and_validate_crawler_config,
+    _sanitize_crawler_types,
 )
 from crawler.manager import JobManager
 
@@ -63,6 +64,9 @@ def get_default_config(
                     crawler_config = data["crawler"]
         except (OSError, yaml.YAMLError) as e:
             logger.warning("讀取全域設定檔失敗: %s", e)
+
+    # 進行型別清洗，確保回傳的欄位型態與資料庫內存的數值型態一致
+    _sanitize_crawler_types(crawler_config)
 
     # 僅提取前端有使用到的欄位，過濾掉不需要暴露的敏感或內部配置
     allowed_keys = {
