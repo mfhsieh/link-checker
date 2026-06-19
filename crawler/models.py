@@ -38,7 +38,8 @@ def get_utc_now() -> datetime:
 
 @dataclass
 class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
-    """爬蟲引擎的全域與進階配置物件。
+    """
+    爬蟲引擎的全域與進階配置物件。
 
     Attributes:
         timeout (int): 網頁請求等待回應的最大秒數。
@@ -71,6 +72,9 @@ class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
     def __post_init__(self) -> None:
         """
         在初始化後檢查網域陣列是否有提供初始值。
+
+        Returns:
+            None
         """
         if self.ignore_extensions is None:
             self.ignore_extensions = list(_DEF["ignore_extensions"])

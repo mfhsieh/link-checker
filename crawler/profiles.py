@@ -11,14 +11,15 @@ import re
 from fake_useragent import UserAgent
 from fake_useragent.errors import FakeUserAgentError
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 # 初始化 UserAgent (避免每次呼叫都讀取磁碟或網路)
-_ua = UserAgent(os=["windows", "macos", "linux"], browsers=["chrome", "firefox", "safari", "edge"])
+_ua: UserAgent = UserAgent(os=["windows", "macos", "linux"], browsers=["chrome", "firefox", "safari", "edge"])
 
 
 def _extract_chrome_version(ua_string: str) -> str:
-    """從 User-Agent 中擷取 Chrome 主版本號
+    """
+    從 User-Agent 中擷取 Chrome 主版本號。
 
     Args:
         ua_string (str): User-Agent 字串。
@@ -31,7 +32,8 @@ def _extract_chrome_version(ua_string: str) -> str:
 
 
 def _extract_edge_version(ua_string: str) -> str:
-    """從 User-Agent 中擷取 Edge 主版本號
+    """
+    從 User-Agent 中擷取 Edge 主版本號。
 
     Args:
         ua_string (str): User-Agent 字串。

@@ -158,12 +158,34 @@ class JSONGroupArray(FunctionElement):
 
 
 @compiles(JSONGroupArray, "sqlite")
-def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler, **kw) -> str:  # type: ignore
+def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler: object, **kw: object) -> str:
+    """
+    編譯 JSONGroupArray 函式至 SQLite 相容的 SQL。
+
+    Args:
+        element (JSONGroupArray): SQLAlchemy 的 JSONGroupArray 函式元素。
+        compiler (object): SQL 編譯器。
+        **kw (object): 其他編譯參數。
+
+    Returns:
+        str: 編譯後的 SQLite SQL 字串。
+    """
     return f"json_group_array({compiler.process(element.clauses, **kw)})"
 
 
 @compiles(JSONGroupArray, "postgresql")
-def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler, **kw) -> str:  # type: ignore
+def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler: object, **kw: object) -> str:
+    """
+    編譯 JSONGroupArray 函式至 PostgreSQL 相容的 SQL。
+
+    Args:
+        element (JSONGroupArray): SQLAlchemy 的 JSONGroupArray 函式元素。
+        compiler (object): SQL 編譯器。
+        **kw (object): 其他編譯參數。
+
+    Returns:
+        str: 編譯後的 PostgreSQL SQL 字串。
+    """
     return f"json_agg({compiler.process(element.clauses, **kw)})"
 
 
@@ -179,12 +201,34 @@ class JSONObject(FunctionElement):
 
 
 @compiles(JSONObject, "sqlite")
-def _compile_json_object_sqlite(element: JSONObject, compiler, **kw) -> str:  # type: ignore
+def _compile_json_object_sqlite(element: JSONObject, compiler: object, **kw: object) -> str:
+    """
+    編譯 JSONObject 函式至 SQLite 相容的 SQL。
+
+    Args:
+        element (JSONObject): SQLAlchemy 的 JSONObject 函式元素。
+        compiler (object): SQL 編譯器。
+        **kw (object): 其他編譯參數。
+
+    Returns:
+        str: 編譯後的 SQLite SQL 字串。
+    """
     return f"json_object({compiler.process(element.clauses, **kw)})"
 
 
 @compiles(JSONObject, "postgresql")
-def _compile_json_object_postgresql(element: JSONObject, compiler, **kw) -> str:  # type: ignore
+def _compile_json_object_postgresql(element: JSONObject, compiler: object, **kw: object) -> str:
+    """
+    編譯 JSONObject 函式至 PostgreSQL 相容的 SQL。
+
+    Args:
+        element (JSONObject): SQLAlchemy 的 JSONObject 函式元素。
+        compiler (object): SQL 編譯器。
+        **kw (object): 其他編譯參數。
+
+    Returns:
+        str: 編譯後的 PostgreSQL SQL 字串。
+    """
     return f"json_build_object({compiler.process(element.clauses, **kw)})"
 
 
@@ -238,6 +282,9 @@ def create_optimized_engine(  # pylint: disable=too-many-arguments
             Args:
                 dbapi_connection (object): SQLite 資料庫連線物件。
                 _connection_record (object): SQLAlchemy 連線紀錄物件（此處未使用）。
+
+            Returns:
+                None
             """
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")

@@ -15,11 +15,43 @@ load_dotenv()
 
 
 class Settings:  # pylint: disable=too-few-public-methods
-    """
-    應用程式設定類別。
+    """應用程式設定類別。
 
     所有設定值皆從環境變數讀取，若環境變數不存在則使用預設值。
     機密項目（如 SMTP_PASSWORD）在生產環境中必須透過環境變數提供。
+
+    Attributes:
+        APP_NAME (str): 應用程式名稱。
+        DEBUG (bool): 是否啟用除錯模式。
+        LOG_CONSOLE_LEVEL (str): 控制台日誌輸出等級（預設為 INFO）。
+        LOG_FILE_LEVEL (str): 檔案日誌輸出等級（預設為 DEBUG）。
+        LOG_FILE_PATH (str): 日誌檔案路徑。
+        AUTH_DB_URL (str): 認證與授權資料庫的 SQLite 連接字串。
+        CRAWLER_DB_URL (str): 爬蟲任務資料庫的 SQLite 連接字串。
+        SQLITE_TIMEOUT (int): SQLite 連線超時時間（秒）。
+        DB_POOL_SIZE (int): 資料庫連線池大小。
+        DB_MAX_OVERFLOW (int): 資料庫連線池最大溢出大小。
+        DB_POOL_PRE_PING (bool): 是否在取得連線前進行 pre-ping 測試。
+        SESSION_COOKIE_NAME (str): 用於存放登入 Session Token 的 Cookie 名稱。
+        SESSION_EXPIRE_SECONDS (int): Session Token 的有效時間（秒，預設為 8 小時）。
+        SESSION_MAX_AGE_SECONDS (int): Session Token 的絕對有效時間上限（秒，預設為 7 天）。
+        CSRF_TOKEN_HEADER (str): 前端請求傳遞 CSRF Token 的 HTTP 標頭名稱（預設為 X-CSRF-Token）。
+        CSRF_COOKIE_NAME (str): 存放 CSRF Token 的 Cookie 名稱（預設為 csrf_token）。
+        INVITATION_EXPIRE_SECONDS (int): 邀請碼有效時間（秒，預設為 72 小時）。
+        BASE_URL (str): 後台系統之基礎 URL，用於組裝邀請與重設密碼連結。
+        LOGIN_MAX_ATTEMPTS (int): 連續登入失敗次數閾值，超過後將暫時鎖定帳號。
+        LOGIN_LOCKOUT_SECONDS (int): 登入失敗鎖定帳號的時間（秒）。
+        PASSWORD_RESET_MAX_ATTEMPTS (int): 同一 IP 於時間窗口內重設密碼之申請次數上限。
+        PASSWORD_RESET_WINDOW_SECONDS (int): 重設密碼次數限制的時間窗口長度（秒）。
+        SMTP_HOST (str): SMTP 郵件伺服器主機。
+        SMTP_PORT (int): SMTP 郵件伺服器連接埠。
+        SMTP_USERNAME (str): SMTP 郵件發送服務帳號。
+        SMTP_PASSWORD (str): SMTP 郵件發送服務密碼。
+        SMTP_FROM_NAME (str): 寄信人顯示名稱。
+        SMTP_FROM_EMAIL (str): 寄信人 Email 地址。
+        SMTP_USE_TLS (bool): 是否啟用 STARTTLS 安全傳輸。
+        SMTP_CONSOLE_MODE (bool): 開發環境下是否啟用 Console 模擬郵件發送。
+        GLOBAL_CONFIG_PATH (str): 全域預設爬蟲設定檔 YAML 之路徑。
     """
 
     # ── 應用程式基本設定 ────────────────────────────────────────────────────────

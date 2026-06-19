@@ -1,5 +1,5 @@
 """
-爬蟲報表匯出模組。
+報表匯出服務模組。
 
 負責處理資料聚合、CSV/JSON 格式化、以及完整任務報表的 ZIP 匯出。
 """
@@ -76,6 +76,9 @@ def _write_export_data(
         json_data (list[dict]): 要輸出的 JSON 格式資料。
         csv_headers (list[str]): CSV 的標頭欄位。
         csv_rows (list[list[object]]): CSV 的各列資料。
+
+    Returns:
+        None
     """
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
@@ -148,6 +151,9 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
         session (Session): 資料庫會話。
         job_id (str): 目標任務 ID。
         zf (zipfile.ZipFile): 目標 ZIP 壓縮檔物件。
+
+    Returns:
+        None
     """
     q_count = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
     if q_count == 0:
@@ -157,29 +163,33 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
     with zf.open(f"job_{job_id}_crawl_records.csv", "w") as f:
         with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
             cq_writer = csv.writer(text_file)
-            cq_writer.writerow([
-                "Source URL",
-                "URL",
-                "Status",
-                "Depth",
-                "Retry Count",
-                "HTTP Status Code",
-                "Error Message",
-                "Created At",
-            ])
+            cq_writer.writerow(
+                [
+                    "Source URL",
+                    "URL",
+                    "Status",
+                    "Depth",
+                    "Retry Count",
+                    "HTTP Status Code",
+                    "Error Message",
+                    "Created At",
+                ]
+            )
             for q in q_items:
                 d = format_crawl_queue_item(q)
                 cq_writer.writerow(
-                    _sanitize_csv_row([
-                        d["Source URL"],
-                        d["URL"],
-                        d["Status"],
-                        d["Depth"],
-                        d["Retry Count"],
-                        d["HTTP Status Code"],
-                        d["Error Message"],
-                        d["Created At"],
-                    ])
+                    _sanitize_csv_row(
+                        [
+                            d["Source URL"],
+                            d["URL"],
+                            d["Status"],
+                            d["Depth"],
+                            d["Retry Count"],
+                            d["HTTP Status Code"],
+                            d["Error Message"],
+                            d["Created At"],
+                        ]
+                    )
                 )
 
 
@@ -190,14 +200,16 @@ def _export_external_links_to_zip(session: Session, job_id: str, zf: zipfile.Zip
         session (Session): 資料庫會話。
         job_id (str): 目標任務 ID。
         zf (zipfile.ZipFile): 目標 ZIP 壓縮檔物件。
+
+    Returns:
+        None
     """
     e_count = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
     if e_count == 0:
         return
 
     e_items = (
-        session
-        .query(ExternalLink)
+        session.query(ExternalLink)
         .filter(ExternalLink.job_id == job_id)
         .order_by(ExternalLink.created_at)
         .yield_per(2000)
@@ -205,26 +217,30 @@ def _export_external_links_to_zip(session: Session, job_id: str, zf: zipfile.Zip
     with zf.open(f"job_{job_id}_external_links.csv", "w") as f:
         with io.TextIOWrapper(f, encoding="utf-8-sig", newline="") as text_file:
             el_writer = csv.writer(text_file)
-            el_writer.writerow([
-                "Source URL",
-                "Target URL",
-                "IP Address",
-                "Is Secure",
-                "HTTP Status Code",
-                "Error Message",
-                "Found At",
-            ])
+            el_writer.writerow(
+                [
+                    "Source URL",
+                    "Target URL",
+                    "IP Address",
+                    "Is Secure",
+                    "HTTP Status Code",
+                    "Error Message",
+                    "Found At",
+                ]
+            )
             for link in e_items:
                 el_writer.writerow(
-                    _sanitize_csv_row([
-                        link.source_url,
-                        link.target_url,
-                        link.ip_address if link.ip_address else "",
-                        link.is_secure,
-                        link.http_status_code if link.http_status_code is not None else "",
-                        link.error_message if link.error_message else "",
-                        link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    ])
+                    _sanitize_csv_row(
+                        [
+                            link.source_url,
+                            link.target_url,
+                            link.ip_address if link.ip_address else "",
+                            link.is_secure,
+                            link.http_status_code if link.http_status_code is not None else "",
+                            link.error_message if link.error_message else "",
+                            link.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                        ]
+                    )
                 )
 
 

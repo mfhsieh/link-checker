@@ -23,8 +23,14 @@ load_dotenv()
 
 # pylint: disable=wrong-import-position
 # isort: off
+from backend.jobs.services.exporter import export_full_report, export_job_results, ExportOptions  # noqa: E402
+
+try:
+    from backend.jobs.services.notifier import send_job_status_notification as _send_notification
+except ImportError:
+    _send_notification = None
+
 from crawler.config_utils import merge_and_validate_crawler_config  # noqa: E402
-from crawler.exporter import export_full_report, export_job_results, ExportOptions  # noqa: E402
 from crawler.manager import JobManager, JobCreateOptions, Job  # noqa: E402
 # isort: on
 
@@ -68,6 +74,9 @@ def load_config(config_path: str, allowed_directory: str | None = None) -> dict[
 def setup_logging() -> None:
     """
     依據環境變數來套用 Logging 輸出層級與檔案路徑。
+
+    Returns:
+        None
     """
     console_level_str = os.environ.get("LOG_CONSOLE_LEVEL", "INFO")
     file_level_str = os.environ.get("LOG_FILE_LEVEL", "DEBUG")
@@ -138,6 +147,9 @@ def create_admin(email: str) -> None:
 
     Args:
         email (str): 欲建立或重設密碼的管理員信箱。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當提供的 Email 格式不合法時，終止程式並回傳錯誤碼 1。
@@ -378,6 +390,9 @@ def _handle_list_jobs(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含 user_id 與 json 等選項。
+
+    Returns:
+        None
     """
     jobs = manager.get_all_jobs(user_id=args.user_id)
     if args.json:
@@ -399,6 +414,9 @@ def _handle_report(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含報表 ID 與 json 選項。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當找不到任務時拋出並結束程式。
@@ -439,6 +457,9 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含匯出目標、篩選與群組等選項。
 
+    Returns:
+        None
+
     Raises:
         SystemExit: 當匯出失敗時拋出並結束程式。
     """
@@ -477,6 +498,9 @@ def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含匯出目標等選項。
 
+    Returns:
+        None
+
     Raises:
         SystemExit: 當匯出失敗時拋出並結束程式。
     """
@@ -505,6 +529,9 @@ def _handle_pause(manager: JobManager, args: argparse.Namespace) -> None:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲暫停的任務 ID (args.pause)。
 
+    Returns:
+        None
+
     Raises:
         SystemExit: 當暫停操作失敗時拋出並結束程式。
     """
@@ -523,6 +550,9 @@ def _handle_delete(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲刪除的任務 ID (args.delete)。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當刪除操作失敗時拋出並結束程式。
@@ -543,6 +573,9 @@ def _handle_reset(manager: JobManager, args: argparse.Namespace) -> None:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲重設的任務 ID (args.reset)。
 
+    Returns:
+        None
+
     Raises:
         SystemExit: 當重設操作失敗時拋出並結束程式。
     """
@@ -561,6 +594,9 @@ def _handle_retry_failed(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲重試的任務 ID (args.retry_failed)。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當重試操作失敗時拋出並結束程式。
@@ -614,11 +650,15 @@ def _handle_resume(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含欲恢復的任務 ID (args.resume) 與是否強制執行的選項 (args.force)。
+
+    Returns:
+        None
     """
     logging.info("正在恢復執行任務 %s...", args.resume)
     if args.config:
         logging.warning("--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。")
-    manager.run_job(job_id=args.resume, force=args.force)
+    cb = (lambda j_id, stat: _send_notification(manager.session_factory, j_id, stat)) if _send_notification else None
+    manager.run_job(job_id=args.resume, force=args.force, status_callback=cb)
 
 
 def _handle_api_spawn(manager: JobManager, args: argparse.Namespace) -> None:
@@ -628,9 +668,13 @@ def _handle_api_spawn(manager: JobManager, args: argparse.Namespace) -> None:
     Args:
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數，包含 API 啟動的任務 ID (args.api_spawn) 與強制選項。
+
+    Returns:
+        None
     """
     logging.info("API 觸發任務啟動程序: %s", args.api_spawn)
-    manager.run_job(job_id=args.api_spawn, force=args.force, is_api_spawn=True)
+    cb = (lambda j_id, stat: _send_notification(manager.session_factory, j_id, stat)) if _send_notification else None
+    manager.run_job(job_id=args.api_spawn, force=args.force, is_api_spawn=True, status_callback=cb)
 
 
 def _load_job_config(config_path: str) -> dict[str, object]:
@@ -699,6 +743,9 @@ def _create_and_run_new_job(
         config (dict[str, object]): 讀取自 YAML 的原始任務設定。
         crawler_config (dict[str, object]): 已合併全域設定的爬蟲執行參數。
 
+    Returns:
+        None
+
     Raises:
         SystemExit: 當缺少必填參數、網址格式錯誤或啟動爬蟲發生例外時終止程式。
     """
@@ -730,7 +777,10 @@ def _create_and_run_new_job(
             )
         )
         logging.info("成功建立任務 %s。爬蟲啟動中...", job_id)
-        manager.run_job(job_id, crawler_config=crawler_config)
+        cb = (
+            (lambda j_id, stat: _send_notification(manager.session_factory, j_id, stat)) if _send_notification else None
+        )
+        manager.run_job(job_id, crawler_config=crawler_config, status_callback=cb)
     except (ValueError, RuntimeError, OSError, TypeError) as e:
         logging.error("啟動爬蟲時發生例外錯誤: %s", e)
         sys.exit(1)
@@ -746,6 +796,9 @@ def _handle_resume_or_create(manager: JobManager, args: argparse.Namespace, glob
         manager (JobManager): JobManager 實例。
         args (argparse.Namespace): 命令列參數。
         global_config (dict[str, object]): 系統的全域設定字典。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當讀取設定失敗、驗證不通過或啟動爬蟲失敗時，終止程式並回傳錯誤碼 1。
@@ -803,6 +856,9 @@ def _handle_create_admin(args: argparse.Namespace) -> None:
     Args:
         args (argparse.Namespace): 命令列參數，包含目標信箱。
 
+    Returns:
+        None
+
     Raises:
         SystemExit: 當信箱格式錯誤或資料庫執行發生異常時終止程式。
     """
@@ -822,6 +878,9 @@ def _handle_serve(args: argparse.Namespace) -> None:
 
     Args:
         args (argparse.Namespace): 命令列參數，包含是否啟用熱重載 (args.reload)。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當缺少必要套件或啟動伺服器發生例外錯誤時終止程式。
@@ -848,6 +907,9 @@ def main() -> None:
     CLI 的主要程式進入點。
 
     負責解析命令列參數、初始化環境與日誌、並根據參數指派對應的處理函式。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當全域設定讀取失敗、伺服器啟動錯誤等致命例外發生時。

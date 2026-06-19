@@ -15,7 +15,6 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from crawler.models import Base, CrawlQueue, ExternalLink, Job
-from crawler.notifier import send_job_status_notification
 from crawler.runner import JobRunner
 from crawler.utils import create_optimized_engine
 
@@ -24,7 +23,8 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @dataclass
 class JobCreateOptions:
-    """任務建立選項。
+    """
+    任務建立選項。
 
     Attributes:
         start_url (str): 任務起始網址。
@@ -50,17 +50,26 @@ class JobManager:
         session_factory (Callable[[], Session]): 用來建立新 SQLAlchemy Session 的工廠 (Factory)。
     """
 
-    def __init__(self, db_url: str = "sqlite:///db/crawler.db") -> None:
+    def __init__(
+        self,
+        db_url: str = "sqlite:///db/crawler.db",
+        status_callback: Callable[[str, str], None] | None = None,
+    ) -> None:
         """
         初始化 Job 管理器並建立資料庫連線。
 
         Args:
             db_url (str): 資料庫的連線字串。預設為 'sqlite:///db/crawler.db'。
+            status_callback (Callable[[str, str], None] | None): 任務狀態變更時的回呼函式。
+
+        Returns:
+            None
 
         Raises:
             OSError: 若建立資料庫目錄失敗時拋出。
             SQLAlchemyError: 若建立資料表失敗時拋出。
         """
+        self.status_callback = status_callback
         self.engine: Engine = create_optimized_engine(
             db_url=db_url,
             sqlite_timeout=int(os.environ.get("SQLITE_TIMEOUT", "30")),
@@ -135,12 +144,13 @@ class JobManager:
                 session.expunge(job)
             return job
 
-    def run_job(
+    def run_job(  # pylint: disable=too-many-arguments
         self,
         job_id: str,
         crawler_config: dict[str, object] | None = None,
         force: bool = False,
         is_api_spawn: bool = False,
+        status_callback: Callable[[str, str], None] | None = None,
     ) -> None:
         """
         執行指定的爬蟲任務，直到佇列清空或遭到使用者中斷為止。
@@ -150,8 +160,13 @@ class JobManager:
             crawler_config (dict[str, object] | None): 爬蟲相關的設定參數。
             force (bool): 是否強制接管卡在 running 狀態的任務。
             is_api_spawn (bool): 是否由 API 背景程序觸發。
+            status_callback (Callable[[str, str], None] | None): 狀態變更回呼。
+
+        Returns:
+            None
         """
-        runner = JobRunner(self.session_factory, job_id)
+        cb = status_callback or self.status_callback
+        runner = JobRunner(self.session_factory, job_id, status_callback=cb)
         runner.execute(crawler_config, force, is_api_spawn)
 
     def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
@@ -309,7 +324,8 @@ class JobManager:
                 logger.error("任務 %s 被標記為異常: %s", job_id, error_msg)
                 job.status = "error"
                 session.commit()
-                send_job_status_notification(self.session_factory, job_id, "error")
+                if self.status_callback:
+                    self.status_callback(job_id, "error")
             return True
 
     def transfer_job(self, job_id: str, new_user_id: str) -> bool:

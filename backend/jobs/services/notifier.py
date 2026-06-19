@@ -2,7 +2,6 @@
 任務狀態通知模組。
 
 負責在爬蟲任務完成或發生錯誤時，組裝報表統計資訊並發送 Email 通知信。
-獨立於 manager.py 以符合單一職責原則 (SRP)。
 """
 
 import logging
@@ -13,16 +12,10 @@ from dataclasses import dataclass
 import sqlalchemy.exc
 from sqlalchemy.orm import Session
 
+from backend.auth.db import get_auth_session_local
+from backend.auth.models import User
+from backend.email_sender import send_notification_email
 from crawler.models import ExternalLink, Job
-
-try:
-    from backend.auth.db import get_auth_session_local
-    from backend.auth.models import User
-    from backend.email_sender import send_notification_email
-
-    _BACKEND_AVAILABLE: bool = True
-except ImportError:
-    _BACKEND_AVAILABLE = False
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -84,6 +77,9 @@ def _build_and_send_email(
         job (Job): 目標爬蟲任務。
         status (str): 任務狀態 ("completed" 或 "failed")。
         stats (JobStats): 任務統計數據。
+
+    Returns:
+        None
     """
     status_text = "已完成 (Completed)" if status == "completed" else "發生嚴重異常 (Error)"
     subject = f"【外部連結檢查系統】任務狀態通知 ({status_text}) - 任務 ID: {job.id}"
@@ -137,10 +133,6 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
     Returns:
         None
     """
-    if not _BACKEND_AVAILABLE:
-        logger.warning("[Email Notification] 因無法載入後端模組，跳過通知信發送。")
-        return
-
     with session_factory() as session:
         job = session.query(Job).filter(Job.id == job_id).first()
         if not job:

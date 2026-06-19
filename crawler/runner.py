@@ -18,15 +18,15 @@ from sqlalchemy.orm import Session
 
 from crawler.core import CrawlerCore
 from crawler.models import CrawlerConfig, CrawlQueue, ExternalLink, Job
-from crawler.notifier import send_job_status_notification
 from crawler.utils import get_domain, resolve_ip
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 @dataclass
 class JobRunnerState:
-    """爬蟲任務狀態追蹤資料類別。
+    """
+    爬蟲任務狀態追蹤資料類別。
 
     Attributes:
         crawled_count (int): 已爬取完成的頁面數量。
@@ -42,7 +42,9 @@ class JobRunnerState:
 
 
 def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: float) -> float:
-    """從 domain_delays 中尋找符合目前網域的 delay 數值，若無則回傳預設的 delay。
+    """
+    從 domain_delays 中尋找符合目前網域的 delay 數值，若無則回傳預設的 delay。
+
     支援以子網域完全匹配。
 
     Args:
@@ -82,15 +84,22 @@ class JobRunner:
         self,
         session_factory: Callable[[], Session],
         job_id: str,
+        status_callback: Callable[[str, str], None] | None = None,
     ) -> None:
-        """初始化 JobRunner。
+        """
+        初始化 JobRunner。
 
         Args:
             session_factory (Callable[[], Session]): SQLAlchemy Session 工廠。
             job_id (str): 目標任務 ID。
+            status_callback (Callable[[str, str], None] | None): 任務狀態變更時的回呼函式。
+
+        Returns:
+            None
         """
         self.session_factory = session_factory
         self.job_id = job_id
+        self.status_callback = status_callback
 
         # 以下狀態於 _initialize 中初始化
         self.config: CrawlerConfig | None = None
@@ -104,12 +113,16 @@ class JobRunner:
         force: bool = False,
         is_api_spawn: bool = False,
     ) -> None:
-        """開始執行爬蟲任務。
+        """
+        開始執行爬蟲任務。
 
         Args:
             crawler_config_param (dict[str, object] | None): 爬蟲相關的設定參數。
             force (bool): 是否強制接管卡在 running 狀態的任務。
             is_api_spawn (bool): 是否由 API 背景程序觸發。
+
+        Returns:
+            None
         """
         with self.session_factory() as session:
             job = self._initialize(session, crawler_config_param, force, is_api_spawn)
@@ -136,7 +149,8 @@ class JobRunner:
                 if job:
                     job.status = "error"
                     session.commit()
-                    send_job_status_notification(self.session_factory, self.job_id, "error")
+                    if self.status_callback:
+                        self.status_callback(self.job_id, "error")
             finally:
                 if self.executor:
                     self.executor.shutdown(wait=True, cancel_futures=True)
@@ -231,8 +245,7 @@ class JobRunner:
         )
 
         self.state.crawled_count = (
-            session
-            .query(CrawlQueue)
+            session.query(CrawlQueue)
             .filter(
                 CrawlQueue.job_id == self.job_id,
                 (CrawlQueue.status.in_(["completed", "failed", "warning"]))
@@ -253,12 +266,16 @@ class JobRunner:
         return job
 
     def _run_loop(self, session: Session, job: Job, crawler: CrawlerCore) -> None:
-        """任務的執行主迴圈。
+        """
+        任務的執行主迴圈。
 
         Args:
             session (Session): SQLAlchemy Session 實例。
             job (Job): 當前的爬蟲任務物件。
             crawler (CrawlerCore): 初始化的爬蟲核心引擎。
+
+        Returns:
+            None
         """
         while True:
             session.expire(job)
@@ -279,8 +296,7 @@ class JobRunner:
                 break
 
             queue_item: CrawlQueue | None = (
-                session
-                .query(CrawlQueue)
+                session.query(CrawlQueue)
                 .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
                 .order_by(CrawlQueue.id)
                 .first()
@@ -294,15 +310,20 @@ class JobRunner:
             self._process_item(session, queue_item, crawler)
 
     def _mark_job_completed(self, session: Session, job: Job) -> None:
-        """將任務狀態標記為已完成並送出通知。
+        """
+        將任務狀態標記為已完成並送出通知。
 
         Args:
             session (Session): SQLAlchemy Session 實例。
             job (Job): 當前的爬蟲任務物件。
+
+        Returns:
+            None
         """
         job.status = "completed"
         session.commit()
-        send_job_status_notification(self.session_factory, self.job_id, "completed")
+        if self.status_callback:
+            self.status_callback(self.job_id, "completed")
 
     def _process_item(
         self,
@@ -310,12 +331,16 @@ class JobRunner:
         queue_item: CrawlQueue,
         crawler: CrawlerCore,
     ) -> None:
-        """處理單一 CrawlQueue 項目。
+        """
+        處理單一 CrawlQueue 項目。
 
         Args:
             session (Session): SQLAlchemy Session 實例。
             queue_item (CrawlQueue): 當前準備處理的佇列物件。
             crawler (CrawlerCore): 爬蟲核心引擎。
+
+        Returns:
+            None
         """
         current_url: str = queue_item.url
         logger.info("正在爬取: %s", current_url)
@@ -372,12 +397,16 @@ class JobRunner:
             time.sleep(actual_delay)
 
     def _handle_internal_links(self, session: Session, queue_item: CrawlQueue, internal_links: list[str]) -> None:
-        """將收集到的內部連結寫入資料庫佇列。
+        """
+        將收集到的內部連結寫入資料庫佇列。
 
         Args:
             session (Session): SQLAlchemy Session 實例。
             queue_item (CrawlQueue): 當前處理的佇列來源網址物件。
             internal_links (list[str]): 解析出的內部連結陣列。
+
+        Returns:
+            None
         """
         next_depth = queue_item.depth + 1
         if self.crawler_config_dict.get("max_depth", None) is None or next_depth <= self.crawler_config_dict.get(
@@ -385,8 +414,7 @@ class JobRunner:
         ):
             for link in internal_links:
                 exists = (
-                    session
-                    .query(CrawlQueue)
+                    session.query(CrawlQueue)
                     .filter(
                         CrawlQueue.job_id == self.job_id,
                         CrawlQueue.url == link,
@@ -423,8 +451,7 @@ class JobRunner:
         links_needing_http_check = []
         for link in unique_external_links:
             exists = (
-                session
-                .query(ExternalLink)
+                session.query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == self.job_id,
                     ExternalLink.source_url == current_url,
@@ -460,13 +487,17 @@ class JobRunner:
         external_target_links: list[str],
         crawler: CrawlerCore,
     ) -> None:
-        """併發處理外部連結存活探測，並將結果寫入資料庫與快取。
+        """
+        併發處理外部連結存活探測，並將結果寫入資料庫與快取。
 
         Args:
             session (Session): SQLAlchemy Session 實例。
             current_url (str): 當前來源網址。
             external_target_links (list[str]): 待處理的外部連結陣列。
             crawler (CrawlerCore): 爬蟲核心引擎。
+
+        Returns:
+            None
         """
         unique_links = list(set(external_target_links))
         needs_check = self._prepare_external_links(session, current_url, unique_links)
@@ -496,18 +527,22 @@ class JobRunner:
         current_url: str,
         results: list[tuple[str, str | None, int | None, str | None]],
     ) -> None:
-        """將探測完畢的外部連結結果保存至資料庫與內部快取記憶體中。
+        """
+        將探測完畢的外部連結結果保存至資料庫與內部快取記憶體中。
 
         Args:
             session (Session): SQLAlchemy Session 實例。
             current_url (str): 當前來源網址。
-            results (list[tuple]): (目標網址, IP, HTTP狀態碼, 錯誤訊息) 構成的結果陣列。
+            results (list[tuple[str, str | None, int | None, str | None]]):
+                (目標網址, IP, HTTP狀態碼, 錯誤訊息) 構成的結果陣列。
+
+        Returns:
+            None
         """
         for res_link, res_ip, res_code, res_err in results:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
             exists = (
-                session
-                .query(ExternalLink)
+                session.query(ExternalLink)
                 .filter(
                     ExternalLink.job_id == self.job_id,
                     ExternalLink.source_url == current_url,
@@ -545,12 +580,16 @@ class JobRunner:
         return ext_link, ip_res, code_res, err_res
 
     def _handle_error(self, session: Session, queue_item: CrawlQueue, e: httpx.HTTPError) -> None:
-        """處理 HTTP 請求過程中的錯誤，套用重試邏輯或標記永久失效。
+        """
+        處理 HTTP 請求過程中的錯誤，套用重試邏輯或標記永久失效。
 
         Args:
             session (Session): SQLAlchemy Session 實例。
             queue_item (CrawlQueue): 發生錯誤的佇列物件。
             e (httpx.HTTPError): 捕捉到的 HTTPX 例外。
+
+        Returns:
+            None
         """
         session.rollback()
         current_url = queue_item.url

@@ -788,6 +788,9 @@ class DateQueryArgs:  # pylint: disable=too-few-public-methods
         Args:
             start_date (str | None): 開始日期。
             end_date (str | None): 結束日期。
+
+        Returns:
+            None
         """
         self.start_date = start_date
         self.end_date = end_date
@@ -807,6 +810,9 @@ class PaginationArgs:  # pylint: disable=too-few-public-methods
         Args:
             page (int): 頁碼。
             page_size (int): 每頁筆數。
+
+        Returns:
+            None
         """
         self.page = page
         self.page_size = page_size
@@ -830,6 +836,9 @@ class LogQueryArgs:  # pylint: disable=too-few-public-methods
             user_id (str | None): 使用者 ID 過濾。
             dates (DateQueryArgs): 日期範圍過濾。
             pagination (PaginationArgs): 分頁參數。
+
+        Returns:
+            None
         """
         self.event_type = event_type
         self.user_id = user_id

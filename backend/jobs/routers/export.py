@@ -31,7 +31,7 @@ from backend.jobs.schemas import (
     JobResultQuery,
 )
 from backend.jobs.services import results as job_results
-from crawler.exporter import _sanitize_csv_value
+from backend.jobs.services.exporter import _sanitize_csv_value
 from crawler.models import Job
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -60,6 +60,9 @@ def _write_iterator_to_zip(zf: zipfile.ZipFile, csv_filename: str, iterator: Ite
         zf (zipfile.ZipFile): ZIP 壓縮檔物件。
         csv_filename (str): 要寫入的 CSV 檔案名稱。
         iterator (Iterator[dict[str, object]]): 來源資料的產生器。
+
+    Returns:
+        None
     """
     try:
         first_item = next(iterator)
@@ -342,6 +345,9 @@ def export_full_report(
     def cleanup() -> None:
         """
         背景清理暫存 ZIP 檔案的任務。
+
+        Returns:
+            None
         """
         if os.path.exists(temp_path):
             os.remove(temp_path)

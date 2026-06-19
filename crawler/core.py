@@ -121,6 +121,9 @@ class CrawlerCore:
 
         Args:
             config (CrawlerConfig | None): 爬蟲引擎配置物件。若未提供則使用預設配置。
+
+        Returns:
+            None
         """
         self.config: CrawlerConfig = config or CrawlerConfig()
 
@@ -384,8 +387,91 @@ class CrawlerCore:
         logger.warning("網址 %s 超過最大重導向次數", url)
         return None, None, "skip", current_url, request_sent, "超過最大重導向次數"
 
-    # pylint: disable=too-many-locals
-    def extract_links(self, html: str, base_url: str) -> list[str]:  # pylint: disable=too-many-branches
+    def _extract_base_url(self, soup: BeautifulSoup, base_url: str) -> str:
+        """解析 <base> 標籤以更新相對路徑的基準網址。
+
+        Args:
+            soup (BeautifulSoup): 已解析的 HTML 樹。
+            base_url (str): 原始基準網址。
+
+        Returns:
+            str: 更新後（或維持原樣）的基準網址。
+        """
+        base_tag = soup.find("base", href=True)
+        if base_tag:
+            href_val = base_tag.get("href")
+            if isinstance(href_val, str) and href_val.strip():
+                return urljoin(base_url, href_val.strip())
+        return base_url
+
+    def _collect_raw_links(self, soup: BeautifulSoup) -> list[object]:
+        """遍歷 HTML 樹以收集可能包含網址的屬性值。
+
+        Args:
+            soup (BeautifulSoup): 已解析的 HTML 樹。
+
+        Returns:
+            list[object]: 收集到的原始網址屬性值清單。
+        """
+        raw_links: list[object] = []
+        tag_attr_map = {
+            "a": "href",
+            "link": "href",
+            "script": "src",
+            "iframe": "src",
+            "img": "src",
+            "embed": "src",
+            "form": "action",
+            "object": "data",
+        }
+
+        # 透過單次遍歷 HTML 樹來擷取所有標籤，大幅提升大型網頁的解析效能
+        for tag in soup.find_all(list(tag_attr_map.keys())):
+            # 針對 <link> 標籤，忽略 dns-prefetch 與 preconnect。
+            # 這些標籤通常只指向網域根目錄（如 https://fonts.gstatic.com/）作為提早連線提示，並非實際可下載的資源，探測其根目錄通常會得到 404。
+            if tag.name == "link":
+                rel_attr = tag.get("rel", [])
+                rel_list = [rel_attr] if isinstance(rel_attr, str) else rel_attr
+                if any(r.lower() in ("preconnect", "dns-prefetch") for r in rel_list):
+                    continue
+
+            attr = tag_attr_map.get(tag.name)
+            if attr and tag.has_attr(attr):
+                raw_links.append(tag.get(attr))
+        return raw_links
+
+    def _normalize_and_filter_link(self, attr_val: object, base_url: str) -> str | None:
+        """對原始網址屬性值進行正規化、排除無效連結與非 HTTP/HTTPS 協議的連結。
+
+        Args:
+            attr_val (object): 原始網址屬性值。
+            base_url (str): 正規化時使用的基準網址。
+
+        Returns:
+            str | None: 正規化且驗證通過的 HTTP/HTTPS 網址，若不符則回傳 None。
+        """
+        if isinstance(attr_val, list):
+            val_str = attr_val[0] if attr_val else ""
+        else:
+            val_str = attr_val
+
+        if not isinstance(val_str, str):
+            return None
+
+        href: str = val_str.strip()
+        # 排除 javascript, mailto 等非 http(s) 的錨點連結
+        if not href or href.lower().startswith(("javascript:", "mailto:", "tel:", "#")):
+            return None
+
+        normalized_link: str = normalize_url(href, base_url)
+
+        # 進行基礎驗證，確保為有效的 HTTP/HTTPS 網址
+        parsed: ParseResult = urlparse(normalized_link)
+        if parsed.scheme in ("http", "https"):
+            return normalized_link
+        return None
+
+    def extract_links(self, html: str, base_url: str) -> list[str]:
         """從給定的 HTML 內容中擷取所有有效且絕對路徑的連結與外連資源（如超連結、script、stylesheet、iframe、img、embed、form、object 等）。
 
         Args:
@@ -400,61 +486,15 @@ class CrawlerCore:
 
         try:
             soup: BeautifulSoup = BeautifulSoup(html, "html.parser")
-
-            # 解析 <base> 標籤以更新相對路徑的基準網址
-            base_tag = soup.find("base", href=True)
-            if base_tag:
-                href_val = base_tag.get("href")
-                if isinstance(href_val, str) and href_val.strip():
-                    base_url = urljoin(base_url, href_val.strip())
+            base_url = self._extract_base_url(soup, base_url)
+            raw_links = self._collect_raw_links(soup)
 
             links: list[str] = []
-            raw_links: list[object] = []
-
-            tag_attr_map = {
-                "a": "href",
-                "link": "href",
-                "script": "src",
-                "iframe": "src",
-                "img": "src",
-                "embed": "src",
-                "form": "action",
-                "object": "data",
-            }
-
-            # 透過單次遍歷 HTML 樹來擷取所有標籤，大幅提升大型網頁的解析效能
-            for tag in soup.find_all(list(tag_attr_map.keys())):
-                # 針對 <link> 標籤，忽略 dns-prefetch 與 preconnect。
-                # 這些標籤通常只指向網域根目錄（如 https://fonts.gstatic.com/）作為提早連線提示，並非實際可下載的資源，探測其根目錄通常會得到 404。
-                if tag.name == "link":
-                    rel_attr = tag.get("rel", [])
-                    rel_list = [rel_attr] if isinstance(rel_attr, str) else rel_attr
-                    if any(r.lower() in ("preconnect", "dns-prefetch") for r in rel_list):
-                        continue
-
-                attr = tag_attr_map.get(tag.name)
-                if attr and tag.has_attr(attr):
-                    raw_links.append(tag.get(attr))
-
             for attr_val in raw_links:
-                if isinstance(attr_val, list):
-                    val_str = attr_val[0] if attr_val else ""
-                else:
-                    val_str = attr_val
+                normalized = self._normalize_and_filter_link(attr_val, base_url)
+                if normalized:
+                    links.append(normalized)
 
-                if not isinstance(val_str, str):
-                    continue
-
-                href: str = val_str.strip()
-                # 排除 javascript, mailto 等非 http(s) 的錨點連結
-                if not href or href.lower().startswith(("javascript:", "mailto:", "tel:", "#")):
-                    continue
-                normalized_link: str = normalize_url(href, base_url)
-
-                # 進行基礎驗證，確保為有效的 HTTP/HTTPS 網址
-                parsed: ParseResult = urlparse(normalized_link)
-                if parsed.scheme in ("http", "https"):
-                    links.append(normalized_link)
             return list(set(links))  # 移除陣列中的重複網址
         except (ValueError, TypeError, AttributeError, RecursionError) as e:
             logger.error("從 %s 擷取連結時發生錯誤: %s", base_url, e)
@@ -610,7 +650,47 @@ class CrawlerCore:
         except (ValueError, socket.gaierror, TypeError, AttributeError, UnicodeError) as e:
             return None, (None, str(e))
 
-    # pylint: disable=too-many-nested-blocks
+    def _handle_http_failure_retry(
+        self,
+        current_url: str,
+        status_code: int | None,
+        err_msg: str | None,
+        original_result: tuple[int | None, str | None],
+    ) -> tuple[str | None, tuple[int | None, str | None] | None]:
+        """當 HTTP 外部連結探測失敗時，嘗試升級至 HTTPS 並重新探測。
+
+        Args:
+            current_url (str): 當前探測的網址。
+            status_code (int | None): 原始 HTTP 探測的狀態碼。
+            err_msg (str | None): 原始 HTTP 探測的錯誤訊息。
+            original_result (tuple[int | None, str | None]): 原始探測結果。
+
+        Returns:
+            tuple[str | None, tuple[int | None, str | None] | None]: (重導向新網址, 最終探測結果)。
+        """
+        parsed = urlparse(current_url)
+        if parsed.scheme != "http":
+            return None, None
+
+        new_url = parsed._replace(scheme="https").geturl()
+        logger.info(
+            "外部連結 HTTP 檢測失敗 (狀態: %s)，嘗試自動升級至 HTTPS 並重試: %s",
+            status_code if status_code is not None else err_msg,
+            new_url,
+        )
+        next_url_retry, result_retry = self._check_external_single(new_url)
+        if result_retry is not None:
+            status_code_retry, err_msg_retry = result_retry
+            # 若 HTTPS 連線徹底失敗 (無狀態碼)，保留原始 HTTP 檢測結果
+            if status_code_retry is None:
+                logger.info("HTTPS 重試連線失敗 (%s)，保留原始 HTTP 檢測結果", err_msg_retry)
+                return None, original_result
+            return None, result_retry
+        if next_url_retry:
+            return next_url_retry, None
+
+        return None, None
+
     def check_external_link(self, url: str) -> tuple[int | None, str | None]:
         """對外部連結進行存活檢查。
 
@@ -635,25 +715,14 @@ class CrawlerCore:
                 is_failed = (status_code is None and err_msg) or (status_code is not None and status_code >= 400)
 
                 if is_failed:
-                    parsed = urlparse(current_url)
-                    if parsed.scheme == "http":
-                        new_url = parsed._replace(scheme="https").geturl()
-                        logger.info(
-                            "外部連結 HTTP 檢測失敗 (狀態: %s)，嘗試自動升級至 HTTPS 並重試: %s",
-                            status_code if status_code is not None else err_msg,
-                            new_url,
-                        )
-                        next_url_retry, result_retry = self._check_external_single(new_url)
-                        if result_retry is not None:
-                            status_code_retry, err_msg_retry = result_retry
-                            # 若 HTTPS 連線徹底失敗 (無狀態碼)，保留原始 HTTP 檢測結果
-                            if status_code_retry is None:
-                                logger.info("HTTPS 重試連線失敗 (%s)，保留原始 HTTP 檢測結果", err_msg_retry)
-                                return result
-                            return result_retry
-                        if next_url_retry:
-                            current_url = next_url_retry
-                            continue
+                    next_url_retry, final_res = self._handle_http_failure_retry(
+                        current_url, status_code, err_msg, result
+                    )
+                    if final_res is not None:
+                        return final_res
+                    if next_url_retry:
+                        current_url = next_url_retry
+                        continue
                 return result
             if next_url:
                 current_url = next_url
@@ -666,6 +735,8 @@ class CrawlerCore:
 
         釋放底層連線池資源。建議在爬蟲任務結束時呼叫。
 
+        Returns:
+            None
         """
         self.client.close()
         self.exempt_client.close()

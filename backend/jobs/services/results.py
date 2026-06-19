@@ -11,7 +11,10 @@ from collections.abc import Iterator
 from sqlalchemy import Integer, String, asc, case, cast, desc
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session as DBSession
-from sqlalchemy.sql.functions import count, max as sql_max, min as sql_min, sum as sql_sum
+from sqlalchemy.sql.functions import count
+from sqlalchemy.sql.functions import max as sql_max
+from sqlalchemy.sql.functions import min as sql_min
+from sqlalchemy.sql.functions import sum as sql_sum
 
 from backend.jobs.schemas import InternalResultQuery, JobResultQuery
 from crawler.models import CrawlQueue, ExternalLink, Job, apply_job_result_filters
@@ -87,8 +90,7 @@ def _get_job_results_grouped_by_target(
 
     # 3. 建立子查詢，將不重複的來源網址按目標網址聚合成 JSON 陣列
     sources_agg = (
-        db
-        .query(distinct_sources.c.target_url, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
+        db.query(distinct_sources.c.target_url, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
         .group_by(distinct_sources.c.target_url)
         .subquery("sources_agg")
     )
@@ -150,15 +152,17 @@ def _get_job_results_grouped_by_target(
     total = main_q.count()
     items_list = []
     for row in main_q.offset((query_args.page - 1) * query_args.page_size).limit(query_args.page_size).all():
-        items_list.append({
-            "target_url": row[0],
-            "ip_address": row[1],
-            "is_secure": bool(row[2]),
-            "http_status_code": row[3],
-            "error_message": row[4],
-            "occurrence_count": row[5],
-            "source_urls": sorted(_parse_json_list(row[6]))[:10],
-        })
+        items_list.append(
+            {
+                "target_url": row[0],
+                "ip_address": row[1],
+                "is_secure": bool(row[2]),
+                "http_status_code": row[3],
+                "error_message": row[4],
+                "occurrence_count": row[5],
+                "source_urls": sorted(_parse_json_list(row[6]))[:10],
+            }
+        )
 
     return {
         "items": items_list,
@@ -240,11 +244,13 @@ def _get_job_results_grouped_by_source(
             except json.JSONDecodeError:
                 targets = []
 
-        items_list.append({
-            "source_url": row[0],
-            "occurrence_count": row[1],
-            "targets": targets[:10],
-        })
+        items_list.append(
+            {
+                "source_url": row[0],
+                "occurrence_count": row[1],
+                "targets": targets[:10],
+            }
+        )
 
     total_pages = (total + query_args.page_size - 1) // query_args.page_size if total > 0 else 1
     return {
@@ -273,8 +279,7 @@ def _get_job_results_grouped_by_domain(
 
     # 2. 建立子查詢，計算各目標網域的總出現次數
     domain_stats = (
-        base_q
-        .with_entities(ExternalLink.target_domain, count(ExternalLink.id).label("occurrence_count"))
+        base_q.with_entities(ExternalLink.target_domain, count(ExternalLink.id).label("occurrence_count"))
         .group_by(ExternalLink.target_domain)
         .subquery("domain_stats")
     )
@@ -284,8 +289,7 @@ def _get_job_results_grouped_by_domain(
         base_q.with_entities(ExternalLink.target_domain, ExternalLink.target_url).distinct().subquery("distinct_urls")
     )
     urls_agg = (
-        db
-        .query(
+        db.query(
             distinct_urls.c.target_domain,
             count(distinct_urls.c.target_url).label("unique_urls_count"),
             JSONGroupArray(distinct_urls.c.target_url).label("unique_urls"),
@@ -296,22 +300,19 @@ def _get_job_results_grouped_by_domain(
 
     # 4. 建立子查詢，過濾不重複的來源網址，並按網域聚合成 JSON 陣列
     distinct_sources = (
-        base_q
-        .with_entities(ExternalLink.target_domain, ExternalLink.source_url)
+        base_q.with_entities(ExternalLink.target_domain, ExternalLink.source_url)
         .distinct()
         .subquery("distinct_sources")
     )
     sources_agg = (
-        db
-        .query(distinct_sources.c.target_domain, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
+        db.query(distinct_sources.c.target_domain, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
         .group_by(distinct_sources.c.target_domain)
         .subquery("sources_agg")
     )
 
     # 5. 組合主查詢，以 domain_stats 為基準，外部關聯 urls_agg 與 sources_agg
     main_q = (
-        db
-        .query(
+        db.query(
             domain_stats.c.target_domain.label("domain"),
             domain_stats.c.occurrence_count,
             urls_agg.c.unique_urls_count,
@@ -352,13 +353,15 @@ def _get_job_results_grouped_by_domain(
     total = main_q.count()
     items_list = []
     for row in main_q.offset((query_args.page - 1) * query_args.page_size).limit(query_args.page_size).all():
-        items_list.append({
-            "domain": row[0] or "unknown",
-            "occurrence_count": row[1],
-            "unique_urls_count": row[2] or 0,
-            "unique_urls": sorted(_parse_json_list(row[3]))[:10],
-            "source_urls": sorted(_parse_json_list(row[4]))[:10],
-        })
+        items_list.append(
+            {
+                "domain": row[0] or "unknown",
+                "occurrence_count": row[1],
+                "unique_urls_count": row[2] or 0,
+                "unique_urls": sorted(_parse_json_list(row[3]))[:10],
+                "source_urls": sorted(_parse_json_list(row[4]))[:10],
+            }
+        )
 
     return {
         "items": items_list,
@@ -774,14 +777,19 @@ def _process_diff_common_url(
         item_a (dict[str, object]): 舊任務的外連項目資料。
         item_b (dict[str, object]): 新任務的外連項目資料。
         diff_lists (dict[str, list[dict[str, object]]]): 存放差異結果的字典。
+
+    Returns:
+        None
     """
     if item_a["ip"] and item_b["ip"] and item_a["ip"] != item_b["ip"]:
-        diff_lists["ip_changed"].append({
-            "target_url": url,
-            "old_ip": item_a["ip"],
-            "new_ip": item_b["ip"],
-            "sources": sorted(list(item_b["sources"])[:10]),
-        })
+        diff_lists["ip_changed"].append(
+            {
+                "target_url": url,
+                "old_ip": item_a["ip"],
+                "new_ip": item_b["ip"],
+                "sources": sorted(list(item_b["sources"])[:10]),
+            }
+        )
     if item_a["is_secure"] and not item_b["is_secure"]:
         diff_lists["security_downgraded"].append({"target_url": url, "sources": sorted(list(item_b["sources"])[:10])})
 
@@ -789,23 +797,27 @@ def _process_diff_common_url(
     b_bad = _is_bad_link(item_b)
 
     if not a_bad and b_bad:
-        diff_lists["degraded"].append({
-            "target_url": url,
-            "old_status": item_a["status_code"],
-            "old_error": item_a["error"],
-            "new_status": item_b["status_code"],
-            "new_error": item_b["error"],
-            "sources": sorted(list(item_b["sources"])[:10]),
-        })
+        diff_lists["degraded"].append(
+            {
+                "target_url": url,
+                "old_status": item_a["status_code"],
+                "old_error": item_a["error"],
+                "new_status": item_b["status_code"],
+                "new_error": item_b["error"],
+                "sources": sorted(list(item_b["sources"])[:10]),
+            }
+        )
     elif a_bad and not b_bad:
-        diff_lists["recovered"].append({
-            "target_url": url,
-            "old_status": item_a["status_code"],
-            "old_error": item_a["error"],
-            "new_status": item_b["status_code"],
-            "new_error": item_b["error"],
-            "sources": sorted(list(item_b["sources"])[:10]),
-        })
+        diff_lists["recovered"].append(
+            {
+                "target_url": url,
+                "old_status": item_a["status_code"],
+                "old_error": item_a["error"],
+                "new_status": item_b["status_code"],
+                "new_error": item_b["error"],
+                "sources": sorted(list(item_b["sources"])[:10]),
+            }
+        )
 
 
 def get_job_diff(
@@ -987,13 +999,15 @@ def _stream_group_by_domain(cursor) -> Iterator[dict[str, object]]:
 
     result = []
     for v in agg.values():
-        result.append({
-            "domain": v["domain"],
-            "occurrence_count": v["occurrence_count"],
-            "unique_urls_count": len(v["unique_urls"]),
-            "unique_urls": sorted(list(v["unique_urls"])),
-            "source_urls": sorted(list(v["source_urls"])),
-        })
+        result.append(
+            {
+                "domain": v["domain"],
+                "occurrence_count": v["occurrence_count"],
+                "unique_urls_count": len(v["unique_urls"]),
+                "unique_urls": sorted(list(v["unique_urls"])),
+                "source_urls": sorted(list(v["source_urls"])),
+            }
+        )
     result.sort(key=lambda x: x["occurrence_count"], reverse=True)
     yield from result
 
@@ -1018,12 +1032,14 @@ def _stream_group_by_source(cursor) -> Iterator[dict[str, object]]:
             if lnk.http_status_code is not None
             else ("DNS Failed" if not lnk.ip_address else "Error")
         )
-        d["targets"].append({
-            "url": lnk.target_url,
-            "status": status_str,
-            "is_secure": lnk.is_secure,
-            "error_message": lnk.error_message,
-        })
+        d["targets"].append(
+            {
+                "url": lnk.target_url,
+                "status": status_str,
+                "is_secure": lnk.is_secure,
+                "error_message": lnk.error_message,
+            }
+        )
     yield from agg.values()
 
 
@@ -1128,7 +1144,7 @@ def stream_internal_errors(
             truncate_lists=False,
         )
         results = get_internal_errors(db, fetch_args)
-        yield from results["items"]  # type: ignore
+        yield from results["items"]
     else:
         cursor = query.order_by(CrawlQueue.id).yield_per(2000)
         for q in cursor:
@@ -1372,11 +1388,13 @@ def _get_internal_errors_grouped_by_source(
     items_list = []
     offset = (query_args.page - 1) * query_args.page_size
     for row in main_q.offset(offset).limit(query_args.page_size).all():
-        items_list.append({
-            "source_url": row[0] or "",
-            "occurrence_count": row[1],
-            "targets": _parse_json_list(row[2])[:10] if query_args.truncate_lists else _parse_json_list(row[2]),
-        })
+        items_list.append(
+            {
+                "source_url": row[0] or "",
+                "occurrence_count": row[1],
+                "targets": _parse_json_list(row[2])[:10] if query_args.truncate_lists else _parse_json_list(row[2]),
+            }
+        )
 
     return {
         "items": items_list,
@@ -1418,10 +1436,7 @@ def _get_internal_errors_no_grouping(
 
     total = query.count()
     offset = (query_args.page - 1) * query_args.page_size
-    items_list = [
-        format_crawl_queue_item(q)
-        for q in query.offset(offset).limit(query_args.page_size).all()
-    ]
+    items_list = [format_crawl_queue_item(q) for q in query.offset(offset).limit(query_args.page_size).all()]
 
     return {
         "items": items_list,

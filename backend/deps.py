@@ -62,7 +62,12 @@ def get_job_manager() -> JobManager:
         with _JOB_MANAGER_LOCK:
             if _JOB_MANAGER is None:
                 settings = get_settings()
-                _JOB_MANAGER = JobManager(db_url=settings.CRAWLER_DB_URL)
+                from backend.jobs.services.notifier import send_job_status_notification  # pylint: disable=import-outside-toplevel
+
+                _JOB_MANAGER = JobManager(
+                    db_url=settings.CRAWLER_DB_URL,
+                    status_callback=send_job_status_notification,
+                )
     return _JOB_MANAGER
 
 
@@ -208,6 +213,9 @@ def require_csrf(request: Request) -> None:
 
     Args:
         request (Request): FastAPI 請求物件。
+
+    Returns:
+        None
 
     Raises:
         HTTPException 403: CSRF Token 不存在或不一致。

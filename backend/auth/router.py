@@ -96,6 +96,9 @@ def _set_session_cookie(response: Response, token: str) -> None:
     Args:
         response (Response): FastAPI 回應物件。
         token (str): 欲設定的 Session Token。
+
+    Returns:
+        None
     """
     settings = get_settings()
     response.set_cookie(
@@ -116,6 +119,9 @@ def _set_csrf_cookie(response: Response, token: str) -> None:
     Args:
         response (Response): FastAPI 回應物件。
         token (str): 欲設定的 CSRF Token。
+
+    Returns:
+        None
     """
     settings = get_settings()
     response.set_cookie(
@@ -135,6 +141,9 @@ def _clear_auth_cookies(response: Response) -> None:
 
     Args:
         response (Response): FastAPI 回應物件。
+
+    Returns:
+        None
     """
     settings = get_settings()
     response.delete_cookie(

@@ -102,7 +102,7 @@ ruff format .
 pylint backend/ crawler/ cli.py scripts/ test/
 
 # 3. 執行 Pytest 整合測試
-pytest test/
+pytest test/ -v
 ```
 
 ## 附錄：特定框架開發補充規範 (Framework-Specific Guidelines)

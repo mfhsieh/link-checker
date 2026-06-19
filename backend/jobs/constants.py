@@ -1,5 +1,6 @@
-"""
-任務相關的全域常數。
+"""任務相關的全域常數。
+
+此模組定義了外部連結檢查任務所需的全域路徑、子程序對應表以及合法的爬蟲配置項常數。
 """
 
 import os
@@ -9,7 +10,7 @@ PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.dirname(os.path.absp
 PID_DIR: str = os.path.join(PROJECT_ROOT, "log", "pids")
 _ACTIVE_PROCESSES: dict[str, subprocess.Popen] = {}
 
-ALLOWED_CRAWLER_CONFIG_KEYS = [
+ALLOWED_CRAWLER_CONFIG_KEYS: list[str] = [
     "max_depth",
     "max_pages",
     "delay",

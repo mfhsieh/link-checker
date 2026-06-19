@@ -17,7 +17,12 @@ ext-link-checker/
 │   ├── __init__.py
 │   ├── admin/          # 後台管理員 API 模組
 │   ├── auth/           # 身分驗證與 Session 管理模組
-│   ├── jobs/           # 任務管理 API 模組
+│   ├── jobs/           # 任務管理與排程 API 模組
+│   │   ├── constants.py# 任務設定鍵值共用常數
+│   │   ├── router.py   # 任務模組總路由聚合器
+│   │   ├── schemas.py  # 任務模組專用 Pydantic 與依賴注入 Model
+│   │   ├── routers/    # 子 API 路由定義 (管理、結果、匯出)
+│   │   └── services/   # 任務核心服務 (管理、進程、結果、郵件通知、報表匯出)
 │   ├── config.py       # 系統組態與環境變數設定
 │   ├── deps.py         # 依賴注入 (如 Session, Current User)
 │   ├── email_sender.py # SMTP 郵件發送服務
@@ -37,16 +42,14 @@ ext-link-checker/
 │   ├── reset-password.html  # 重設密碼介面
 │   └── set-password.html # 首次登入密碼設定介面
 ├── config/             # 存放全域設定檔 (config_global.yaml)
-├── crawler/            # 爬蟲程式與 JOB 管理 (核心模組)
+├── crawler/            # 爬蟲核心引擎 (高度自治模組)
 │   ├── __init__.py
 │   ├── config_utils.py # 組態防呆驗證與全域設定合併工具
 │   ├── core.py         # 爬蟲核心邏輯 (抓取網頁、解析 HTML、提取與過濾連結)
-│   ├── exporter.py     # 報表匯出引擎 (CSV/JSON/ZIP 串流導出)
-│   ├── manager.py      # JOB 管理 (任務分派、資料持久化、防呆安全鎖)
+│   ├── manager.py      # JOB 管理 (任務分派、資料持久化、防呆安全鎖，支援 Callback 狀態回呼)
 │   ├── models.py       # Crawler DB 資料庫模型
-│   ├── notifier.py     # 任務狀態通知模組 (Email 發送)
 │   ├── profiles.py     # 動態瀏覽器特徵 (Browser Profiles) 產生模組
-│   ├── runner.py       # 爬蟲任務執行器 (包含重試、狀態更新與併發處理)
+│   ├── runner.py       # 爬蟲任務執行器 (包含狀態 Callback 回呼、狀態更新與併發處理)
 │   └── utils.py        # 工具程式 (IP 解析、網域比對邏輯)
 ├── db/                 # 存放 SQLite 本地資料庫 (crawler.db, auth.db)
 ├── doc/                # 系統架構、Schema 與需求規格說明文件
@@ -85,7 +88,30 @@ ext-link-checker/
 
 ## 系統分層架構 (System Layering)
 
-本專案依循高內聚、低耦合的架構原則，並落實 **CLI-First** 的獨立運作能力。系統整體架構分為以下四個核心層級：
+本專案依循高內聚、低耦合的架構原則，並落實 **CLI-First** 的獨立運作能力。
+
+### 模組依賴關係圖
+
+本專案之各模組（Frontend, Backend, Crawler 與 CLI）已實現完全解耦，其依賴關係如下：
+
+```mermaid
+graph TD
+    Frontend -->|API 溝通| Backend
+    Backend -->|Subprocess 呼叫| CLI[cli.py]
+    Backend -->|依賴核心業務| Crawler
+    
+    %% CLI 與 Backend 的關係
+    CLI -->|依賴核心業務| Crawler
+    CLI -->|呼叫通知/匯出服務| Backend
+    
+    %% 消除反向耦合
+    Crawler -.->|完全不引入| Backend
+    Crawler -.->|Callback 回呼狀態| CLI
+```
+
+### 核心設計層級
+
+本系統整體架構分為以下四個核心層級：
 
 1. **前端展示層 (Frontend Layer)**
    * 完全採用原生 Vanilla JS (ESM) 與 Vanilla CSS 開發，不依賴任何前端框架，確保極低的維護成本與供應鏈安全。
@@ -110,6 +136,7 @@ ext-link-checker/
 
 為了保持文件聚焦，各模組之詳細設計已拆分至以下獨立文件：
 * [系統需求規格書](requirements.md)：所有業務邏輯、資安防護與容錯機制之最高指導原則。
+* [模組間詳細依賴說明文件](module_dependencies.md)
 * [命令列 (CLI) 操作指南](cli_usage.md)
 * [API 路由清單](api_routes.md)
 * [資料庫 Schema 說明 (db_schema.md)](db_schema.md)
