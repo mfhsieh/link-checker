@@ -1128,6 +1128,25 @@ Crawler 區塊配置更新請求結構。
 ## CreateJobRequest
 建立任務請求的 Schema。
 
+Attributes:
+    start_url (str): 起始爬取的完整網址。
+    target_domains (list[str]): 目標爬取網域清單。
+    trusted_domains (list[str]): 受信任的外部網域清單。
+    ignore_extensions (list[str]): 欲忽略的檔案副檔名清單。
+    ignore_regexes (list[str]): 欲忽略的網址正則表達式清單。
+    max_depth (int | None): 最大爬取深度。
+    max_pages (int | None): 最大爬取頁數。
+    delay (float | None): 每次請求的固定延遲時間（秒）。
+    timeout (int | None): 請求超時時間（秒）。
+    connect_timeout (float | None): 連線超時時間（秒）。
+    external_check_timeout (float | None): 外部連結檢查之超時時間（秒）。
+    retries (int | None): 重試次數。
+    proxy_url (str | None): 代理伺服器網址。
+    user_agent (str | None): 自訂 User-Agent。
+    ssl_exempt_domains (list[str]): 豁免 SSL 憑證檢查的網域清單。
+    social_domains (list[str]): 視為社群媒體平台的網域清單。
+    domain_delays (dict[str, float] | None): 特定網域的自訂延遲時間。
+
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
 | `start_url` | string | 是 |  |
@@ -1178,6 +1197,10 @@ Crawler 區塊配置更新請求結構。
 ## JobConfigSnapshot
 任務設定快照的 Schema。
 
+Attributes:
+    target_domains (list[str]): 目標爬取網域清單。
+    trusted_domains (list[str]): 受信任的外部網域清單。
+
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
 | `target_domains` | array | 是 |  |
@@ -1187,6 +1210,17 @@ Crawler 區塊配置更新請求結構。
 
 ## JobDetailResponse
 任務詳情 API 回應的 Schema。
+
+Attributes:
+    id (str): 任務 ID。
+    start_url (str): 起始網址。
+    status (str): 任務狀態。
+    created_at (str): 建立時間（ISO 格式）。
+    updated_at (str): 更新時間（ISO 格式）。
+    config (JobConfigSnapshot): 任務設定快照。
+    progress (JobProgress): 任務進度統計。
+    external_link_count (int): 發現的外部連結總數。
+    is_running (bool): 任務子進程是否運行中。
 
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
@@ -1204,6 +1238,14 @@ Crawler 區塊配置更新請求結構。
 
 ## JobProgress
 任務進度統計的 Schema。
+
+Attributes:
+    total (int): 佇列中的總頁面數。
+    completed (int): 已完成爬取的頁面數。
+    warning (int): 爬取時發生警告的頁面數。
+    skipped (int): 被跳過的頁面數。
+    pending (int): 等待爬取的頁面數。
+    failed (int): 爬取失敗的頁面數。
 
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
@@ -1267,6 +1309,9 @@ MimeType 過濾設定。
 
 ## TransferJobRequest
 移交任務請求的 Schema。
+
+Attributes:
+    target_email (EmailStr): 移交目標使用者的 Email 信箱。
 
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|

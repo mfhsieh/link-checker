@@ -2804,7 +2804,7 @@
           "target_domains"
         ],
         "title": "CreateJobRequest",
-        "description": "建立任務請求的 Schema。"
+        "description": "建立任務請求的 Schema。\n\nAttributes:\n    start_url (str): 起始爬取的完整網址。\n    target_domains (list[str]): 目標爬取網域清單。\n    trusted_domains (list[str]): 受信任的外部網域清單。\n    ignore_extensions (list[str]): 欲忽略的檔案副檔名清單。\n    ignore_regexes (list[str]): 欲忽略的網址正則表達式清單。\n    max_depth (int | None): 最大爬取深度。\n    max_pages (int | None): 最大爬取頁數。\n    delay (float | None): 每次請求的固定延遲時間（秒）。\n    timeout (int | None): 請求超時時間（秒）。\n    connect_timeout (float | None): 連線超時時間（秒）。\n    external_check_timeout (float | None): 外部連結檢查之超時時間（秒）。\n    retries (int | None): 重試次數。\n    proxy_url (str | None): 代理伺服器網址。\n    user_agent (str | None): 自訂 User-Agent。\n    ssl_exempt_domains (list[str]): 豁免 SSL 憑證檢查的網域清單。\n    social_domains (list[str]): 視為社群媒體平台的網域清單。\n    domain_delays (dict[str, float] | None): 特定網域的自訂延遲時間。"
       },
       "CreateUserRequest": {
         "properties": {
@@ -2873,7 +2873,7 @@
           "trusted_domains"
         ],
         "title": "JobConfigSnapshot",
-        "description": "任務設定快照的 Schema。"
+        "description": "任務設定快照的 Schema。\n\nAttributes:\n    target_domains (list[str]): 目標爬取網域清單。\n    trusted_domains (list[str]): 受信任的外部網域清單。"
       },
       "JobDetailResponse": {
         "properties": {
@@ -2925,7 +2925,7 @@
           "is_running"
         ],
         "title": "JobDetailResponse",
-        "description": "任務詳情 API 回應的 Schema。"
+        "description": "任務詳情 API 回應的 Schema。\n\nAttributes:\n    id (str): 任務 ID。\n    start_url (str): 起始網址。\n    status (str): 任務狀態。\n    created_at (str): 建立時間（ISO 格式）。\n    updated_at (str): 更新時間（ISO 格式）。\n    config (JobConfigSnapshot): 任務設定快照。\n    progress (JobProgress): 任務進度統計。\n    external_link_count (int): 發現的外部連結總數。\n    is_running (bool): 任務子進程是否運行中。"
       },
       "JobProgress": {
         "properties": {
@@ -2964,7 +2964,7 @@
           "failed"
         ],
         "title": "JobProgress",
-        "description": "任務進度統計的 Schema。"
+        "description": "任務進度統計的 Schema。\n\nAttributes:\n    total (int): 佇列中的總頁面數。\n    completed (int): 已完成爬取的頁面數。\n    warning (int): 爬取時發生警告的頁面數。\n    skipped (int): 被跳過的頁面數。\n    pending (int): 等待爬取的頁面數。\n    failed (int): 爬取失敗的頁面數。"
       },
       "LoginRequest": {
         "properties": {
@@ -3087,7 +3087,7 @@
           "target_email"
         ],
         "title": "TransferJobRequest",
-        "description": "移交任務請求的 Schema。"
+        "description": "移交任務請求的 Schema。\n\nAttributes:\n    target_email (EmailStr): 移交目標使用者的 Email 信箱。"
       },
       "UpdateConfigRequest": {
         "properties": {
