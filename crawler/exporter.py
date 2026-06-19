@@ -4,22 +4,16 @@
 負責處理資料聚合、CSV/JSON 格式化、以及完整任務報表的 ZIP 匯出。
 """
 
-# pylint: disable=wrong-import-position
-# ruff: noqa: E402
-
 import csv
 import io
 import json
 import logging
 import os
-import sys
 import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.jobs.schemas import JobResultQuery
 from backend.jobs.services import results as job_results

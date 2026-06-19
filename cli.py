@@ -484,7 +484,11 @@ def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
     if not output_path.endswith(".zip"):
         output_path += ".zip"
     logging.info("準備將任務 %s 的完整報表匯出至 %s...", args.export_full, output_path)
-    success = export_full_report(manager.session_factory, args.export_full, output_path)
+    success = export_full_report(
+        session_factory=manager.session_factory,
+        job_id=args.export_full,
+        output_path=output_path,
+    )
     if success:
         logging.info("匯出成功！")
     else:

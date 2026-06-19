@@ -1,5 +1,3 @@
-# pylint: disable=wrong-import-position
-# ruff: noqa: E402
 """
 資料回填腳本：為 `external_links` 資料表中既有的舊紀錄補上 `target_domain` 欄位值。
 
@@ -17,12 +15,13 @@ import sys
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import sessionmaker
+# pylint: disable=wrong-import-position
+from sqlalchemy import create_engine, select  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
-from backend.config import get_settings
-from crawler.models import ExternalLink
-from crawler.utils import get_domain
+from backend.config import get_settings  # noqa: E402
+from crawler.models import ExternalLink  # noqa: E402
+from crawler.utils import get_domain  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler(sys.stdout)]
