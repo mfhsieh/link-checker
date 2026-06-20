@@ -30,8 +30,8 @@ export function renderJobList(jobs, containerEl) {
     _currentJobs = [...jobs];
   }
 
-  _listContainerEl.replaceChildren();
   if (_currentJobs.length === 0) {
+    _listContainerEl.replaceChildren();
     const emptyStateEl = document.createElement('div');
     emptyStateEl.className = 'empty-state';
 
@@ -86,85 +86,107 @@ export function renderJobList(jobs, containerEl) {
     return 0;
   });
 
-  const wrapperEl = document.createElement('div');
-  wrapperEl.className = 'table-wrapper';
+  let tableEl = _listContainerEl.querySelector('.table');
+  let tbodyEl = tableEl ? tableEl.querySelector('tbody') : null;
 
-  const tableEl = document.createElement('table');
-  tableEl.className = 'table';
-  tableEl.id = 'jobs-table';
+  if (!tableEl) {
+    _listContainerEl.replaceChildren();
 
-  const theadEl = document.createElement('thead');
-  const headRowEl = document.createElement('tr');
+    const wrapperEl = document.createElement('div');
+    wrapperEl.className = 'table-wrapper';
 
-  const headers = [
-    { label: '任務 ID', key: 'id' },
-    { label: '起始 URL', key: 'start_url' },
-    { label: '狀態', key: 'status' },
-    { label: '建立時間', key: 'created_at' },
-    { label: '操作', key: null, filterable: false }
-  ];
+    tableEl = document.createElement('table');
+    tableEl.className = 'table';
+    tableEl.id = 'jobs-table';
 
-  headers.forEach(h => {
-    const th = document.createElement('th');
-    th.style.verticalAlign = 'top';
+    const theadEl = document.createElement('thead');
+    const headRowEl = document.createElement('tr');
 
-    if (!h.key) {
-      th.textContent = h.label;
-    } else {
-      const headerTop = document.createElement('div');
-      headerTop.style.display = 'flex';
-      headerTop.style.justifyContent = 'space-between';
-      headerTop.style.alignItems = 'center';
-      headerTop.style.cursor = 'pointer';
+    const headers = [
+      { label: '任務 ID', key: 'id' },
+      { label: '起始 URL', key: 'start_url' },
+      { label: '狀態', key: 'status' },
+      { label: '建立時間', key: 'created_at' },
+      { label: '操作', key: null, filterable: false }
+    ];
 
-      const labelSpan = document.createElement('span');
-      labelSpan.textContent = h.label;
-      headerTop.appendChild(labelSpan);
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.style.verticalAlign = 'top';
 
-      const icon = document.createElement('span');
-      icon.className = 'sort-icon';
-      icon.style.fontSize = '0.75rem';
-      icon.style.marginLeft = '0.25rem';
-      if (_jobSort.key === h.key) {
-        icon.textContent = _jobSort.asc ? '▲' : '▼';
-        icon.style.color = 'var(--color-brand-500)';
+      if (!h.key) {
+        th.textContent = h.label;
       } else {
-        icon.textContent = '⇅';
-        icon.style.color = 'var(--text-muted)';
-      }
-      headerTop.appendChild(icon);
+        const headerTop = document.createElement('div');
+        headerTop.style.display = 'flex';
+        headerTop.style.justifyContent = 'space-between';
+        headerTop.style.alignItems = 'center';
+        headerTop.style.cursor = 'pointer';
 
-      headerTop.addEventListener('click', () => {
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = h.label;
+        headerTop.appendChild(labelSpan);
+
+        const icon = document.createElement('span');
+        icon.className = 'sort-icon';
+        icon.dataset.key = h.key;
+        icon.style.fontSize = '0.75rem';
+        icon.style.marginLeft = '0.25rem';
         if (_jobSort.key === h.key) {
-          _jobSort.asc = !_jobSort.asc;
+          icon.textContent = _jobSort.asc ? '▲' : '▼';
+          icon.style.color = 'var(--color-brand-500)';
         } else {
-          _jobSort.key = h.key;
-          _jobSort.asc = true;
+          icon.textContent = '⇅';
+          icon.style.color = 'var(--text-muted)';
         }
-        renderJobList(null, _listContainerEl);
-      });
-      th.appendChild(headerTop);
+        headerTop.appendChild(icon);
 
-      if (h.filterable !== false) {
-        const filterInput = api.createFilterInput(_jobColFilters[h.key], (newVal) => {
-          _jobColFilters[h.key] = newVal;
+        headerTop.addEventListener('click', () => {
+          if (_jobSort.key === h.key) {
+            _jobSort.asc = !_jobSort.asc;
+          } else {
+            _jobSort.key = h.key;
+            _jobSort.asc = true;
+          }
+          api.updateSortIcons(headRowEl, _jobSort.key, _jobSort.asc);
           renderJobList(null, _listContainerEl);
         });
-        th.appendChild(filterInput);
-      }
-    }
-    headRowEl.appendChild(th);
-  });
-  theadEl.appendChild(headRowEl);
-  tableEl.appendChild(theadEl);
+        th.appendChild(headerTop);
 
-  const tbodyEl = document.createElement('tbody');
-  data.forEach(job => {
-    tbodyEl.appendChild(renderJobRow(job));
-  });
-  tableEl.appendChild(tbodyEl);
-  wrapperEl.appendChild(tableEl);
-  _listContainerEl.appendChild(wrapperEl);
+        if (h.filterable !== false) {
+          const filterInput = api.createFilterInput(_jobColFilters[h.key], (newVal) => {
+            _jobColFilters[h.key] = newVal;
+            renderJobList(null, _listContainerEl);
+          });
+          th.appendChild(filterInput);
+        }
+      }
+      headRowEl.appendChild(th);
+    });
+    theadEl.appendChild(headRowEl);
+    tableEl.appendChild(theadEl);
+
+    tbodyEl = document.createElement('tbody');
+    tableEl.appendChild(tbodyEl);
+    wrapperEl.appendChild(tableEl);
+    _listContainerEl.appendChild(wrapperEl);
+  }
+
+  tbodyEl.replaceChildren();
+  if (data.length === 0) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    td.className = 'text-center text-muted';
+    td.style.padding = '1rem';
+    td.textContent = '本頁無符合篩選條件的結果';
+    tr.appendChild(td);
+    tbodyEl.appendChild(tr);
+  } else {
+    data.forEach(job => {
+      tbodyEl.appendChild(renderJobRow(job));
+    });
+  }
 }
 
 /**
