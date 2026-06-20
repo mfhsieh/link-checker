@@ -73,9 +73,6 @@ def _process_paths(schema: dict, lines: list[str]) -> None:
     Args:
         schema (dict): 從 FastAPI 獲取的 OpenAPI Schema 字典。
         lines (list[str]): 用於收集 Markdown 文字行的列表，函式會將結果附加於此。
-
-    Returns:
-        None
     """
     paths = schema.get("paths", {})
     for path, path_item in paths.items():
@@ -108,9 +105,6 @@ def _process_request_body(operation: dict, lines: list[str]) -> None:
     Args:
         operation (dict): OpenAPI Schema 中單一操作（例如 POST /login）的字典結構。
         lines (list[str]): 用於收集 Markdown 文字行的列表，函式會將結果附加於此。
-
-    Returns:
-        None
     """
     request_body = operation.get("requestBody")
     if not request_body:
@@ -134,9 +128,6 @@ def _process_responses(operation: dict, lines: list[str]) -> None:
     Args:
         operation (dict): OpenAPI Schema 中單一操作的字典結構。
         lines (list[str]): 用於收集 Markdown 文字行的列表，函式會將結果附加於此。
-
-    Returns:
-        None
     """
     responses = operation.get("responses", {})
     if not responses:
@@ -156,9 +147,6 @@ def _process_schemas(schema: dict, lines: list[str]) -> None:
     Args:
         schema (dict): 從 FastAPI 獲取的 OpenAPI Schema 字典。
         lines (list[str]): 用於收集 Markdown 文字行的列表，函式會將結果附加於此。
-
-    Returns:
-        None
     """
     schemas = schema.get("components", {}).get("schemas", {})
     if not schemas:
@@ -341,9 +329,6 @@ def generate_docs() -> None:
     1. `doc/api.json`: 原始的 OpenAPI Schema JSON 格式。
     2. `doc/api_spec.md`: 詳細的 API 規格書 (含 Schema 結構與請求參數)。
     3. `doc/api_routes.md`: 簡要的 API 路由清單 (依群組與權限分類)。
-
-    Returns:
-        None
 
     Raises:
         OSError: 當寫入檔案發生錯誤時拋出。

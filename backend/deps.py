@@ -218,9 +218,6 @@ def require_csrf(request: Request) -> None:
     Args:
         request (Request): FastAPI 請求物件。
 
-    Returns:
-        None
-
     Raises:
         HTTPException 403: CSRF Token 不存在或不一致。
     """

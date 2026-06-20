@@ -20,9 +20,6 @@ def refresh_settings_cache() -> None:
     由於 Settings 使用 class-level 屬性（在 class 定義時求值），
     即使環境變數已更新，重新建立 Settings() 也不會讀取新值。
     因此需要手動將 os.environ 的最新值覆寫到 Settings class 屬性上。
-
-    Returns:
-        None
     """
     # pylint: disable=import-outside-toplevel
     from backend.config import Settings, get_settings

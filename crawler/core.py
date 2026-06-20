@@ -121,9 +121,6 @@ class CrawlerCore:
 
         Args:
             config (CrawlerConfig | None): 爬蟲引擎配置物件。若未提供則使用預設配置。
-
-        Returns:
-            None
         """
         self.config: CrawlerConfig = config or CrawlerConfig()
 
@@ -734,9 +731,6 @@ class CrawlerCore:
         """關閉底層的 HTTPX 客戶端連線。
 
         釋放底層連線池資源。建議在爬蟲任務結束時呼叫。
-
-        Returns:
-            None
         """
         self.client.close()
         self.exempt_client.close()

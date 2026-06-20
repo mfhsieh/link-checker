@@ -37,9 +37,6 @@ def _set_api_test_env() -> None:
 
     在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
     避免被其他測試模組的模組級設定覆蓋。
-
-    Returns:
-        None
     """
     os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_api.db"
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_api.db"
@@ -61,9 +58,6 @@ def setup_databases() -> None:
     此函式會先移除現有的測試用 SQLite 資料庫檔案 (`test_auth.db` 與 `test_crawler.db`)，
     接著呼叫 `get_auth_engine()` 與 `get_job_manager()` 來重新建立對應的資料表與初始化狀態。
     確保每次測試都在乾淨的環境下執行。
-
-    Returns:
-        None
     """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
@@ -105,9 +99,6 @@ def setup_databases() -> None:
 def teardown_databases() -> None:
     """
     清理測試所產生的資料庫檔案。
-
-    Returns:
-        None
     """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
@@ -153,9 +144,6 @@ def create_admin_user() -> None:
 
     為繞過「首次登入需修改密碼」的限制，此函式會透過 SQLAlchemy 直接將 `last_login_at`
     設定為當前時間。建立的管理員帳號為：`admin@test.com`，密碼為：`Admin@12345678`。
-
-    Returns:
-        None
     """
     session_factory = get_auth_session_local()
     with session_factory() as db:
@@ -205,9 +193,6 @@ def test_api_full_flow() -> None:
 
     透過 `TestClient` 模擬真實 HTTP 請求，並驗證每個端點的 HTTP 狀態碼與部分回傳結構，
     以確保整個 FastAPI 後端系統運作正常。
-
-    Returns:
-        None
     """
     from unittest.mock import patch  # pylint: disable=import-outside-toplevel
 
@@ -237,9 +222,6 @@ def _run_api_full_flow() -> None:
     執行所有的 API 整合測試流程。
 
     包含所有的 API 端點存取與斷言檢查。
-
-    Returns:
-        None
 
     Raises:
         AssertionError: 當 API 測試未達預期結果時拋出。

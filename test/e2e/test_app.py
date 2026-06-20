@@ -13,9 +13,6 @@ def test_create_job(page: Page, base_url: str) -> None:
         page (Page): Playwright 的網頁操作物件.
         base_url (str): 測試伺服器的根網址.
 
-    Returns:
-        None
-
     Raises:
         AssertionError: 任務建立失敗或發生非預期錯誤時拋出.
     """
@@ -80,9 +77,6 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
     Args:
         page (Page): Playwright 的網頁操作物件.
         base_url (str): 測試伺服器的根網址.
-
-    Returns:
-        None
 
     Raises:
         AssertionError: 測試流程中發生非預期結果或驗證失敗.

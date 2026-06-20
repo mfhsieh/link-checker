@@ -108,9 +108,6 @@ class MockJobManager:
 
         Args:
             job_id (str): 任務 ID。
-
-        Returns:
-            None
         """
 
     def delete_job(self, job_id: str) -> bool:  # pylint: disable=unused-argument
@@ -152,9 +149,6 @@ class TestAdminLogs(unittest.TestCase):
         在所有測試開始前執行的初始化操作。
 
         設定環境變數、建立測試資料表、寫入初始使用者，並備份全域設定檔。
-
-        Returns:
-            None
         """
         global engine, TestingSessionLocal  # pylint: disable=global-statement
 
@@ -213,9 +207,6 @@ class TestAdminLogs(unittest.TestCase):
         在所有測試結束後執行的清理操作。
 
         刪除測試資料表與檔案，清空 dependency overrides，並還原全域設定檔。
-
-        Returns:
-            None
         """
         # 清空 dependency overrides，避免影響其他測試模組
         app.dependency_overrides.clear()
@@ -246,9 +237,6 @@ class TestAdminLogs(unittest.TestCase):
     def setUp(self) -> None:
         """
         在每個測試方法執行前清空操作日誌。
-
-        Returns:
-            None
         """
         # 每次測試前清空 AuthLog，確保測試獨立性
         db = TestingSessionLocal()
@@ -259,9 +247,6 @@ class TestAdminLogs(unittest.TestCase):
     def test_config_change_logging(self) -> None:
         """
         測試全域配置修改時，是否正確記錄操作日誌。
-
-        Returns:
-            None
         """
         # 先做一次配置更新
         payload = {
@@ -288,9 +273,6 @@ class TestAdminLogs(unittest.TestCase):
     def test_user_status_changed_logging(self) -> None:
         """
         測試使用者狀態與角色變更時，是否正確記錄操作日誌。
-
-        Returns:
-            None
         """
         payload = {
             "status": "suspended",
@@ -311,9 +293,6 @@ class TestAdminLogs(unittest.TestCase):
     def test_logs_date_filtering(self) -> None:
         """
         測試操作日誌的日期區間篩選功能。
-
-        Returns:
-            None
         """
         db = TestingSessionLocal()
         # 建立幾個不同時間點的日誌
@@ -350,9 +329,6 @@ class TestAdminLogs(unittest.TestCase):
     def test_user_deleted_logging(self) -> None:
         """
         測試管理員刪除使用者帳號時，是否正確記錄操作日誌。
-
-        Returns:
-            None
         """
         # 建立測試用的待刪除使用者
         db = TestingSessionLocal()
@@ -379,9 +355,6 @@ class TestAdminLogs(unittest.TestCase):
     def test_job_takeover_logging(self) -> None:
         """
         測試管理員強制接管任務時，是否正確記錄操作日誌。
-
-        Returns:
-            None
         """
         response = self.client.post("/api/admin/jobs/test-job-id/takeover")
         self.assertEqual(response.status_code, 200)
@@ -403,9 +376,6 @@ class TestAdminLogs(unittest.TestCase):
     def test_job_deleted_logging(self) -> None:
         """
         測試管理員強制刪除任務時，是否正確記錄操作日誌。
-
-        Returns:
-            None
         """
         response = self.client.delete("/api/admin/jobs/test-job-id-delete")
         self.assertEqual(response.status_code, 200)

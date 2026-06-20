@@ -12,9 +12,6 @@ def test_login_success(page: Page, base_url: str) -> None:
     Args:
         page (Page): Playwright 的網頁操作物件。
         base_url (str): 測試伺服器的根網址。
-
-    Returns:
-        None
     """
     page.goto(f"{base_url}/index.html")
 
@@ -39,9 +36,6 @@ def test_login_failure(page: Page, base_url: str) -> None:
     Args:
         page (Page): Playwright 的網頁操作物件。
         base_url (str): 測試伺服器的根網址。
-
-    Returns:
-        None
     """
     page.goto(f"{base_url}/index.html")
 

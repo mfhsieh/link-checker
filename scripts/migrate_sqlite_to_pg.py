@@ -44,9 +44,6 @@ def migrate_auth_db(sqlite_url: str, pg_url: str) -> None:
         sqlite_url (str): 來源 SQLite 資料庫連線 URL。
         pg_url (str): 目標 PostgreSQL 資料庫連線 URL。
 
-    Returns:
-        None
-
     Raises:
         SQLAlchemyError: 當資料寫入發生例外時拋出。
     """
@@ -128,9 +125,6 @@ def migrate_crawler_db(sqlite_url: str, pg_url: str) -> None:
     Args:
         sqlite_url (str): 來源 SQLite 資料庫連線 URL。
         pg_url (str): 目標 PostgreSQL 資料庫連線 URL。
-
-    Returns:
-        None
 
     Raises:
         SQLAlchemyError: 當資料寫入發生例外時拋出。
@@ -224,9 +218,6 @@ def main() -> None:
 
     驗證設定的連線字串是否確實為 PostgreSQL，若通過則依序執行 Auth DB
     與 Crawler DB 的資料庫遷移，成功後結束。
-
-    Returns:
-        None
 
     Raises:
         SystemExit: 當資料庫設定非 PostgreSQL 或遷移過程發生嚴重錯誤時。

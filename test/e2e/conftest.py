@@ -36,9 +36,6 @@ def _set_e2e_test_env() -> None:
 
     在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
     避免被其他測試模組的模組級設定覆蓋。
-
-    Returns:
-        None
     """
     os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_e2e.db"
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_e2e.db"
@@ -54,9 +51,6 @@ def setup_databases() -> None:
     清理並初始化 E2E 測試用資料庫。
 
     此函式會重建 Auth DB 與 Crawler DB 以確保測試環境乾淨。
-
-    Returns:
-        None
     """
     import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
     import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
@@ -100,9 +94,6 @@ def setup_databases() -> None:
 def teardown_databases() -> None:
     """
     清理 E2E 測試所產生的資料庫檔案。
-
-    Returns:
-        None
     """
     import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
     import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
@@ -145,9 +136,6 @@ def create_admin_user() -> None:
     建立 E2E 測試用的管理員帳號。
 
     在 Auth 資料庫中直接插入一筆 admin@test.com 帳號，以利後續 E2E 測試登入。
-
-    Returns:
-        None
     """
     session_factory = get_auth_session_local()
     with session_factory() as db:
@@ -255,7 +243,4 @@ def clean_database_state() -> None:
 
     此 fixture 會自動在每個測試案例執行前被呼叫，用以重置或清理
     資料庫中的狀態，確保各個 E2E 測試案例之間的獨立性，避免互相干擾。
-
-    Returns:
-        None
     """

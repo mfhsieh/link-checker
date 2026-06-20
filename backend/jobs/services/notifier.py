@@ -77,9 +77,6 @@ def _build_and_send_email(
         job (Job): 目標爬蟲任務。
         status (str): 任務狀態 ("completed" 或 "failed")。
         stats (JobStats): 任務統計數據。
-
-    Returns:
-        None
     """
     status_text = "已完成 (Completed)" if status == "completed" else "發生嚴重異常 (Error)"
     subject = f"【網站連結檢查系統】任務狀態通知 ({status_text}) - 任務 ID: {job.id}"
@@ -129,9 +126,6 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
         session_factory (Callable[[], Session]): Crawler DB 的 Session 工廠。
         job_id (str): 任務 ID。
         status (str): 結束的狀態 ('completed' 或 'error')。
-
-    Returns:
-        None
     """
     with session_factory() as session:
         job = session.query(Job).filter(Job.id == job_id).first()

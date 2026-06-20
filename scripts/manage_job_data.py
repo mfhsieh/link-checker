@@ -43,9 +43,6 @@ def export_job(job_id: str, output_path: str) -> None:
         job_id (str): 欲匯出的任務 ID。
         output_path (str): 匯出資料的目標資料夾路徑或 ZIP 檔案路徑。
 
-    Returns:
-        None
-
     Raises:
         SystemExit: 當找不到任務時，結束程式。
     """
@@ -143,9 +140,6 @@ def import_job(input_path: str, new_user_id: str) -> None:
     Args:
         input_path (str): 存放任務備份資料的來源資料夾路徑或 ZIP 檔案路徑。
         new_user_id (str): 接手該任務的新使用者 ID。
-
-    Returns:
-        None
 
     Raises:
         SystemExit: 當找不到任務元資料或解壓縮失敗時，結束程式。
@@ -263,9 +257,6 @@ def main() -> None:
 
     使用 argparse 讀取命令列參數，根據指定的操作 (export 或 import)
     將參數導向至對應的函式處理。
-
-    Returns:
-        None
 
     Raises:
         SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。

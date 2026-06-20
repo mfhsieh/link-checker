@@ -32,9 +32,6 @@ def _write_pid(job_id: str, pid: int) -> None:
     Args:
         job_id (str): 任務 ID。
         pid (int): 子程序 PID。
-
-    Returns:
-        None
     """
     os.makedirs(PID_DIR, exist_ok=True)
     with open(_get_pid_file(job_id), "w", encoding="utf-8") as f:
@@ -67,9 +64,6 @@ def _clear_pid(job_id: str) -> None:
 
     Args:
         job_id (str): 任務 ID。
-
-    Returns:
-        None
     """
     pid_file = _get_pid_file(job_id)
     if os.path.exists(pid_file):
@@ -133,9 +127,6 @@ def _cleanup_finished_processes() -> None:
     清理所有已結束子程序的 PID 檔案，釋放過期資源。
 
     走訪 PID 目錄並檢查進程狀態，若已結束則清除對應 PID 檔。
-
-    Returns:
-        None
     """
     if not os.path.exists(PID_DIR):
         return
@@ -152,9 +143,6 @@ def _cleanup_zombie_jobs(manager: JobManager) -> None:
 
     Args:
         manager (JobManager): JobManager 實例。
-
-    Returns:
-        None
     """
     running_jobs = manager.get_all_jobs(status="running")
     for j in running_jobs:

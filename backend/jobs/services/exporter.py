@@ -79,9 +79,6 @@ def _write_export_data(
         csv_headers (list[str]): CSV 的標頭欄位。
         csv_rows (list[list[object]]): CSV 的各列資料。
 
-    Returns:
-        None
-
     Raises:
         OSError: 當建立目錄或寫入檔案失敗時拋出。
     """
@@ -214,9 +211,6 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
         job_id (str): 目標任務 ID。
         zf (zipfile.ZipFile): 目標 ZIP 壓縮檔物件。
 
-    Returns:
-        None
-
     Raises:
         OSError: 當寫入壓縮檔失敗時拋出。
     """
@@ -266,9 +260,6 @@ def _export_external_links_to_zip(session: Session, job_id: str, zf: zipfile.Zip
         session (Session): 資料庫會話。
         job_id (str): 目標任務 ID。
         zf (zipfile.ZipFile): 目標 ZIP 壓縮檔物件。
-
-    Returns:
-        None
 
     Raises:
         OSError: 當寫入壓縮檔失敗時拋出。

@@ -93,9 +93,6 @@ class JobRunner:
             session_factory (Callable[[], Session]): SQLAlchemy Session 工廠。
             job_id (str): 目標任務 ID。
             status_callback (Callable[[str, str], None] | None): 任務狀態變更時的回呼函式。
-
-        Returns:
-            None
         """
         self.session_factory = session_factory
         self.job_id = job_id
@@ -120,9 +117,6 @@ class JobRunner:
             crawler_config_param (dict[str, object] | None): 爬蟲相關的設定參數。
             force (bool): 是否強制接管卡在 running 狀態的任務。
             is_api_spawn (bool): 是否由 API 背景程序觸發。
-
-        Returns:
-            None
         """
         with self.session_factory() as session:
             job = self._initialize(session, crawler_config_param, force, is_api_spawn)
@@ -273,9 +267,6 @@ class JobRunner:
             session (Session): SQLAlchemy Session 實例。
             job (Job): 當前的爬蟲任務物件。
             crawler (CrawlerCore): 初始化的爬蟲核心引擎。
-
-        Returns:
-            None
         """
         while True:
             session.expire(job)
@@ -316,9 +307,6 @@ class JobRunner:
         Args:
             session (Session): SQLAlchemy Session 實例。
             job (Job): 當前的爬蟲任務物件。
-
-        Returns:
-            None
         """
         job.status = "completed"
         session.commit()
@@ -338,9 +326,6 @@ class JobRunner:
             session (Session): SQLAlchemy Session 實例。
             queue_item (CrawlQueue): 當前準備處理的佇列物件。
             crawler (CrawlerCore): 爬蟲核心引擎。
-
-        Returns:
-            None
         """
         current_url: str = queue_item.url
         logger.info("正在爬取: %s", current_url)
@@ -404,9 +389,6 @@ class JobRunner:
             session (Session): SQLAlchemy Session 實例。
             queue_item (CrawlQueue): 當前處理的佇列來源網址物件。
             internal_links (list[str]): 解析出的內部連結陣列。
-
-        Returns:
-            None
         """
         next_depth = queue_item.depth + 1
         if self.crawler_config_dict.get("max_depth", None) is None or next_depth <= self.crawler_config_dict.get(
@@ -495,9 +477,6 @@ class JobRunner:
             current_url (str): 當前來源網址。
             external_target_links (list[str]): 待處理的外部連結陣列。
             crawler (CrawlerCore): 爬蟲核心引擎。
-
-        Returns:
-            None
         """
         unique_links = list(set(external_target_links))
         needs_check = self._prepare_external_links(session, current_url, unique_links)
@@ -535,9 +514,6 @@ class JobRunner:
             current_url (str): 當前來源網址。
             results (list[tuple[str, str | None, int | None, str | None]]):
                 (目標網址, IP, HTTP狀態碼, 錯誤訊息) 構成的結果陣列。
-
-        Returns:
-            None
         """
         for res_link, res_ip, res_code, res_err in results:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
@@ -587,9 +563,6 @@ class JobRunner:
             session (Session): SQLAlchemy Session 實例。
             queue_item (CrawlQueue): 發生錯誤的佇列物件。
             e (httpx.HTTPError): 捕捉到的 HTTPX 例外。
-
-        Returns:
-            None
         """
         session.rollback()
         current_url = queue_item.url

@@ -71,9 +71,6 @@ class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
     def __post_init__(self) -> None:
         """
         在初始化後檢查網域陣列是否有提供初始值。
-
-        Returns:
-            None
         """
         if self.ignore_extensions is None:
             self.ignore_extensions = list(_DEF["ignore_extensions"])

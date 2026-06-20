@@ -24,9 +24,6 @@ def main() -> None:
     利用 argparse 接收指定的 URL 與選填參數，實例化 CrawlerCore 並進行探測，
     最終將存活狀態、HTTP 狀態碼或錯誤訊息印出至終端機。
 
-    Returns:
-        None
-
     Raises:
         SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
     """

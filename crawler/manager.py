@@ -62,9 +62,6 @@ class JobManager:
             db_url (str): 資料庫的連線字串。預設為 'sqlite:///db/crawler.db'。
             status_callback (Callable[[str, str], None] | None): 任務狀態變更時的回呼函式。
 
-        Returns:
-            None
-
         Raises:
             OSError: 若建立資料庫目錄失敗時拋出。
             SQLAlchemyError: 若建立資料表失敗時拋出。
@@ -161,9 +158,6 @@ class JobManager:
             force (bool): 是否強制接管卡在 running 狀態的任務。
             is_api_spawn (bool): 是否由 API 背景程序觸發。
             status_callback (Callable[[str, str], None] | None): 狀態變更回呼。
-
-        Returns:
-            None
         """
         cb = status_callback or self.status_callback
         runner = JobRunner(self.session_factory, job_id, status_callback=cb)

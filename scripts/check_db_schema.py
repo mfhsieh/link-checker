@@ -151,9 +151,6 @@ def main() -> None:
     讀取環境變數設定的資料庫連線字串，建立 SQLAlchemy Engine，
     並依序檢驗 Auth DB 與 Crawler DB 的 Schema。若檢查全數通過，
     程式會以 Exit Code 0 結束；若有任何不一致，則以 Exit Code 1 結束。
-
-    Returns:
-        None
     """
     settings = get_settings()
 

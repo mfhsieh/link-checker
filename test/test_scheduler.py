@@ -25,9 +25,6 @@ def test_scheduler_queuing(monkeypatch: pytest.MonkeyPatch) -> None:
     Args:
         monkeypatch (pytest.MonkeyPatch): Pytest 提供的猴子補丁物件，用於修改環境變數與模擬。
 
-    Returns:
-        None
-
     Raises:
         AssertionError: 當任務沒有進入預期的狀態時拋出。
     """

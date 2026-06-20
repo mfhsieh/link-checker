@@ -28,9 +28,6 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         Args:
             format (str): 日誌格式化字串。
             *args (object): 要填入格式化字串的變數。
-
-        Returns:
-            None
         """
         sys.stderr.write(f"MockServer - - [{self.log_date_time_string()}] {format % args}\n")
 
@@ -39,9 +36,6 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         """
         處理所有的 HTTP GET 請求，模擬指數退避重試、網路超時、重定向、特定 MIME 類型等多種情境。
-
-        Returns:
-            None
         """
         # 1. 測試：指數退避重試（前 2 次返回 503 暫時性錯誤，第 3 次返回 200）
         if self.path == "/temporary-error":
@@ -221,9 +215,6 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         處理 HTTP HEAD 請求。
 
         模擬 Tarpit 超時，其餘路徑回傳 501 以符合 mock-social-media 測試期待。
-
-        Returns:
-            None
         """
         if self.path == "/tarpit":
             time.sleep(2)
@@ -245,9 +236,6 @@ def run(port: int = 8000) -> None:
 
     Args:
         port (int): 伺服器監聽的 TCP 通訊埠，預設為 8000。
-
-    Returns:
-        None
     """
     server_address = ("", port)
     httpd = http.server.ThreadingHTTPServer(server_address, MockHTTPRequestHandler)

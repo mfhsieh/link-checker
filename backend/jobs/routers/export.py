@@ -342,7 +342,7 @@ def export_full_report(
     def cleanup() -> None:
         """
         背景清理暫存 ZIP 檔案的任務。
-    """
+        """
         if os.path.exists(temp_path):
             os.remove(temp_path)
 

@@ -862,9 +862,6 @@ def _process_diff_common_url(
         item_a (dict[str, object]): 舊任務的外連項目資料。
         item_b (dict[str, object]): 新任務的外連項目資料。
         diff_lists (dict[str, list[dict[str, object]]]): 存放差異結果的字典。
-
-    Returns:
-        None
     """
     if item_a["ip"] and item_b["ip"] and item_a["ip"] != item_b["ip"]:
         diff_lists["ip_changed"].append(

@@ -281,10 +281,6 @@ def create_optimized_engine(  # pylint: disable=too-many-arguments
 
             Args:
                 dbapi_connection (object): SQLite 資料庫連線物件。
-                _connection_record (object): SQLAlchemy 連線紀錄物件（此處未使用）。
-
-            Returns:
-                None
             """
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")

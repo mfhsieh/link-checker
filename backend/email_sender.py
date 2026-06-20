@@ -153,9 +153,6 @@ def _send_email(msg: EmailMessage) -> None:
 
     Args:
         msg (EmailMessage): 欲寄送的郵件物件。
-
-    Returns:
-        None
     """
     settings = get_settings()
     context = ssl.create_default_context()

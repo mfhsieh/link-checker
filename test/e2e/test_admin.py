@@ -12,9 +12,6 @@ def test_admin_config(page: Page, base_url: str) -> None:
     Args:
         page (Page): Playwright 的網頁操作物件。
         base_url (str): 測試伺服器的根網址。
-
-    Returns:
-        None
     """
     page.goto(f"{base_url}/index.html")
     page.fill('input[type="email"]', "admin@test.com")
@@ -59,9 +56,6 @@ def test_admin_user_management_ui(page: Page, base_url: str) -> None:
     Args:
         page (Page): Playwright 的網頁操作物件。
         base_url (str): 測試伺服器的根網址。
-
-    Returns:
-        None
 
     Raises:
         AssertionError: 當操作結果與預期不合或 API 發生錯誤時拋出。

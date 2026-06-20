@@ -124,9 +124,6 @@ def _sanitize_numeric_type(k: str, v: object, exp: type | tuple[type, ...], conf
         v (object): 設定的原始值。
         exp (type | tuple[type, ...]): 預期的型別。
         config (dict[str, object]): 爬蟲設定字典，清理後會直接修改此字典。
-
-    Returns:
-        None
     """
     # 在 Python 中 bool 是 int 的子類別，需特別防堵
     if isinstance(v, bool):
@@ -147,9 +144,6 @@ def _sanitize_string_type(k: str, v: object, config: dict[str, object]) -> None:
         k (str): 設定的鍵名。
         v (object): 設定的原始值。
         config (dict[str, object]): 爬蟲設定字典。
-
-    Returns:
-        None
     """
     if not isinstance(v, str):
         config[k] = str(v)
@@ -162,9 +156,6 @@ def _sanitize_domain_delays(k: str, v: dict, config: dict[str, object]) -> None:
         k (str): 設定的鍵名。
         v (dict): 原始的 domain_delays 字典。
         config (dict[str, object]): 爬蟲設定字典。
-
-    Returns:
-        None
     """
     sanitized_dd = {}
     for dd_k, dd_v in v.items():
@@ -184,9 +175,6 @@ def _sanitize_mime_type_filter(v: dict) -> None:
 
     Args:
         v (dict): mime_type_filter 字典。
-
-    Returns:
-        None
     """
     if "enabled" in v and isinstance(v["enabled"], str):
         v["enabled"] = v["enabled"].lower() in ("true", "1", "yes", "on")
@@ -206,9 +194,6 @@ def _sanitize_dict_type(k: str, v: object, config: dict[str, object]) -> None:
         k (str): 設定的鍵名。
         v (object): 設定的原始值。
         config (dict[str, object]): 爬蟲設定字典。
-
-    Returns:
-        None
     """
     if not isinstance(v, dict):
         logging.warning("設定 '%s' 必須為字典 (Key-Value) 格式，將被忽略。", k)
@@ -226,9 +211,6 @@ def _sanitize_list_type(k: str, v: object, config: dict[str, object]) -> None:
         k (str): 設定的鍵名。
         v (object): 設定的原始值。
         config (dict[str, object]): 爬蟲設定字典。
-
-    Returns:
-        None
     """
     if isinstance(v, str):
         config[k] = [v]
@@ -254,9 +236,6 @@ def _sanitize_crawler_types(config: dict[str, object]) -> None:
 
     Args:
         config (dict[str, object]): 需要進行型別檢查與清理的爬蟲設定字典。
-
-    Returns:
-        None
     """
     numeric_types = {
         "timeout": (int, float),
@@ -317,9 +296,6 @@ def _apply_crawler_defaults(crawler_config: dict[str, object], global_crawler_co
     Args:
         crawler_config (dict[str, object]): 個別任務的爬蟲設定。
         global_crawler_config (dict[str, object]): 全域爬蟲預設設定。
-
-    Returns:
-        None
     """
     default_crawler = DEFAULT_GLOBAL_CONFIG.get("crawler")
     if not isinstance(default_crawler, dict):
@@ -372,9 +348,6 @@ def _merge_crawler_lists(crawler_config: dict[str, object], global_crawler_confi
     Args:
         crawler_config (dict[str, object]): 個別任務的爬蟲設定。
         global_crawler_config (dict[str, object]): 全域爬蟲預設設定。
-
-    Returns:
-        None
     """
     list_keys = [
         "ignore_extensions",
@@ -420,9 +393,6 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
     Args:
         crawler_config (dict[str, object]): 個別任務的爬蟲設定。
         global_crawler_config (dict[str, object]): 全域爬蟲限制設定。
-
-    Returns:
-        None
     """
     default_crawler = DEFAULT_GLOBAL_CONFIG.get("crawler")
     if not isinstance(default_crawler, dict):
@@ -437,9 +407,6 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
             max_k (str): 最大值的全域設定鍵名。
             def_min (float | int): 預設的最小值。
             def_max (float | int): 預設的最大值。
-
-        Returns:
-            None
         """
         min_val = global_crawler_config.get(min_k)
         if min_val is None:
@@ -471,9 +438,6 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
             key (str): 設定鍵名。
             max_k (str): 最大值的全域設定鍵名。
             def_max (int): 預設的最大值。
-
-        Returns:
-            None
         """
         if max_k in global_crawler_config:
             max_val = global_crawler_config[max_k]

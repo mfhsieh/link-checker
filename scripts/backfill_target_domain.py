@@ -36,9 +36,6 @@ def backfill() -> None:
     透過解析 `target_url` 來自動補齊並回填 `target_domain` 欄位值。
     每批處理 2000 筆紀錄，直到所有紀錄皆回填完畢。
 
-    Returns:
-        None
-
     Raises:
         SQLAlchemyError: 當資料庫連線或更新失敗時拋出。
     """

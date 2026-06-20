@@ -15,9 +15,6 @@ def test_duplicate_job_filters_defaults(page: Page, base_url: str) -> None:
     Args:
         page (Page): Playwright 的網頁操作物件。
         base_url (str): 測試伺服器的根網址。
-
-    Returns:
-        None
     """
     # 1. 登入系統
     page.goto(f"{base_url}/index.html")
