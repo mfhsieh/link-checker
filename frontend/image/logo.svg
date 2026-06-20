@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" overflow="visible">
+  <!-- 斜向 45 度的連結符號 (微調向左上角移動) -->
+  <g transform="translate(-1.5, -1.5) rotate(-45 12 12)">
+    <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
+    <path d="M15 7h2a5 5 0 1 1 0 10h-2"/>
+    <line x1="8" y1="12" x2="16" y2="12"/>
+  </g>
+  
+  <!-- 位於右下角的安全盾牌圖示 (極致放大版) -->
+  <g transform="translate(8, 8) scale(0.85)">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#16a34a" stroke="#000000" stroke-width="1.0" />
+    <polyline points="9 12 11 14 15 9" stroke="#ffffff" stroke-width="2.2" fill="none" />
+  </g>
+</svg>
