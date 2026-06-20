@@ -34,7 +34,8 @@ ext-link-checker/
 │   │   ├── jobs.js, job-detail.js         # 任務列表與詳情
 │   │   ├── compare.js, duplicate.js       # 任務比對與複製
 │   │   ├── transfer.js                    # 任務移交
-│   │   └── toast.js                       # 全域通知元件
+│   │   ├── toast.js                       # 全域通知元件 (Toast UI 封裝)
+│   │   └── ui.js                          # 公用 UI 渲染與 DOM 操作元件庫
 │   ├── index.html      # 登入與首頁
 │   ├── app.html        # 爬蟲任務管理主介面
 │   ├── admin.html      # 系統管理員後台介面

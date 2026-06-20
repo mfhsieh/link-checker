@@ -22,6 +22,15 @@ from crawler.utils import JSONGroupArray, JSONObject, format_crawl_queue_item, g
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+ERROR_STATUS_FILTERS = [
+    "not_found",
+    "server_error",
+    "connection_error",
+    "other_error",
+    "blocked",
+    "insecure",
+]
+
 
 def _parse_json_list(val: object) -> list:
     """

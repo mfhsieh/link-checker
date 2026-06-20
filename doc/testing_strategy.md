@@ -25,7 +25,7 @@
 ### 1.3 前端 E2E 測試之 API 攔截與模擬策略 (API Interception & Mocking in E2E)
 
 為了確保前端 UI 測試在面對異步爬蟲、背景任務與網絡不確定性時的穩定度與執行效能，本專案的前端 E2E 測試（Playwright 框架）實施了以下 API 攔截與模擬機制：
-*   **動態 API 攔截 (`page.route`)**：在 UI 測試中，我們使用 Playwright 攔截了發往 `/api/jobs` 等控制端點的請求。這使我們能動態控制回傳的任務狀態（如 `pending`, `running`, `completed`, `error` 等），而無須依賴真實爬蟲子程序的執行。此方法 100% 避開了後端假死任務清理機制或時序競態造成的干擾。
+*   **動態 API 攔截 (`page.route`)**：在 UI 測試（如 `test_app.py` 與 `test_duplicate.py`）中，我們廣泛使用 Playwright 攔截了發往 `/api/jobs` 等控制端點的請求。這使我們能動態控制回傳的任務狀態（如 `pending`, `running`, `completed`, `error` 等）並強制模擬伺服器錯誤 (HTTP 500)，而無須依賴真實爬蟲子程序的執行。此方法不僅 100% 避開了後端時序競態造成的干擾，更能完美驗證公用元件（如 `toast.js`）在接收各種成功或失敗回應時的 UI 彈出邏輯。
 *   **Server-Sent Events (SSE) 串流模擬**：為防止前端 JavaScript 的 `EventSource` 連線因為 API 攔截而一直處於掛起 (pending) 狀態進而影響按鈕點擊等 UI 互動，測試攔截了 `/stream` 端點，並回傳正確的 `text/event-stream` 標頭及空內容，確保前端連線能被溫和地關閉與釋放。
 
 ---

@@ -15,6 +15,8 @@
   - **報表匯出**: `/api/jobs/{job_id}/results/export`, `/api/jobs/{job_id}/export/full`
   - **系統管理**: `/api/admin/users`, `/api/admin/logs`
 - **安全防禦依賴**: POST / PATCH / DELETE 請求必須在 Request Header 中附加 `X-CSRF-Token`（讀取自 Cookie中的 `csrf_token`）。
+- **前端內部公用庫依賴**:
+  - **公用 UI 與通知**: 所有業務邏輯模組 (`jobs.js`, `login.js` 等) 皆依賴 [frontend/js/toast.js](file:///home/mfhsieh/projects/python/ext-link-checker/frontend/js/toast.js) 與 [frontend/js/ui.js](file:///home/mfhsieh/projects/python/ext-link-checker/frontend/js/ui.js) 來進行全域通知與表單狀態重置。
 
 ---
 
@@ -96,3 +98,16 @@
 - **狀態通知**: 不再自行 import 後端的 `send_job_status_notification` 函式，而是依賴執行期外部注入的 `status_callback: Callable[[str, str], None]`。
 - **報表匯出**: 移除所有報表產生邏輯，將產出 CSV/ZIP 的職責完全交給外部（如 `backend` 的 exporter 服務）。
 - **資料庫訪問**: 完全依賴自有的 `crawler.models` 中宣告的 SQLite/PostgreSQL schema 映射，與後端 Auth DB 保持完全的庫級分離與物理隔離。
+
+---
+
+## 7. 系統維運腳本 (Scripts) 對核心的依賴
+
+位於 `scripts/` 目錄下的各種維護腳本（例如資料庫遷移、任務備份等）由於需要繞過 API 直接進行批次處理，因此會直接依賴後端與 Crawler 的底層模組。
+
+- **`migrate_sqlite_to_pg.py`**:
+  - 直接依賴 `backend.auth.models` 與 `crawler.models` 以取得所有資料表 Metadata 進行清空與重建。
+  - 直接依賴 SQLAlchemy 的 `create_engine` 與 `sessionmaker` 進行跨庫連線。
+- **`manage_job_data.py`** (被 `job_sync.sh` 呼叫):
+  - 直接依賴 `crawler.models` 中的 `Job`, `CrawlQueue`, `ExternalLink` 進行資料的 JSONL 序列化與反序列化。
+  - 依賴 `backend.config` 以取得當前啟動環境的資料庫 URL。

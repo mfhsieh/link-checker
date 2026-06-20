@@ -417,3 +417,28 @@ python cli.py --serve  # 若為開發環境，可加上 --reload 啟用熱重載
 # 範例：從 ZIP 壓縮檔還原，並指派給指定使用者
 ./scripts/job_sync.sh import ./my_job_backup.zip user-uuid-1234
 ```
+
+---
+
+## 8. 全資料庫 PostgreSQL 遷移 (Database Migration)
+
+若您的專案初期使用輕量的 SQLite，但在資料量膨脹後希望無縫升級為 PostgreSQL，系統提供了一鍵遷移腳本。此腳本會在底層利用 SQLAlchemy 進行跨資料庫的批量讀寫，並自動同步 PostgreSQL 的 Sequence。
+
+### 執行前置作業
+請先在 `.env` 中設定好新舊資料庫的路徑：
+```env
+# 來源：舊版 SQLite 資料庫
+MIGRATION_SOURCE_SQLITE_URL="sqlite:///db/auth.db"
+MIGRATION_SOURCE_CRAWLER_SQLITE_URL="sqlite:///db/crawler.db"
+
+# 目標：全新建立的 PostgreSQL 資料庫
+AUTH_DB_URL="postgresql://user:pass@localhost:5432/auth_db"
+CRAWLER_DB_URL="postgresql://user:pass@localhost:5432/crawler_db"
+```
+
+### 啟動遷移程序
+```bash
+# 請確保已進入虛擬環境，然後直接執行遷移腳本
+python scripts/migrate_sqlite_to_pg.py
+```
+> **⚠️ 提示：** 遷移期間會暫時關閉目標資料庫的外鍵約束 (Foreign Key checks) 以加速寫入，並在完成後利用 `setval(pg_get_serial_sequence(...))` 校正遞增主鍵，請確保目標 PostgreSQL 是空的。

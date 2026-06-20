@@ -29,8 +29,8 @@ from backend.jobs.schemas import CreateJobRequest, JobCreateConfig, JobDetailRes
 from backend.jobs.services import management as job_management
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
-    merge_and_validate_crawler_config,
     _sanitize_crawler_types,
+    merge_and_validate_crawler_config,
 )
 from crawler.manager import JobManager
 

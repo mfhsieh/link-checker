@@ -1,5 +1,4 @@
-"""
-自動產生 API 規格與路由清單。
+"""自動產生 API 規格與路由清單。.
 
 從 FastAPI 的 OpenAPI Schema 萃取資料，分別產出 `doc/api.json`、`doc/api_spec.md` 與 `doc/api_routes.md`。
 """
@@ -13,18 +12,19 @@ import sys
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.main import app  # pylint: disable=wrong-import-position,import-error # noqa: E402
+# pylint: disable=wrong-import-position, import-error
+from backend.main import app  # noqa: E402
 
 
 def _format_description_markdown(desc: str) -> str:
-    """
-    將 Python docstring 中的 Args/Returns 等區段轉換為更適合 Markdown 呈現的格式。
+    """將 Python docstring 中的 Args/Returns 等區段轉換為更適合 Markdown 呈現的格式。.
 
     Args:
         desc (str): 原始的 docstring 說明字串。
 
     Returns:
         str: 格式化為 Markdown 的字串。
+
     """
     lines = desc.split("\n")
     out_lines = []
@@ -64,14 +64,14 @@ def _format_description_markdown(desc: str) -> str:
 
 
 def _process_paths(schema: dict, lines: list[str]) -> None:
-    """
-    處理 OpenAPI Schema 中的所有 API 路徑，並將其轉換為 Markdown 格式附加至行列表中。
+    """處理 OpenAPI Schema 中的所有 API 路徑，並將其轉換為 Markdown 格式附加至行列表中。.
 
     逐一尋訪所有的端點與 HTTP 方法，提取摘要、說明與標籤，並呼叫其他輔助函式處理請求與回應細節。
 
     Args:
         schema (dict): 從 FastAPI 獲取的 OpenAPI Schema 字典。
         lines (list[str]): 用於收集 Markdown 文字行的列表，函式會將結果附加於此。
+
     """
     paths = schema.get("paths", {})
     for path, path_item in paths.items():
@@ -96,14 +96,14 @@ def _process_paths(schema: dict, lines: list[str]) -> None:
 
 
 def _process_request_body(operation: dict, lines: list[str]) -> None:
-    """
-    處理單一 API 路由的 Request Body 資訊，並將對應的 Markdown 格式附加至行列表中。
+    """處理單一 API 路由的 Request Body 資訊，並將對應的 Markdown 格式附加至行列表中。.
 
     解析請求的 Content-Type 與對應的 Schema 參考名稱，若無 Request Body 則直接返回。
 
     Args:
         operation (dict): OpenAPI Schema 中單一操作（例如 POST /login）的字典結構。
         lines (list[str]): 用於收集 Markdown 文字行的列表，函式會將結果附加於此。
+
     """
     request_body = operation.get("requestBody")
     if not request_body:
@@ -119,14 +119,14 @@ def _process_request_body(operation: dict, lines: list[str]) -> None:
 
 
 def _process_responses(operation: dict, lines: list[str]) -> None:
-    """
-    處理單一 API 路由的回應 (Responses) 資訊，並將其 Markdown 格式附加至行列表中。
+    """處理單一 API 路由的回應 (Responses) 資訊，並將其 Markdown 格式附加至行列表中。.
 
     解析各個 HTTP 狀態碼與對應的敘述文字，若無 Responses 定義則直接返回。
 
     Args:
         operation (dict): OpenAPI Schema 中單一操作的字典結構。
         lines (list[str]): 用於收集 Markdown 文字行的列表，函式會將結果附加於此。
+
     """
     responses = operation.get("responses", {})
     if not responses:
@@ -137,16 +137,15 @@ def _process_responses(operation: dict, lines: list[str]) -> None:
         lines.append(f"- **{status_code}**: {res_desc}")
 
 
-# pylint: disable=invalid-name
 def _process_schemas(schema: dict, lines: list[str]) -> None:
-    """
-    處理 OpenAPI Schema 中的所有 Components Schemas，並將其轉換為 Markdown 表格附加至行列表中。
+    """處理 OpenAPI Schema 中的所有 Components Schemas，並將其轉換為 Markdown 表格附加至行列表中。.
 
     提取所有定義的資料模型，包含屬性名稱、資料型態、是否必填以及屬性說明，輸出為 Markdown 表格形式。
 
     Args:
         schema (dict): 從 FastAPI 獲取的 OpenAPI Schema 字典。
         lines (list[str]): 用於收集 Markdown 文字行的列表，函式會將結果附加於此。
+
     """
     schemas = schema.get("components", {}).get("schemas", {})
     if not schemas:
@@ -187,8 +186,7 @@ def _process_schemas(schema: dict, lines: list[str]) -> None:
 
 
 def _generate_markdown(schema: dict) -> str:
-    """
-    將 OpenAPI Schema 轉換為 Markdown 格式的 API 規格書 (api_spec.md)。
+    """將 OpenAPI Schema 轉換為 Markdown 格式的 API 規格書 (api_spec.md)。.
 
     匯集了所有 API 路由的詳細參數、請求本體與回應結構，以及所有組件 Schema 的屬性表格。
 
@@ -197,6 +195,7 @@ def _generate_markdown(schema: dict) -> str:
 
     Returns:
         str: 格式化後的 Markdown 規格書字串。
+
     """
     lines = [
         "# API 完整規格書 (API Specification)",
@@ -212,8 +211,7 @@ def _generate_markdown(schema: dict) -> str:
 
 
 def _get_route_permission(tag: str, path: str) -> str:
-    """
-    判斷並回傳 API 路由的存取權限字串。
+    """判斷並回傳 API 路由的存取權限字串。.
 
     根據路由的標籤 (tag) 與具體路徑 (path)，判斷其所屬的權限等級，
     例如「管理員」、「公開」、「已登入」或「首次登入 Session」。
@@ -224,6 +222,7 @@ def _get_route_permission(tag: str, path: str) -> str:
 
     Returns:
         str: 代表權限的字串敘述。
+
     """
     if tag == "admin":
         return "管理員"
@@ -239,8 +238,7 @@ def _get_route_permission(tag: str, path: str) -> str:
 
 
 def _build_route_groups(schema: dict) -> dict[str, list[str]]:
-    """
-    從 OpenAPI Schema 中提取所有路由，並依據標籤進行分組。
+    """從 OpenAPI Schema 中提取所有路由，並依據標籤進行分組。.
 
     遍歷所有的路徑與方法，提取摘要說明與權限，並將格式化後的
     Markdown 表格列字串加入對應的標籤群組中。
@@ -250,6 +248,7 @@ def _build_route_groups(schema: dict) -> dict[str, list[str]]:
 
     Returns:
         dict[str, list[str]]: 以標籤為鍵，包含 Markdown 表格資料列的列表為值的字典。
+
     """
     groups: dict[str, list[str]] = {}
     paths = schema.get("paths", {})
@@ -272,8 +271,7 @@ def _build_route_groups(schema: dict) -> dict[str, list[str]]:
 
 
 def _generate_routes_markdown(schema: dict) -> str:
-    """
-    將 OpenAPI Schema 轉換為 Markdown 格式的 API 路由清單 (api_routes.md)。
+    """將 OpenAPI Schema 轉換為 Markdown 格式的 API 路由清單 (api_routes.md)。.
 
     依照 API 的標籤（auth、jobs、admin 等）進行分組，並整理出對應的方法、路徑、摘要說明以及存取權限。
 
@@ -282,6 +280,7 @@ def _generate_routes_markdown(schema: dict) -> str:
 
     Returns:
         str: 格式化後的 Markdown 字串。
+
     """
     lines = [
         "# API 路由清單 (API Route Reference)",
@@ -321,8 +320,7 @@ def _generate_routes_markdown(schema: dict) -> str:
 
 
 def generate_docs() -> None:
-    """
-    從 FastAPI 實例匯出 API 規格與路由清單，並儲存至 doc 目錄中。
+    """從 FastAPI 實例匯出 API 規格與路由清單，並儲存至 doc 目錄中。.
 
     此函式會透過 FastAPI 的 openapi() 方法取得目前的 OpenAPI Schema，
     並將其匯出為以下三種格式檔案：
@@ -332,6 +330,7 @@ def generate_docs() -> None:
 
     Raises:
         OSError: 當寫入檔案發生錯誤時拋出。
+
     """
     doc_dir = os.path.join(PROJECT_ROOT, "doc")
     os.makedirs(doc_dir, exist_ok=True)

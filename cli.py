@@ -24,6 +24,7 @@ load_dotenv()
 # pylint: disable=wrong-import-position
 # isort: off
 from backend.jobs.services.exporter import export_full_report, export_job_results, ExportOptions  # noqa: E402
+from backend.jobs.services.results import ERROR_STATUS_FILTERS  # noqa: E402
 
 try:
     from backend.jobs.services.notifier import send_job_status_notification as _send_notification
@@ -311,12 +312,7 @@ def parse_args() -> argparse.Namespace | None:
         choices=[
             "dead",
             "broken",
-            "not_found",
-            "server_error",
-            "connection_error",
-            "other_error",
-            "blocked",
-            "insecure",
+            *ERROR_STATUS_FILTERS,
             "healthy",
             "all",
         ],

@@ -1,6 +1,4 @@
-"""
-E2E 測試：管理員後台操作與設定修改流程。
-"""
+"""E2E 測試：管理員後台操作與設定修改流程。."""
 
 import re
 
@@ -8,12 +6,12 @@ from playwright.sync_api import Page, expect
 
 
 def test_admin_config(page: Page, base_url: str) -> None:
-    """
-    測試管理員登入後修改全域設定。
+    """測試管理員登入後修改全域設定。.
 
     Args:
         page (Page): Playwright 的網頁操作物件。
         base_url (str): 測試伺服器的根網址。
+
     """
     page.goto(f"{base_url}/index.html")
     page.fill('input[type="email"]', "admin@test.com")
@@ -52,8 +50,7 @@ def test_admin_config(page: Page, base_url: str) -> None:
 
 # pylint: disable=too-many-statements
 def test_admin_user_management_ui(page: Page, base_url: str) -> None:
-    """
-    測試管理員在後台管理使用者的 UI 互動，包含邀請、重寄邀請、停用/啟用、權限提降、刪除。
+    """測試管理員在後台管理使用者的 UI 互動，包含邀請、重寄邀請、停用/啟用、權限提降、刪除。.
 
     Args:
         page (Page): Playwright 的網頁操作物件。
@@ -61,6 +58,7 @@ def test_admin_user_management_ui(page: Page, base_url: str) -> None:
 
     Raises:
         AssertionError: 當操作結果與預期不合或 API 發生錯誤時拋出。
+
     """
     # 1. 登入並進入管理後台
     page.goto(f"{base_url}/index.html")

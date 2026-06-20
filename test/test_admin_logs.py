@@ -1,5 +1,4 @@
-"""
-後台操作日誌的整合測試模組。
+"""後台操作日誌的整合測試模組。.
 
 驗證全域配置修改、使用者狀態變更以及日誌篩選功能是否正確記錄與回傳。
 """
@@ -34,11 +33,11 @@ TestingSessionLocal: sessionmaker | None = None
 
 # 覆寫 get_auth_db 依賴
 def override_get_auth_db() -> Generator[Session, None, None]:
-    """
-    覆寫取得 Auth DB Session 的依賴函式。
+    """覆寫取得 Auth DB Session 的依賴函式。.
 
     Yields:
         Session: 測試用的 Auth DB Session。
+
     """
     try:
         db = TestingSessionLocal()
@@ -56,11 +55,11 @@ mock_admin: User = User(id="admin-id", email="admin@test.com", role="admin", sta
 
 # 模擬 Crawler DB 依賴
 def override_get_crawler_db() -> Generator[Session, None, None]:
-    """
-    覆寫取得 Crawler DB Session 的依賴函式。
+    """覆寫取得 Crawler DB Session 的依賴函式。.
 
     Yields:
         Session: 測試用的 Crawler DB Session。
+
     """
     try:
         db = TestingSessionLocal()
@@ -74,21 +73,21 @@ def override_get_crawler_db() -> Generator[Session, None, None]:
 
 # 模擬 JobManager
 class MockJobManager:
-    """模擬的 JobManager 類別，供測試使用。"""
+    """模擬的 JobManager 類別，供測試使用。."""
 
     def get_job(self, job_id: str) -> object | None:
-        """
-        模擬取得特定任務狀態。
+        """模擬取得特定任務狀態。.
 
         Args:
             job_id (str): 任務 ID。
 
         Returns:
             object | None: 模擬任務物件，若不存在則回傳 None。
+
         """
 
         class MockJob:  # pylint: disable=too-few-public-methods
-            """模擬的任務物件。"""
+            """模擬的任務物件。."""
 
             status = "running"
 
@@ -97,32 +96,32 @@ class MockJobManager:
         return MockJob()
 
     def pause_job(self, job_id: str) -> None:  # pylint: disable=unused-argument
-        """
-        模擬暫停任務。
+        """模擬暫停任務。.
 
         Args:
             job_id (str): 任務 ID。
+
         """
 
     def delete_job(self, job_id: str) -> bool:  # pylint: disable=unused-argument
-        """
-        模擬刪除任務。
+        """模擬刪除任務。.
 
         Args:
             job_id (str): 任務 ID。
 
         Returns:
             bool: 固定回傳 True。
+
         """
         return True
 
 
 def override_get_job_manager() -> MockJobManager:
-    """
-    覆寫取得 JobManager 的依賴函式。
+    """覆寫取得 JobManager 的依賴函式。.
 
     Returns:
         MockJobManager: 模擬的 JobManager 實例。
+
     """
     return MockJobManager()
 
@@ -131,9 +130,7 @@ def override_get_job_manager() -> MockJobManager:
 
 
 class TestAdminLogs(unittest.TestCase):
-    """
-    測試管理員操作日誌的案例類別。
-    """
+    """測試管理員操作日誌的案例類別。."""
 
     client: TestClient
     config_path: str
@@ -141,9 +138,9 @@ class TestAdminLogs(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """
-        在所有測試開始前執行的初始化操作。
-        設定環境變數、建立測試資料表、寫入初始使用者，並備份全域設定檔。
+        """在所有測試開始前執行的初始化操作。.
+
+        設定環境變數、建立測試資料表、寫入初始使用者，並備份全域設定檔。.
         """
         global engine, TestingSessionLocal  # pylint: disable=global-statement
 
@@ -199,9 +196,9 @@ class TestAdminLogs(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        """
-        在所有測試結束後執行的清理操作。
-        刪除測試資料表與檔案，清空 dependency overrides，並還原全域設定檔。
+        """在所有測試結束後執行的清理操作。.
+
+        刪除測試資料表與檔案，清空 dependency overrides，並還原全域設定檔。.
         """
         # 清空 dependency overrides，避免影響其他測試模組
         app.dependency_overrides.clear()
@@ -228,9 +225,7 @@ class TestAdminLogs(unittest.TestCase):
                 pass
 
     def setUp(self) -> None:
-        """
-        在每個測試方法執行前清空操作日誌。
-        """
+        """在每個測試方法執行前清空操作日誌。."""
         # 每次測試前清空 AuthLog，確保測試獨立性
         db = TestingSessionLocal()
         db.query(AuthLog).delete()
@@ -238,9 +233,7 @@ class TestAdminLogs(unittest.TestCase):
         db.close()
 
     def test_config_change_logging(self) -> None:
-        """
-        測試全域配置修改時，是否正確記錄操作日誌。
-        """
+        """測試全域配置修改時，是否正確記錄操作日誌。."""
         # 先做一次配置更新
         payload = {
             "crawler": {
@@ -264,9 +257,7 @@ class TestAdminLogs(unittest.TestCase):
         db.close()
 
     def test_user_status_changed_logging(self) -> None:
-        """
-        測試使用者狀態與角色變更時，是否正確記錄操作日誌。
-        """
+        """測試使用者狀態與角色變更時，是否正確記錄操作日誌。."""
         payload = {
             "status": "suspended",
         }
@@ -284,9 +275,7 @@ class TestAdminLogs(unittest.TestCase):
         db.close()
 
     def test_logs_date_filtering(self) -> None:
-        """
-        測試操作日誌的日期區間篩選功能。
-        """
+        """測試操作日誌的日期區間篩選功能。."""
         db = TestingSessionLocal()
         # 建立幾個不同時間點的日誌
         now = datetime.now()
@@ -320,9 +309,7 @@ class TestAdminLogs(unittest.TestCase):
         self.assertEqual(response.json()["total"], 1)  # log2
 
     def test_user_deleted_logging(self) -> None:
-        """
-        測試管理員刪除使用者帳號時，是否正確記錄操作日誌。
-        """
+        """測試管理員刪除使用者帳號時，是否正確記錄操作日誌。."""
         # 建立測試用的待刪除使用者
         db = TestingSessionLocal()
         db.add(User(id="delete-user-id", email="delete@test.com", role="user", status="active"))
@@ -346,9 +333,7 @@ class TestAdminLogs(unittest.TestCase):
         db.close()
 
     def test_job_takeover_logging(self) -> None:
-        """
-        測試管理員強制接管任務時，是否正確記錄操作日誌。
-        """
+        """測試管理員強制接管任務時，是否正確記錄操作日誌。."""
         response = self.client.post("/api/admin/jobs/test-job-id/takeover")
         self.assertEqual(response.status_code, 200)
 
@@ -367,9 +352,7 @@ class TestAdminLogs(unittest.TestCase):
         db.close()
 
     def test_job_deleted_logging(self) -> None:
-        """
-        測試管理員強制刪除任務時，是否正確記錄操作日誌。
-        """
+        """測試管理員強制刪除任務時，是否正確記錄操作日誌。."""
         response = self.client.delete("/api/admin/jobs/test-job-id-delete")
         self.assertEqual(response.status_code, 200)
 

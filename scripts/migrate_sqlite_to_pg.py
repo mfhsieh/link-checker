@@ -1,7 +1,4 @@
-# pylint: disable=wrong-import-position, import-error
-# ruff: noqa: E402
-"""
-資料庫遷移工具：從 SQLite 轉移資料至 PostgreSQL。
+"""資料庫遷移工具：從 SQLite 轉移資料至 PostgreSQL。.
 
 此腳本會讀取目前的 `.env` 設定檔，將舊有 SQLite 資料庫中的資料
 （包含使用者帳號、Session、任務、佇列與外連結果）遷移至 PostgreSQL 目標資料庫中。
@@ -21,10 +18,11 @@ from sqlalchemy.orm import sessionmaker
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.auth.models import AuthBase, AuthLog, Invitation, User
-from backend.auth.models import Session as AuthSession
-from backend.config import get_settings
-from crawler.models import Base, CrawlQueue, ExternalLink, Job
+# pylint: disable=wrong-import-position, import-error
+from backend.auth.models import AuthBase, AuthLog, Invitation, User  # noqa: E402
+from backend.auth.models import Session as AuthSession  # noqa: E402
+from backend.config import get_settings  # noqa: E402
+from crawler.models import Base, CrawlQueue, ExternalLink, Job  # noqa: E402
 
 # 初始化日誌
 logging.basicConfig(
@@ -33,14 +31,14 @@ logging.basicConfig(
 logger: logging.Logger = logging.getLogger("migration")
 
 
-# pylint: disable=too-many-locals, invalid-name
+# pylint: disable=too-many-locals
 def migrate_auth_db(sqlite_url: str, pg_url: str) -> None:
-    """
-    遷移使用者帳號與認證相關資料。
+    """遷移使用者帳號與認證相關資料。.
 
     Args:
         sqlite_url (str): 來源 SQLite 資料庫連線 URL。
         pg_url (str): 目標 PostgreSQL 資料庫連線 URL。
+
     """
     logger.info("開始遷移 Auth DB...")
 
@@ -52,10 +50,10 @@ def migrate_auth_db(sqlite_url: str, pg_url: str) -> None:
     AuthBase.metadata.drop_all(pg_engine)
     AuthBase.metadata.create_all(pg_engine)
 
-    SqliteSession = sessionmaker(bind=sqlite_engine)
-    PgSession = sessionmaker(bind=pg_engine)
+    sqlite_session_factory = sessionmaker(bind=sqlite_engine)
+    pg_session_factory = sessionmaker(bind=pg_engine)
 
-    with SqliteSession() as src, PgSession() as dest:
+    with sqlite_session_factory() as src, pg_session_factory() as dest:
         # 關閉目標資料庫的外鍵檢查，加速導入並防制寫入順序衝突
         dest.execute(text("SET session_replication_role = 'replica';"))
         dest.commit()
@@ -109,14 +107,14 @@ def migrate_auth_db(sqlite_url: str, pg_url: str) -> None:
     logger.info("Auth DB 遷移成功！")
 
 
-# pylint: disable=too-many-locals, invalid-name
+# pylint: disable=too-many-locals
 def migrate_crawler_db(sqlite_url: str, pg_url: str) -> None:
-    """
-    遷移爬蟲任務與結果資料。
+    """遷移爬蟲任務與結果資料。.
 
     Args:
         sqlite_url (str): 來源 SQLite 資料庫連線 URL。
         pg_url (str): 目標 PostgreSQL 資料庫連線 URL。
+
     """
     logger.info("開始遷移 Crawler DB...")
 
@@ -128,10 +126,10 @@ def migrate_crawler_db(sqlite_url: str, pg_url: str) -> None:
     Base.metadata.drop_all(pg_engine)
     Base.metadata.create_all(pg_engine)
 
-    SqliteSession = sessionmaker(bind=sqlite_engine)
-    PgSession = sessionmaker(bind=pg_engine)
+    sqlite_session_factory = sessionmaker(bind=sqlite_engine)
+    pg_session_factory = sessionmaker(bind=pg_engine)
 
-    with SqliteSession() as src, PgSession() as dest:
+    with sqlite_session_factory() as src, pg_session_factory() as dest:
         # 關閉目標資料庫的外鍵檢查
         dest.execute(text("SET session_replication_role = 'replica';"))
         dest.commit()
@@ -202,11 +200,11 @@ def migrate_crawler_db(sqlite_url: str, pg_url: str) -> None:
 
 
 def main() -> None:
-    """
-    主控流程，從環境設定中讀取 DSN 並驅動遷移邏輯。
+    """主控流程，從環境設定中讀取 DSN 並驅動遷移邏輯。.
 
     Raises:
         SystemExit: 當資料庫設定非 PostgreSQL 或遷移過程發生嚴重錯誤時。
+
     """
     settings = get_settings()
 

@@ -62,7 +62,9 @@ def get_job_manager() -> JobManager:
         with _JOB_MANAGER_LOCK:
             if _JOB_MANAGER is None:
                 settings = get_settings()
-                from backend.jobs.services.notifier import send_job_status_notification  # pylint: disable=import-outside-toplevel
+
+                # pylint: disable=import-outside-toplevel
+                from backend.jobs.services.notifier import send_job_status_notification
 
                 _JOB_MANAGER = JobManager(
                     db_url=settings.CRAWLER_DB_URL,
@@ -111,7 +113,9 @@ def get_current_session(
     Raises:
         HTTPException 401: 若 Cookie 不存在或 Session 已過期。
     """
-    from backend.auth import service as auth_service  # 避免循環匯入  # pylint: disable=import-outside-toplevel
+    # 避免循環匯入
+    # pylint: disable=import-outside-toplevel, cyclic-import
+    from backend.auth import service as auth_service
 
     settings = get_settings()
     raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)

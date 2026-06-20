@@ -1,5 +1,4 @@
-"""
-單一外部連結存活測試腳本。
+"""單一外部連結存活測試腳本。.
 
 此腳本用於在終端機中快速測試特定外部連結的存活狀態，
 直接印出 HTTP 狀態碼與錯誤訊息，方便開發除錯與驗證。
@@ -18,11 +17,11 @@ from scripts.test_url import get_test_crawler_config
 
 
 def main() -> None:
-    """
-    解析命令列參數，並針對目標外部連結進行存活探測。
+    """解析命令列參數，並針對目標外部連結進行存活探測。.
 
     Raises:
         SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
+
     """
     parser = argparse.ArgumentParser(description="測試單一外部連結存活狀態")
     parser.add_argument("url", help="欲測試的外部連結網址")
@@ -52,12 +51,12 @@ def main() -> None:
         print(f"[+] 測試成功 (Healthy)！狀態碼: {status_code}")
     else:
         print(f"[-] 測試失敗或異常 (Broken/Dead)。狀態碼: {status_code}")
-        # pylint: disable=duplicate-code
         if error_msg:
             print(f"    - 錯誤訊息: {error_msg}")
 
     core.close()
 
 
+# pylint: disable=duplicate-code
 if __name__ == "__main__":
     main()

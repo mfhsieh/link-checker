@@ -1,6 +1,5 @@
 # pylint: disable=cyclic-import
-"""
-Mock HTTP 伺服器模組。
+"""Mock HTTP 伺服器模組。.
 
 此模組提供了一個自訂的 HTTP 伺服器，用來模擬各種網路連線情境（重定向、暫時性錯誤、超時等），
 以供端到端 (E2E) 與單元測試使用。
@@ -18,27 +17,23 @@ counter_lock: threading.Lock = threading.Lock()
 
 
 class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
-    """
-    自訂 Mock HTTP 伺服器，模擬爬蟲在真實環境中會遭遇的各種複雜情境。
-    """
+    """自訂 Mock HTTP 伺服器，模擬爬蟲在真實環境中會遭遇的各種複雜情境。."""
 
     # pylint: disable=arguments-differ, redefined-builtin
     def log_message(self, format: str, *args: object) -> None:
-        """
-        覆寫日誌輸出，改以特定的 MockServer 前綴輸出至 stderr，保持終端機整潔。
+        """覆寫日誌輸出，改以特定的 MockServer 前綴輸出至 stderr，保持終端機整潔。.
 
         Args:
             format (str): 日誌格式化字串。
             *args (object): 要填入格式化字串的變數。
+
         """
         sys.stderr.write(f"MockServer - - [{self.log_date_time_string()}] {format % args}\n")
 
     # pylint: disable=invalid-name,too-many-return-statements
     # pylint: disable=too-many-branches,too-many-statements
     def do_GET(self) -> None:
-        """
-        處理所有的 HTTP GET 請求，模擬指數退避重試、網路超時、重定向、特定 MIME 類型等多種情境。
-        """
+        """處理所有的 HTTP GET 請求，模擬指數退避重試、網路超時、重定向、特定 MIME 類型等多種情境。."""
         # 1. 測試：指數退避重試（前 2 次返回 503 暫時性錯誤，第 3 次返回 200）
         if self.path == "/temporary-error":
             with counter_lock:
@@ -213,9 +208,9 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(b"404 Not Found")
 
     def do_HEAD(self) -> None:
-        """
-        處理 HTTP HEAD 請求。
-        模擬 Tarpit 超時，其餘路徑回傳 501 以符合 mock-social-media 測試期待。
+        """處理 HTTP HEAD 請求。.
+
+        模擬 Tarpit 超時，其餘路徑回傳 501 以符合 mock-social-media 測試期待。.
         """
         if self.path == "/tarpit":
             time.sleep(2)
@@ -232,11 +227,11 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
 
 def run(port: int = 8000) -> None:
-    """
-    啟動並執行 Mock HTTP 伺服器本體。
+    """啟動並執行 Mock HTTP 伺服器本體。.
 
     Args:
         port (int): 伺服器監聽的 TCP 通訊埠，預設為 8000。
+
     """
     server_address = ("", port)
     httpd = http.server.ThreadingHTTPServer(server_address, MockHTTPRequestHandler)

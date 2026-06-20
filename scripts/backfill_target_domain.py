@@ -1,5 +1,4 @@
-"""
-資料回填腳本：為 `external_links` 資料表中既有的舊紀錄補上 `target_domain` 欄位值。
+"""資料回填腳本：為 `external_links` 資料表中既有的舊紀錄補上 `target_domain` 欄位值。.
 
 在 `target_domain` 欄位被新增至 `ExternalLink` 模型後，
 所有在此之前建立的紀錄，該欄位值會是空值 (NULL 或空字串)。
@@ -11,14 +10,14 @@ import logging
 import os
 import sys
 
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+
 # 將專案根目錄加入 PYTHONPATH
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-# pylint: disable=wrong-import-position
-from sqlalchemy import create_engine, select  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
-
+# pylint: disable=wrong-import-position, import-error
 from backend.config import get_settings  # noqa: E402
 from crawler.models import ExternalLink  # noqa: E402
 from crawler.utils import get_domain  # noqa: E402
@@ -30,9 +29,7 @@ logger: logging.Logger = logging.getLogger("backfill")
 
 
 def backfill() -> None:
-    """
-    執行資料回填程序。
-    """
+    """執行資料回填程序。."""
     settings = get_settings()
     engine = create_engine(settings.CRAWLER_DB_URL)
     session_factory = sessionmaker(bind=engine)

@@ -1,6 +1,4 @@
-# pylint: disable=wrong-import-position, import-error
-# ruff: noqa: E402
-"""資料庫架構檢驗工具。
+"""資料庫架構檢驗工具。.
 
 此腳本讀取 `.env` 中的 `AUTH_DB_URL` 與 `CRAWLER_DB_URL` 設定，
 利用 SQLAlchemy Inspection 機制反射資料庫結構，
@@ -20,9 +18,10 @@ from sqlalchemy.sql.schema import MetaData
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from backend.auth.models import AuthBase
-from backend.config import get_settings
-from crawler.models import Base
+# pylint: disable=wrong-import-position
+from backend.auth.models import AuthBase  # noqa: E402
+from backend.config import get_settings  # noqa: E402
+from crawler.models import Base  # noqa: E402
 
 # 初始化日誌
 logging.basicConfig(
@@ -33,7 +32,7 @@ logger: logging.Logger = logging.getLogger("schema-check")
 
 # pylint: disable=too-many-locals, too-many-branches
 def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -> bool:
-    """比對指定的 ORM Metadata 與資料庫真實 Schema 差異。
+    """比對指定的 ORM Metadata 與資料庫真實 Schema 差異。.
 
     Args:
         engine (Engine): SQLAlchemy 資料庫引擎。
@@ -42,6 +41,7 @@ def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -
 
     Returns:
         bool: 若完全一致回傳 True，有任何差異則回傳 False。
+
     """
     logger.info("=== 開始檢查 %s 架構 ===", db_name)
     inspector = inspect(engine)
@@ -141,7 +141,7 @@ def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -
 
 
 def main() -> None:
-    """主控制流程。"""
+    """主控制流程。."""
     settings = get_settings()
 
     auth_url = settings.AUTH_DB_URL

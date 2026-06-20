@@ -1,7 +1,4 @@
-# pylint: disable=wrong-import-position
-# ruff: noqa: E402
-"""
-任務資料備份與匯入工具。
+"""任務資料備份與匯入工具。.
 
 以 JSON Lines 格式匯出/匯入任務設定與結果資料，以支援跨資料庫（如 SQLite 到 PostgreSQL）的遷移，
 並在匯入時自動配發新的任務 ID 與指定新的擁有者。
@@ -18,25 +15,25 @@ import uuid
 import zipfile
 from datetime import datetime
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 # 將專案根目錄加入 PYTHONPATH
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-# isort: off
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+# pylint: disable=wrong-import-position, import-error
+from backend.config import get_settings  # noqa: E402
+from crawler.models import CrawlQueue, ExternalLink, Job  # noqa: E402
 
-from backend.config import get_settings
-from crawler.models import CrawlQueue, ExternalLink, Job
-# isort: on
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger: logging.Logger = logging.getLogger("job_sync")
 
 
-def export_job(job_id: str, output_path: str) -> None:  # pylint: disable=too-many-locals
-    """
-    匯出任務資料。
+# pylint: disable=too-many-locals
+def export_job(job_id: str, output_path: str) -> None:
+    """匯出任務資料。.
 
     將指定任務的元資料與佇列/外連結果以 JSON/JSONL 格式寫入輸出目錄中。
     若 output_path 以 .zip 結尾，將自動打包為 ZIP 壓縮檔。
@@ -47,6 +44,7 @@ def export_job(job_id: str, output_path: str) -> None:  # pylint: disable=too-ma
 
     Raises:
         SystemExit: 當找不到任務時，結束程式。
+
     """
     settings = get_settings()
     engine = create_engine(settings.CRAWLER_DB_URL)
@@ -132,9 +130,9 @@ def export_job(job_id: str, output_path: str) -> None:  # pylint: disable=too-ma
         logger.info("已將任務備份壓縮至 %s", output_path)
 
 
-def import_job(input_path: str, new_user_id: str) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-    """
-    匯入任務資料。
+# pylint: disable=too-many-branches, too-many-statements
+def import_job(input_path: str, new_user_id: str) -> None:
+    """匯入任務資料。.
 
     將存放於輸入目錄或 ZIP 檔中的 JSON/JSONL 資料寫入資料庫，並配發新的任務 ID 與指定新的擁有者。
 
@@ -144,6 +142,7 @@ def import_job(input_path: str, new_user_id: str) -> None:  # pylint: disable=to
 
     Raises:
         SystemExit: 當找不到任務元資料時，結束程式。
+
     """
     settings = get_settings()
     engine = create_engine(settings.CRAWLER_DB_URL)
@@ -253,11 +252,11 @@ def import_job(input_path: str, new_user_id: str) -> None:  # pylint: disable=to
 
 
 def main() -> None:
-    """
-    解析指令並執行對應操作。
+    """解析指令並執行對應操作。.
 
     Raises:
         SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
+
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["export", "import"])

@@ -1,6 +1,4 @@
-"""
-E2E integration test script for external link checker.
-"""
+"""E2E integration test script for external link checker."""
 
 # pylint: disable=protected-access, duplicate-code
 
@@ -24,8 +22,7 @@ YAML_CONFIG: str = "job/test_job.yaml"
 
 
 def _set_cli_test_env() -> None:
-    """
-    設定 CLI 測試專用的環境變數。
+    """設定 CLI 測試專用的環境變數。.
 
     在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
     避免被其他測試模組的模組級設定覆蓋。
@@ -39,9 +36,7 @@ def _set_cli_test_env() -> None:
 
 
 def setup_databases() -> None:
-    """
-    建立並初始化全新的測試用資料庫。
-    """
+    """建立並初始化全新的測試用資料庫。."""
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
@@ -83,9 +78,7 @@ def setup_databases() -> None:
 
 
 def teardown_databases() -> None:
-    """
-    清理測試所產生的資料庫檔案。
-    """
+    """清理測試所產生的資料庫檔案。."""
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
@@ -122,8 +115,7 @@ def teardown_databases() -> None:
 # pylint: disable=subprocess-run-check, unspecified-encoding, multiple-statements
 # pylint: disable=consider-using-with, unused-variable
 def test_cli_full_flow() -> None:
-    """
-    執行端到端 (E2E) 整合測試與各核心組件的單元測試。
+    """執行端到端 (E2E) 整合測試與各核心組件的單元測試。.
 
     此函數會按序執行以下測試步驟：
     1. 驗證雙 Client 機制下的 SSL 豁免網域邏輯。
@@ -139,6 +131,7 @@ def test_cli_full_flow() -> None:
     Raises:
         AssertionError: 當斷言失敗時拋出。
         SystemExit: 當 CLI 子程序或腳本因錯誤異常終止時拋出。
+
     """
     print("=== [CI/CD E2E Test Suite] ===")
 

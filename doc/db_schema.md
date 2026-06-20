@@ -16,6 +16,11 @@
   * **`pool_size` & `max_overflow`**：提升基礎連線數與突發溢發量，完美支撐 `ThreadPoolExecutor` 的高併發爬取與前端高頻 API 請求。
   * **`pool_pre_ping` (斷線防護)**：每次從連線池取出連線前主動發送輕量級 `SELECT 1`，若因網路波動或伺服器重啟導致連線失效，系統將自動拋棄並重連，徹底解決 `Server closed the connection unexpectedly` 錯誤。
 
+### 1.1 資料庫遷移與 PostgreSQL 序列 (Sequence) 同步
+
+系統支援從 SQLite 完整無縫遷移至 PostgreSQL (`scripts/migrate_sqlite_to_pg.py`)。由於 SQLite 的 AUTOINCREMENT 與 PostgreSQL 的 Sequence 運作機制不同，在跨資料庫批量導入舊資料後，PostgreSQL 的內部序列指標（如 `auth_logs_id_seq`）不會自動更新，這會導致後續新增資料時發生 Primary Key 衝突。
+因此，遷移腳本會在導入完成後，自動執行 `setval(pg_get_serial_sequence('table_name', 'id'), coalesce(max(id), 1))`，強制將序列指標推進至目前最大值，保障遷移後的資料庫能立即無縫接軌寫入。
+
 ---
 
 ## 2. 帳號資料庫 (Auth DB)
@@ -276,6 +281,7 @@ erDiagram
 | `job_id` | `String(36)` | **Foreign Key** (`jobs.id`, `ON DELETE CASCADE`) | 該外部連結是在哪一個任務中被發現的。 |
 | `source_url` | `Text` | `NOT NULL` | 發現此外部連結的來源網頁，也就是該連結所在的母網頁。 |
 | `target_url` | `Text` | `NOT NULL` | 網頁中提取出的外部連結 `href` 本身。 |
+| `target_domain` | `String(255)` | `Nullable`, `Index` | 紀錄經過重定向 (Redirect) 後最終抵達的真實網域，用於精確的按網域分群統計。舊資料可透過 `backfill_target_domain.py` 腳本回填。 |
 | `ip_address` | `String(45)` | `Nullable` | 透過 DNS 解析該 `target_url` 之網域所取得的 IPv4/IPv6 位址。若解析失敗則為 `NULL`。 |
 | `is_secure` | `Boolean` | `Default: True` | 標記此外部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若為 HTTPS 則為 `True`，若為 HTTP 則為 `False`。 |
 | `http_status_code` | `Integer` | `Nullable` | 對外部連結進行 HTTP 存活檢查後取得的 HTTP 狀態碼。若為 `NULL` 代表未探測或連線失敗。 |

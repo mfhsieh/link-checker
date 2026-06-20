@@ -1,15 +1,16 @@
-"""
-E2E 測試：複製任務時過濾與全域預設相同的配置參數，僅回填自訂覆寫值。
-"""
+"""E2E 測試：複製任務時過濾與全域預設相同的配置參數，僅回填自訂覆寫值。."""
+
+# pylint: disable=duplicate-code
 
 import re
+
 from playwright.sync_api import Page, expect
 
 
 def test_duplicate_job_filters_defaults(page: Page, base_url: str) -> None:
-    """
-    測試複製任務時，是否正確過濾掉與全域預設相同的設定值（留空），
-    並僅回填與全域預設不同的自訂覆寫值（回填實體值）。
+    """測試複製任務時，是否正確過濾掉與全域預設相同的設定值（留空），.
+
+    並僅回填與全域預設不同的自訂覆寫值（回填實體值）。.
     """
     # 1. 登入系統
     page.goto(f"{base_url}/index.html")

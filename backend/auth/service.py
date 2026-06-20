@@ -624,6 +624,9 @@ def cleanup_deleted_user_task(user_id: str) -> None:
     """
     # pylint: disable=import-outside-toplevel
     from backend.auth.db import get_auth_session_local
+
+    # 延遲載入以避免與 router / deps 產生循環依賴
+    # pylint: disable=import-outside-toplevel, cyclic-import
     from backend.deps import get_job_manager
     from crawler.models import Job
 
