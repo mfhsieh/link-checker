@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>任務管理 — 外部連結檢查系統</title>
+  <title>任務管理 — 網站連結檢查系統</title>
   <meta name="description" content="管理外部連結掃描任務，查閱進度與結果。" />
   <link rel="stylesheet" href="/static/css/base.css" />
   <link rel="stylesheet" href="/static/css/components.css" />
@@ -18,8 +18,8 @@
     <!-- ── Top Bar ──────────────────────────────────────────── -->
     <header class="topbar">
       <a class="topbar-brand" href="/app.html" id="topbar-brand">
-        <div class="topbar-logo" aria-hidden="true">EL</div>
-        <span class="topbar-title">外部連結檢查系統</span>
+        <div class="topbar-logo" aria-hidden="true">LC</div>
+        <span class="topbar-title">網站連結檢查系統</span>
       </a>
       <div class="topbar-actions">
         <div class="topbar-user" id="topbar-user" role="button" tabindex="0" title="帳號選單">
@@ -411,8 +411,8 @@
           <div class="card" style="padding:0;overflow:hidden">
             <div class="card-header"
               style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-              <div class="ext-link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
-                <span class="card-title ext-link-title" style="margin-right:0.5rem">外部連結</span>
+              <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
+                <span class="card-title link-title" style="margin-right:0.5rem">外部連結</span>
                 <div style="display:flex; align-items:center; gap:0.75rem">
                   <select id="results-group-select" class="form-input"
                     style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
@@ -529,8 +529,8 @@
           <div class="card" style="padding:0;overflow:hidden">
             <div class="card-header"
               style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-              <div class="ext-link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
-                <span class="card-title ext-link-title" style="margin-right:0.5rem">內部連結診斷</span>
+              <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
+                <span class="card-title link-title" style="margin-right:0.5rem">內部連結診斷</span>
                 <div style="display:flex; align-items:center; gap:0.75rem">
                   <select id="internal-results-group-select" class="form-input"
                     style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
@@ -1014,8 +1014,8 @@
           <div class="card" style="padding:0; overflow:hidden;">
             <div class="card-header"
               style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-              <div class="ext-link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
-                <span class="card-title ext-link-title" style="margin-right:0.5rem">比對結果</span>
+              <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
+                <span class="card-title link-title" style="margin-right:0.5rem">比對結果</span>
                 <div style="display:flex; align-items:center; gap:0.75rem">
                   <button class="btn btn-secondary btn-icon" id="btn-compare-exclude-modal" title="設定排除網域"
                     style="flex-shrink:0;">

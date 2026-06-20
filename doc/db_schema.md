@@ -1,6 +1,6 @@
 # 資料庫 Schema 說明文件 (Database Schema Documentation)
 
-本文件詳細說明外部連結檢查爬蟲 (`ext-link-checker`) 所使用的資料庫結構。
+本文件詳細說明外部連結檢查爬蟲 (`link-checker`) 所使用的資料庫結構。
 本專案採用雙資料庫架構，將負責帳號與權限管理的 **Auth DB**，以及負責爬取狀態與結果的 **Crawler DB** 完全分離。系統透過 SQLAlchemy ORM 進行資料庫操作。
 
 ---

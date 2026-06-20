@@ -1,6 +1,6 @@
 # GCP VM 部署指南
 
-本指南將帶您一步步將「外部連結檢查系統」部署到 Google Cloud Platform (GCP) 的虛擬機器 (Compute Engine VM) 上，並設定為可 24 小時運作的背景服務。
+本指南將帶您一步步將「網站連結檢查系統」部署到 Google Cloud Platform (GCP) 的虛擬機器 (Compute Engine VM) 上，並設定為可 24 小時運作的背景服務。
 
 ## 步驟一：建立 GCP 虛擬機器 (VM Instance)
 
@@ -49,13 +49,13 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 1. 將專案程式碼複製到 VM 中（此處以 `/opt/` 目錄為例，您也可放於家目錄）：
 
 ```bash
-# 假設將專案放在 /opt/ext-link-checker
-sudo mkdir -p /opt/ext-link-checker
-sudo chown -R $USER:$USER /opt/ext-link-checker
+# 假設將專案放在 /opt/link-checker
+sudo mkdir -p /opt/link-checker
+sudo chown -R $USER:$USER /opt/link-checker
 
 # 複製您的程式碼至該目錄
-git clone <您的 Git 儲存庫網址> /opt/ext-link-checker
-cd /opt/ext-link-checker
+git clone <您的 Git 儲存庫網址> /opt/link-checker
+cd /opt/link-checker
 ```
 
 2. 建立虛擬環境 (Virtual Environment) 並安裝套件：
@@ -93,22 +93,22 @@ python cli.py --create-admin admin@example.com
 1. 建立服務設定檔：
 
 ```bash
-sudo nano /etc/systemd/system/ext-link-checker.service
+sudo nano /etc/systemd/system/link-checker.service
 ```
 
 2. 貼上以下內容（請確認路徑與您的實際路徑一致）：
 
 ```ini
 [Unit]
-Description=External Link Checker Service
+Description=Link Checker Service
 After=network.target
 
 [Service]
 User=<您的登入帳號名稱>
 Group=<您的登入帳號名稱>
-WorkingDirectory=/opt/ext-link-checker
-Environment="PATH=/opt/ext-link-checker/.venv/bin"
-ExecStart=/opt/ext-link-checker/.venv/bin/python cli.py --serve
+WorkingDirectory=/opt/link-checker
+Environment="PATH=/opt/link-checker/.venv/bin"
+ExecStart=/opt/link-checker/.venv/bin/python cli.py --serve
 Restart=always
 RestartSec=5
 
@@ -122,14 +122,14 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable ext-link-checker
-sudo systemctl start ext-link-checker
+sudo systemctl enable link-checker
+sudo systemctl start link-checker
 ```
 
 4. 檢查服務狀態（確保沒有錯誤）：
 
 ```bash
-sudo systemctl status ext-link-checker
+sudo systemctl status link-checker
 ```
 
 ## 步驟六：設定 Nginx 反向代理 (Reverse Proxy)
@@ -139,7 +139,7 @@ sudo systemctl status ext-link-checker
 1. 建立 Nginx 設定檔：
 
 ```bash
-sudo nano /etc/nginx/sites-available/ext-link-checker
+sudo nano /etc/nginx/sites-available/link-checker
 ```
 
 2. 貼上以下內容：
@@ -178,7 +178,7 @@ server {
 sudo rm /etc/nginx/sites-enabled/default
 
 # 啟用我們的設定
-sudo ln -s /etc/nginx/sites-available/ext-link-checker /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/link-checker /etc/nginx/sites-enabled/
 
 # 測試設定是否正確
 sudo nginx -t
@@ -210,7 +210,7 @@ http://<您的 VM 外部 IP>/
 2. **修改 Nginx 設定檔**：
    將我們先前設定的 Nginx 設定檔中的 `server_name` 改為您的真實網域。
    ```bash
-   sudo nano /etc/nginx/sites-available/ext-link-checker
+   sudo nano /etc/nginx/sites-available/link-checker
    # 將 server_name _; 改為 server_name example.com;
    sudo systemctl reload nginx
    ```
@@ -264,7 +264,7 @@ http://<您的 VM 外部 IP>/
 6. 點擊 **Open**。
 7. 第一次連線時會出現安全警告，點擊 **Accept (是)** 即可成功連入您的 VM！
 
-> **提示**：若透過 PuTTY 連入，您的家目錄會是 `/home/<您的登入帳號名稱>/`。如果您先前將專案放在 `/opt/ext-link-checker`，請記得執行 `cd /opt/ext-link-checker` 進入專案資料夾。
+> **提示**：若透過 PuTTY 連入，您的家目錄會是 `/home/<您的登入帳號名稱>/`。如果您先前將專案放在 `/opt/link-checker`，請記得執行 `cd /opt/link-checker` 進入專案資料夾。
 
 ---
 
@@ -274,11 +274,11 @@ http://<您的 VM 外部 IP>/
 
 1. **進入專案目錄**：
    ```bash
-   cd /opt/ext-link-checker
+   cd /opt/link-checker
    ```
 2. **停止背景服務**：
    ```bash
-   sudo systemctl stop ext-link-checker
+   sudo systemctl stop link-checker
    ```
 3. **拉取最新程式碼**：
    ```bash
@@ -291,11 +291,11 @@ http://<您的 VM 外部 IP>/
    ```
 5. **重新啟動背景服務**：
    ```bash
-   sudo systemctl start ext-link-checker
+   sudo systemctl start link-checker
    ```
 6. **確認服務狀態**：
    ```bash
-   sudo systemctl status ext-link-checker
+   sudo systemctl status link-checker
    ```
    若看到綠色的 `active (running)` 字樣，即代表系統更新並重啟成功！
 
@@ -314,7 +314,7 @@ http://<您的 VM 外部 IP>/
 
 1. **進入專案目錄**：
    ```bash
-   cd /opt/ext-link-checker
+   cd /opt/link-checker
    ```
 2. **執行 VACUUM 壓縮資料庫**：
    ```bash

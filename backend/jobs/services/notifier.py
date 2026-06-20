@@ -82,7 +82,7 @@ def _build_and_send_email(
         None
     """
     status_text = "已完成 (Completed)" if status == "completed" else "發生嚴重異常 (Error)"
-    subject = f"【外部連結檢查系統】任務狀態通知 ({status_text}) - 任務 ID: {job.id}"
+    subject = f"【網站連結檢查系統】任務狀態通知 ({status_text}) - 任務 ID: {job.id}"
 
     plain_text = (
         f"您好，\n\n"

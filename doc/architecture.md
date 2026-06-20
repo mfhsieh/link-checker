@@ -1,11 +1,11 @@
-# 外連檢查爬蟲 (External Link Checker) 架構說明
+# 外連檢查爬蟲 (Link Checker) 架構說明
 
 本文件旨在概述系統的目錄結構與核心設計理念。專案目標為建立一個能夠遍歷特定網域，找出外部網域連結並記錄其 IP 的高擴充性爬蟲系統。
 
 ## 專案目錄架構
 
 ```text
-ext-link-checker/
+link-checker/
 ├── .env                # 環境變數設定檔 (如資料庫路徑、SMTP 憑證等)
 ├── .gitignore          # git 追蹤忽略清單
 ├── .pylintrc           # Pylint 靜態程式碼分析設定檔

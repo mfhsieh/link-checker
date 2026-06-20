@@ -56,7 +56,7 @@ class Settings:  # pylint: disable=too-few-public-methods
     """
 
     # ── 應用程式基本設定 ────────────────────────────────────────────────────────
-    APP_NAME: str = os.environ.get("APP_NAME", "外部連結檢查系統")
+    APP_NAME: str = os.environ.get("APP_NAME", "網站連結檢查系統")
     DEBUG: bool = os.environ.get("DEBUG", "false").lower() == "true"
 
     # ── 系統日誌設定 ───────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ class Settings:  # pylint: disable=too-few-public-methods
     SMTP_PORT: int = int(os.environ.get("SMTP_PORT") or "587")
     SMTP_USERNAME: str = os.environ.get("SMTP_USERNAME", "")
     SMTP_PASSWORD: str = os.environ.get("SMTP_PASSWORD", "")
-    SMTP_FROM_NAME: str = os.environ.get("SMTP_FROM_NAME", "外部連結檢查系統")
+    SMTP_FROM_NAME: str = os.environ.get("SMTP_FROM_NAME", "網站連結檢查系統")
     SMTP_FROM_EMAIL: str = os.environ.get("SMTP_FROM_EMAIL", "noreply@example.com")
     SMTP_USE_TLS: bool = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
     # 開發環境下啟用 console 模擬（不真實發送）

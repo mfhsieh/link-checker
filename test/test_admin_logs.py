@@ -5,6 +5,7 @@
 
 import json
 import os
+import shutil
 import sys
 import unittest
 from collections.abc import Generator
@@ -22,6 +23,7 @@ from backend.auth.models import AuthBase, AuthLog, User
 from backend.deps import get_auth_db, get_crawler_db, get_job_manager, require_admin, require_csrf
 from backend.main import app
 from crawler.models import Base as CrawlerBase
+from test.conftest import refresh_settings_cache  # pylint: disable=wrong-import-order
 
 # 測試用 SQLite DSN
 TEST_AUTH_DB_URL: str = "sqlite:///db/test_auth_admin.db"
@@ -133,8 +135,6 @@ class TestAdminLogs(unittest.TestCase):
     """測試管理員操作日誌的案例類別。."""
 
     client: TestClient
-    config_path: str
-    config_backup: str | None
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -147,6 +147,12 @@ class TestAdminLogs(unittest.TestCase):
         # 設定測試用環境變數（避免模組級設定被其他模組覆蓋）
         os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_admin.db"
         os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_admin.db"
+        os.environ["GLOBAL_CONFIG_PATH"] = "db/test_config_global_admin.yaml"
+
+        refresh_settings_cache()
+
+        if os.path.exists("config/config_global.yaml.example"):
+            shutil.copy("config/config_global.yaml.example", "db/test_config_global_admin.yaml")
 
         # 確保刪除先前殘留的測試資料庫檔案，避免 IntegrityError
         for db_file in ["db/test_auth_admin.db", "db/test_crawler_admin.db"]:
@@ -187,13 +193,6 @@ class TestAdminLogs(unittest.TestCase):
 
         cls.client = TestClient(app)
 
-        # 備份 config_global.yaml，避免測試修改影響系統
-        cls.config_path = "config/config_global.yaml"
-        cls.config_backup = None
-        if os.path.exists(cls.config_path):
-            with open(cls.config_path, "r", encoding="utf-8") as f:
-                cls.config_backup = f.read()
-
     @classmethod
     def tearDownClass(cls) -> None:
         """在所有測試結束後執行的清理操作。.
@@ -216,11 +215,9 @@ class TestAdminLogs(unittest.TestCase):
                     except OSError:
                         pass
 
-        # 還原 config_global.yaml
-        if cls.config_backup is not None:
+        if os.path.exists("db/test_config_global_admin.yaml"):
             try:
-                with open(cls.config_path, "w", encoding="utf-8") as f:
-                    f.write(cls.config_backup)
+                os.remove("db/test_config_global_admin.yaml")
             except OSError:
                 pass
 
@@ -321,7 +318,8 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db.query(AuthLog)
+            db
+            .query(AuthLog)
             .filter(AuthLog.event_type == "user_deleted", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()
@@ -339,7 +337,8 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db.query(AuthLog)
+            db
+            .query(AuthLog)
             .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()
@@ -358,7 +357,8 @@ class TestAdminLogs(unittest.TestCase):
 
         db = TestingSessionLocal()
         log = (
-            db.query(AuthLog)
+            db
+            .query(AuthLog)
             .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
             .order_by(AuthLog.created_at.desc())
             .first()

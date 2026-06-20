@@ -1,4 +1,4 @@
-# 外部連結檢查系統 (External Link Checker)
+# 網站連結檢查系統 (Link Checker)
 
 本專案是一個具備命令列介面 (CLI) 與現代化網頁介面 (Web UI) 的外部連結檢查工具。系統主要用於自動巡覽特定網站，找出連向外部（非信任網域）的連結，並檢查其有效性與傳輸安全性，以協助網站管理員維護連結品質並降低潛在的資安風險。
 
@@ -39,7 +39,7 @@ pip install -r requirements.txt
 
 ```env
 # 應用程式設定
-APP_NAME="外部連結檢查系統"
+APP_NAME="網站連結檢查系統"
 DEBUG="false"
 
 # 資料庫連線
@@ -51,7 +51,7 @@ SMTP_HOST="smtp.example.com"
 SMTP_PORT="587"
 SMTP_USERNAME="your-smtp-username"
 SMTP_PASSWORD="your-smtp-password"
-SMTP_FROM_NAME="外部連結檢查系統"
+SMTP_FROM_NAME="網站連結檢查系統"
 SMTP_FROM_EMAIL="noreply@example.com"
 SMTP_USE_TLS="true"
 SMTP_CONSOLE_MODE="false"  # 開發階段可設為 true，將郵件內容輸出至終端機而不實際寄送

@@ -6,6 +6,7 @@
 # pylint: disable=protected-access, duplicate-code, consider-using-with
 
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -37,6 +38,7 @@ def _set_e2e_test_env() -> None:
     """
     os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_e2e.db"
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_e2e.db"
+    os.environ["GLOBAL_CONFIG_PATH"] = "db/test_config_global_e2e.yaml"
     # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
     from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
 
@@ -69,6 +71,9 @@ def setup_databases() -> None:
         except (SQLAlchemyError, OSError):
             pass
     backend_deps._JOB_MANAGER = None
+
+    if os.path.exists("config/config_global.yaml.example"):
+        shutil.copy("config/config_global.yaml.example", "db/test_config_global_e2e.yaml")
 
     # 清除舊的資料庫主檔案與 -shm/-wal 暫存檔
     for db_file in ["db/test_auth_e2e.db", "db/test_crawler_e2e.db"]:
@@ -104,6 +109,12 @@ def teardown_databases() -> None:
         except (SQLAlchemyError, OSError):
             pass
     backend_deps._JOB_MANAGER = None
+
+    if os.path.exists("db/test_config_global_e2e.yaml"):
+        try:
+            os.remove("db/test_config_global_e2e.yaml")
+        except OSError:
+            pass
 
     # 清除資料庫主檔案與 -shm/-wal 暫存檔
     for db_file in ["db/test_auth_e2e.db", "db/test_crawler_e2e.db"]:

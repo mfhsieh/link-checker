@@ -28,6 +28,7 @@ def refresh_settings_cache() -> None:
     # 強制用最新的環境變數更新 class-level 屬性
     Settings.AUTH_DB_URL = os.environ.get("AUTH_DB_URL", "sqlite:///db/auth.db")
     Settings.CRAWLER_DB_URL = os.environ.get("CRAWLER_DB_URL", "sqlite:///db/crawler.db")
+    Settings.GLOBAL_CONFIG_PATH = os.environ.get("GLOBAL_CONFIG_PATH", "config/config_global.yaml")
 
 
 @pytest.fixture(autouse=True, scope="module")

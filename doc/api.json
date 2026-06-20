@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "外部連結檢查系統",
+    "title": "網站連結檢查系統",
     "description": "外部連結檢查爬蟲 Web 服務 API",
     "version": "2.0.0"
   },

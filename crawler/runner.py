@@ -505,18 +505,18 @@ class JobRunner:
         if needs_check and self.executor:
 
             def check_single(
-                ext_link: str,
+                link: str,
             ) -> tuple[str, str | None, int | None, str | None]:
                 """
                 呼叫爬蟲引擎對單一外部連結進行存活探測。
 
                 Args:
-                    ext_link (str): 外部連結網址。
+                    link (str): 外部連結網址。
 
                 Returns:
                     tuple[str, str | None, int | None, str | None]: (目標網址, IP, 狀態碼, 錯誤訊息)。
                 """
-                return self._check_single_link(ext_link, crawler)
+                return self._check_single_link(link, crawler)
 
             results = list(self.executor.map(check_single, needs_check))
             self._save_checked_links(session, current_url, results)
@@ -564,20 +564,20 @@ class JobRunner:
                 )
                 session.add(new_ext)
 
-    def _check_single_link(self, ext_link: str, crawler: CrawlerCore) -> tuple[str, str | None, int | None, str | None]:
+    def _check_single_link(self, link: str, crawler: CrawlerCore) -> tuple[str, str | None, int | None, str | None]:
         """呼叫爬蟲引擎對單一外部連結進行存活探測。
 
         Args:
-            ext_link (str): 外部連結網址。
+            link (str): 外部連結網址。
             crawler (CrawlerCore): 爬蟲核心引擎。
 
         Returns:
             tuple[str, str | None, int | None, str | None]: (目標網址, IP, 狀態碼, 錯誤訊息)。
         """
-        tgt_dom = get_domain(ext_link)
+        tgt_dom = get_domain(link)
         ip_res = resolve_ip(tgt_dom) if tgt_dom else None
-        code_res, err_res = crawler.check_external_link(ext_link)
-        return ext_link, ip_res, code_res, err_res
+        code_res, err_res = crawler.check_external_link(link)
+        return link, ip_res, code_res, err_res
 
     def _handle_error(self, session: Session, queue_item: CrawlQueue, e: httpx.HTTPError) -> None:
         """

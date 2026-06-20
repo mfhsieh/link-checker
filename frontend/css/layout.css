@@ -416,11 +416,11 @@
   }
 
   /* 窄螢幕時將工具列強制分行 */
-  .ext-link-toolbar {
+  .link-toolbar {
     flex-wrap: wrap;
   }
 
-  .ext-link-title {
+  .link-title {
     width: 100%;
     margin-bottom: 0.25rem;
   }

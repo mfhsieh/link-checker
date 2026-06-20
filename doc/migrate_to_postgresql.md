@@ -1,6 +1,6 @@
 # 從 SQLite 升級與遷移至 PostgreSQL 指南 (SQLite to PostgreSQL Migration Guide)
 
-本文件詳細說明如何將「外部連結檢查系統」專案的資料庫從 SQLite 升級並遷移至 **PostgreSQL**。此指南包含 WSL/Ubuntu 環境下的 PostgreSQL 安裝、使用者與資料庫建立、連線設定檔（`.env`）調校、資料遷移腳本執行以及遷移後的資料庫優化。
+本文件詳細說明如何將「網站連結檢查系統」專案的資料庫從 SQLite 升級並遷移至 **PostgreSQL**。此指南包含 WSL/Ubuntu 環境下的 PostgreSQL 安裝、使用者與資料庫建立、連線設定檔（`.env`）調校、資料遷移腳本執行以及遷移後的資料庫優化。
 
 ---
 
@@ -85,7 +85,7 @@ DB_POOL_PRE_PING=true
 
 ## 4. 執行資料遷移腳本
 
-專案已準備好全自動遷移工具 [migrate_sqlite_to_pg.py](file:///home/mfhsieh/projects/python/ext-link-checker/scripts/migrate_sqlite_to_pg.py)，可安全地將現存 SQLite 資料（包含使用者、Sessions、歷史任務、待爬佇列與外部連結結果）導入 PostgreSQL。
+專案已準備好全自動遷移工具 [migrate_sqlite_to_pg.py](file:///home/mfhsieh/projects/python/link-checker/scripts/migrate_sqlite_to_pg.py)，可安全地將現存 SQLite 資料（包含使用者、Sessions、歷史任務、待爬佇列與外部連結結果）導入 PostgreSQL。
 
 ### 遷移安全機制說明：
 * **全新重建與自動優化**：遷移工具在寫入前，會自動清除目標 PostgreSQL 資料庫中現存的資料表（透過 `drop_all`）並**根據最新的 `models.py` 定義全新建立 Schema**。這確保了所有最新的**效能複合索引 (Composite Indexes)** 與 **`ON DELETE CASCADE` (防 OOM 級聯刪除)** 設定都會被自動套用，無需手動調整。

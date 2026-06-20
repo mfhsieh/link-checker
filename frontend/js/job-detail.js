@@ -219,8 +219,8 @@ export async function initJobDetailPage(jobId) {
     _internalGroupBy = 'none';
     _internalFilter = null;
     // 初始化時載入儲存在 localStorage 的排除清單
-    _currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
-    _currentExcludeEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
+    _currentExclude = localStorage.getItem('link-checker-exclude-domains') || '';
+    _currentExcludeEnabled = localStorage.getItem('link-checker-exclude-enabled') !== 'false';
 
     _currentGroupBy = 'none';
     _currentPage = 1;
@@ -1837,12 +1837,12 @@ function bindResultsControls() {
 
             if (excludeEnabledCheckbox) {
                 _currentExcludeEnabled = excludeEnabledCheckbox.checked;
-                localStorage.setItem('ext-link-checker-exclude-enabled', _currentExcludeEnabled);
+                localStorage.setItem('link-checker-exclude-enabled', _currentExcludeEnabled);
             }
 
             const lines = excludeTextareaInput.value.split('\n').map(s => s.trim()).filter(Boolean);
             _currentExclude = lines.join(',');
-            localStorage.setItem('ext-link-checker-exclude-domains', _currentExclude);
+            localStorage.setItem('link-checker-exclude-domains', _currentExclude);
 
             const isActive = _currentExcludeEnabled && _currentExclude;
             openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';

@@ -8,7 +8,7 @@
 
 前端完全採用靜態 HTML/JS 開發，**完全不依賴後端程式碼**。其與後端的唯一依賴是 **RESTful API / SSE 介面契約**。
 
-- **通訊方式**: 透過 AJAX / Fetch 進行異步通訊，API 基礎網址設定為同源 `BASE_URL = ''`（參見 [frontend/js/api.js](file:///home/mfhsieh/projects/python/ext-link-checker/frontend/js/api.js)）。
+- **通訊方式**: 透過 AJAX / Fetch 進行異步通訊，API 基礎網址設定為同源 `BASE_URL = ''`（參見 [frontend/js/api.js](file:///home/mfhsieh/projects/python/link-checker/frontend/js/api.js)）。
 - **主要依賴的 API 路由端點**:
   - **身分驗證**: `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/password/reset`
   - **任務管理**: `/api/jobs` (CRUD), `/api/jobs/{job_id}/start`, `/api/jobs/{job_id}/pause`, `/api/jobs/{job_id}/results`
@@ -16,7 +16,7 @@
   - **系統管理**: `/api/admin/users`, `/api/admin/logs`
 - **安全防禦依賴**: POST / PATCH / DELETE 請求必須在 Request Header 中附加 `X-CSRF-Token`（讀取自 Cookie中的 `csrf_token`）。
 - **前端內部公用庫依賴**:
-  - **公用 UI 與通知**: 所有業務邏輯模組 (`jobs.js`, `login.js` 等) 皆依賴 [frontend/js/toast.js](file:///home/mfhsieh/projects/python/ext-link-checker/frontend/js/toast.js) 與 [frontend/js/ui.js](file:///home/mfhsieh/projects/python/ext-link-checker/frontend/js/ui.js) 來進行全域通知與表單狀態重置。
+  - **公用 UI 與通知**: 所有業務邏輯模組 (`jobs.js`, `login.js` 等) 皆依賴 [frontend/js/toast.js](file:///home/mfhsieh/projects/python/link-checker/frontend/js/toast.js) 與 [frontend/js/ui.js](file:///home/mfhsieh/projects/python/link-checker/frontend/js/ui.js) 來進行全域通知與表單狀態重置。
 
 ---
 

@@ -61,8 +61,8 @@ function bindCompareEvents() {
         errorEl.textContent = '';
 
         try {
-            const excludeDomains = localStorage.getItem('ext-link-checker-exclude-domains') || '';
-            const excludeEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
+            const excludeDomains = localStorage.getItem('link-checker-exclude-domains') || '';
+            const excludeEnabled = localStorage.getItem('link-checker-exclude-enabled') !== 'false';
             let url = `/api/jobs/${baseId}/diff?compare_with=${targetId}`;
             if (excludeEnabled && excludeDomains) {
                 url += `&exclude=${encodeURIComponent(excludeDomains)}`;
@@ -125,8 +125,8 @@ function bindCompareEvents() {
         const closeExcludeModal = () => { excludeModalEl.style.display = 'none'; };
 
         openExcludeBtn.addEventListener('click', () => {
-            const currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
-            const isEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
+            const currentExclude = localStorage.getItem('link-checker-exclude-domains') || '';
+            const isEnabled = localStorage.getItem('link-checker-exclude-enabled') !== 'false';
             if (excludeEnabledCheckbox) excludeEnabledCheckbox.checked = isEnabled;
             excludeTextareaInput.value = currentExclude.split(',').filter(Boolean).join('\n');
             excludeModalEl.style.display = 'flex';
@@ -143,8 +143,8 @@ function bindCompareEvents() {
             const lines = excludeTextareaInput.value.split('\n').map(s => s.trim()).filter(Boolean);
             const newExclude = lines.join(',');
 
-            localStorage.setItem('ext-link-checker-exclude-enabled', isEnabled);
-            localStorage.setItem('ext-link-checker-exclude-domains', newExclude);
+            localStorage.setItem('link-checker-exclude-enabled', isEnabled);
+            localStorage.setItem('link-checker-exclude-domains', newExclude);
 
             const isActive = isEnabled && newExclude;
             openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';
@@ -776,8 +776,8 @@ export async function initComparePage(baseJobId = null) {
 
         const openExcludeBtn = document.getElementById('btn-compare-exclude-modal');
         if (openExcludeBtn) {
-            const currentExclude = localStorage.getItem('ext-link-checker-exclude-domains') || '';
-            const isEnabled = localStorage.getItem('ext-link-checker-exclude-enabled') !== 'false';
+            const currentExclude = localStorage.getItem('link-checker-exclude-domains') || '';
+            const isEnabled = localStorage.getItem('link-checker-exclude-enabled') !== 'false';
             const isActive = isEnabled && currentExclude;
             openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';
             openExcludeBtn.style.borderColor = isActive ? 'var(--color-brand-500)' : '';

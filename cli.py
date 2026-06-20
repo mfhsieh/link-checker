@@ -236,9 +236,7 @@ def parse_args() -> argparse.Namespace | None:
     Returns:
         argparse.Namespace | None: 解析後的參數命名空間物件。若未提供必要參數則回傳 None。
     """
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
-        description="外部連結檢查爬蟲 (External Link Checker Crawler)"
-    )
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="外部連結檢查爬蟲 (Link Checker Crawler)")
 
     # ---------------------------------------------------------
     # 群組 1：任務生命週期與調度 (Job Lifecycle & Scheduling)

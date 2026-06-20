@@ -5,14 +5,14 @@
 後續的任務是否能夠正確地進入 `queued` (排隊中) 狀態，而不會直接啟動。
 """
 
-from test.test_api import setup_databases
 import pytest
 
-from backend.config import get_settings
+from backend.config import Settings, get_settings
 from backend.deps import get_job_manager
 from backend.jobs.services.management import start_job
 from crawler.manager import JobCreateOptions
 from crawler.models import Job
+from test.test_api import setup_databases  # pylint: disable=wrong-import-order
 
 
 def test_scheduler_queuing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -34,8 +34,6 @@ def test_scheduler_queuing(monkeypatch: pytest.MonkeyPatch) -> None:
     get_settings.cache_clear()
 
     # 強制覆寫已生成的 Settings 類別屬性 (因為它是 class-level 定義的預設值)
-    from backend.config import Settings  # pylint: disable=import-outside-toplevel
-
     Settings.CRAWLER_MAX_CONCURRENT_JOBS = 1
 
     # 初始化測試資料庫

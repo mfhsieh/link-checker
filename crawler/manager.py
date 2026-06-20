@@ -449,14 +449,14 @@ class JobManager:
             )
 
             # 找出包含失效外連的來源網頁
-            failed_ext_links = (
+            failed_links = (
                 session.query(ExternalLink.source_url)
                 .filter(ExternalLink.job_id == job_id, failed_ext_condition)
                 .distinct()
                 .all()
             )
 
-            source_urls_to_retry = [row[0] for row in failed_ext_links if row[0]]
+            source_urls_to_retry = [row[0] for row in failed_links if row[0]]
 
             if source_urls_to_retry:
                 # 刪除失效的外部連結紀錄
