@@ -83,8 +83,9 @@ cd /opt/link-checker
 2. 建立虛擬環境 (Virtual Environment) 並安裝套件：
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv  # 建議使用 python3.12
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 

@@ -49,10 +49,11 @@
 
 ```bash
 # 建立虛擬環境
-python3 -m venv .venv
+python3.12 -m venv .venv  # 建議使用 python3.12
 
 # 啟動虛擬環境
 source .venv/bin/activate
+pip install --upgrade pip
 
 # 安裝依賴套件
 pip install -r requirements.txt
