@@ -135,7 +135,6 @@ python cli.py --help
 * **[GCP VM 部署指南](doc/deploy_gcp_vm.md)** 與 **[PostgreSQL 升級指南](doc/migrate_to_postgresql.md)**：雲端建置、Nginx 反向代理與資料庫平滑移轉。
 * **[自動化測試策略](doc/testing_strategy.md)**：模組級隔離架構與自動化測試執行指引。
 * **程式風格與開發規範**：[Python 規範](doc/python_coding_style.md) / [JavaScript 規範](doc/js_coding_style.md)
-* **[系統全面檢視與資安審查報告](doc/system_review_report.md)**：全站程式碼品質與資訊安全深度審查結果。
 * **[待辦清單與後續規劃](doc/todo.md)**
 
 ---
