@@ -47,20 +47,21 @@ def create_job(
     return job_id
 
 
-def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
+def start_job(manager: JobManager, job_id: str, user_id: str | None = None) -> bool:
     """
     啟動指定任務：以 Subprocess 方式 spawn 爬蟲子程序。
 
     子程序執行 `python cli.py --resume <job_id>`，
     讀取任務的 config_json 快照並開始爬取。
+    若目前執行中的任務數達到上限，則狀態轉為 `queued` 並暫不啟動子程序。
 
     Args:
         manager (JobManager): JobManager 實例。
         job_id (str): 欲啟動的任務 ID。
-        user_id (str): 請求啟動的使用者 ID（用於授權驗證）。
+        user_id (str | None): 請求啟動的使用者 ID（用於授權驗證，None 代表系統排程器）。
 
     Returns:
-        bool: 啟動成功回傳 True。
+        bool: 啟動指令已發送或已進入排隊則回傳 True。
 
     Raises:
         ValueError: 任務不存在、不屬於該使用者，或狀態不允許啟動。
@@ -68,9 +69,9 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+    if user_id is not None and job.user_id != user_id:
         raise ValueError("無權限操作此任務。")
-    if job.status not in ("pending", "paused", "error"):
+    if job.status not in ("pending", "paused", "error", "queued"):
         raise ValueError(f"任務目前狀態為 {job.status}，無法啟動。")
 
     _cleanup_finished_processes()
@@ -78,10 +79,25 @@ def start_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     if _is_job_running(job_id):
         raise ValueError("任務已在執行中。")
 
-    # 將任務狀態設為 starting
+    from backend.config import get_settings  # pylint: disable=import-outside-toplevel
+
+    max_concurrent = get_settings().CRAWLER_MAX_CONCURRENT_JOBS
+
     with manager.session_factory() as session:
+        # 若為使用者主動發起的啟動，需檢查並發上限，可能需轉入排隊
+        if user_id is not None and max_concurrent > 0:
+            active_count = session.query(Job).filter(Job.status.in_(["starting", "running"])).count()
+            if active_count >= max_concurrent:
+                j = session.query(Job).filter(Job.id == job_id).first()
+                if j and j.status in ("pending", "paused", "error", "queued"):
+                    j.status = "queued"
+                    session.commit()
+                logger.info("任務 %s 進入排隊狀態 (目前執行中: %d, 上限: %d)", job_id, active_count, max_concurrent)
+                return True
+
+        # 若未達上限或為排程器發起 (user_id=None)，則進入 starting
         j = session.query(Job).filter(Job.id == job_id).first()
-        if j and j.status in ("pending", "paused", "error"):
+        if j and j.status in ("pending", "paused", "error", "queued"):
             j.status = "starting"
             session.commit()
         else:
@@ -281,8 +297,8 @@ def reset_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError(f"找不到任務 ID: {job_id}")
     if job.user_id != user_id:
         raise ValueError("無權限重置此任務。")
-    if job.status in ("running", "starting"):
-        raise ValueError("任務正在執行中，無法直接重置，請先暫停任務。")
+    if job.status in ("running", "starting", "queued"):
+        raise ValueError("任務正在執行或排隊中，無法直接重置，請先暫停任務。")
     result = manager.reset_job(job_id)
     if not result:
         raise ValueError("重置任務失敗，請確認任務狀態後再試。")
@@ -309,8 +325,8 @@ def retry_failed_job(manager: JobManager, job_id: str, user_id: str) -> bool:
         raise ValueError(f"找不到任務 ID: {job_id}")
     if job.user_id != user_id:
         raise ValueError("無權限操作此任務。")
-    if job.status in ("running", "starting"):
-        raise ValueError("任務正在執行中，無法直接重試，請先暫停任務。")
+    if job.status in ("running", "starting", "queued"):
+        raise ValueError("任務正在執行或排隊中，無法直接重試，請先暫停任務。")
     result = manager.retry_failed_job(job_id)
     if not result:
         raise ValueError("重試任務失敗，請確認任務狀態後再試。")

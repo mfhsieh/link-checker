@@ -36,10 +36,3 @@
 * **功能描述**：針對已完成或異常終止的任務，其外連結果與報表是靜態的。目前切換聚合模式會重複消耗運算資源。
 * **規劃方案**：在 FastAPI 路由中針對靜止狀態（如 `completed`, `error`）的任務加入記憶體快取（如 `functools.lru_cache` 或 `cachetools`），將 API 回應時間降至極短，大幅減輕 Python 的 CPU 運算壓力。
 * **狀態**：**待後續優化（Pending Review）**。
-
----
-
-## 6. 將運算下放給資料庫 (Native SQL Aggregation)
-* **功能描述**：目前前端在切換 `group_by` 聚合模式（如 `target` 或 `domain`）時，後端必須把大量的資料從資料庫全數撈到 Python 記憶體裡跑迴圈分群，當任務資料量高達幾十萬筆時，處理會變得相當耗時。
-* **規劃方案**：改寫 SQLAlchemy 語法，利用資料庫原生的 JSON 聚合函數（如 PostgreSQL 的 `jsonb_agg` 或 SQLite 的 `json_group_array`），讓底層的 C/C++ 資料庫引擎直接算好再回傳給 Python。這能免除將大量資料撈回記憶體的傳輸負擔，且能恢復原生的 `LIMIT` 與 `OFFSET` 極速分頁。
-* **狀態**：**已完成（Completed）**。

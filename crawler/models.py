@@ -98,7 +98,7 @@ class Job(Base):  # pylint: disable=too-few-public-methods
         start_url (str): 爬蟲起始的網址。
         target_domains (str): 允許爬蟲進入的網域清單，以逗號分隔。
         trusted_domains (str): 被視為信任網域的清單，以逗號分隔。
-        status (str): 任務的當前狀態 (例如：pending, running, paused, completed, error)。
+        status (str): 任務的當前狀態 (例如：pending, queued, starting, running, paused, completed, error)。
         config_json (str | None): 紀錄啟動時的爬蟲設定 (JSON 格式)，以確保後續 Resume 設定一致。
         created_at (datetime): 任務建立的時間戳記。
         updated_at (datetime): 任務最後更新的時間戳記。

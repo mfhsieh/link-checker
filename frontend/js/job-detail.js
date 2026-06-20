@@ -842,7 +842,7 @@ function renderJobInfo(job) {
     setTextContent('stat-failed', progress.failed || 0);
 
     const canStart = ['pending', 'paused', 'error'].includes(job.status) && !job.is_running;
-    const canPause = isActuallyRunning && !isPausing;
+    const canPause = (isActuallyRunning && !isPausing) || job.status === 'queued';
     const canCompare = job.status === 'completed';
     const canTransfer = !isActuallyRunning;
     const canReset = ['completed', 'error', 'paused'].includes(job.status) && !job.is_running;

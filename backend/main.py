@@ -5,16 +5,19 @@ FastAPI 應用程式主入口。
 CORS（開發模式）、全域例外處理。
 """
 
+import asyncio
 import logging
 import os
 import re
 import secrets
 from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -22,15 +25,53 @@ from backend.admin.router import router as admin_router
 from backend.auth.router import router as auth_router
 from backend.config import Settings, get_settings
 from backend.jobs.router import router as jobs_router
+from backend.jobs.services.scheduler import check_and_spawn_queued_jobs
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 settings: Settings = get_settings()
 
+
+async def _run_scheduler_loop() -> None:
+    """背景排程器迴圈，每 5 秒喚醒一次 queued 任務"""
+    while True:
+        try:
+            # 任務操作包含資料庫讀寫與子程序啟動，應丟入 Thread Pool 避免阻塞 Event Loop
+            await asyncio.to_thread(check_and_spawn_queued_jobs)
+        except asyncio.CancelledError:
+            break
+        except SQLAlchemyError as e:
+            logger.error("背景排程器存取資料庫時發生錯誤: %s", e)
+        except RuntimeError as e:
+            logger.error("背景排程器建立執行緒或非同步執行時發生系統錯誤: %s", e)
+        except ValueError as e:
+            logger.error("背景排程器資料狀態或參數錯誤: %s", e)
+        except OSError as e:
+            logger.error("背景排程器子程序或系統資源錯誤: %s", e)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("背景排程器執行時發生未預期錯誤: %s", e)
+        await asyncio.sleep(5)
+
+
+@asynccontextmanager
+async def app_lifespan(_app: FastAPI):  # pylint: disable=unused-argument
+    """管理 FastAPI 生命週期（啟動與關閉）"""
+    logger.info("啟動背景排程器任務...")
+    scheduler_task = asyncio.create_task(_run_scheduler_loop())
+    yield
+    logger.info("關閉背景排程器任務...")
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
+
+
 app: FastAPI = FastAPI(
     title=settings.APP_NAME,
     description="外部連結檢查爬蟲 Web 服務 API",
     version="2.0.0",
+    lifespan=app_lifespan,
     # 生產環境關閉自動文件（避免 API 暴露）
     docs_url="/api/docs" if settings.DEBUG else None,
     redoc_url="/api/redoc" if settings.DEBUG else None,

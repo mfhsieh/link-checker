@@ -52,6 +52,7 @@ class Settings:  # pylint: disable=too-few-public-methods
         SMTP_USE_TLS (bool): 是否啟用 STARTTLS 安全傳輸。
         SMTP_CONSOLE_MODE (bool): 開發環境下是否啟用 Console 模擬郵件發送。
         GLOBAL_CONFIG_PATH (str): 全域預設爬蟲設定檔 YAML 之路徑。
+        CRAWLER_MAX_CONCURRENT_JOBS (int): 最大並發執行的爬蟲任務數量（預設 3，0 表無限制）。
     """
 
     # ── 應用程式基本設定 ────────────────────────────────────────────────────────
@@ -110,6 +111,10 @@ class Settings:  # pylint: disable=too-few-public-methods
 
     # ── 全域爬蟲設定檔路徑 ─────────────────────────────────────────────────────
     GLOBAL_CONFIG_PATH: str = os.environ.get("GLOBAL_CONFIG_PATH", "config/config_global.yaml")
+
+    # ── 爬蟲排程與資源限制 ─────────────────────────────────────────────────────
+    # 最大同時執行的爬蟲任務數（超過此數量的任務將進入 queued 狀態排隊），預設為 3。0 代表無限制。
+    CRAWLER_MAX_CONCURRENT_JOBS: int = int(os.environ.get("CRAWLER_MAX_CONCURRENT_JOBS", "3"))
 
 
 @lru_cache(maxsize=1)

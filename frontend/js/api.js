@@ -227,6 +227,7 @@ export function escapeHtml(str) {
 
 /** @type {Object<string, string>} 任務狀態對應的中文標籤字典 */
 export const STATUS_LABELS = {
+  queued: '排隊中',
   pending: '等待中',
   starting: '啟動中',
   running: '執行中',

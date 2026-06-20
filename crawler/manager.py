@@ -256,7 +256,7 @@ class JobManager:
 
     def pause_job(self, job_id: str) -> bool:
         """
-        將指定任務狀態更新為 paused（在任務當前為 running 或 pending 時允許）。
+        將指定任務狀態更新為 paused（在任務當前為 running 或 pending 或 queued 時允許）。
 
         Args:
             job_id (str): 欲暫停的任務 ID。
@@ -272,7 +272,7 @@ class JobManager:
             if not job:
                 logger.error("找不到指定的任務 ID: %s", job_id)
                 return False
-            if job.status in ("running", "pending", "starting"):
+            if job.status in ("running", "pending", "starting", "queued"):
                 job.status = "paused"
                 session.commit()
                 return True
@@ -423,7 +423,7 @@ class JobManager:
                 logger.error("找不到指定的任務 ID: %s", job_id)
                 return False
 
-            if job.status in ("running", "starting"):
+            if job.status in ("running", "starting", "queued"):
                 logger.error("任務 %s 目前正在執行中，無法直接重試。請先暫停任務。", job_id)
                 return False
 

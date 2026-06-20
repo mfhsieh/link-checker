@@ -26,7 +26,6 @@ sys.path.insert(0, PROJECT_ROOT)
 from backend.config import get_settings  # noqa: E402
 from crawler.models import CrawlQueue, ExternalLink, Job  # noqa: E402
 
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger: logging.Logger = logging.getLogger("job_sync")
 
