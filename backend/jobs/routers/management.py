@@ -45,10 +45,6 @@ def get_default_config(
 ) -> dict[str, object]:
     """
     取得任務預設的全域配置，供前端建立任務時填入預設值與限制。
-
-    Args:
-        _current_user (User): 當前登入的使用者物件。
-
     Returns:
         dict[str, object]: 允許前端使用的預設配置過濾結果。
     """
@@ -133,7 +129,6 @@ def create_job(
         body (CreateJobRequest): 建立任務的請求內容。
         current_user (User): 當前登入的使用者物件。
         manager (JobManager): JobManager 實例。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, object]: 新建任務的 ID 與訊息。
@@ -226,7 +221,6 @@ def start_job(
         job_id (str): 欲啟動的任務 ID。
         current_user (User): 當前登入的使用者。
         manager (JobManager): JobManager 實例。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -255,7 +249,6 @@ def pause_job(
         job_id (str): 欲暫停的任務 ID。
         current_user (User): 當前登入的使用者。
         manager (JobManager): JobManager 實例。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -284,7 +277,6 @@ def resume_job(
         job_id (str): 欲恢復的任務 ID。
         current_user (User): 當前登入的使用者。
         manager (JobManager): JobManager 實例。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -321,7 +313,6 @@ def reset_job(
         job_id (str): 欲重置的任務 ID。
         current_user (User): 當前登入的使用者。
         manager (JobManager): JobManager 實例。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -350,7 +341,6 @@ def retry_failed_job(
         job_id (str): 欲重試的任務 ID。
         current_user (User): 當前登入的使用者。
         manager (JobManager): JobManager 實例。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -379,7 +369,6 @@ def delete_job(
         job_id (str): 欲刪除的任務 ID。
         current_user (User): 當前登入的使用者。
         manager (JobManager): JobManager 實例。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -412,7 +401,6 @@ def transfer_job(
         current_user (User): 當前登入的使用者。
         manager (JobManager): JobManager 實例。
         auth_db (DBSession): Auth DB Session。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。

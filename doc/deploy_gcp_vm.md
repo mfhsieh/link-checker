@@ -21,11 +21,11 @@
 ## 步驟二：連線並安裝系統依賴
 
 1. 點擊 VM 列表中的 **SSH** 按鈕，開啟網頁版終端機。
-2. 更新系統套件並安裝 Python 3 環境與 Nginx：
+2. 更新系統套件並安裝 Python 3 環境、Nginx 與 PostgreSQL：
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3 python3-venv python3-pip git nginx build-essential python3-dev sqlite3
+sudo apt install -y python3 python3-venv python3-pip git nginx build-essential python3-dev postgresql postgresql-contrib
 ```
 
 3. **(強烈建議) 建立 Swap 虛擬記憶體**：
@@ -44,7 +44,29 @@ sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-## 步驟三：下載專案與安裝 Python 套件
+## 步驟三：設定 PostgreSQL 資料庫 (生產環境標準配置)
+
+在生產環境的高併發爬取下，系統強烈建議使用 PostgreSQL 取代 SQLite 以避免資料庫鎖定 (Database is locked) 的瓶頸。
+
+1. 切換至 `postgres` 管理員帳號並進入終端機：
+```bash
+sudo -u postgres psql
+```
+
+2. 執行以下 SQL 建立獨立的資料庫與使用者（請將密碼替換為您自訂的高強度密碼）：
+```sql
+-- 建立專用使用者
+CREATE USER elc_user WITH PASSWORD 'your_secure_password';
+
+-- 建立 Auth 與 Crawler 專屬資料庫，並賦予權限
+CREATE DATABASE auth_db OWNER elc_user;
+CREATE DATABASE crawler_db OWNER elc_user;
+
+-- 退出 psql
+\q
+```
+
+## 步驟四：下載專案與安裝 Python 套件
 
 1. 將專案程式碼複製到 VM 中（此處以 `/opt/` 目錄為例，您也可放於家目錄）：
 
@@ -66,7 +88,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 步驟四：系統環境變數與初始化
+## 步驟五：系統環境變數與初始化
 
 1. 複製並設定環境變數檔 `.env`：
 
@@ -75,7 +97,11 @@ cp .env.example .env
 nano .env
 ```
 
-> **提示**：若您希望自訂資料庫儲存位置（例如掛載至外部硬碟以節省系統碟空間），請於 `.env` 中設定 `AUTH_DB_URL` 與 `CRAWLER_DB_URL`。
+> **重要**：請將 `.env` 檔案中的資料庫連線字串修改為您剛才建立的 PostgreSQL 資訊，確保系統以高效能模式運行：
+> ```ini
+> AUTH_DB_URL="postgresql://elc_user:your_secure_password@localhost:5432/auth_db"
+> CRAWLER_DB_URL="postgresql://elc_user:your_secure_password@localhost:5432/crawler_db"
+> ```
 
 2. 初始化系統，建立第一位管理員帳號：
 
@@ -86,7 +112,7 @@ python cli.py --create-admin admin@example.com
 
 > **重要**：請務必記下終端機畫面上顯示的**初始隨機密碼**，以便稍後登入系統。
 
-## 步驟五：設定 Systemd 背景服務
+## 步驟六：設定 Systemd 背景服務
 
 為了讓系統在您關閉 SSH 視窗後繼續運行，甚至在 VM 重開機後自動啟動，我們需要設定 Systemd。
 
@@ -132,7 +158,7 @@ sudo systemctl start link-checker
 sudo systemctl status link-checker
 ```
 
-## 步驟六：設定 Nginx 反向代理 (Reverse Proxy)
+## 步驟七：設定 Nginx 反向代理 (Reverse Proxy)
 
 雖然系統預設運行在 `8000` 埠，但基於安全性與網頁標準，建議使用 Nginx 將 HTTP (80) 導向至內部的 8000 埠。
 
@@ -187,7 +213,7 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-## 步驟七：登入系統
+## 步驟八：登入系統
 
 現在，您可以直接在瀏覽器輸入 GCP VM 的**外部 IP 位址**：
 
@@ -201,7 +227,7 @@ http://<您的 VM 外部 IP>/
 
 ---
 
-## 步驟八：設定網域與 HTTPS 安全憑證 (Certbot)
+## 步驟九：設定網域與 HTTPS 安全憑證 (Certbot)
 
 為了確保系統資料（如帳號密碼、爬蟲日誌）傳輸時的機密性，強烈建議您使用 Let's Encrypt 提供的免費 SSL 憑證將 HTTP 升級為 HTTPS。
 
@@ -301,28 +327,7 @@ http://<您的 VM 外部 IP>/
 
 ---
 
-## 進階維護：資料庫備份與 PostgreSQL 升級
+## 進階維護：資料庫備份與優化
 
 * **單一任務備份**：系統提供 `./scripts/job_sync.sh export <JOB_ID> backup.zip` 工具，能將任務以 JSONL 格式無損打包，方便您下載回本機或其他伺服器還原。
-* **升級至 PostgreSQL**：當您的系統規模擴大，SQLite 的檔案鎖定機制出現瓶頸時，建議升級至 PostgreSQL。請參考專案內的 **doc/migrate_to_postgresql.md** 指南，安裝資料庫並執行 `python scripts/migrate_sqlite_to_pg.py`，即可一鍵無痛完成移轉。
-
----
-
-## 進階維護：資料庫空間釋放 (VACUUM)
-
-在系統長期運行過程中，當您刪除了大量的爬蟲任務或歷史日誌後，SQLite 資料庫檔案的大小預設並不會自動縮小。為了釋放未使用的實體磁碟空間，建議定期手動執行 `VACUUM` 指令。
-
-1. **進入專案目錄**：
-   ```bash
-   cd /opt/link-checker
-   ```
-2. **執行 VACUUM 壓縮資料庫**：
-   ```bash
-   # 壓縮爬蟲資料庫 (若有自訂 CRAWLER_DB_URL，請替換為該路徑)
-   sqlite3 db/crawler.db "VACUUM;"
-
-   # 壓縮帳號資料庫 (若有自訂 AUTH_DB_URL，請替換為該路徑)
-   sqlite3 db/auth.db "VACUUM;"
-   ```
-
-> **💡 建議時機**：執行 `VACUUM` 期間會產生較高的磁碟 I/O 負載並短暫鎖定資料庫，建議在系統的離峰時間，或是在您剛從後台刪除了大量舊任務後手動執行。您也可以將這兩行指令寫入 Linux 的 Cronjob 進行每週或每月的定期排程維護。
+* **資料庫空間釋放 (VACUUM)**：在系統長期運行並刪除大量舊任務後，建議定期連線至 PostgreSQL 並執行 `VACUUM ANALYZE;` 來重新估算索引與回收死資料空間。您可以使用 pgAdmin、DBeaver 或直接透過 `sudo -u postgres psql -d crawler_db -c "VACUUM ANALYZE;"` 進行線上維護，不會中斷系統服務。

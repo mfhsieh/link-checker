@@ -1,4 +1,5 @@
-"""任務資料備份與匯入工具。.
+"""
+任務資料備份與匯入工具。
 
 以 JSON Lines 格式匯出/匯入任務設定與結果資料，以支援跨資料庫（如 SQLite 到 PostgreSQL）的遷移，
 並在匯入時自動配發新的任務 ID 與指定新的擁有者。
@@ -32,7 +33,8 @@ logger: logging.Logger = logging.getLogger("job_sync")
 
 # pylint: disable=too-many-locals
 def export_job(job_id: str, output_path: str) -> None:
-    """匯出任務資料。.
+    """
+    匯出任務資料。
 
     將指定任務的元資料與佇列/外連結果以 JSON/JSONL 格式寫入輸出目錄中。
     若 output_path 以 .zip 結尾，將自動打包為 ZIP 壓縮檔。
@@ -41,9 +43,11 @@ def export_job(job_id: str, output_path: str) -> None:
         job_id (str): 欲匯出的任務 ID。
         output_path (str): 匯出資料的目標資料夾路徑或 ZIP 檔案路徑。
 
+    Returns:
+        None
+
     Raises:
         SystemExit: 當找不到任務時，結束程式。
-
     """
     settings = get_settings()
     engine = create_engine(settings.CRAWLER_DB_URL)
@@ -131,7 +135,8 @@ def export_job(job_id: str, output_path: str) -> None:
 
 # pylint: disable=too-many-branches, too-many-statements
 def import_job(input_path: str, new_user_id: str) -> None:
-    """匯入任務資料。.
+    """
+    匯入任務資料。
 
     將存放於輸入目錄或 ZIP 檔中的 JSON/JSONL 資料寫入資料庫，並配發新的任務 ID 與指定新的擁有者。
 
@@ -139,9 +144,11 @@ def import_job(input_path: str, new_user_id: str) -> None:
         input_path (str): 存放任務備份資料的來源資料夾路徑或 ZIP 檔案路徑。
         new_user_id (str): 接手該任務的新使用者 ID。
 
-    Raises:
-        SystemExit: 當找不到任務元資料時，結束程式。
+    Returns:
+        None
 
+    Raises:
+        SystemExit: 當找不到任務元資料或解壓縮失敗時，結束程式。
     """
     settings = get_settings()
     engine = create_engine(settings.CRAWLER_DB_URL)
@@ -251,11 +258,17 @@ def import_job(input_path: str, new_user_id: str) -> None:
 
 
 def main() -> None:
-    """解析指令並執行對應操作。.
+    """
+    解析指令並執行對應操作。
+
+    使用 argparse 讀取命令列參數，根據指定的操作 (export 或 import)
+    將參數導向至對應的函式處理。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
-
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["export", "import"])

@@ -32,16 +32,20 @@ logger: logging.Logger = logging.getLogger("schema-check")
 
 # pylint: disable=too-many-locals, too-many-branches
 def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -> bool:
-    """比對指定的 ORM Metadata 與資料庫真實 Schema 差異。.
+    """
+    比對指定的 ORM Metadata 與資料庫真實 Schema 差異。
+
+    透過 SQLAlchemy 的 Inspection 機制取得資料庫真實的資料表、欄位、型別、
+    索引與外鍵設定，並與程式定義的 `metadata` 進行逐一比對。若發現任何結構缺失
+    或型別不符，將輸出警告日誌。
 
     Args:
         engine (Engine): SQLAlchemy 資料庫引擎。
-        metadata (MetaData): 程式定義的 ORM Metadata。
-        db_name (str): 資料庫識別名稱（如 "Auth DB" 或 "Crawler DB"）。
+        metadata (MetaData): 程式定義的 ORM Metadata 結構描述。
+        db_name (str): 資料庫識別名稱（如 "Auth DB" 或 "Crawler DB"），用於日誌輸出。
 
     Returns:
-        bool: 若完全一致回傳 True，有任何差異則回傳 False。
-
+        bool: 若資料庫結構與 ORM 預期完全一致回傳 True，有任何差異則回傳 False。
     """
     logger.info("=== 開始檢查 %s 架構 ===", db_name)
     inspector = inspect(engine)
@@ -141,7 +145,16 @@ def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -
 
 
 def main() -> None:
-    """主控制流程。."""
+    """
+    主控制流程。
+
+    讀取環境變數設定的資料庫連線字串，建立 SQLAlchemy Engine，
+    並依序檢驗 Auth DB 與 Crawler DB 的 Schema。若檢查全數通過，
+    程式會以 Exit Code 0 結束；若有任何不一致，則以 Exit Code 1 結束。
+
+    Returns:
+        None
+    """
     settings = get_settings()
 
     auth_url = settings.AUTH_DB_URL

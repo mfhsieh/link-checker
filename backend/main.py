@@ -33,7 +33,11 @@ settings: Settings = get_settings()
 
 
 async def _run_scheduler_loop() -> None:
-    """背景排程器迴圈，每 5 秒喚醒一次 queued 任務"""
+    """背景排程器迴圈，每 5 秒喚醒一次 queued 任務
+
+    Returns:
+        None
+    """
     while True:
         try:
             # 任務操作包含資料庫讀寫與子程序啟動，應丟入 Thread Pool 避免阻塞 Event Loop
@@ -55,7 +59,14 @@ async def _run_scheduler_loop() -> None:
 
 @asynccontextmanager
 async def app_lifespan(_app: FastAPI):  # pylint: disable=unused-argument
-    """管理 FastAPI 生命週期（啟動與關閉）"""
+    """管理 FastAPI 生命週期（啟動與關閉）
+
+    Args:
+        _app (FastAPI): FastAPI 實例物件。
+
+    Yields:
+        None
+    """
     logger.info("啟動背景排程器任務...")
     scheduler_task = asyncio.create_task(_run_scheduler_loop())
     yield

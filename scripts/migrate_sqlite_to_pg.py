@@ -1,4 +1,5 @@
-"""資料庫遷移工具：從 SQLite 轉移資料至 PostgreSQL。.
+"""
+資料庫遷移工具：從 SQLite 轉移資料至 PostgreSQL。
 
 此腳本會讀取目前的 `.env` 設定檔，將舊有 SQLite 資料庫中的資料
 （包含使用者帳號、Session、任務、佇列與外連結果）遷移至 PostgreSQL 目標資料庫中。
@@ -33,12 +34,21 @@ logger: logging.Logger = logging.getLogger("migration")
 
 # pylint: disable=too-many-locals
 def migrate_auth_db(sqlite_url: str, pg_url: str) -> None:
-    """遷移使用者帳號與認證相關資料。.
+    """
+    遷移使用者帳號與認證相關資料。
+
+    將使用者清單、邀請憑證、登入 Session 與安全操作日誌從 SQLite 來源庫
+    搬移至目標的 PostgreSQL 中，並在遷移結束後自動更新 PostgreSQL 的序列值 (Sequence)。
 
     Args:
         sqlite_url (str): 來源 SQLite 資料庫連線 URL。
         pg_url (str): 目標 PostgreSQL 資料庫連線 URL。
 
+    Returns:
+        None
+
+    Raises:
+        SQLAlchemyError: 當資料寫入發生例外時拋出。
     """
     logger.info("開始遷移 Auth DB...")
 
@@ -109,12 +119,21 @@ def migrate_auth_db(sqlite_url: str, pg_url: str) -> None:
 
 # pylint: disable=too-many-locals
 def migrate_crawler_db(sqlite_url: str, pg_url: str) -> None:
-    """遷移爬蟲任務與結果資料。.
+    """
+    遷移爬蟲任務與結果資料。
+
+    分批讀取 CrawlQueue 與 ExternalLink 等大量資料，並寫入目標 PostgreSQL，
+    以避免 OOM (Out Of Memory) 崩潰，最後同步更新主鍵序列值 (Sequence)。
 
     Args:
         sqlite_url (str): 來源 SQLite 資料庫連線 URL。
         pg_url (str): 目標 PostgreSQL 資料庫連線 URL。
 
+    Returns:
+        None
+
+    Raises:
+        SQLAlchemyError: 當資料寫入發生例外時拋出。
     """
     logger.info("開始遷移 Crawler DB...")
 
@@ -200,11 +219,17 @@ def migrate_crawler_db(sqlite_url: str, pg_url: str) -> None:
 
 
 def main() -> None:
-    """主控流程，從環境設定中讀取 DSN 並驅動遷移邏輯。.
+    """
+    主控流程，從環境設定中讀取 DSN 並驅動遷移邏輯。
+
+    驗證設定的連線字串是否確實為 PostgreSQL，若通過則依序執行 Auth DB
+    與 Crawler DB 的資料庫遷移，成功後結束。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當資料庫設定非 PostgreSQL 或遷移過程發生嚴重錯誤時。
-
     """
     settings = get_settings()
 
@@ -212,9 +237,9 @@ def main() -> None:
     pg_auth_url = settings.AUTH_DB_URL
     pg_crawler_url = settings.CRAWLER_DB_URL
 
-    # 來源 SQLite 預設位置
-    sqlite_auth_url = "sqlite:///db/auth.db"
-    sqlite_crawler_url = "sqlite:///db/crawler.db"
+    # 來源 SQLite 預設位置 (可透過環境變數覆寫)
+    sqlite_auth_url = os.environ.get("MIGRATION_SOURCE_SQLITE_URL", "sqlite:///db/auth.db")
+    sqlite_crawler_url = os.environ.get("MIGRATION_SOURCE_CRAWLER_SQLITE_URL", "sqlite:///db/crawler.db")
 
     # 安全驗證：確認目標已經是 PostgreSQL，防制誤寫入
     if not pg_auth_url.startswith("postgresql") or not pg_crawler_url.startswith("postgresql"):

@@ -35,6 +35,12 @@ ERROR_STATUS_FILTERS = [
 def _parse_json_list(val: object) -> list:
     """
     解析 JSON 字串為列表，用於反序列化資料庫聚合的 JSON 陣列。
+
+    Args:
+        val (object): 參數說明。
+
+    Returns:
+        list: 回傳說明。
     """
     if isinstance(val, str):
         try:
@@ -52,6 +58,15 @@ def _apply_col_filters(
 ) -> Query:
     """
     動態套用欄位過濾器，減少主函式的區域變數與複雜度。
+
+    Args:
+        query (Query): 參數說明。
+        col_filters_str (object): 參數說明。
+        filter_map (object): 參數說明。
+        is_having (bool): 參數說明。
+
+    Returns:
+        Query: 回傳說明。
     """
     if not col_filters_str:
         return query
@@ -75,6 +90,16 @@ def _apply_sorting(
 ) -> Query:
     """
     動態套用排序規則，減少主函式的區域變數與複雜度。
+
+    Args:
+        query (Query): 參數說明。
+        sort_by (object): 參數說明。
+        sort_asc (bool): 參數說明。
+        sort_map (object): 參數說明。
+        default_sort (object): 參數說明。
+
+    Returns:
+        Query: 回傳說明。
     """
     if sort_by and sort_by in sort_map:
         order_func = asc if sort_asc else desc
@@ -88,6 +113,13 @@ def _get_job_results_grouped_by_target(
 ) -> dict[str, object]:
     """
     查詢任務的外連結果，並依目標網址 (Target URL) 聚合。
+
+    Args:
+        db (DBSession): 參數說明。
+        query_args (JobResultQuery): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     # 1. 建立基礎查詢，取得目標網址與來源網址的對應關係
     base_q = db.query(ExternalLink.target_url, ExternalLink.source_url).filter(ExternalLink.job_id == query_args.job_id)
@@ -188,6 +220,13 @@ def _get_job_results_grouped_by_source(
 ) -> dict[str, object]:
     """
     查詢任務的外連結果，並依來源網頁 (Source URL) 聚合。
+
+    Args:
+        db (DBSession): 參數說明。
+        query_args (JobResultQuery): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     # 1. 定義目標物件的 JSON 結構，動態判斷狀態字串與錯誤訊息
     target_obj = JSONObject(
@@ -277,6 +316,13 @@ def _get_job_results_grouped_by_domain(
 ) -> dict[str, object]:
     """
     查詢任務的外連結果，並依外部網域 (Domain) 聚合。
+
+    Args:
+        db (DBSession): 參數說明。
+        query_args (JobResultQuery): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     # 1. 建立基礎查詢，提取目標網域、目標網址與來源網址的關係
     base_q = db.query(ExternalLink.target_domain, ExternalLink.target_url, ExternalLink.source_url).filter(
@@ -387,6 +433,13 @@ def _get_job_results_no_grouping(
 ) -> dict[str, object]:
     """
     查詢任務的外連結果，無聚合模式。
+
+    Args:
+        query (Query): 參數說明。
+        query_args (JobResultQuery): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     filter_map = {
         "target_url": lambda v: ExternalLink.target_url.ilike(f"%{v}%"),
@@ -480,6 +533,12 @@ def get_job_results(
 def _classify_link_status(lnk: ExternalLink) -> tuple[bool, bool, bool, bool, bool, bool, bool, bool]:
     """
     分類外連的狀態。
+
+    Args:
+        lnk (ExternalLink): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     is_dns_failed = not lnk.ip_address
     c = lnk.http_status_code
@@ -572,6 +631,14 @@ def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
 def _get_results_summary_no_grouping(db: DBSession, job_id: str, exclude: str | None = None) -> dict[str, int]:
     """
     計算無分組下的外連結果統計摘要。
+
+    Args:
+        db (DBSession): 參數說明。
+        job_id (str): 參數說明。
+        exclude (object): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
     query = db.query(
@@ -649,6 +716,15 @@ def _get_results_summary_no_grouping(db: DBSession, job_id: str, exclude: str | 
 def _get_results_summary_grouped(db: DBSession, job_id: str, exclude: str | None, group_by: str) -> dict[str, int]:
     """
     計算分組聚合下的外連結果統計摘要。
+
+    Args:
+        db (DBSession): 參數說明。
+        job_id (str): 參數說明。
+        exclude (object): 參數說明。
+        group_by (str): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
     query = apply_job_result_filters(query, exclude=exclude)
@@ -1208,6 +1284,13 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
 def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, int]:
     """
     計算無分組下的內部網頁失敗統計結果。
+
+    Args:
+        db (DBSession): 參數說明。
+        job_id (str): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     query = db.query(
         count(CrawlQueue.id).label("total"),
@@ -1267,6 +1350,14 @@ def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, 
 def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: str) -> dict[str, int]:
     """
     計算分組後的內部網頁失敗統計結果。
+
+    Args:
+        db (DBSession): 參數說明。
+        job_id (str): 參數說明。
+        group_by (str): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     sets = defaultdict(set)
     query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
@@ -1346,6 +1437,13 @@ def _get_internal_errors_grouped_by_source(
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表，並依來源網頁 (Source URL) 聚合。
+
+    Args:
+        db (DBSession): 參數說明。
+        query_args (InternalResultQuery): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     # 1. 定義目標物件的 JSON 結構
     target_obj = JSONObject(
@@ -1420,6 +1518,13 @@ def _get_internal_errors_no_grouping(
 ) -> dict[str, object]:
     """
     取得任務內部網頁爬取失敗的紀錄列表，無聚合模式。
+
+    Args:
+        query (Query): 參數說明。
+        query_args (InternalResultQuery): 參數說明。
+
+    Returns:
+        object: 回傳說明。
     """
     filter_map = {
         "URL": lambda v: CrawlQueue.url.ilike(f"%{v}%"),

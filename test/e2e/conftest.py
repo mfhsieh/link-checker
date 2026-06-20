@@ -1,4 +1,5 @@
-"""E2E 自動化整合測試的 Pytest Fixture 配置模組。.
+"""
+E2E 自動化整合測試的 Pytest Fixture 配置模組。
 
 提供測試伺服器生命週期管理、資料庫初始化，以及 Playwright 相關設定。
 """
@@ -12,7 +13,6 @@ import sys
 import time
 from collections.abc import Generator
 from datetime import datetime, timezone
-from typing import Any
 
 import httpx
 import pytest
@@ -31,14 +31,18 @@ BASE_URL: str = f"http://127.0.0.1:{PORT}"
 
 
 def _set_e2e_test_env() -> None:
-    """設定 E2E 測試專用的環境變數。.
+    """
+    設定 E2E 測試專用的環境變數。
 
     在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
     避免被其他測試模組的模組級設定覆蓋。
+
+    Returns:
+        None
     """
     os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_e2e.db"
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_e2e.db"
-    os.environ["GLOBAL_CONFIG_PATH"] = "db/test_config_global_e2e.yaml"
+    os.environ["GLOBAL_CONFIG_PATH"] = "config/test_config_global_e2e.yaml"
     # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
     from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
 
@@ -46,9 +50,13 @@ def _set_e2e_test_env() -> None:
 
 
 def setup_databases() -> None:
-    """清理並初始化 E2E 測試用資料庫。.
+    """
+    清理並初始化 E2E 測試用資料庫。
 
     此函式會重建 Auth DB 與 Crawler DB 以確保測試環境乾淨。
+
+    Returns:
+        None
     """
     import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
     import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
@@ -73,7 +81,7 @@ def setup_databases() -> None:
     backend_deps._JOB_MANAGER = None
 
     if os.path.exists("config/config_global.yaml.example"):
-        shutil.copy("config/config_global.yaml.example", "db/test_config_global_e2e.yaml")
+        shutil.copy("config/config_global.yaml.example", "config/test_config_global_e2e.yaml")
 
     # 清除舊的資料庫主檔案與 -shm/-wal 暫存檔
     for db_file in ["db/test_auth_e2e.db", "db/test_crawler_e2e.db"]:
@@ -90,7 +98,12 @@ def setup_databases() -> None:
 
 
 def teardown_databases() -> None:
-    """清理 E2E 測試所產生的資料庫檔案。."""
+    """
+    清理 E2E 測試所產生的資料庫檔案。
+
+    Returns:
+        None
+    """
     import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
     import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
 
@@ -110,9 +123,9 @@ def teardown_databases() -> None:
             pass
     backend_deps._JOB_MANAGER = None
 
-    if os.path.exists("db/test_config_global_e2e.yaml"):
+    if os.path.exists("config/test_config_global_e2e.yaml"):
         try:
-            os.remove("db/test_config_global_e2e.yaml")
+            os.remove("config/test_config_global_e2e.yaml")
         except OSError:
             pass
 
@@ -128,9 +141,13 @@ def teardown_databases() -> None:
 
 
 def create_admin_user() -> None:
-    """建立 E2E 測試用的管理員帳號。.
+    """
+    建立 E2E 測試用的管理員帳號。
 
     在 Auth 資料庫中直接插入一筆 admin@test.com 帳號，以利後續 E2E 測試登入。
+
+    Returns:
+        None
     """
     session_factory = get_auth_session_local()
     with session_factory() as db:
@@ -147,7 +164,8 @@ def create_admin_user() -> None:
 
 
 def wait_for_server(port: int, timeout: int = 10) -> bool:
-    """等待伺服器啟動並回應 HTTP 請求。.
+    """
+    等待伺服器啟動並回應 HTTP 請求。
 
     Args:
         port (int): 伺服器監聽的通訊埠。
@@ -155,7 +173,6 @@ def wait_for_server(port: int, timeout: int = 10) -> bool:
 
     Returns:
         bool: 若伺服器成功啟動並回應，則回傳 True；否則回傳 False。
-
     """
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -171,14 +188,14 @@ def wait_for_server(port: int, timeout: int = 10) -> bool:
 
 @pytest.fixture(scope="session", autouse=True)
 def test_server() -> Generator[str, None, None]:
-    """在整個 E2E 測試期間啟動 FastAPI 伺服器，並提供乾淨的資料庫。.
+    """
+    在整個 E2E 測試期間啟動 FastAPI 伺服器，並提供乾淨的資料庫。
 
     Yields:
         str: 測試伺服器的 Base URL。
 
     Raises:
         RuntimeError: 當 FastAPI 伺服器無法啟動時拋出。
-
     """
     setup_databases()
     create_admin_user()
@@ -207,34 +224,38 @@ def test_server() -> Generator[str, None, None]:
 
 
 @pytest.fixture(scope="session")
-def browser_type_launch_args(browser_type_launch_args: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=redefined-outer-name
-    """覆寫 Playwright 啟動參數，強制使用系統的 Chromium。.
+def browser_type_launch_args(browser_type_launch_args: dict[str, object]) -> dict[str, object]:  # pylint: disable=redefined-outer-name
+    """
+    覆寫 Playwright 啟動參數，強制使用系統的 Chromium。
 
     Args:
-        browser_type_launch_args (dict[str, Any]): 原始啟動參數。
+        browser_type_launch_args (dict[str, object]): 原始啟動參數。
 
     Returns:
-        dict[str, Any]: 覆寫後的啟動參數。
-
+        dict[str, object]: 覆寫後的啟動參數。
     """
     return {**browser_type_launch_args, "executable_path": "/usr/bin/chromium"}
 
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
-    """Playwright 預設會使用此 base_url 來訪問網頁。.
+    """
+    Playwright 預設會使用此 base_url 來訪問網頁。
 
     Returns:
         str: 測試伺服器的 Base URL。
-
     """
     return BASE_URL
 
 
 @pytest.fixture(autouse=True)
 def clean_database_state() -> None:
-    """在每個測試案例執行前清理資料庫狀態。.
+    """
+    在每個測試案例執行前清理資料庫狀態。
 
     此 fixture 會自動在每個測試案例執行前被呼叫，用以重置或清理
     資料庫中的狀態，確保各個 E2E 測試案例之間的獨立性，避免互相干擾。
+
+    Returns:
+        None
     """

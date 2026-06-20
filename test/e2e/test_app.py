@@ -1,4 +1,4 @@
-"""E2E 測試：應用程式主要功能與任務操作流程。."""
+"""E2E 測試：應用程式主要功能與任務操作流程。"""
 
 import re
 
@@ -6,15 +6,18 @@ from playwright.sync_api import Page, expect
 
 
 def test_create_job(page: Page, base_url: str) -> None:
-    """測試登入後建立一個爬蟲任務。.
+    """
+    測試登入後建立一個爬蟲任務。
 
     Args:
         page (Page): Playwright 的網頁操作物件.
         base_url (str): 測試伺服器的根網址.
 
+    Returns:
+        None
+
     Raises:
         AssertionError: 任務建立失敗或發生非預期錯誤時拋出.
-
     """
     # 必須先登入
     page.goto(f"{base_url}/index.html")
@@ -68,7 +71,8 @@ def test_create_job(page: Page, base_url: str) -> None:
 
 # pylint: disable=too-many-statements
 def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
-    """測試任務控制按鈕（啟動、暫停、重置、重試、刪除）的 UI 互動與確認 Modal 流程。.
+    """
+    測試任務控制按鈕（啟動、暫停、重置、重試、刪除）的 UI 互動與確認 Modal 流程。
 
     此測試使用 page.route 攔截並模擬 API 回應，以確保測試在各種任務狀態下的穩定度，
     並避免受後端進程狀態或假死清理機制的影響。
@@ -77,9 +81,11 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
         page (Page): Playwright 的網頁操作物件.
         base_url (str): 測試伺服器的根網址.
 
+    Returns:
+        None
+
     Raises:
         AssertionError: 測試流程中發生非預期結果或驗證失敗.
-
     """
     # 紀錄 console.log 與攔截日誌方便除錯
     console_msgs = []

@@ -1,6 +1,6 @@
-# 外連檢查爬蟲 (Link Checker) 架構說明
+# 網站連結檢查系統 (Link Checker) 架構說明
 
-本文件旨在概述系統的目錄結構與核心設計理念。專案目標為建立一個能夠遍歷特定網域，找出外部網域連結並記錄其 IP 的高擴充性爬蟲系統。
+本文件旨在概述系統的目錄結構與核心設計理念。專案目標為建立一個能夠遍歷特定網域，找出內部與外部網域連結並檢查其有效性與安全性的高擴充性爬蟲系統。
 
 ## 專案目錄架構
 
@@ -55,19 +55,29 @@ link-checker/
 ├── db/                 # 存放 SQLite 本地資料庫 (crawler.db, auth.db)
 ├── doc/                # 系統架構、Schema 與需求規格說明文件
 │   ├── api.json, api_routes.md, api_spec.md # API 規格與路由清單
+│   ├── architecture.md       # 系統架構說明 (本文件)
+│   ├── cli_usage.md          # 命令列 (CLI) 操作指南
+│   ├── crawler_parameters.md # 爬蟲參數詳細說明
+│   ├── db_schema.md          # 資料庫 Schema 說明
 │   ├── deploy_gcp_vm.md      # GCP 雲端部署指南
+│   ├── js_coding_style.md    # JavaScript 程式風格與開發規範
+│   ├── migrate_to_postgresql.md # PostgreSQL 遷移指南
+│   ├── module_dependencies.md# 模組間詳細依賴說明
+│   ├── python_coding_style.md# Python 程式風格與開發規範
+│   ├── requirements.md       # 系統需求規格書
 │   ├── testing_strategy.md   # 自動化測試策略與執行指南
-│   ├── system_review_report.md # 系統全面檢視與資安 Code Review 報告
-│   └── python_coding_style.md # Python 程式風格與開發規範
+│   └── todo.md               # 待辦清單與優化計畫
 ├── job/                # 存放個別任務 YAML 設定檔的安全目錄
 ├── log/                # 存放系統日誌與進程狀態
 │   ├── pids/           # 存放運行中爬蟲子程序的 PID 檔案
 │   └── crawler.log     # 系統主日誌檔
-├── report/             # 外部連結分析報告之預設匯出目錄
+├── report/             # 外部連結分析與內部網頁診斷報告之預設匯出目錄
 ├── scripts/            # 系統維運與自動化腳本
+│   ├── backfill_target_domain.py # 補填舊任務 target_domains 腳本
+│   ├── check_db_schema.py      # DB Schema 檢查腳本
 │   ├── gen_api_doc.py          # 自動產生 API 規格與路由清單
 │   ├── job_sync.sh             # 跨環境任務備份與還原工具便利包
-│   ├── manage_job_data.py      # 任務資料跨庫 JSONL 匯出匯入核心
+│   ├── manage_job_data.py      # 任務資料跨庫 JSONL 匯出匯入核心 (含外連與內連狀態)
 │   ├── migrate_sqlite_to_pg.py # PostgreSQL 平滑升級全自動遷移腳本
 │   ├── run_all_tests.sh        # 全域自動化測試套件啟動腳本
 │   ├── test_ext.py             # 單一外部連結存活測試腳本
@@ -139,8 +149,12 @@ graph TD
 * [系統需求規格書](requirements.md)：所有業務邏輯、資安防護與容錯機制之最高指導原則。
 * [模組間詳細依賴說明文件](module_dependencies.md)
 * [命令列 (CLI) 操作指南](cli_usage.md)
-* [API 路由清單](api_routes.md)
-* [資料庫 Schema 說明 (db_schema.md)](db_schema.md)
-* [GCP 部署指南 (deploy_gcp_vm.md)](deploy_gcp_vm.md)
-* [Python 程式風格規範 (python_coding_style.md)](python_coding_style.md)
+* [API 規格與路由清單](api_routes.md) 及 [API 詳細規格](api_spec.md)
+* [爬蟲參數詳細說明](crawler_parameters.md)
+* [資料庫 Schema 說明](db_schema.md)
+* [GCP 雲端部署指南](deploy_gcp_vm.md)
+* [PostgreSQL 遷移指南](migrate_to_postgresql.md)
+* [自動化測試策略與執行指南](testing_strategy.md)
+* [Python 程式風格規範](python_coding_style.md)
+* [JavaScript 程式風格規範](js_coding_style.md)
 * [待辦清單與後續優化計畫](todo.md)

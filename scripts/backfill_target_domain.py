@@ -29,7 +29,19 @@ logger: logging.Logger = logging.getLogger("backfill")
 
 
 def backfill() -> None:
-    """執行資料回填程序。."""
+    """
+    執行資料回填程序。
+
+    連線至 Crawler DB 並分批查詢所有 `target_domain` 為空或 NULL 的紀錄，
+    透過解析 `target_url` 來自動補齊並回填 `target_domain` 欄位值。
+    每批處理 2000 筆紀錄，直到所有紀錄皆回填完畢。
+
+    Returns:
+        None
+
+    Raises:
+        SQLAlchemyError: 當資料庫連線或更新失敗時拋出。
+    """
     settings = get_settings()
     engine = create_engine(settings.CRAWLER_DB_URL)
     session_factory = sessionmaker(bind=engine)

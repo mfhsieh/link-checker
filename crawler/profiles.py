@@ -8,8 +8,8 @@
 import logging
 import re
 
-from fake_useragent import UserAgent
-from fake_useragent.errors import FakeUserAgentError
+from fake_useragent import UserAgent  # type: ignore[import-untyped]
+from fake_useragent.errors import FakeUserAgentError  # type: ignore[import-untyped]
 
 logger: logging.Logger = logging.getLogger(__name__)
 

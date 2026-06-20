@@ -437,6 +437,9 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
             max_k (str): 最大值的全域設定鍵名。
             def_min (float | int): 預設的最小值。
             def_max (float | int): 預設的最大值。
+
+        Returns:
+            None
         """
         min_val = global_crawler_config.get(min_k)
         if min_val is None:
@@ -468,6 +471,9 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
             key (str): 設定鍵名。
             max_k (str): 最大值的全域設定鍵名。
             def_max (int): 預設的最大值。
+
+        Returns:
+            None
         """
         if max_k in global_crawler_config:
             max_val = global_crawler_config[max_k]

@@ -250,7 +250,6 @@ def list_users(
     Args:
         status_filter (str | None): (選填) 依帳號狀態篩選。
         auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
-        _admin (User): 當前管理員物件。
 
     Returns:
         list[dict[str, object]]: 系統中所有使用者的資訊陣列。
@@ -285,8 +284,6 @@ def create_user(
     Args:
         body (CreateUserRequest): 建立使用者的請求內容（含 email）。
         auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
-        _admin (User): 當前管理員物件。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, object]: 操作成功與邀請狀態訊息。
@@ -316,7 +313,6 @@ def update_user(
         request (Request): FastAPI 的 Request 物件（供紀錄 IP 使用）。
         auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
         current_admin (User): 當前執行操作的管理員物件。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 操作成功訊息。
@@ -397,7 +393,6 @@ def delete_user(
         background_tasks (BackgroundTasks): 用於發送背景清理任務。
         auth_db (DBSession): Auth 資料庫 Session。
         current_admin (User): 當前操作的管理員使用者物件。
-        _csrf (None): CSRF 防禦依賴。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -463,8 +458,6 @@ def resend_invite(
     Args:
         user_id (str): 目標使用者的 ID。
         auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
-        _admin (User): 當前管理員物件。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功寄送邀請的訊息。
@@ -503,7 +496,6 @@ def list_all_jobs(
         user_id (str | None): (選填) 依使用者 ID 篩選。
         status_filter (str | None): (選填) 依任務狀態篩選。
         manager (JobManager): JobManager 實例。
-        _admin (User): 當前管理員物件。
 
     Returns:
         list[dict[str, object]]: 系統中所有任務的列表。
@@ -528,8 +520,6 @@ def takeover_job(
         request (Request): FastAPI 請求物件。
         manager (JobManager): JobManager 實例。
         auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
-        _admin (User): 當前管理員物件。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 操作成功訊息。
@@ -579,8 +569,6 @@ def admin_delete_job(
         request (Request): FastAPI 請求物件。
         manager (JobManager): JobManager 實例。
         auth_db (DBSession): Auth DB 的 SQLAlchemy Session。
-        _admin (User): 當前管理員物件。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 操作成功訊息。
@@ -616,10 +604,6 @@ def get_config(
 ) -> dict[str, object]:
     """
     取得全域爬蟲配置（讀取 config_global.yaml）。
-
-    Args:
-        _admin (User): 當前管理員物件。
-
     Returns:
         dict[str, object]: 目前的全域爬蟲配置。
     """
@@ -658,8 +642,6 @@ def update_config(
         body (UpdateConfigRequest): 包含欲修改設定值的結構。
         request (Request): FastAPI Request。
         auth_db (DBSession): Auth 資料庫 Session。
-        _admin (User): 管理員使用者依賴，確保具備管理員權限。
-        _csrf (None): CSRF 防禦依賴。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -724,10 +706,6 @@ def get_smtp_config(
 ) -> dict[str, object]:
     """
     取得 SMTP 配置狀態（密碼遮罩，從環境變數讀取）。
-
-    Args:
-        _admin (User): 當前管理員物件。
-
     Returns:
         dict[str, object]: SMTP 配置狀態，包含各種設定值。
     """
@@ -756,8 +734,6 @@ def test_smtp(
 
     Args:
         body (SendTestEmailRequest): 請求內容，包含收件者信箱。
-        _admin (User): 當前管理員物件。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 操作成功訊息。
@@ -860,7 +836,6 @@ def get_logs(
     Args:
         query_args (LogQueryArgs): 日誌查詢參數。
         auth_db (DBSession): Auth DB Session。
-        _admin (User): 當前管理員物件。
 
     Returns:
         dict[str, object]: 包含日誌項目列表與分頁資訊的字典。

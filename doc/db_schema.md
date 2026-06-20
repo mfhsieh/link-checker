@@ -21,6 +21,18 @@
 系統支援從 SQLite 完整無縫遷移至 PostgreSQL (`scripts/migrate_sqlite_to_pg.py`)。由於 SQLite 的 AUTOINCREMENT 與 PostgreSQL 的 Sequence 運作機制不同，在跨資料庫批量導入舊資料後，PostgreSQL 的內部序列指標（如 `auth_logs_id_seq`）不會自動更新，這會導致後續新增資料時發生 Primary Key 衝突。
 因此，遷移腳本會在導入完成後，自動執行 `setval(pg_get_serial_sequence('table_name', 'id'), coalesce(max(id), 1))`，強制將序列指標推進至目前最大值，保障遷移後的資料庫能立即無縫接軌寫入。
 
+### 1.2 擴充其他資料庫之注意事項
+
+目前系統基於深度效能優化與底層特性的考量，**僅官方支援 SQLite 與 PostgreSQL** 兩種資料庫引擎。若未來專案需要擴充支援其他關聯式資料庫（如 MySQL、MariaDB 等），開發人員必須特別注意以下事項：
+
+1. **連線池參數相容性**：不同資料庫對 SQLAlchemy 的 `pool_size`、`max_overflow` 及斷線重連機制 (`pool_pre_ping`) 支援度可能不同，需針對新引擎重新調校連線策略。
+2. **事件監聽器隔離 (Event Listeners)**：目前系統利用 `@event.listens_for(Engine, "connect")` 針對 SQLite 強制開啟 WAL 模式與外鍵約束。擴充時必須確保這些事件攔截器精準綁定在正確的 dialect 上，避免造成其他引擎報錯。
+3. **自動遞增與主鍵校正**：MySQL 使用 Auto-Increment 屬性，不需像 PostgreSQL 那樣手動推進 Sequence；但在跨庫遷移資料時，仍需針對新引擎的主鍵跳號與外鍵更新行為 (`ON UPDATE CASCADE` 支援度) 編寫專屬防護邏輯。
+4. **時區處理 (Timezone)**：為相容 SQLite，系統目前統一採用無時區資訊 (Naive UTC) 進行寫入。若引入對時區嚴格敏感的引擎，需審慎評估是否改用 `DateTime(timezone=True)` 並處理向下相容問題。
+
+> [!TIP]
+> **客製化程式碼位置**：以上提及的資料庫連線工廠、引擎參數動態調校、以及 SQLite 專屬的效能事件攔截器（Event Listeners）實作，皆集中於 `crawler/utils.py` 中的 `get_db_session_factory` 函數內。若需擴充資料庫，請直接從該處著手修改。
+
 ---
 
 ## 2. 帳號資料庫 (Auth DB)
@@ -215,6 +227,7 @@ erDiagram
         String(36) job_id FK "關聯任務的 ID (ON DELETE CASCADE)"
         Text source_url "來源網頁網址"
         Text target_url "目標外部網址"
+        String(255) target_domain "目標真實網域"
         String(45) ip_address "解析出的 IP 位址"
         Boolean is_secure "是否為 HTTPS 安全協定"
         Integer http_status_code "HTTP 狀態碼"
@@ -281,7 +294,7 @@ erDiagram
 | `job_id` | `String(36)` | **Foreign Key** (`jobs.id`, `ON DELETE CASCADE`) | 該外部連結是在哪一個任務中被發現的。 |
 | `source_url` | `Text` | `NOT NULL` | 發現此外部連結的來源網頁，也就是該連結所在的母網頁。 |
 | `target_url` | `Text` | `NOT NULL` | 網頁中提取出的外部連結 `href` 本身。 |
-| `target_domain` | `String(255)` | `Nullable`, `Index` | 紀錄經過重定向 (Redirect) 後最終抵達的真實網域，用於精確的按網域分群統計。舊資料可透過 `backfill_target_domain.py` 腳本回填。 |
+| `target_domain` | `String(255)` | `NOT NULL`, `Default: ''` | 紀錄經過重定向 (Redirect) 後最終抵達的真實網域，用於精確的按網域分群統計。舊資料可透過 `backfill_target_domain.py` 腳本回填。 |
 | `ip_address` | `String(45)` | `Nullable` | 透過 DNS 解析該 `target_url` 之網域所取得的 IPv4/IPv6 位址。若解析失敗則為 `NULL`。 |
 | `is_secure` | `Boolean` | `Default: True` | 標記此外部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若為 HTTPS 則為 `True`，若為 HTTP 則為 `False`。 |
 | `http_status_code` | `Integer` | `Nullable` | 對外部連結進行 HTTP 存活檢查後取得的 HTTP 狀態碼。若為 `NULL` 代表未探測或連線失敗。 |
@@ -292,3 +305,4 @@ erDiagram
 * **`uq_external_links_job_src_tgt`** (唯一約束): `(job_id, source_url, target_url)`。用於從資料庫層面防止在同一任務中重複記錄相同的來源母頁面與目標外部網址。
 * **`ix_external_links_job_created`** (複合索引): `(job_id, created_at)`。用於加速巨量資料的分頁與排序。
 * **`ix_external_links_job_status_ip`** (複合索引): `(job_id, http_status_code, ip_address)`。用於加速狀態統計與篩選。
+* **`ix_external_links_job_domain`** (複合索引): `(job_id, target_domain)`。用於加速依網域群組統計 (`group_by=domain`)。

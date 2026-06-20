@@ -1,4 +1,5 @@
-"""測試頂層 Pytest Fixture 配置模組。.
+"""
+測試頂層 Pytest Fixture 配置模組。
 
 提供跨測試模組的隔離性保證：
 - 每個測試模組執行前重設 backend singleton（Engine / SessionLocal / JobManager）
@@ -13,11 +14,15 @@ import pytest
 
 
 def refresh_settings_cache() -> None:
-    """清除 get_settings() 的 lru_cache 並強制更新 Settings class 的 DB URL。.
+    """
+    清除 get_settings() 的 lru_cache 並強制更新 Settings class 的 DB URL。
 
     由於 Settings 使用 class-level 屬性（在 class 定義時求值），
     即使環境變數已更新，重新建立 Settings() 也不會讀取新值。
     因此需要手動將 os.environ 的最新值覆寫到 Settings class 屬性上。
+
+    Returns:
+        None
     """
     # pylint: disable=import-outside-toplevel
     from backend.config import Settings, get_settings
@@ -33,14 +38,14 @@ def refresh_settings_cache() -> None:
 
 @pytest.fixture(autouse=True, scope="module")
 def _reset_singletons_and_overrides() -> Generator[None, None, None]:
-    """在每個測試模組執行前，重設所有 backend singleton 並清空 dependency overrides。.
+    """
+    在每個測試模組執行前，重設所有 backend singleton 並清空 dependency overrides。
 
     這確保各測試模組在乾淨的環境下啟動，不會受到前一個模組殘留的
     Engine / SessionLocal / JobManager / dependency_overrides 影響。
 
     Yields:
         None: 在模組執行完畢後進行清理。
-
     """
     # pylint: disable=import-outside-toplevel, protected-access
     from sqlalchemy.exc import SQLAlchemyError

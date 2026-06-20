@@ -1,4 +1,5 @@
-"""單一頁面爬取測試腳本。.
+"""
+單一頁面爬取測試腳本。
 
 此腳本用於在終端機中快速測試特定網址，並限定爬取深度與頁數為 1，
 直接印出爬取結果，方便開發除錯與驗證。
@@ -22,7 +23,8 @@ from crawler.models import CrawlerConfig
 def get_test_crawler_config(
     global_config_path: str, user_config_overrides: dict[str, object] | None = None
 ) -> CrawlerConfig:
-    """讀取全域設定檔並合併個別任務設定，產生測試用的 CrawlerConfig 實例。.
+    """
+    讀取全域設定檔並合併個別任務設定，產生測試用的 CrawlerConfig 實例。
 
     Args:
         global_config_path (str): 全域設定檔的路徑。
@@ -30,7 +32,6 @@ def get_test_crawler_config(
 
     Returns:
         CrawlerConfig: 最終合併後的爬蟲配置實例。
-
     """
     global_config: dict[str, object] = {}
     if os.path.exists(global_config_path):
@@ -75,11 +76,17 @@ def get_test_crawler_config(
 
 
 def main() -> None:
-    """解析命令列參數，並針對目標網址進行單次頁面爬取測試。.
+    """
+    解析命令列參數，並針對目標網址進行單次頁面爬取測試。
+
+    利用 argparse 接收指定的 URL 與選填參數，實例化 CrawlerCore 並進行單頁解析，
+    最終將內部連結、外部連結與 HTTP 狀態印出至終端機。
+
+    Returns:
+        None
 
     Raises:
         SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
-
     """
     parser = argparse.ArgumentParser(description="測試單一頁面爬取 (限定 1 頁)")
     parser.add_argument("url", help="欲爬取的目標網址")

@@ -12,25 +12,20 @@
 
 前端負責將後端 API 回傳的資料渲染至畫面上，防範跨網站指令碼攻擊 (XSS) 是最高指導原則：
 
-* **禁止使用 `innerHTML` 渲染未受信任資料**：絕對禁止將任何來自 API、使用者輸入、或 URL 參數的資料直接透過 `innerHTML` 或 `insertAdjacentHTML` 寫入 DOM 中。
-* **文字渲染**：若僅需顯示文字，必須使用 `element.textContent = data;`。
-* **動態 HTML 渲染**：若必須動態產生 HTML 結構（例如表格），必須對所有變數強制呼叫 `escapeHtml()` 進行實體跳脫處理。
+* **禁止使用 `innerHTML`**：為徹底防範跨網站指令碼攻擊 (XSS)，全站**絕對禁止**將任何資料透過 `innerHTML` 或 `insertAdjacentHTML` 寫入 DOM 中。
+* **純文字渲染**：若僅需顯示純文字，必須使用 `element.textContent = data;`。
+* **動態 HTML 渲染**：若必須動態產生 HTML 結構（例如清單或表格），**強制使用 `document.createElement`** 逐一建立節點，並透過 `appendChild` 組合。本專案採 100% 原生 DOM API 進行前端渲染。
 
 **範例：**
 ```javascript
-// ❌ 錯誤示範（具 XSS 風險）
-element.innerHTML = `<div>${user.name}</div>`;
+// ❌ 錯誤示範（具 XSS 風險，且本專案嚴禁使用 innerHTML）
+element.innerHTML = `<div class="user-card">${user.name}</div>`;
 
-// ✅ 正確示範 1：使用 textContent
-element.textContent = user.name;
-
-// ✅ 正確示範 2：使用跳脫函式
-function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = String(s || '');
-    return d.innerHTML;
-}
-element.innerHTML = `<div>${escapeHtml(user.name)}</div>`;
+// ✅ 正確示範：使用純 DOM API 建立節點
+const cardDiv = document.createElement('div');
+cardDiv.className = 'user-card';
+cardDiv.textContent = user.name;
+element.appendChild(cardDiv);
 ```
 
 ## 3. 網路請求與 API 封裝 (API Calls)

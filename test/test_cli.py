@@ -22,10 +22,14 @@ YAML_CONFIG: str = "job/test_job.yaml"
 
 
 def _set_cli_test_env() -> None:
-    """設定 CLI 測試專用的環境變數。.
+    """
+    設定 CLI 測試專用的環境變數。
 
     在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
     避免被其他測試模組的模組級設定覆蓋。
+
+    Returns:
+        None
     """
     os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_cli.db"
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_cli.db"
@@ -36,7 +40,12 @@ def _set_cli_test_env() -> None:
 
 
 def setup_databases() -> None:
-    """建立並初始化全新的測試用資料庫。."""
+    """
+    建立並初始化全新的測試用資料庫。
+
+    Returns:
+        None
+    """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
@@ -78,7 +87,12 @@ def setup_databases() -> None:
 
 
 def teardown_databases() -> None:
-    """清理測試所產生的資料庫檔案。."""
+    """
+    清理測試所產生的資料庫檔案。
+
+    Returns:
+        None
+    """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
@@ -115,7 +129,8 @@ def teardown_databases() -> None:
 # pylint: disable=subprocess-run-check, unspecified-encoding, multiple-statements
 # pylint: disable=consider-using-with, unused-variable
 def test_cli_full_flow() -> None:
-    """執行端到端 (E2E) 整合測試與各核心組件的單元測試。.
+    """
+    執行端到端 (E2E) 整合測試與各核心組件的單元測試。
 
     此函數會按序執行以下測試步驟：
     1. 驗證雙 Client 機制下的 SSL 豁免網域邏輯。
@@ -128,10 +143,12 @@ def test_cli_full_flow() -> None:
     8. 測試任務生命週期管理（包括暫停、重置、繼續與刪除任務）。
     9. 執行限制條件爬行測試，驗證最大探索深度 (max_depth) 與頁數 (max_pages) 限制。
 
+    Returns:
+        None
+
     Raises:
         AssertionError: 當斷言失敗時拋出。
         SystemExit: 當 CLI 子程序或腳本因錯誤異常終止時拋出。
-
     """
     print("=== [CI/CD E2E Test Suite] ===")
 
@@ -424,7 +441,7 @@ crawler:
         export_cmd = [
             sys.executable,
             "cli.py",
-            "--export",
+            "--export-external",
             job_id,
             "--json",
             "--group-by",
@@ -483,7 +500,7 @@ crawler:
         export_dead_cmd = [
             sys.executable,
             "cli.py",
-            "--export",
+            "--export-external",
             job_id,
             "--json",
             "--filter",
@@ -506,7 +523,7 @@ crawler:
         export_broken_cmd = [
             sys.executable,
             "cli.py",
-            "--export",
+            "--export-external",
             job_id,
             "--json",
             "--filter",
@@ -551,7 +568,7 @@ crawler:
         export_insecure_cmd = [
             sys.executable,
             "cli.py",
-            "--export",
+            "--export-external",
             job_id,
             "--json",
             "--filter",
@@ -576,7 +593,7 @@ crawler:
         export_exclude_cmd = [
             sys.executable,
             "cli.py",
-            "--export",
+            "--export-external",
             job_id,
             "--json",
             "--exclude",
@@ -592,6 +609,28 @@ crawler:
             "Excluded domain should not be in export"
         )
         os.remove(exclude_file)
+
+        # 測試 --export-internal
+        print("Testing Export CLI with Internal Report...")
+        internal_export_file = "tmp_internal_export.json"
+        if os.path.exists(internal_export_file):
+            os.remove(internal_export_file)
+        export_internal_cmd = [
+            sys.executable,
+            "cli.py",
+            "--export-internal",
+            job_id,
+            "--json",
+            "--output",
+            internal_export_file,
+        ]
+        res_internal = subprocess.run(export_internal_cmd, capture_output=True, text=True)
+        assert res_internal.returncode == 0, "Export internal report failed"
+        with open(internal_export_file, "r") as f:
+            internal_data = json.load(f)
+        assert len(internal_data) > 0, "Internal export data should not be empty"
+        assert "url" in internal_data[0], "Internal export data should contain 'url' field"
+        os.remove(internal_export_file)
 
         # 測試 --export-full
         print("Testing Export CLI with Full Report (ZIP)...")

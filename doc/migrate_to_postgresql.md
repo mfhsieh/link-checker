@@ -62,9 +62,13 @@ CREATE DATABASE crawler_db OWNER elc_user;
 請開啟 `.env`，並依據剛才建立的資料庫修改以下變數：
 
 ```ini
+# 來源：舊版 SQLite 資料庫（若您的舊資料庫位於預設路徑 db/ 下，此兩行可省略）
+MIGRATION_SOURCE_SQLITE_URL="sqlite:///db/auth.db"
+MIGRATION_SOURCE_CRAWLER_SQLITE_URL="sqlite:///db/crawler.db"
+
 # 目標 PostgreSQL 連線 DSN 設定
-AUTH_DB_URL=postgresql://elc_user:your_secure_password@localhost:5432/auth_db
-CRAWLER_DB_URL=postgresql://elc_user:your_secure_password@localhost:5432/crawler_db
+AUTH_DB_URL="postgresql://elc_user:your_secure_password@localhost:5432/auth_db"
+CRAWLER_DB_URL="postgresql://elc_user:your_secure_password@localhost:5432/crawler_db"
 
 # PostgreSQL 進階連線池設定
 DB_POOL_SIZE=20

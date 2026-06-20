@@ -25,7 +25,8 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 @dataclass
 class ExportOptions:
-    """匯出結果的進階選項
+    """
+    匯出結果的進階選項。
 
     Attributes:
         status_filter (str | None): 狀態篩選條件。
@@ -69,7 +70,8 @@ def _sanitize_csv_row(row: list[object]) -> list[object]:
 def _write_export_data(
     output_path: str, json_data: list[dict], csv_headers: list[str], csv_rows: list[list[object]]
 ) -> None:
-    """將聚合後的資料寫入 JSON 或 CSV 檔案中
+    """
+    將聚合後的資料寫入 JSON 或 CSV 檔案中。
 
     Args:
         output_path (str): 輸出的檔案路徑。
@@ -79,6 +81,9 @@ def _write_export_data(
 
     Returns:
         None
+
+    Raises:
+        OSError: 當建立目錄或寫入檔案失敗時拋出。
     """
     output_dir = os.path.dirname(output_path)
     if output_dir and not os.path.exists(output_dir):
@@ -95,7 +100,7 @@ def _write_export_data(
             writer.writerows(csv_rows)
 
 
-def export_job_results(
+def export_external_job_results(
     session_factory: Callable[[], Session],
     job_id: str,
     output_path: str,
@@ -144,8 +149,65 @@ def export_job_results(
             return False
 
 
+def export_internal_job_results(
+    session_factory: Callable[[], Session],
+    job_id: str,
+    output_path: str,
+) -> bool:
+    """
+    將指定任務的內部爬取紀錄匯出為 CSV 或 JSON 格式。
+
+    Args:
+        session_factory (Callable[[], Session]): 資料庫 Session 工廠。
+        job_id (str): 欲匯出結果的任務 ID。
+        output_path (str): 匯出檔案的目的地路徑。
+
+    Returns:
+        bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
+    """
+    with session_factory() as session:
+        job = session.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            logger.error("找不到指定的任務 ID: %s", job_id)
+            return False
+
+        try:
+            q_count = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
+            if q_count == 0:
+                logger.warning("任務 %s 無任何內部爬取紀錄可匯出。", job_id)
+                return True
+
+            q_items = (
+                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).yield_per(2000)
+            )
+            items_list = []
+            for q in q_items:
+                d = format_crawl_queue_item(q)
+                items_list.append(
+                    {
+                        "source_url": d["Source URL"],
+                        "url": d["URL"],
+                        "status": d["Status"],
+                        "depth": d["Depth"],
+                        "retry_count": d["Retry Count"],
+                        "http_status_code": d["HTTP Status Code"],
+                        "error_message": d["Error Message"],
+                        "created_at": d["Created At"],
+                    }
+                )
+
+            _write_export_data(
+                output_path, items_list, list(items_list[0].keys()), [list(item.values()) for item in items_list]
+            )
+            return True
+        except OSError as e:
+            logger.error("匯出檔案時發生錯誤: %s", e)
+            return False
+
+
 def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipFile) -> None:
-    """將爬取紀錄寫入 ZIP 壓縮檔中的 CSV
+    """
+    將爬取紀錄寫入 ZIP 壓縮檔中的 CSV。
 
     Args:
         session (Session): 資料庫會話。
@@ -154,6 +216,9 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
 
     Returns:
         None
+
+    Raises:
+        OSError: 當寫入壓縮檔失敗時拋出。
     """
     q_count = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
     if q_count == 0:
@@ -194,7 +259,8 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
 
 
 def _export_external_links_to_zip(session: Session, job_id: str, zf: zipfile.ZipFile) -> None:
-    """將外部連結寫入 ZIP 壓縮檔中的 CSV
+    """
+    將外部連結寫入 ZIP 壓縮檔中的 CSV。
 
     Args:
         session (Session): 資料庫會話。
@@ -203,6 +269,9 @@ def _export_external_links_to_zip(session: Session, job_id: str, zf: zipfile.Zip
 
     Returns:
         None
+
+    Raises:
+        OSError: 當寫入壓縮檔失敗時拋出。
     """
     e_count = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
     if e_count == 0:

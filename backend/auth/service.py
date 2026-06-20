@@ -71,9 +71,6 @@ def _log_event(
         user_id (str | None): 相關使用者的 ID。
         ip_address (str | None): 客戶端 IP。
         detail (str | None): 補充詳細資訊。
-
-    Returns:
-        None
     """
     log = AuthLog(
         user_id=user_id,
@@ -174,9 +171,6 @@ def _increment_failed_login(db: DBSession, user: User, ip: str | None) -> None:
         db (DBSession): Auth DB Session。
         user (User): 使用者物件。
         ip (str | None): 客戶端 IP 位址。
-
-    Returns:
-        None
     """
     settings = get_settings()
     user.failed_login_count = (user.failed_login_count or 0) + 1
@@ -205,9 +199,6 @@ def _reset_failed_login(db: DBSession, user: User) -> None:
     Args:
         db (DBSession): Auth DB Session。
         user (User): 使用者物件。
-
-    Returns:
-        None
     """
     user.failed_login_count = 0
     user.locked_until = None
@@ -447,9 +438,6 @@ def refresh_session(db: DBSession, session: Session) -> None:
     Args:
         db (DBSession): Auth 資料庫 Session。
         session (Session): 要更新的 Session 物件。
-
-    Returns:
-        None
     """
     settings = get_settings()
     session.expires_at = _utc_now() + timedelta(seconds=settings.SESSION_EXPIRE_SECONDS)
@@ -471,9 +459,6 @@ def invalidate_session(db: DBSession, raw_token: str, ip: str | None = None) -> 
         db (DBSession): Auth DB Session。
         raw_token (str): Cookie 中的原始 Session Token。
         ip (str | None): 客戶端 IP 位址。
-
-    Returns:
-        None
     """
     token_hash = _hash_token(raw_token)
     session = db.query(Session).filter(Session.token_hash == token_hash).first()
@@ -521,9 +506,6 @@ def set_first_password(
         db (DBSession): Auth DB Session。
         session (Session): 首次登入 Session。
         new_password (str): 使用者設定的新密碼（純文字）。
-
-    Returns:
-        None
 
     Raises:
         ValueError: 密碼不符合安全標準。
@@ -578,9 +560,6 @@ def change_password(
         current_password (str): 目前的密碼（需先驗證）。
         new_password (str): 欲設定的新密碼。
 
-    Returns:
-        None
-
     Raises:
         ValueError: 現有密碼錯誤或新密碼不符合安全標準。
     """
@@ -618,9 +597,6 @@ def cleanup_deleted_user_task(user_id: str) -> None:
 
     Args:
         user_id (str): 欲清理的使用者 ID。
-
-    Returns:
-        None
     """
     # pylint: disable=import-outside-toplevel
     from backend.auth.db import get_auth_session_local
@@ -665,9 +641,6 @@ def run_session_gc_task() -> None:
     """
     背景任務：清除 Auth DB 中所有已過期的 Session 紀錄 (Garbage Collection)。
     並同時巡檢是否有處於軟刪除狀態 (status='deleted') 尚未清理乾淨的使用者。
-
-    Returns:
-        None
     """
     # 延遲載入以避免與 router / deps 產生循環依賴
     from backend.auth.db import get_auth_session_local  # pylint: disable=import-outside-toplevel
@@ -710,9 +683,6 @@ def request_password_reset(db: DBSession, email: str, ip: str | None = None) -> 
         db (DBSession): Auth DB Session。
         email (str): 申請重設的信箱。
         ip (str | None): 客戶端 IP 位址。
-
-    Returns:
-        None
 
     Raises:
         ValueError: 若該 IP 請求過於頻繁時拋出。
@@ -771,9 +741,6 @@ def reset_password(db: DBSession, token: str, new_password: str, ip: str | None 
         token (str): 郵件中的重設 Token。
         new_password (str): 新密碼。
         ip (str | None): 客戶端 IP 位址。
-
-    Returns:
-        None
 
     Raises:
         ValueError: Token 無效、過期，或新密碼強度不足。

@@ -18,6 +18,31 @@
 - Python 3.12 或以上版本
 - （建議）使用虛擬環境 (Virtual Environment) 進行安裝
 
+## 第三方元件清單
+
+本專案在技術選型上極度克制，堅持「夠用就好」且「資安至上」的原則。前端實現了「零第三方依賴」，後端則嚴選具備活躍社群維護的穩定開源套件。
+
+### 前端介面 (Frontend)
+* **零依賴 (Zero Dependencies)**：全站 UI 介面 100% 採用純原生 Vanilla JavaScript (ESM) 與 CSS 開發，**不包含** React、Vue、jQuery 或 TailwindCSS 等任何框架或函式庫。
+
+### 後端與爬蟲核心 (Backend & Crawler)
+* **[FastAPI](https://fastapi.tiangolo.com/)** (`0.115.12`)：高效能的非同步 Web 框架，負責建構管理後台的 RESTful API 與 SSE (Server-Sent Events) 長連線串流。
+* **[Uvicorn](https://www.uvicorn.org/)** (`0.34.3`)：作為 FastAPI 底層的高效能 ASGI 伺服器，負責處理 HTTP/網頁請求。
+* **[SQLAlchemy](https://www.sqlalchemy.org/)** (`2.0.50`)：業界標準的 Python ORM 框架，負責抽象化底層 SQL 語法，實作 SQLite 與 PostgreSQL 的無縫切換與高效能連線池管理。
+* **[psycopg2-binary](https://www.psycopg.org/)** (`2.9.12`)：PostgreSQL 的高可靠 Python 連線驅動程式。
+* **[httpx](https://www.python-httpx.org/)** (`0.28.1`)：處理非同步 HTTP 請求，負責執行併發的網頁抓取與狀態碼檢測（搭配 **[h2](https://github.com/python-hyper/h2)** `4.3.0` 模組支援 HTTP/2 通訊協定）。
+* **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** (`4.14.3`)：穩定可靠的 HTML 解析神器，負責從雜亂的網頁原始碼中精確萃取出所有連結。
+* **[PyYAML](https://pyyaml.org/)** (`6.0.3`)：用於解析、校驗與讀寫 `.yaml` 設定檔。
+* **[bcrypt](https://github.com/pyca/bcrypt/)** (`4.3.0`)：採用業界標準的雜湊演算法，處理並保護使用者的登入密碼。
+* **[python-dotenv](https://github.com/theskumar/python-dotenv)** (`1.0.1`)：負責從 `.env` 檔案載入機密參數，確保安全配置不寫死於程式碼中。
+* **[fake-useragent](https://github.com/fake-useragent/fake-useragent)** (`1.5.1`)：自動隨機產生真實瀏覽器的 User-Agent 標頭，藉以規避基礎防爬蟲機制。
+* **[email-validator](https://github.com/JoshData/python-email-validator)** (`2.2.0`)：提供符合 RFC 標準的 Email 格式與 DNS 深度驗證。
+
+### 開發與測試環境 (Development & Testing)
+* **[pytest](https://docs.pytest.org/)** (`8.2.0`)：強大的自動化單元與整合測試框架。
+* **[Playwright](https://playwright.dev/)** (`1.60.0`)：無頭 (Headless) 瀏覽器測試框架，負責執行前端 UI 的端到端 (E2E) 真實互動測試。
+* **[Ruff](https://astral.sh/ruff)** / **[Pylint](https://pylint.pycqa.org/)** / **[Mypy](https://mypy-lang.org/)**：靜態型別檢查與程式碼風格掃描工具，確保專案品質的一致性。
+
 ## 快速開始
 
 ### 1. 安裝依賴套件
@@ -33,9 +58,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 設定環境變數 (.env 或全域環境)
+### 2. (可選) 設定環境變數 (.env)
 
-啟動 Web 服務前，建議設定以下環境變數（可用於覆寫 `backend/config.py` 的預設值）：
+若您只是想在本機快速體驗，**可完全略過此步驟**，系統會自動以預設值建立 SQLite 資料庫。
+
+若要自訂組態，請建立 `.env` 檔案並設定以下變數（可用於覆寫預設值）：
 
 ```env
 # 應用程式設定
@@ -57,7 +84,7 @@ SMTP_USE_TLS="true"
 SMTP_CONSOLE_MODE="false"  # 開發階段可設為 true，將郵件內容輸出至終端機而不實際寄送
 ```
 
-## 系統管理員初始化
+### 3. 系統管理員初始化
 
 系統採邀請制，首次使用需手動建立第一組管理員帳號：
 
@@ -67,7 +94,7 @@ python cli.py --create-admin admin@example.com
 
 建立完成後，終端機會顯示一組系統產生的高強度隨機密碼。請使用該密碼首次登入 Web 介面，並依照系統提示設定您的專屬密碼。
 
-## 啟動 Web 服務
+### 4. 啟動 Web 服務
 
 使用 CLI 指令啟動內建的 FastAPI + Uvicorn 伺服器：
 
@@ -75,7 +102,7 @@ python cli.py --create-admin admin@example.com
 python cli.py --serve  # 若為開發環境，可加上 --reload 啟用熱重載
 ```
 
-伺服器將預設在 `http://0.0.0.0:8000` 啟動，請開啟瀏覽器並訪問。
+伺服器將預設在 `http://127.0.0.1:8000` 啟動，請開啟瀏覽器並訪問。
 
 ## 命令列 (CLI) 使用方式
 
@@ -110,3 +137,23 @@ python cli.py --help
 * **程式風格與開發規範**：[Python 規範](doc/python_coding_style.md) / [JavaScript 規範](doc/js_coding_style.md)
 * **[系統全面檢視與資安審查報告](doc/system_review_report.md)**：全站程式碼品質與資訊安全深度審查結果。
 * **[待辦清單與後續規劃](doc/todo.md)**
+
+---
+
+## 授權條款
+本專案採用 **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-Hant)** 授權條款釋出。
+
+使用者可自由分享或修改，但須遵循以下條件：
+
+| 條件 | 說明 |
+|------|------|
+| **姓名標示 (BY)** | 必須提供適當的姓名標示，並附上授權條款連結 |
+| **非商業性 (NC)** | 不得用於商業目的 |
+| **相同方式分享 (SA)** | 若改作或再發布，須採用相同授權條款 |
+
+作者：[mfhsieh at github](https://github.com/mfhsieh)
+
+---
+
+## 訊息揭露
+本應用程式的程式碼主要透過 AI 工具（Antigravity IDE）協助生成，並經人工審閱與修改。

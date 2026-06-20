@@ -1,6 +1,6 @@
 # 命令列 (CLI) 操作指南
 
-外部連結檢查爬蟲可以完全不依賴網站後台，透過命令列直接執行與管理。請確認已進入虛擬環境，並參考以下完整指令與設定檔操作說明。
+網站連結檢查系統可以完全不依賴網站後台，透過命令列直接執行與管理。請確認已進入虛擬環境，並參考以下完整指令與設定檔操作說明。
 
 ---
 
@@ -27,13 +27,14 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `--list-jobs` | *(無)* | 旗標 | 印出系統中所有的爬蟲任務與狀態列表。 | 無 |
 | `--report` | *(無)* | 字串 | 指定任務 ID，顯示該任務的詳細進度與統計報表。 | 無 |
-| `--export` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
+| `--export-external` | *(無)* | 字串 | 指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
+| `--export-internal` | *(無)* | 字串 | 指定任務 ID，將該任務的內部網頁爬取紀錄匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
 | `--export-full` | *(無)*| 字串 | 指定任務 ID，匯出該任務的完整報表 (ZIP 壓縮檔，含爬取紀錄與外連清單)。亦可搭配 `--output` 自訂檔名。 | 無 |
-| `--output` | *(無)* | 字串 | (選填) 搭配 `--export` 或 `--export-full` 使用，自訂輸出路徑。 | 依格式而定，如 `report/<JOB_ID>.csv` 或 `.zip` |
-| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export` 使用，篩選匯出內容 (支援 `dead`, `broken`, `not_found`, `server_error`, `insecure` 等多種狀態，詳見下方提示)。 | 無 |
-| `--exclude`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，排除指定的目標網域（多個以逗號分隔）。 | 無 |
-| `--group-by`| *(無)* | 字串 | (選填) 搭配 `--export` 使用，聚合模式：`target` (依外連)、`source` (依來源頁面)、`domain` (依網域)。 | `none` |
-| `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及 `--export` 的 JSON 檔案導出。 | 無 |
+| `--output` | *(無)* | 字串 | (選填) 搭配匯出指令使用，自訂輸出路徑。 | 依格式而定，如 `report/<JOB_ID>.csv` 或 `.zip` |
+| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export-external` 使用，篩選匯出內容 (支援 `dead`, `broken`, `not_found`, `server_error`, `insecure` 等多種狀態，詳見下方提示)。 | 無 |
+| `--exclude`| *(無)* | 字串 | (選填) 搭配 `--export-external` 使用，排除指定的目標網域（多個以逗號分隔）。 | 無 |
+| `--group-by`| *(無)* | 字串 | (選填) 搭配 `--export-external` 使用，聚合模式：`target` (依外連)、`source` (依來源頁面)、`domain` (依網域)。 | `none` |
+| `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及各項匯出指令的 JSON 檔案導出。 | 無 |
 
 ### 群組 3：全域設定與系統維運 (Global & System Admin)
 
@@ -49,99 +50,18 @@
 > **💡 提示：** 
 > * `--config` 與 `--resume` 為互斥概念。如果是啟動新爬蟲，請使用 `--config`；如果是中斷後繼續，請使用 `--resume`。若兩者皆未輸入，系統將會印出幫助說明。
 > * **路徑自動補齊**：使用 `-c` 參數啟動時，若指定設定檔在 `job/` 底下，您可以直接簡寫為 `python cli.py -c my_task.yaml`（程式會自動補齊路徑並在 `job/` 目錄中搜尋）。
-> * `--filter` 篩選條件說明：
->   * `dead`：特指 **「DNS 解析失敗 (IP 位址為空) 的無效外部連結」**（例如網域已過期）。
->   * `broken`：廣義的失效連結，包含 HTTP 狀態碼為實質異常 (如 404, 500) 或連線失敗的資源。
->   * `not_found`：精確篩選 **「資源遺失 (404, 410)」** 的連結。
->   * `server_error`：精確篩選 **「伺服器異常 (500~599)」** 的連結。
->   * `connection_error`：精確篩選 **「底層異常 (連線逾時、憑證無效等，無 HTTP 狀態碼)」** 的連結。
->   * `other_error`：精確篩選 **「其他未歸類的 HTTP 異常 (如 400, 406 或 >=600)」** 的連結。
->   * `blocked`：特指 **「遭目標網站防火牆 (WAF) 阻擋或權限不足 (如 401, 403, 429)」**，屬低風險連結。
->   * `insecure`：特指 **「使用明文 HTTP 傳輸的非安全外部連結」**。
->   * `healthy`：正常存活連結 (有 IP 且 HTTP 狀態碼 < 400)。
->   * `all`：不進行篩選，匯出所有結果。
 > * 爬蟲執行過程中的日誌會依據全域設定，同時輸出至畫面並備份至 `log/crawler.log`。
 
 ---
 
 ## 1.5 全域設定檔說明 (config_global.yaml)
 
-系統使用 `config/config_global.yaml` 作為預設的全域設定檔，用以定義爬蟲引擎的安全上下限閥值與預設行為（資料庫連線與系統日誌已全面改由 `.env` 環境變數控管）：
+系統使用 `config/config_global.yaml` 作為預設的全域設定檔，用以定義爬蟲引擎的安全上下限閥值與預設行為（資料庫連線與系統日誌已全面改由 `.env` 環境變數控管）。
 
-```yaml
-# 爬蟲引擎的全域限制與預設值
-crawler:
-  # 安全上下限限制（個別任務若超出此範圍將被強制修正，以防負載過大或逾時失效）
-  min_timeout: 10             # 逾時時間最小值限制 (秒)
-  max_timeout: 60             # 逾時時間最大值限制 (秒)
-  min_connect_timeout: 1.0    # 建立連線逾時最小值限制 (秒)
-  max_connect_timeout: 30.0   # 建立連線逾時最大值限制 (秒)
-  min_external_check_timeout: 1.0  # 外連探測逾時最小值限制 (秒)
-  max_external_check_timeout: 30.0 # 外連探測逾時最大值限制 (秒)
-  min_delay: 1.0              # 請求延遲時間最小值限制 (秒)
-  max_delay: 10.0             # 請求延遲時間最大值限制 (秒)
-  min_retries: 0              # 錯誤重試次數最小值限制 (次)
-  max_retries: 5              # 錯誤重試次數最大值限制 (次)
-  max_max_depth: null         # 任務可設定之最大探索深度的全域上限
-  max_max_pages: null         # 任務可設定之最大抓取頁數的全域上限
+為保持文件的單一來源 (Single Source of Truth) 與易讀性，關於各項參數的詳細定義、預設值與安全防護邏輯，請參考以下內容：
 
-  # 爬蟲硬性資源限制（僅限全域配置，個別任務無法覆寫）
-  max_content_length: 10485760 # 爬蟲最大網頁讀取容量上限 (預設 10MB)
-  max_redirects: 10           # HTTP 重導向追蹤次數上限
-
-  # 隨機延遲抖動比例 (Jitter) (防範行為分析，預設 0.2 代表 ±20% 抖動)
-  jitter_ratio: 0.2
-
-  # 預設瀏覽器 User-Agent（若為 null 則自動啟用高擬真動態瀏覽器特徵與標頭輪替，防範 WAF 阻擋）
-  user_agent: null
-
-  # MIME 類型過濾器（防止爬蟲下載非網頁媒體資源）
-  mime_type_filter:
-    enabled: true
-    allowed_types:
-      - "text/html"
-      - "application/xhtml+xml"
-
-  # 代理伺服器 URL (預設為 null，可藉由環境變數優先覆寫)
-  proxy_url: null
-
-  # 預設行為參數（當個別任務設定檔未指定時自動套用此預設值）
-  timeout: 30                 # 預設逾時時間 (秒)
-  connect_timeout: 5.0        # 預設 TCP 建立連線逾時 (秒)
-  external_check_timeout: 10.0 # 預設外連存活探測總超時 (秒)
-  delay: 3.0                  # 預設請求延遲 (秒)
-  retries: 3                  # 預設重試次數 (次)
-
-  # 自簽憑證豁免網域清單 (僅在連線這些網域時會跳過 SSL 憑證驗證)
-  ssl_exempt_domains:
-    # - "example.com"
-
-  # 網域特定請求延遲時間對照表 (單位：秒，支援最長匹配優先原則)
-  domain_delays:
-    # example.com: 5.0
-
-  # 全域排除的路徑規則 (Regular Expression)
-  ignore_regexes:
-    # - "^https://example\\.com/logout"
-
-  # 允許在遇到 HTTP 錯誤時降級使用 GET 請求探測的大型社群或反爬蟲網域清單
-  social_domains:
-    - "facebook.com"
-    - "fb.com"
-    - "youtube.com"
-    - "youtu.be"
-    - "instagram.com"
-    - "twitter.com"
-    - "linkedin.com"
-    - "line.me"
-
-  # 預設略過且不進行 HTML 抓取解析的副檔名清單（會與個別任務清單聯集合併）
-  ignore_extensions:
-    - ".pdf"
-    - ".doc"
-    - ".docx"
-    # ... (其餘壓縮檔、影音檔與程式庫詳見預設設定檔)
-```
+* **詳細參數說明與運作機制**：請參閱 [`crawler_parameters.md`](crawler_parameters.md)
+* **全域設定檔完整範本**：請參閱 [`../config/config_global.yaml.example`](../config/config_global.yaml.example)
 
 ---
 
@@ -151,80 +71,12 @@ crawler:
 
 ### 步驟 1：建立任務設定檔 (例如 `job/my_task.yaml`)
 
-請參考以下範例建立您的設定檔。檔案中包含了必填的核心邏輯，以及可選的爬蟲行為覆寫：
+為保持文件的單一來源 (Single Source of Truth)，我們已準備了一份包含所有核心邏輯與可選覆寫參數的完整設定檔範本。請直接參考並複製該範本來建立您的專屬任務設定檔：
 
-```yaml
-# ==========================================
-# 必填設定 (核心邏輯)
-# ==========================================
-
-# 爬蟲的起始網址
-start_url: "https://www.example.com/"
-
-# 允許爬蟲進入並繼續深入解析的目標網域清單
-target_domains:
-  - "www.example.com"
-  - "blog.example.com"
-
-# 被視為「信任網域」的清單。
-# 若爬取到的 <a> 連結其網域「不在」此清單內，就會被判定為外部連結並記錄下來。
-trusted_domains:
-  - "www.example.com"
-  - "blog.example.com"
-  - "auth.example.com"
-
-# ==========================================
-# 選填設定 (爬蟲行為覆寫)
-# ==========================================
-crawler:
-  # 每次發送 HTTP 請求前的預設延遲時間 (單位：秒)
-  delay: 4.0
-  
-  # HTTP 請求連線逾時時間 (單位：秒)
-  timeout: 45
-  
-  # 建立連線 (TCP Connect) 逾時時間 (單位：秒)
-  connect_timeout: 5.0
-  
-  # 外連存活探測的總體逾時時間 (單位：秒)
-  external_check_timeout: 10.0
-  
-  # 遇到暫時性錯誤時的重試次數
-  retries: 2
-
-  # 請求延遲的隨機抖動比例 (選填，預設為 0.2)
-  jitter_ratio: 0.2
-
-  # 最大爬取深度限制 (選填，預設為無限制)
-  # 1 代表僅爬起始網頁；2 代表向下延伸一層內部連結，依此類推。
-  max_depth: 2
-
-  # 最大抓取頁數限制 (選填，預設為無限制)
-  # 超過此抓取頁數時，爬蟲將優雅終止任務。
-  max_pages: 100
-
-  # 網域特定請求延遲設定 (選填)
-  # 支援最長匹配優先原則，用以精確調控特定目標網站的請求頻率。
-  domain_delays:
-    "example.com": 5.0
-    "sub.example.com": 10.0
-
-  # 信任的自簽憑證豁免網域白名單 (選填)
-  # 位於此清單之網域將豁免 SSL 鏈結校驗，避免自簽憑證導致存活探測失敗。
-  ssl_exempt_domains:
-    - "internal-self-signed.local"
-    - "my-partner-api.com"
-
-  # 自訂此任務的 User-Agent 標頭，用以偽裝瀏覽器 (選填)
-  user_agent: null
-  
-  # 額外要略過解析的副檔名 (會與全域設定檔中的清單聯集)
-  ignore_extensions:
-    - ".custom_ext"
-```
+* **任務設定檔完整範本**：請參閱 [`../job/config_job.yaml.example`](../job/config_job.yaml.example)
 
 > [!WARNING]
-> 在 `crawler` 區塊中自訂的 `delay`、`timeout` 與 `retries` 數值，必須落在全域設定檔 (`config/config_global.yaml`) 定義的上下限內。若超出範圍，系統將印出警告並強制套用全域的安全限制。
+> 在 `crawler` 區塊中自訂的數值（如 `delay`、`timeout` 與 `retries`），必須落在全域設定檔 (`config/config_global.yaml`) 所定義的上下限內。若超出範圍，系統將印出警告並強制套用全域的安全限制。
 
 ### 步驟 2：利用環境變數覆寫機密配置（資安防護）
 
@@ -338,31 +190,34 @@ python cli.py --report <JOB_ID>
 如果您希望把找到的外部目標連結整理下來：
 ```bash
 # 預設會匯出為 CSV，路徑為 report/<JOB_ID>.csv
-python cli.py --export <JOB_ID>
+python cli.py --export-external <JOB_ID>
+
+# 單獨匯出內部網頁診斷紀錄（爬蟲走過的內部頁面與健康狀態）
+python cli.py --export-internal <JOB_ID>
 
 # 您也可以加上 --output 自訂路徑
-python cli.py --export <JOB_ID> --output ./my_result.csv
+python cli.py --export-external <JOB_ID> --output ./my_result.csv
 
 # 僅匯出「DNS 解析失敗」的無效外連連結
-python cli.py --export <JOB_ID> --filter dead --output ./dead_links.csv
+python cli.py --export-external <JOB_ID> --filter dead --output ./dead_links.csv
 
 # 匯出所有損毀外連 (包含 DNS 解析失敗，以及 HTTP 狀態碼 >= 400 比如 404/500)
-python cli.py --export <JOB_ID> --filter broken
+python cli.py --export-external <JOB_ID> --filter broken
 
 # 匯出所有非 HTTPS 的外連 (資安稽核用)
-python cli.py --export <JOB_ID> --filter insecure
+python cli.py --export-external <JOB_ID> --filter insecure
 
 # 匯出為 JSON 格式 (預設會輸出到 report/<JOB_ID>.json)
-python cli.py --export <JOB_ID> --json
+python cli.py --export-external <JOB_ID> --json
 
 # 依外連目標聚合導出 (同個外連在不同頁面出現時會被合併)
-python cli.py --export <JOB_ID> --group-by target
+python cli.py --export-external <JOB_ID> --group-by target
 
 # 依自家網頁修補視角導出 (顯示我的 A 網頁底下壞了哪些外連)
-python cli.py --export <JOB_ID> --group-by source
+python cli.py --export-external <JOB_ID> --group-by source
 
 # 依外部網域統計導出 (檢視對外部服務的依賴分佈與次數)
-python cli.py --export <JOB_ID> --group-by domain
+python cli.py --export-external <JOB_ID> --group-by domain
 
 # 匯出完整報表大禮包 (自動打包為 ZIP 檔，內含外部連結與內部連結診斷 CSV)
 python cli.py --export-full <JOB_ID>
@@ -371,9 +226,27 @@ python cli.py --export-full <JOB_ID>
 python cli.py --export-full <JOB_ID> --output custom_report.zip
 
 # 匯出結果並排除特定網域 (例如不想看社群網站的外連)
-python cli.py --export <JOB_ID> --exclude "facebook.com,youtube.com,twitter.com"
+python cli.py --export-external <JOB_ID> --exclude "facebook.com,youtube.com,twitter.com"
 ```
 
+### 進階篩選條件 (`--filter`)
+
+當使用 `--export-external` 匯出時，您可以搭配 `--filter` 來精確篩選要匯出的連結狀態。
+> [!NOTE]
+> 目前 CLI 的 `--filter` 參數僅專門為 `--export-external` 設計。若您使用 `--export-internal` 匯出內部紀錄時將不受此過濾參數影響，系統會無條件匯出所有內部頁面的完整爬取結果。
+
+以下為系統支援的狀態字典與其詳細判定邏輯：
+
+* `dead`：特指 **「DNS 解析失敗 (IP 位址為空) 的無效外部連結」**（例如網域已過期或網址輸入錯誤）。
+* `broken`：廣義的失效連結，包含 HTTP 狀態碼為實質異常 (如 404, 500) 或連線失敗的資源（注意：不包含 DNS 解析失敗）。
+* `not_found`：精確篩選 **「資源遺失 (404, 410)」** 的連結。
+* `server_error`：精確篩選 **「伺服器異常 (500~599)」** 的連結。
+* `connection_error`：精確篩選 **「底層異常 (連線逾時、憑證無效等，無 HTTP 狀態碼)」** 的連結。
+* `other_error`：精確篩選 **「其他未歸類的 HTTP 異常 (如 400, 408 或 >=600)」** 的連結。
+* `blocked`：特指 **「遭目標網站防火牆 (WAF) 阻擋或權限不足 (如 401, 403, 405, 406, 429)」**，這類連結多半仍存活，只是爬蟲身分被阻擋，屬低風險連結。
+* `insecure`：特指 **「使用明文 HTTP 傳輸的非安全外部連結」**（資安稽核重點）。
+* `healthy`：正常存活連結 (有 IP 且 HTTP 狀態碼 < 400)。
+* `all`：不進行篩選，匯出所有結果。
 
 ---
 
@@ -424,21 +297,10 @@ python cli.py --serve  # 若為開發環境，可加上 --reload 啟用熱重載
 
 若您的專案初期使用輕量的 SQLite，但在資料量膨脹後希望無縫升級為 PostgreSQL，系統提供了一鍵遷移腳本。此腳本會在底層利用 SQLAlchemy 進行跨資料庫的批量讀寫，並自動同步 PostgreSQL 的 Sequence。
 
-### 執行前置作業
-請先在 `.env` 中設定好新舊資料庫的路徑：
-```env
-# 來源：舊版 SQLite 資料庫
-MIGRATION_SOURCE_SQLITE_URL="sqlite:///db/auth.db"
-MIGRATION_SOURCE_CRAWLER_SQLITE_URL="sqlite:///db/crawler.db"
+詳細的遷移步驟（包含前置的 PostgreSQL 安裝、`.env` 雙資料庫連線字串設定，以及防呆防 OOM 的執行細節），請直接參閱專屬文件：
+👉 **[從 SQLite 升級與遷移至 PostgreSQL 指南](file:///home/mfhsieh/projects/python/link-checker/doc/migrate_to_postgresql.md)**
 
-# 目標：全新建立的 PostgreSQL 資料庫
-AUTH_DB_URL="postgresql://user:pass@localhost:5432/auth_db"
-CRAWLER_DB_URL="postgresql://user:pass@localhost:5432/crawler_db"
-```
-
-### 啟動遷移程序
 ```bash
-# 請確保已進入虛擬環境，然後直接執行遷移腳本
+# 在設定好 .env 後，執行遷移腳本
 python scripts/migrate_sqlite_to_pg.py
 ```
-> **⚠️ 提示：** 遷移期間會暫時關閉目標資料庫的外鍵約束 (Foreign Key checks) 以加速寫入，並在完成後利用 `setval(pg_get_serial_sequence(...))` 校正遞增主鍵，請確保目標 PostgreSQL 是空的。

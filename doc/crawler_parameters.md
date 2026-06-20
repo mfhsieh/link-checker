@@ -55,8 +55,8 @@
 
 * **`user_agent`** (字串 | null)：自訂 HTTP 請求的 User-Agent 標頭。若未設定 (null)，系統將自動啟用高擬真動態瀏覽器特徵產生器，隨機配置真實的現代 User-Agent 與專屬 HTTP 標頭。
 * **`proxy_url`** (字串 | null)：代理伺服器網址 (例如 `http://user:pass@proxy.example.com:8080`)。若需隱藏爬蟲真實 IP 時設定。基於機密保護，強烈建議將此帶有密碼之設定置於環境變數 `CRAWLER_PROXY_URL` 中。
-* **`ssl_exempt_domains`** (字串陣列)：豁免 SSL 憑證驗證的網域清單。對於使用「自簽憑證」的內部測試網域，加入此清單可避免因憑證無效而誤判為失效連結。
-* **`social_domains`** (字串陣列)：社群與反爬蟲網域清單。此類平台（如 Facebook、Twitter）防護極度嚴格，當探測收到 >= 400 錯誤時，系統將視為「被 WAF 阻擋但伺服器存活」，強制放行並標記為健康 (200)，藉此徹底消除誤報 (False Positives)。
+* **`ssl_exempt_domains`** (字串陣列)：豁免 SSL 憑證驗證的網域清單。對於使用「自簽憑證」的內部測試網域，加入此清單可避免因憑證無效而誤判為失效連結。也可透過環境變數 `CRAWLER_SSL_EXEMPT_DOMAINS` 補充（以逗號分隔）。
+* **`social_domains`** (字串陣列)：社群與反爬蟲網域清單。此類平台（如 Facebook、Twitter）防護極度嚴格，當 HEAD 探測收到 >= 400 錯誤時，系統將自動降級改用去特徵化的 GET 請求進行二次確認，以嘗試繞過 WAF 阻擋並降低誤報。
 
 ---
 

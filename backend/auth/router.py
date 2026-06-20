@@ -261,7 +261,6 @@ def set_password(
         body (SetPasswordRequest): 新密碼設定請求。
         db (DBSession): Auth 資料庫 Session。
         current_session (AuthSession): 當前的 Session 物件。
-        _csrf (None): CSRF 防禦依賴。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -303,7 +302,6 @@ def logout(
         request (Request): FastAPI 請求物件，用於讀取 Cookie。
         background_tasks (BackgroundTasks): 用於背景執行 GC。
         db (DBSession): Auth DB Session。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。
@@ -358,7 +356,6 @@ def change_password(
         body (ChangePasswordRequest): 變更密碼的請求內容。
         db (DBSession): Auth DB Session。
         current_user (User): 當前登入的使用者物件。
-        _csrf (None): CSRF 防禦標記。
 
     Returns:
         dict[str, str]: 成功訊息。

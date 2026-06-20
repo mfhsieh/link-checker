@@ -1,4 +1,5 @@
-"""API 端點完整覆蓋率測試腳本 (API Endpoints Full Coverage Test)。.
+"""
+API 端點完整覆蓋率測試腳本 (API Endpoints Full Coverage Test)。
 
 本模組透過 `fastapi.testclient.TestClient` 針對整個後端應用程式 (`app`) 進行端到端 (E2E) 的 API 測試，
 驗證認證流程、後台管理、以及爬蟲任務管理等所有對外開放的 API 端點。
@@ -6,6 +7,7 @@
 """
 
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -30,25 +32,38 @@ from backend.main import app
 
 
 def _set_api_test_env() -> None:
-    """設定 API 測試專用的環境變數。.
+    """
+    設定 API 測試專用的環境變數。
 
     在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
     避免被其他測試模組的模組級設定覆蓋。
+
+    Returns:
+        None
     """
     os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_api.db"
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_api.db"
+    os.environ["GLOBAL_CONFIG_PATH"] = "config/test_config_global_api.yaml"
     # 強制更新 Settings class 的 DB URL（因為 Settings 使用 class-level 屬性且有 lru_cache）
     from test.conftest import refresh_settings_cache  # pylint: disable=import-outside-toplevel
 
     refresh_settings_cache()
 
+    # 初始化獨立的測試全域設定檔
+    if os.path.exists("config/config_global.yaml.example"):
+        shutil.copy("config/config_global.yaml.example", "config/test_config_global_api.yaml")
+
 
 def setup_databases() -> None:
-    """建立並初始化全新的測試用資料庫。.
+    """
+    建立並初始化全新的測試用資料庫。
 
     此函式會先移除現有的測試用 SQLite 資料庫檔案 (`test_auth.db` 與 `test_crawler.db`)，
     接著呼叫 `get_auth_engine()` 與 `get_job_manager()` 來重新建立對應的資料表與初始化狀態。
     確保每次測試都在乾淨的環境下執行。
+
+    Returns:
+        None
     """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
@@ -88,7 +103,12 @@ def setup_databases() -> None:
 
 
 def teardown_databases() -> None:
-    """清理測試所產生的資料庫檔案。."""
+    """
+    清理測試所產生的資料庫檔案。
+
+    Returns:
+        None
+    """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
     import backend.deps as backend_deps
@@ -119,12 +139,23 @@ def teardown_databases() -> None:
                 except OSError:
                     pass
 
+    # 清除測試用全域設定檔
+    if os.path.exists("config/test_config_global_api.yaml"):
+        try:
+            os.remove("config/test_config_global_api.yaml")
+        except OSError:
+            pass
+
 
 def create_admin_user() -> None:
-    """在 Auth 資料庫中直接插入一筆管理員測試帳號。.
+    """
+    在 Auth 資料庫中直接插入一筆管理員測試帳號。
 
     為繞過「首次登入需修改密碼」的限制，此函式會透過 SQLAlchemy 直接將 `last_login_at`
     設定為當前時間。建立的管理員帳號為：`admin@test.com`，密碼為：`Admin@12345678`。
+
+    Returns:
+        None
     """
     session_factory = get_auth_session_local()
     with session_factory() as db:
@@ -141,7 +172,8 @@ def create_admin_user() -> None:
 
 
 def get_csrf_token(response: httpx.Response, current_token: str = "") -> str:
-    """從 FastAPI 的 HTTP 回應 (Response) 中萃取 CSRF Token。.
+    """
+    從 FastAPI 的 HTTP 回應 (Response) 中萃取 CSRF Token。
 
     若該次請求有回傳 `Set-Cookie: csrf_token=...`，則提取並回傳新 token；
     若無回傳，則保留並回傳原本的 `current_token`，避免因為未更新而遺失 Token。
@@ -152,7 +184,6 @@ def get_csrf_token(response: httpx.Response, current_token: str = "") -> str:
 
     Returns:
         str: 最新有效的 CSRF Token。
-
     """
     for cookie in response.cookies.jar:
         if cookie.name == "csrf_token":
@@ -162,7 +193,8 @@ def get_csrf_token(response: httpx.Response, current_token: str = "") -> str:
 
 # pylint: disable=too-many-statements
 def test_api_full_flow() -> None:
-    """依序執行所有後端 API 端點的整合測試 (Integration Tests)。.
+    """
+    依序執行所有後端 API 端點的整合測試 (Integration Tests)。
 
     測試涵蓋以下核心功能模組：
     1. Health Check (`/api/health`)
@@ -173,24 +205,44 @@ def test_api_full_flow() -> None:
 
     透過 `TestClient` 模擬真實 HTTP 請求，並驗證每個端點的 HTTP 狀態碼與部分回傳結構，
     以確保整個 FastAPI 後端系統運作正常。
+
+    Returns:
+        None
     """
-    setup_databases()
-    create_admin_user()
-    try:
-        _run_api_full_flow()
-    finally:
-        teardown_databases()
+    from unittest.mock import patch  # pylint: disable=import-outside-toplevel
+
+    class MockPopen:  # pylint: disable=too-few-public-methods
+        """模擬的 subprocess.Popen，用於避免測試中產生背景程序。"""
+
+        def __init__(self, *args: object, **kwargs: object) -> None:  # pylint: disable=unused-argument
+            """初始化模擬的 Popen，給定假的 PID。"""
+            self.pid: int = 99999
+
+        def poll(self) -> int | None:
+            """模擬 poll 方法，回傳 0 表示程序已結束。"""
+            return 0
+
+    with patch("subprocess.Popen", MockPopen):
+        setup_databases()
+        create_admin_user()
+        try:
+            _run_api_full_flow()
+        finally:
+            teardown_databases()
 
 
 # pylint: disable=too-many-locals
 def _run_api_full_flow() -> None:
-    """執行所有的 API 整合測試流程。.
+    """
+    執行所有的 API 整合測試流程。
 
     包含所有的 API 端點存取與斷言檢查。
 
+    Returns:
+        None
+
     Raises:
         AssertionError: 當 API 測試未達預期結果時拋出。
-
     """
     print("--- Starting API Tests ---")
     client = TestClient(app)

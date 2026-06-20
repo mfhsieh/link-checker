@@ -173,6 +173,11 @@ def get_internal_results(
         job_id (str): 任務 ID。
         page (int): 頁碼。
         page_size (int): 每頁筆數。
+        status_filter (str | None): 狀態過濾條件。
+        group_by (str): 分組方式。
+        sort_by (str | None): 排序欄位。
+        sort_asc (bool): 升冪或降冪排序。
+        col_filters (str | None): 欄位過濾條件。
         current_user (User): 當前登入的使用者。
         db (DBSession): Crawler DB Session。
 

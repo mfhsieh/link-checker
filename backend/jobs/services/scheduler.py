@@ -24,6 +24,9 @@ def check_and_spawn_queued_jobs() -> None:
     `CRAWLER_MAX_CONCURRENT_JOBS`，則會從資料庫取出最舊的
     `queued` 任務，並將其推進至執行狀態。
 
+    Returns:
+        None
+
     Raises:
         SQLAlchemyError: 資料庫存取錯誤時拋出，由外層捕抓。
         ValueError: 任務狀態不符或參數錯誤時由 start_job 拋出。

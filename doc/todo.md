@@ -29,3 +29,17 @@
 * **功能描述**：針對已完成或異常終止的任務，其外連結果與報表是靜態的。目前切換聚合模式會重複消耗運算資源。
 * **規劃方案**：在 FastAPI 路由中針對靜止狀態（如 `completed`, `error`）的任務加入記憶體快取（如 `functools.lru_cache` 或 `cachetools`），將 API 回應時間降至極短，大幅減輕 Python 的 CPU 運算壓力。
 * **狀態**：**待後續優化（Pending Review）**。
+
+---
+
+## 5. CLI 支援匯出內部紀錄之狀態篩選 (export-internal filter)
+* **功能描述**：目前 CLI 的 `--export-internal` 參數不支援使用 `--filter` 進行精確狀態篩選，會無條件匯出全部的內部頁面（包含成功與各種失敗）。雖然 Web API 的 `InternalResultQuery` 已具備過濾能力，但尚未整合至命令列工具中。
+* **規劃方案**：擴充 `cli.py` 中關於 `--export-internal` 的參數解析邏輯，使其能夠接收與處理 `--filter` 參數（例如支援 `not_found`, `server_error` 等），並將此參數對接傳遞給底層的匯出服務 (`export_internal_job_results`)。
+* **狀態**：**待後續優化（Pending Review）**。
+
+---
+
+## 6. 全面修復與整合 Mypy 靜態型別檢查
+* **功能描述**：目前專案雖已大規模採用 Type Hinting，但尚未達到完全無錯的狀態（掃描仍有百餘個 `mypy` 錯誤，主要為 `dict[str, object]` 協變性操作或測試檔參數型別等議題）。
+* **規劃方案**：逐一排除剩餘的 `mypy` 型別報錯，待全站檢查通過後，再將 `mypy --explicit-package-bases backend/ crawler/ cli.py scripts/ test/` 正式納入開發者的 Workflow 檢驗清單與未來的 CI/CD 流程中，確保最高標準的靜態型別安全。
+* **狀態**：**待後續優化（Pending Review）**。

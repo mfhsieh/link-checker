@@ -2,7 +2,7 @@
 # 網站連結檢查系統 - 任務設定檔範例
 # ==============================================================================
 # 此檔案可用於透過命令列 (CLI) 直接啟動爬蟲任務。
-# 指令範例：python cli.py -c job/config.yaml.example
+# 指令範例：python cli.py -c job/config_job.yaml
 # ==============================================================================
 
 # [必填] 爬蟲開始巡覽的第一個網頁網址，請包含 http:// 或 https:// 前綴。
@@ -60,3 +60,22 @@ crawler:
   # 信任的自簽憑證豁免網域白名單 (位於此清單之網域將豁免 SSL 鏈結校驗。將與全域設定合併疊加生效【聯集】)
   ssl_exempt_domains:
     - "internal-self-signed.local"
+
+  # 額外的社群與反爬蟲網域清單 (遇到 >= 400 錯誤會自動降級為 GET 探測。將與全域合併疊加生效【聯集】)
+  social_domains:
+    - "custom-social-media.com"
+
+  # 自訂 HTTP 請求標頭 User-Agent
+  # 若不設定 (null) 或未填寫，系統將自動啟用高擬真動態瀏覽器特徵與標頭輪替，防範 WAF 阻擋
+  user_agent: null
+
+  # 自訂代理伺服器 URL (例如 "http://user:pass@proxy.example.com:8080")
+  # 若需隱藏來源 IP 可在此設定，亦可透過環境變數 CRAWLER_PROXY_URL 設定 (環境變數優先層級最高)
+  proxy_url: null
+
+  # MIME 類型過濾開關，防止爬蟲下載非網頁媒體資源浪費頻寬
+  mime_type_filter:
+    enabled: true
+    allowed_types:
+      - "text/html"
+      - "application/xhtml+xml"

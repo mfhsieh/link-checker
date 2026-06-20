@@ -12,7 +12,7 @@
 - **主要依賴的 API 路由端點**:
   - **身分驗證**: `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/password/reset`
   - **任務管理**: `/api/jobs` (CRUD), `/api/jobs/{job_id}/start`, `/api/jobs/{job_id}/pause`, `/api/jobs/{job_id}/results`
-  - **報表匯出**: `/api/jobs/{job_id}/results/export`, `/api/jobs/{job_id}/export/full`
+  - **報表匯出**: `/api/jobs/{job_id}/results/export`, `/api/jobs/{job_id}/internal-results/export`, `/api/jobs/{job_id}/export/full`
   - **系統管理**: `/api/admin/users`, `/api/admin/logs`
 - **安全防禦依賴**: POST / PATCH / DELETE 請求必須在 Request Header 中附加 `X-CSRF-Token`（讀取自 Cookie中的 `csrf_token`）。
 - **前端內部公用庫依賴**:
@@ -84,9 +84,14 @@
   - 這能保證 CLI 子程序執行完畢後能順利呼叫後端的發信邏輯，同時也確保了 CLI 在無 backend 程式碼的純淨環境中仍能優雅降級運行。
 
 - **報表匯出功能**:
-  - `cli.py` 的 `--export` 及 `--export-full` 報表輸出功能，直接調用後端業務服務層的 Exporter：
+  - `cli.py` 的 `--export-external`, `--export-internal` 及 `--export-full` 報表輸出功能，直接調用後端業務服務層的 Exporter：
     ```python
-    from backend.jobs.services.exporter import export_full_report, export_job_results, ExportOptions
+    from backend.jobs.services.exporter import (
+        export_full_report,
+        export_external_job_results,
+        export_internal_job_results,
+        ExportOptions,
+    )
     ```
 
 ---
@@ -111,3 +116,6 @@
 - **`manage_job_data.py`** (被 `job_sync.sh` 呼叫):
   - 直接依賴 `crawler.models` 中的 `Job`, `CrawlQueue`, `ExternalLink` 進行資料的 JSONL 序列化與反序列化。
   - 依賴 `backend.config` 以取得當前啟動環境的資料庫 URL。
+- **`backfill_target_domain.py`**:
+  - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `Job` 並更新 `target_domain` 欄位。
+  - 依賴 `backend.config` 獲取 Crawler DB 連線字串。

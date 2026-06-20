@@ -1,5 +1,5 @@
 """
-外部連結檢查爬蟲的命令列介面 (CLI)。
+網站連結檢查系統的命令列介面 (CLI)。
 
 此腳本負責解析命令列參數、讀取 YAML 設定檔，
 並透過 JobManager 啟動全新的任務或是恢復先前中斷的任務。
@@ -23,7 +23,12 @@ load_dotenv()
 
 # pylint: disable=wrong-import-position
 # isort: off
-from backend.jobs.services.exporter import export_full_report, export_job_results, ExportOptions  # noqa: E402
+from backend.jobs.services.exporter import (
+    export_full_report,
+    export_external_job_results,
+    export_internal_job_results,
+    ExportOptions,
+)  # noqa: E402
 from backend.jobs.services.results import ERROR_STATUS_FILTERS  # noqa: E402
 
 try:
@@ -214,7 +219,8 @@ def _is_help_needed(args: argparse.Namespace) -> bool:
         args.resume is not None,
         args.list_jobs,
         args.report,
-        args.export,
+        args.export_external,
+        args.export_internal,
         args.export_full,
         args.pause,
         args.delete,
@@ -236,7 +242,7 @@ def parse_args() -> argparse.Namespace | None:
     Returns:
         argparse.Namespace | None: 解析後的參數命名空間物件。若未提供必要參數則回傳 None。
     """
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="外部連結檢查爬蟲 (Link Checker Crawler)")
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="網站連結檢查系統 (Link Checker)")
 
     # ---------------------------------------------------------
     # 群組 1：任務生命週期與調度 (Job Lifecycle & Scheduling)
@@ -287,10 +293,15 @@ def parse_args() -> argparse.Namespace | None:
     group_report.add_argument("--list-jobs", action="store_true", help="列出所有已建立的爬蟲任務")
     group_report.add_argument("--report", type=str, help="檢視指定任務的詳細進度與統計報表")
     group_report.add_argument(
-        "--export",
+        "--export-external",
         type=str,
         metavar="JOB_ID",
-        help="將指定任務 ID 所找到的外部連結匯出",
+        help="指定任務 ID，將該任務尋獲的外部連結匯出 (預設為 CSV，若帶有 --json 則為 JSON)",
+    )
+    group_report.add_argument(
+        "--export-internal",
+        metavar="JOB_ID",
+        help="指定任務 ID，將該任務的內部網頁爬取紀錄匯出 (預設為 CSV，若帶有 --json 則為 JSON)",
     )
     group_report.add_argument(
         "--export-full",
@@ -314,24 +325,24 @@ def parse_args() -> argparse.Namespace | None:
             "healthy",
             "all",
         ],
-        help="(選填) 搭配 --export 使用，篩選匯出內容",
+        help="(選填) 搭配 --export-external 使用，篩選匯出內容",
     )
     group_report.add_argument(
         "--exclude",
         type=str,
-        help="(選填) 搭配 --export 使用，排除指定的目標網域（多個以逗號分隔，例如: facebook.com,youtube.com）",
+        help="(選填) 搭配 --export-external 使用，排除指定的目標網域（多個以逗號分隔，例如: facebook.com,youtube.com）",
     )
     group_report.add_argument(
         "--group-by",
         type=str,
         choices=["none", "target", "source", "domain"],
         default="none",
-        help="(選填) 搭配 --export，指定聚合模式 (target:依外連, source:依來源頁面, domain:依網域)",
+        help="(選填) 搭配 --export-external，指定聚合模式 (target:依外連, source:依來源頁面, domain:依網域)",
     )
     group_report.add_argument(
         "--json",
         action="store_true",
-        help="(選填) 以 JSON 格式輸出或導出結果 (支援 --list-jobs, --report, --export)",
+        help="(選填) 以 JSON 格式輸出或導出結果 (支援 --list-jobs, --report, --export-external, --export-internal)",
     )
 
     # ---------------------------------------------------------
@@ -443,7 +454,7 @@ def _handle_report(manager: JobManager, args: argparse.Namespace) -> None:
         print("====================\n")
 
 
-def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
+def _handle_export_external(manager: JobManager, args: argparse.Namespace) -> None:
     """
     處理匯出結果的指令。
 
@@ -458,13 +469,13 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
         SystemExit: 當匯出失敗時拋出並結束程式。
     """
     ext = ".json" if args.json else ".csv"
-    output_path = args.output if args.output else f"report/{args.export}{ext}"
-    logging.info("準備將任務 %s 匯出至 %s...", args.export, output_path)
+    output_path = args.output if args.output else f"report/{args.export_external}{ext}"
+    logging.info("準備將任務 %s 外部連結匯出至 %s...", args.export_external, output_path)
 
     with manager.session_factory() as db:
-        job = db.query(Job).filter(Job.id == args.export).first()
+        job = db.query(Job).filter(Job.id == args.export_external).first()
         if not job:
-            logging.error("找不到任務 %s", args.export)
+            logging.error("找不到任務 %s", args.export_external)
             sys.exit(1)
 
         options = ExportOptions(
@@ -472,9 +483,9 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
             group_by=args.group_by or "none",
             exclude=args.exclude,
         )
-        success = export_job_results(
+        success = export_external_job_results(
             session_factory=manager.session_factory,
-            job_id=args.export,
+            job_id=args.export_external,
             output_path=output_path,
             options=options,
         )
@@ -482,6 +493,39 @@ def _handle_export(manager: JobManager, args: argparse.Namespace) -> None:
             logging.info("匯出成功！")
         else:
             sys.exit(1)
+
+
+def _handle_export_internal(manager: JobManager, args: argparse.Namespace) -> None:
+    """
+    處理匯出內部爬取結果的邏輯。
+
+    Args:
+        manager (JobManager): JobManager 實例。
+        args (argparse.Namespace): 命令列參數，包含匯出目標等選項。
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: 當匯出失敗時拋出並結束程式。
+    """
+    ext = ".json" if args.json else ".csv"
+    output_path = args.output if args.output else f"report/{args.export_internal}_internal{ext}"
+    logging.info("準備將任務 %s 內部爬取紀錄匯出至 %s...", args.export_internal, output_path)
+
+    with manager.session_factory() as db:
+        job = db.query(Job).filter(Job.id == args.export_internal).first()
+        if not job:
+            logging.error("找不到任務 %s", args.export_internal)
+            return
+
+        success = export_internal_job_results(
+            session_factory=manager.session_factory,
+            job_id=args.export_internal,
+            output_path=output_path,
+        )
+        if success:
+            logging.info("匯出成功！檔案已儲存於: %s", output_path)
 
 
 def _handle_export_full(manager: JobManager, args: argparse.Namespace) -> None:
@@ -617,8 +661,10 @@ def _handle_job_management(manager: JobManager, args: argparse.Namespace) -> boo
         _handle_list_jobs(manager, args)
     elif args.report:
         _handle_report(manager, args)
-    elif args.export:
-        _handle_export(manager, args)
+    elif args.export_external:
+        _handle_export_external(manager, args)
+    elif args.export_internal:
+        _handle_export_internal(manager, args)
     elif args.export_full:
         _handle_export_full(manager, args)
     elif args.pause:
