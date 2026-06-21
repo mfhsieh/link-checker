@@ -192,10 +192,26 @@ function clearJobDetailUI() {
     clearInternalSummaryUI();
 
     const extContainer = el('results-container');
-    if (extContainer) delete extContainer.dataset.renderedGroup;
+    if (extContainer) {
+        delete extContainer.dataset.renderedGroup;
+        extContainer.replaceChildren();
+        const skeleton = document.createElement('div');
+        skeleton.className = 'skeleton';
+        skeleton.style.height = '200px';
+        skeleton.style.borderRadius = '0.5rem';
+        extContainer.appendChild(skeleton);
+    }
 
     const intContainer = el('internal-results-container');
-    if (intContainer) delete intContainer.dataset.renderedInternalGroup;
+    if (intContainer) {
+        delete intContainer.dataset.renderedInternalGroup;
+        intContainer.replaceChildren();
+        const skeleton = document.createElement('div');
+        skeleton.className = 'skeleton';
+        skeleton.style.height = '200px';
+        skeleton.style.borderRadius = '0.5rem';
+        intContainer.appendChild(skeleton);
+    }
 
     ['btn-start-job', 'btn-resume-job', 'btn-pause-job', 'btn-goto-compare', 'btn-transfer-job', 'btn-reset-job', 'btn-retry-failed-job'].forEach(id => {
         const btn = el(id);
