@@ -468,8 +468,8 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">包含失敗與截斷的總數量</div>
             </div>
             <div class="stat-card filter-card" data-filter="server_error"
-              data-desc="目標伺服器發生崩潰或過載 (回傳 5XX 狀態碼)，若非預期中停機，則為嚴重的系統異常，需請工程師立刻處理。" data-color="var(--color-danger-400)"
-              style="padding:0.75rem">
+              data-desc="目標伺服器發生崩潰或過載 (回傳 5XX 狀態碼)，若非防禦機制或停機維護，則為嚴重的系統異常，需請工程師立刻處理。"
+              data-color="var(--color-danger-400)" style="padding:0.75rem">
               <div class="stat-label text-danger">伺服器異常</div>
               <div class="stat-value text-danger" id="int-summary-server-error">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法完成請求</div>

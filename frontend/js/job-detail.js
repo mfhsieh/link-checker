@@ -1063,10 +1063,7 @@ async function loadExternalResults(jobId) {
 
     clearResultsSummaryUI();
 
-    // 先載入結果列表，讓使用者優先看到資料
-    await loadResultsPage(jobId);
-
-    // 列表載入完成後再請求統計摘要，減輕後端同時運算的並發壓力
+    // 先載入統計摘要，讓使用者優先看到統計值
     try {
         const params = {};
         if (_currentExcludeEnabled && _currentExclude) {
@@ -1078,6 +1075,9 @@ async function loadExternalResults(jobId) {
         const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
         renderResultsSummary(summary);
     } catch (_) { /* 忽略 */ }
+
+    // 統計資料載入後，再載入結果列表
+    await loadResultsPage(jobId);
 }
 
 /**
@@ -1091,10 +1091,7 @@ async function loadInternalResults(jobId) {
 
     clearInternalSummaryUI();
 
-    // 先載入結果列表
-    await loadInternalResultsPage(jobId);
-
-    // 列表載入完成後再請求統計摘要
+    // 先請求統計摘要，讓使用者優先看到統計值
     try {
         const params = {};
         if (_internalGroupBy && _internalGroupBy !== 'none') {
@@ -1103,6 +1100,9 @@ async function loadInternalResults(jobId) {
         const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
         renderInternalSummary(summary);
     } catch (_) { /* 忽略 */ }
+
+    // 統計資料載入後，再載入結果列表
+    await loadInternalResultsPage(jobId);
 }
 
 /**
