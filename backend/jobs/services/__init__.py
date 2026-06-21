@@ -5,5 +5,7 @@
 - management: 工作任務的建立、排程與生命週期管理。
 - notifier: 發送連結檢查結果之郵件通知。
 - process: 管理爬蟲與檢查之背景處理程序與 PID 鎖定。
-- results: 處理、儲存並比對外部連結檢查結果。
+- external_results: 處理、儲存並比對外部連結檢查結果。
+- internal_results: 處理、儲存並統計內部連結診斷結果。
+- query_utils: 共用的查詢過濾與排序輔助工具。
 """

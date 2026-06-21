@@ -29,7 +29,7 @@ from backend.jobs.services.exporter import (  # noqa: E402
     export_internal_job_results,
     ExportOptions,
 )
-from backend.jobs.services.results import ERROR_STATUS_FILTERS  # noqa: E402
+from backend.jobs.services.query_utils import ERROR_STATUS_FILTERS  # noqa: E402
 
 try:
     from backend.jobs.services.notifier import send_job_status_notification as _send_notification
@@ -315,6 +315,7 @@ def parse_args() -> argparse.Namespace | None:
         choices=[
             "dead",
             "broken",
+            "insecure",
             *ERROR_STATUS_FILTERS,
             "healthy",
             "all",

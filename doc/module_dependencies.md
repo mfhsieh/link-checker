@@ -96,7 +96,7 @@
 - **過濾條件參數同步**:
   - `cli.py` 會動態引入後端的錯誤狀態過濾常數，確保 CLI 命令列的 `--filter` 選項與 Web API 支援的篩選條件保持 100% 同步：
     ```python
-    from backend.jobs.services.results import ERROR_STATUS_FILTERS
+    from backend.jobs.services.query_utils import ERROR_STATUS_FILTERS
     ```
 
 ---

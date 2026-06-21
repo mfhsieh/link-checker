@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from backend.jobs.schemas import JobResultQuery
-from backend.jobs.services import results as job_results
+from backend.jobs.services import external_results
 from crawler.models import CrawlQueue, ExternalLink, Job
 from crawler.utils import format_crawl_queue_item
 
@@ -133,7 +133,7 @@ def export_external_job_results(
                 page=1,
                 page_size=9999999,  # 匯出時一次取回所有資料
             )
-            results = job_results.get_job_results(session, query_obj)
+            results = external_results.get_job_results(session, query_obj)
             items = results.get("items", [])
             if not items:
                 logger.warning("任務 %s 無任何符合條件的結果可匯出。", job_id)

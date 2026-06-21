@@ -255,8 +255,7 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
 
         # 1. 爬取進度統計 (CrawlQueue)
         q_row = (
-            session
-            .query(
+            session.query(
                 sql_count(CrawlQueue.id).label("total"),
                 sql_sum(case((CrawlQueue.status_category == "completed", 1), else_=0)).label("completed"),
                 sql_sum(case((CrawlQueue.status_category == "warning", 1), else_=0)).label("warning"),
@@ -279,8 +278,7 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
 
         # 2. 外部連結診斷統計 (ExternalLink)
         ext_row = (
-            session
-            .query(
+            session.query(
                 sql_count(ExternalLink.id).label("total"),
                 sql_sum(case((ExternalLink.status_category == "healthy", 1), else_=0)).label("healthy"),
                 sql_sum(case((ExternalLink.status_category == "dns_failed", 1), else_=0)).label("dns_failed"),

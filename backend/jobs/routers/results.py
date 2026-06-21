@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session as DBSession
 from backend.auth.models import User
 from backend.deps import get_crawler_db, get_current_user
 from backend.jobs.schemas import InternalResultQuery, JobResultQuery, ResultsQueryArgs
-from backend.jobs.services import results as job_results
+from backend.jobs.services import external_results, internal_results
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def get_results(
     """
     try:
         query_obj = JobResultQuery.from_query_args(job_id, current_user.id, query_args)
-        return job_results.get_job_results(db, query_obj)
+        return external_results.get_job_results(db, query_obj)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -77,7 +77,7 @@ def get_results_summary(
         HTTPException 404: 找不到任務時拋出。
     """
     try:
-        return job_results.get_results_summary(db, job_id, current_user.id, exclude, group_by)
+        return external_results.get_results_summary(db, job_id, current_user.id, exclude, group_by)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -109,7 +109,7 @@ def get_job_diff(
         HTTPException 404: 找不到任務時拋出。
     """
     try:
-        return job_results.get_job_diff(
+        return external_results.get_job_diff(
             db,
             base_job_id=job_id,
             compare_job_id=compare_with,
@@ -143,7 +143,7 @@ def get_internal_results_summary(
         HTTPException 404: 找不到任務或無權限存取時拋出。
     """
     try:
-        return job_results.get_internal_results_summary(db, job_id, current_user.id, group_by)
+        return internal_results.get_internal_results_summary(db, job_id, current_user.id, group_by)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -200,6 +200,6 @@ def get_internal_results(
             sort_asc=sort_asc,
             col_filters=col_filters,
         )
-        return job_results.get_internal_errors(db, query_args)
+        return internal_results.get_internal_errors(db, query_args)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e

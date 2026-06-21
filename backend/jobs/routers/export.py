@@ -30,7 +30,7 @@ from backend.jobs.schemas import (
     InternalResultQuery,
     JobResultQuery,
 )
-from backend.jobs.services import results as job_results
+from backend.jobs.services import external_results, internal_results
 from backend.jobs.services.exporter import _sanitize_csv_value
 from crawler.models import Job
 
@@ -127,7 +127,7 @@ def export_results(
             """
             yield "[\n"
             first = True
-            for item in job_results.stream_job_results(db, query_obj):
+            for item in external_results.stream_job_results(db, query_obj):
                 if not first:
                     yield ",\n"
                 yield json.dumps(item, ensure_ascii=False, indent=2)
@@ -152,7 +152,7 @@ def export_results(
         output = io.StringIO()
         writer = None
 
-        for item in job_results.stream_job_results(db, query_obj):
+        for item in external_results.stream_job_results(db, query_obj):
             if query_args.group_by == "domain":
                 fieldnames = [
                     "Domain",
@@ -258,7 +258,7 @@ def export_internal_results(
             """
             yield "[\n"
             first = True
-            for item in job_results.stream_internal_errors(db, query_args):
+            for item in internal_results.stream_internal_errors(db, query_args):
                 if not first:
                     yield ",\n"
                 yield json.dumps(item, ensure_ascii=False, indent=2)
@@ -281,7 +281,7 @@ def export_internal_results(
         yield "\ufeff"
         output = io.StringIO()
         writer = None
-        for item in job_results.stream_internal_errors(db, query_args):
+        for item in internal_results.stream_internal_errors(db, query_args):
             if group_by == "source":
                 fieldnames = ["Source URL", "Failure Count", "Target URLs"]
                 row_data = {
@@ -349,11 +349,11 @@ def export_full_report(
     background_tasks.add_task(cleanup)
 
     with zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        internal_iterator = job_results.stream_internal_results(db, job_id, current_user.id)
+        internal_iterator = internal_results.stream_internal_results(db, job_id, current_user.id)
         _write_iterator_to_zip(zf, f"job_{job_id}_crawl_records.csv", internal_iterator)
 
         query_obj = JobResultQuery(job_id=job_id, user_id=current_user.id, group_by="none")
-        external_iterator = job_results.stream_job_results(db, query_obj)
+        external_iterator = external_results.stream_job_results(db, query_obj)
         _write_iterator_to_zip(zf, f"job_{job_id}_external_links.csv", external_iterator)
 
     filename = f"job_{job_id}_full_report.zip"
