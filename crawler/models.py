@@ -143,6 +143,7 @@ class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
     __table_args__ = (
         Index("ix_crawl_queue_job_url", "job_id", "url"),
         Index("ix_crawl_queue_job_status_id", "job_id", "status", "id"),
+        Index("ix_crawl_queue_job_category", "job_id", "status_category"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -154,6 +155,7 @@ class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
     retry_count: Mapped[int] = mapped_column(default=0)
     depth: Mapped[int] = mapped_column(default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status_category: Mapped[str] = mapped_column(String(30), default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
 
@@ -183,7 +185,7 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
             name="uq_external_links_job_src_tgt",
         ),
         Index("ix_external_links_job_created", "job_id", "created_at"),
-        Index("ix_external_links_job_status_ip", "job_id", "http_status_code", "ip_address"),
+        Index("ix_external_links_job_category", "job_id", "status_category"),
         Index("ix_external_links_job_domain", "job_id", "target_domain"),
     )
 
@@ -197,6 +199,7 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
     is_secure: Mapped[bool] = mapped_column(default=True)
     http_status_code: Mapped[int | None] = mapped_column(nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status_category: Mapped[str] = mapped_column(String(30), default="healthy")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
 
     job: Mapped["Job"] = relationship(back_populates="external_links")
@@ -231,45 +234,24 @@ def apply_job_result_filters(
         for exc in excludes:
             query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
 
-    if status_filter == "dead":
-        query = query.filter((ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""))
+    if status_filter in ("dead", "dns_failed"):
+        query = query.filter(ExternalLink.status_category == "dns_failed")
     elif status_filter == "broken":
         query = query.filter(
-            ((ExternalLink.http_status_code >= 400) & (~ExternalLink.http_status_code.in_([401, 403, 405, 406, 429])))
-            | (
-                (ExternalLink.http_status_code.is_(None))
-                & (ExternalLink.ip_address.isnot(None))
-                & (ExternalLink.ip_address != "")
-            )
+            ExternalLink.status_category.in_(["not_found", "server_error", "connection_error", "other_error"])
         )
     elif status_filter == "not_found":
-        query = query.filter(ExternalLink.http_status_code.in_([404, 410]))
+        query = query.filter(ExternalLink.status_category == "not_found")
     elif status_filter == "server_error":
-        query = query.filter((ExternalLink.http_status_code >= 500) & (ExternalLink.http_status_code < 600))
+        query = query.filter(ExternalLink.status_category == "server_error")
     elif status_filter == "connection_error":
-        query = query.filter(
-            (ExternalLink.http_status_code.is_(None))
-            & (ExternalLink.ip_address.isnot(None))
-            & (ExternalLink.ip_address != "")
-        )
+        query = query.filter(ExternalLink.status_category == "connection_error")
     elif status_filter == "other_error":
-        query = query.filter(
-            (
-                (ExternalLink.http_status_code >= 400)
-                & (ExternalLink.http_status_code < 500)
-                & (~ExternalLink.http_status_code.in_([404, 410, 401, 403, 405, 406, 429]))
-            )
-            | (ExternalLink.http_status_code >= 600)
-        )
+        query = query.filter(ExternalLink.status_category == "other_error")
     elif status_filter == "blocked":
-        query = query.filter(ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]))
+        query = query.filter(ExternalLink.status_category == "blocked")
     elif status_filter == "insecure":
         query = query.filter(ExternalLink.is_secure.is_(False))
     elif status_filter == "healthy":
-        query = query.filter(
-            (ExternalLink.ip_address.isnot(None))
-            & (ExternalLink.ip_address != "")
-            & (ExternalLink.http_status_code.isnot(None))
-            & (ExternalLink.http_status_code < 400)
-        )
+        query = query.filter(ExternalLink.status_category == "healthy")
     return query

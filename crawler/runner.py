@@ -18,7 +18,12 @@ from sqlalchemy.orm import Session
 
 from crawler.core import CrawlerCore
 from crawler.models import CrawlerConfig, CrawlQueue, ExternalLink, Job
-from crawler.utils import get_domain, resolve_ip
+from crawler.utils import (
+    determine_external_link_status_category,
+    determine_internal_link_status_category,
+    get_domain,
+    resolve_ip,
+)
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -336,6 +341,7 @@ class JobRunner:
                 "max_depth", None
             ) is not None and queue_item.depth > self.crawler_config_dict.get("max_depth", None):
                 queue_item.status = "skip"
+                queue_item.status_category = "skip"
                 session.commit()
                 return
 
@@ -349,12 +355,18 @@ class JobRunner:
             queue_item.status_code = result[2]
             queue_item.status = result[3]
             queue_item.error_message = result[5]
+            queue_item.status_category = determine_internal_link_status_category(
+                queue_item.status, queue_item.status_code, queue_item.error_message
+            )
             session.commit()
 
             self._handle_internal_links(session, queue_item, result[0])
             self._handle_external_links(session, current_url, result[1], crawler)
 
             queue_item.status = result[3]
+            queue_item.status_category = determine_internal_link_status_category(
+                queue_item.status, queue_item.status_code, queue_item.error_message
+            )
             session.commit()
 
             should_delay = result[4]
@@ -409,6 +421,7 @@ class JobRunner:
                         url=link,
                         source_url=queue_item.url,
                         status="pending",
+                        status_category="pending",
                         depth=next_depth,
                     )
                     session.add(new_item)
@@ -447,6 +460,7 @@ class JobRunner:
             if link in self.state.checked_links_cache:
                 cached_data = self.state.checked_links_cache[link]
                 is_sec = link.startswith("https://")
+                status_cat = determine_external_link_status_category(cached_data[0], cached_data[1])
                 new_ext = ExternalLink(
                     job_id=self.job_id,
                     source_url=current_url,
@@ -456,6 +470,7 @@ class JobRunner:
                     is_secure=is_sec,
                     http_status_code=cached_data[1],
                     error_message=cached_data[2],
+                    status_category=status_cat,
                 )
                 session.add(new_ext)
             else:
@@ -528,6 +543,7 @@ class JobRunner:
             )
             if not exists:
                 is_sec = res_link.startswith("https://")
+                status_cat = determine_external_link_status_category(res_ip, res_code)
                 new_ext = ExternalLink(
                     job_id=self.job_id,
                     source_url=current_url,
@@ -537,6 +553,7 @@ class JobRunner:
                     is_secure=is_sec,
                     http_status_code=res_code,
                     error_message=res_err,
+                    status_category=status_cat,
                 )
                 session.add(new_ext)
 
@@ -587,6 +604,9 @@ class JobRunner:
             )
             queue_item.status = "failed"
             queue_item.error_message = f"永久性錯誤: {e}"
+            queue_item.status_category = determine_internal_link_status_category(
+                queue_item.status, queue_item.status_code, queue_item.error_message
+            )
             session.commit()
             self.state.crawled_count += 1
         else:
@@ -620,5 +640,8 @@ class JobRunner:
                 logger.error("處理網址 %s 時發生錯誤且已達重試上限", current_url)
                 queue_item.status = "failed"
                 queue_item.error_message = str(e)
+                queue_item.status_category = determine_internal_link_status_category(
+                    queue_item.status, queue_item.status_code, queue_item.error_message
+                )
                 session.commit()
                 self.state.crawled_count += 1

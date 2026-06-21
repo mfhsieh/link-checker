@@ -4,6 +4,11 @@
 所有在此之前建立的紀錄，該欄位值會是空值 (NULL 或空字串)。
 此腳本會遍歷所有 `target_domain` 為空的紀錄，
 從 `target_url` 中解析出網域並回填，以確保 `group_by=domain` 功能的正確性。
+
+設計特性 (Selective Update)：
+因為從 URL 萃取網域的運算為絕對客觀且不會改變的固定邏輯，
+本腳本會在 SQL 查詢階段直接透過 `filter()` 排除掉已有值的紀錄，
+僅針對空值 (NULL 或空字串) 進行回填，以最大化執行效能並節省系統資源。
 """
 
 import logging

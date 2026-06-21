@@ -54,7 +54,6 @@
 - `body` (SetPasswordRequest): 新密碼設定請求。
 - `db` (DBSession): Auth 資料庫 Session。
 - `current_session` (AuthSession): 當前的 Session 物件。
-- `_csrf` (None): CSRF 防禦依賴。
 
 
 **Returns**:
@@ -87,7 +86,6 @@
 - `request` (Request): FastAPI 請求物件，用於讀取 Cookie。
 - `background_tasks` (BackgroundTasks): 用於背景執行 GC。
 - `db` (DBSession): Auth DB Session。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -128,7 +126,6 @@
 - `body` (ChangePasswordRequest): 變更密碼的請求內容。
 - `db` (DBSession): Auth DB Session。
 - `current_user` (User): 當前登入的使用者物件。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -216,11 +213,6 @@
 
 **說明**: 取得任務預設的全域配置，供前端建立任務時填入預設值與限制。
 
-
-**Args**:
-- `_current_user` (User): 當前登入的使用者物件。
-
-
 **Returns**:
 - `dict[str, object]`: 允許前端使用的預設配置過濾結果。
 
@@ -262,7 +254,6 @@
 - `body` (CreateJobRequest): 建立任務的請求內容。
 - `current_user` (User): 當前登入的使用者物件。
 - `manager` (JobManager): JobManager 實例。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -319,7 +310,6 @@
 - `job_id` (str): 欲刪除的任務 ID。
 - `current_user` (User): 當前登入的使用者。
 - `manager` (JobManager): JobManager 實例。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -346,7 +336,6 @@
 - `job_id` (str): 欲啟動的任務 ID。
 - `current_user` (User): 當前登入的使用者。
 - `manager` (JobManager): JobManager 實例。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -373,7 +362,6 @@
 - `job_id` (str): 欲暫停的任務 ID。
 - `current_user` (User): 當前登入的使用者。
 - `manager` (JobManager): JobManager 實例。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -400,7 +388,6 @@
 - `job_id` (str): 欲恢復的任務 ID。
 - `current_user` (User): 當前登入的使用者。
 - `manager` (JobManager): JobManager 實例。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -427,7 +414,6 @@
 - `job_id` (str): 欲重置的任務 ID。
 - `current_user` (User): 當前登入的使用者。
 - `manager` (JobManager): JobManager 實例。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -454,7 +440,6 @@
 - `job_id` (str): 欲重試的任務 ID。
 - `current_user` (User): 當前登入的使用者。
 - `manager` (JobManager): JobManager 實例。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -483,7 +468,6 @@
 - `current_user` (User): 當前登入的使用者。
 - `manager` (JobManager): JobManager 實例。
 - `auth_db` (DBSession): Auth DB Session。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -626,6 +610,11 @@
 - `job_id` (str): 任務 ID。
 - `page` (int): 頁碼。
 - `page_size` (int): 每頁筆數。
+- `status_filter` (str | None): 對應資料庫 status_category 欄位的篩選條件。
+- `group_by` (str): 分組方式。
+- `sort_by` (str | None): 排序欄位。
+- `sort_asc` (bool): 升冪或降冪排序。
+- `col_filters` (str | None): 欄位過濾條件。
 - `current_user` (User): 當前登入的使用者。
 - `db` (DBSession): Crawler DB Session。
 
@@ -741,7 +730,6 @@
 **Args**:
 - `status_filter` (str | None): (選填) 依帳號狀態篩選。
 - `auth_db` (DBSession): Auth DB 的 SQLAlchemy Session。
-- `_admin` (User): 當前管理員物件。
 
 
 **Returns**:
@@ -763,8 +751,6 @@
 **Args**:
 - `body` (CreateUserRequest): 建立使用者的請求內容（含 email）。
 - `auth_db` (DBSession): Auth DB 的 SQLAlchemy Session。
-- `_admin` (User): 當前管理員物件。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -793,7 +779,6 @@
 - `request` (Request): FastAPI 的 Request 物件（供紀錄 IP 使用）。
 - `auth_db` (DBSession): Auth DB 的 SQLAlchemy Session。
 - `current_admin` (User): 當前執行操作的管理員物件。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -824,7 +809,6 @@
 - `background_tasks` (BackgroundTasks): 用於發送背景清理任務。
 - `auth_db` (DBSession): Auth 資料庫 Session。
 - `current_admin` (User): 當前操作的管理員使用者物件。
-- `_csrf` (None): CSRF 防禦依賴。
 
 
 **Returns**:
@@ -852,8 +836,6 @@
 **Args**:
 - `user_id` (str): 目標使用者的 ID。
 - `auth_db` (DBSession): Auth DB 的 SQLAlchemy Session。
-- `_admin` (User): 當前管理員物件。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -876,7 +858,6 @@
 - `user_id` (str | None): (選填) 依使用者 ID 篩選。
 - `status_filter` (str | None): (選填) 依任務狀態篩選。
 - `manager` (JobManager): JobManager 實例。
-- `_admin` (User): 當前管理員物件。
 
 
 **Returns**:
@@ -900,8 +881,6 @@
 - `request` (Request): FastAPI 請求物件。
 - `manager` (JobManager): JobManager 實例。
 - `auth_db` (DBSession): Auth DB 的 SQLAlchemy Session。
-- `_admin` (User): 當前管理員物件。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -925,8 +904,6 @@
 - `request` (Request): FastAPI 請求物件。
 - `manager` (JobManager): JobManager 實例。
 - `auth_db` (DBSession): Auth DB 的 SQLAlchemy Session。
-- `_admin` (User): 當前管理員物件。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -943,11 +920,6 @@
 **摘要**: Get Config
 
 **說明**: 取得全域爬蟲配置（讀取 config_global.yaml）。
-
-
-**Args**:
-- `_admin` (User): 當前管理員物件。
-
 
 **Returns**:
 - `dict[str, object]`: 目前的全域爬蟲配置。
@@ -972,8 +944,6 @@
 - `body` (UpdateConfigRequest): 包含欲修改設定值的結構。
 - `request` (Request): FastAPI Request。
 - `auth_db` (DBSession): Auth 資料庫 Session。
-- `_admin` (User): 管理員使用者依賴，確保具備管理員權限。
-- `_csrf` (None): CSRF 防禦依賴。
 
 
 **Returns**:
@@ -1000,11 +970,6 @@
 
 **說明**: 取得 SMTP 配置狀態（密碼遮罩，從環境變數讀取）。
 
-
-**Args**:
-- `_admin` (User): 當前管理員物件。
-
-
 **Returns**:
 - `dict[str, object]`: SMTP 配置狀態，包含各種設定值。
 
@@ -1022,8 +987,6 @@
 
 **Args**:
 - `body` (SendTestEmailRequest): 請求內容，包含收件者信箱。
-- `_admin` (User): 當前管理員物件。
-- `_csrf` (None): CSRF 防禦標記。
 
 
 **Returns**:
@@ -1049,7 +1012,6 @@
 **Args**:
 - `query_args` (LogQueryArgs): 日誌查詢參數。
 - `auth_db` (DBSession): Auth DB Session。
-- `_admin` (User): 當前管理員物件。
 
 
 **Returns**:

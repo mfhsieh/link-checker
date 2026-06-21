@@ -23,12 +23,12 @@ load_dotenv()
 
 # pylint: disable=wrong-import-position
 # isort: off
-from backend.jobs.services.exporter import (
+from backend.jobs.services.exporter import (  # noqa: E402
     export_full_report,
     export_external_job_results,
     export_internal_job_results,
     ExportOptions,
-)  # noqa: E402
+)
 from backend.jobs.services.results import ERROR_STATUS_FILTERS  # noqa: E402
 
 try:

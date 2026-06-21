@@ -193,7 +193,7 @@ class ResultsFilterArgs:  # pylint: disable=too-few-public-methods
     """任務結果篩選參數。
 
     Attributes:
-        status_filter (str | None): 狀態篩選條件。
+        status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
         search (str | None): 搜尋關鍵字。
         exclude (str | None): 要排除的目標網域。
         group_by (str): 聚合方式。
@@ -219,7 +219,7 @@ class ResultsFilterArgs:  # pylint: disable=too-few-public-methods
         """初始化任務結果篩選參數。
 
         Args:
-            status_filter (str | None): 狀態篩選條件。
+            status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
             search (str | None): 搜尋關鍵字。
             exclude (str | None): 要排除的目標網域。
             group_by (str): 聚合方式。
@@ -240,7 +240,7 @@ class ResultsQueryArgs:  # pylint: disable=too-few-public-methods, too-many-inst
     """任務結果查詢參數。
 
     Attributes:
-        status_filter (str | None): 狀態篩選條件。
+        status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
         search (str | None): 搜尋關鍵字。
         exclude (str | None): 要排除的目標網域。
         group_by (str): 聚合方式。
@@ -277,7 +277,7 @@ class ExportQueryArgs:  # pylint: disable=too-few-public-methods
     """匯出結果查詢參數。
 
     Attributes:
-        status_filter (str | None): 狀態過濾條件。
+        status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
         exclude (str | None): 要排除的網域。
         group_by (str): 聚合方式。
         fmt (str): 輸出格式。
@@ -297,7 +297,7 @@ class ExportQueryArgs:  # pylint: disable=too-few-public-methods
         """初始化匯出查詢參數。
 
         Args:
-            status_filter (str | None): 狀態過濾條件。
+            status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
             exclude (str | None): 要排除的網域。
             group_by (str): 聚合方式。
             fmt (str): 輸出格式 (csv 或 json)。
@@ -332,7 +332,7 @@ class JobResultQuery:  # pylint: disable=too-few-public-methods,too-many-instanc
     Attributes:
         job_id (str): 任務 ID。
         user_id (str): 使用者 ID。
-        status_filter (str | None): 狀態篩選條件。
+        status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
         search (str | None): 搜尋關鍵字。
         exclude (str | None): 欲排除的目標網域。
         group_by (str): 聚合分組方式。
@@ -438,7 +438,7 @@ class InternalResultQuery:  # pylint: disable=too-few-public-methods,too-many-in
     Attributes:
         job_id (str): 任務 ID。
         user_id (str): 使用者 ID。
-        status_filter (str | None): 狀態篩選條件。
+        status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
         group_by (str): 聚合分組方式。
         page (int): 頁碼。
         page_size (int): 每頁筆數。

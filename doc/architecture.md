@@ -73,6 +73,7 @@ link-checker/
 │   └── crawler.log     # 系統主日誌檔
 ├── report/             # 外部連結分析與內部網頁診斷報告之預設匯出目錄
 ├── scripts/            # 系統維運與自動化腳本
+│   ├── backfill_status_category.py # 補填舊任務 status_category 欄位腳本
 │   ├── backfill_target_domain.py # 補填舊任務 target_domains 腳本
 │   ├── check_db_schema.py      # DB Schema 檢查腳本
 │   ├── gen_api_doc.py          # 自動產生 API 規格與路由清單

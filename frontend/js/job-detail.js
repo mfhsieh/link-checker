@@ -377,7 +377,7 @@ function renderInternalSummary(summary) {
     setTextContent('int-summary-not-found', summary.not_found ?? 0);
     setTextContent('int-summary-other-error', summary.other_error ?? 0);
     setTextContent('int-summary-warning', summary.warning ?? 0);
-    setTextContent('int-summary-access-denied', summary.access_denied ?? 0);
+    setTextContent('int-summary-blocked', summary.blocked ?? 0);
 }
 
 /**

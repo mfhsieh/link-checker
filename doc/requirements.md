@@ -573,6 +573,10 @@
   * **無同步批次刪除 (Evaluate-Free Bulk Deletion)**：執行資料表批次刪除（如任務重置）時，ORM 之 `delete()` 操作必須強制搭配 `synchronize_session=False` 參數，略過極耗資源的記憶體物件比對與狀態同步，確保直接發送純 SQL 指令至資料庫，將 Python 記憶體消耗降至最低。
 * **高併發複合索引優化 (Composite Indexing for High Concurrency)**：
   * **減少資料庫排序與全表掃描成本**：為解決在 1GB RAM 等微型雲端主機環境下 PostgreSQL 的 CPU 過載問題，系統對頻繁查詢的資料表強制建立「複合索引 (Composite Index)」。如在 `CrawlQueue` 建立 `(job_id, status, id)` 索引，消除爬蟲高頻獲取任務時的排序負擔；在 `ExternalLink` 建立 `(job_id, created_at)` 與 `(job_id, http_status_code, ip_address)` 索引，使巨量資料分頁與狀態統計能完全透過 Index Scan 執行，避免全表掃描引發 CPU 與記憶體風暴。此策略亦完全相容並加速 SQLite 的本地查詢。
+* **統一狀態分類與預先計算 (Status Category Pre-computation)**：
+  * 為消弭動態運算造成的效能瓶頸，並統一全系統對「連結狀態」的認知，`crawl_queue` 與 `external_links` 資料表均須實作 `status_category` 欄位。
+  * 系統需在爬蟲寫入或更新紀錄時，根據 HTTP 狀態碼、IP 位址與錯誤訊息，預先將連結分類（如 `healthy`, `blocked`, `not_found`, `connection_error` 等）計算完成並實體化寫入資料庫中，並為其配置複合索引 `(job_id, status_category)`。
+  * 未來無論是前台儀表板統計、API 分頁查詢或是 CLI 報表匯出，皆須直接依賴此預先計算之欄位，以 O(1) 複雜度或極高效率的索引掃描完成資料聚合與篩選。
 
 ---
 
@@ -598,7 +602,7 @@
 ### 11.3 CLI 操作與匯出導出規範
 
 * **參數命名**：輸出報表或結果匯出的相關參數，強制使用完整長參數命名，不提供單一字母縮寫，以防操作混淆。
-* **導出篩選器**：結果匯出必須支援依狀態進行篩選，包含篩選 DNS 失敗連結、HTTP 異常與連線失敗的損毀連結。
+* **導出篩選器與統一過濾分類 (Unified Taxonomy)**：結果匯出必須支援依狀態進行篩選。為避免系統各模組認知歧異，系統必須訂定嚴格的狀態過濾字典（如區分 `dns_failed`, `connection_error`, `blocked`, `server_error` 等）。全系統上下（包含 CLI 選項、API 參數、Web UI 面板及資料庫底層 `status_category` 欄位）必須絕對遵從此統一之分類邏輯與命名對應關係。
 * **去重聚合導出**：支援多維度的外連結果去重聚合導出，除原本的依外連目標 (Target) 合併來源頁面外，需支援依來源頁面 (Source) 聚合列出其包含之所有外連，以及依目標網域 (Domain) 聚合統計其出現次數與獨立網址數。
 * **排除網域過濾**：在匯出報表時，系統必須支援自訂排除目標網域清單的功能，以便過濾掉已知安全或不需關注的外部連結。
 * **完整任務報表匯出**：系統必須支援單一指令匯出完整的任務報表壓縮檔 (ZIP)，其中需包含完整的網頁爬取巡覽紀錄 (`crawl_records.csv`)、外部連結清單 (`external_links.csv`)，以及內部失效連結診斷清單（含失效樣態分類），以利離線稽核與歸檔。

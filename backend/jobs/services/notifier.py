@@ -150,7 +150,7 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
             session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
-                (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
+                ExternalLink.status_category == "dns_failed",
             )
             .count()
         )
@@ -158,7 +158,7 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
             session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
-                ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]),
+                ExternalLink.status_category == "blocked",
             )
             .count()
         )
@@ -166,15 +166,7 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
             session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == job_id,
-                (
-                    (ExternalLink.http_status_code >= 400)
-                    & (~ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]))
-                )
-                | (
-                    (ExternalLink.http_status_code.is_(None))
-                    & (ExternalLink.ip_address.isnot(None))
-                    & (ExternalLink.ip_address != "")
-                ),
+                ExternalLink.status_category.in_(["not_found", "server_error", "connection_error", "other_error"]),
             )
             .count()
         )

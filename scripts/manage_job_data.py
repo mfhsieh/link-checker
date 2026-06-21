@@ -26,6 +26,7 @@ sys.path.insert(0, PROJECT_ROOT)
 # pylint: disable=wrong-import-position, import-error
 from backend.config import get_settings  # noqa: E402
 from crawler.models import CrawlQueue, ExternalLink, Job  # noqa: E402
+from crawler.utils import determine_external_link_status_category  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger: logging.Logger = logging.getLogger("job_sync")
@@ -113,6 +114,7 @@ def export_job(job_id: str, output_path: str) -> None:
                     "is_secure": ext.is_secure,
                     "http_status_code": ext.http_status_code,
                     "error_message": ext.error_message,
+                    "status_category": ext.status_category,
                     "created_at": ext.created_at.isoformat(),
                 }
                 f.write(json.dumps(ext_data, ensure_ascii=False) + "\n")
@@ -235,6 +237,10 @@ def import_job(input_path: str, new_user_id: str) -> None:
                             is_secure=ext_data["is_secure"],
                             http_status_code=ext_data["http_status_code"],
                             error_message=ext_data["error_message"],
+                            status_category=ext_data.get("status_category")
+                            or determine_external_link_status_category(
+                                ext_data["ip_address"], ext_data["http_status_code"]
+                            ),
                             created_at=datetime.fromisoformat(ext_data["created_at"]),
                         )
                     )

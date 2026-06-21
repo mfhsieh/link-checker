@@ -155,7 +155,7 @@ def get_internal_results(
     status_filter: str | None = Query(
         None,
         alias="filter",
-        pattern="^(not_found|server_error|access_denied|timeout|connection_error|other_error|warning|all)$",
+        pattern="^(not_found|server_error|blocked|timeout|connection_error|other_error|warning|all)$",
     ),
     group_by: str = Query("none", pattern="^(none|source)$"),
     page: int = Query(1, ge=1),
@@ -173,7 +173,7 @@ def get_internal_results(
         job_id (str): 任務 ID。
         page (int): 頁碼。
         page_size (int): 每頁筆數。
-        status_filter (str | None): 狀態過濾條件。
+        status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
         group_by (str): 分組方式。
         sort_by (str | None): 排序欄位。
         sort_asc (bool): 升冪或降冪排序。

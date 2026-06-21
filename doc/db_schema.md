@@ -19,6 +19,7 @@
 ### 1.1 資料庫遷移與 PostgreSQL 序列 (Sequence) 同步
 
 系統支援從 SQLite 完整無縫遷移至 PostgreSQL (`scripts/migrate_sqlite_to_pg.py`)。由於 SQLite 的 AUTOINCREMENT 與 PostgreSQL 的 Sequence 運作機制不同，在跨資料庫批量導入舊資料後，PostgreSQL 的內部序列指標（如 `auth_logs_id_seq`）不會自動更新，這會導致後續新增資料時發生 Primary Key 衝突。
+
 因此，遷移腳本會在導入完成後，自動執行 `setval(pg_get_serial_sequence('table_name', 'id'), coalesce(max(id), 1))`，強制將序列指標推進至目前最大值，保障遷移後的資料庫能立即無縫接軌寫入。
 
 ### 1.2 擴充其他資料庫之注意事項
@@ -216,6 +217,7 @@ erDiagram
         Text source_url "來源網頁網址"
         String(50) status "處理狀態"
         Integer status_code "HTTP 狀態碼"
+        String(30) status_category "統一狀態分類"
         Integer retry_count "已重試次數"
         Integer depth "爬取深度"
         Text error_message "錯誤訊息"
@@ -231,6 +233,7 @@ erDiagram
         String(45) ip_address "解析出的 IP 位址"
         Boolean is_secure "是否為 HTTPS 安全協定"
         Integer http_status_code "HTTP 狀態碼"
+        String(30) status_category "統一狀態分類"
         Text error_message "錯誤訊息"
         DateTime created_at "紀錄時間"
     }
@@ -274,6 +277,7 @@ erDiagram
 | `source_url` | `Text` | `Nullable` | 發現此網址的來源網頁網址 (若是任務的起始網址則為 NULL)。 |
 | `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗), `skip` (因 MIME 或副檔名不符而跳過), `warning` (因超過容量上限被截斷)。 |
 | `status_code` | `Integer` | `Nullable` | 記錄爬取最終的 HTTP 狀態碼。前端與匯出引擎藉由綜合判斷此欄位與 `error_message`，將內部失敗動態歸類為 7 大失效樣態 (資源遺失、伺服器異常、權限不足、連線逾時、底層異常、網頁截斷、其他)。 |
+| `status_category` | `String(30)` | `Default: 'pending'` | 統一狀態分類（例如：`timeout`, `not_found`, `server_error` 等），透過分析程式於背景解析或回填，直接支援統計聚合查詢。 |
 | `retry_count` | `Integer` | `Default: 0` | 爬取發生錯誤並重試的次數，由全域與任務設定控制上限。 |
 | `depth` | `Integer` | `Default: 0` | 記錄此網址被發現的爬取深度。起始網址深度為 `0`，子網址為 `current_depth + 1`。 |
 | `error_message` | `Text` | `Nullable` | 若爬取最後狀態為 `failed`，此欄位會記錄最終發生的例外錯誤訊息。 |
@@ -284,6 +288,7 @@ erDiagram
 為了加快查重以及尋找下一筆 `pending` 網址的效率，此表定義了以下複合索引：
 * **`ix_crawl_queue_job_url`**: `(job_id, url)`。用於去重檢查（避免全表掃描）。
 * **`ix_crawl_queue_job_status_id`**: `(job_id, status, id)`。用於極速提取下一個待爬取的佇列網址（包含排序）。
+* **`ix_crawl_queue_job_category`**: `(job_id, status_category)`。用於加速 API 的分類統計聚合查詢。
 
 #### `external_links` (發現的外部連結)
 此資料表負責記錄爬蟲分析網頁 HTML 後，過濾並蒐集到的所有**外部目標連結**，這也是本系統最主要的產出結果。
@@ -298,6 +303,7 @@ erDiagram
 | `ip_address` | `String(45)` | `Nullable` | 透過 DNS 解析該 `target_url` 之網域所取得的 IPv4/IPv6 位址。若解析失敗則為 `NULL`。 |
 | `is_secure` | `Boolean` | `Default: True` | 標記此外部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若為 HTTPS 則為 `True`，若為 HTTP 則為 `False`。 |
 | `http_status_code` | `Integer` | `Nullable` | 對外部連結進行 HTTP 存活檢查後取得的 HTTP 狀態碼。若為 `NULL` 代表未探測或連線失敗。 |
+| `status_category` | `String(30)` | `Default: 'healthy'` | 統一狀態分類（例如：`dns_failed`, `connection_error`, `healthy` 等），可用於極速生成報表與統計。 |
 | `error_message` | `Text` | `Nullable` | 存活檢查失敗時的具體連線異常描述（如 ConnectionTimeout）。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 系統成功解析並紀錄該筆外部連結的時間。 |
 
@@ -305,4 +311,53 @@ erDiagram
 * **`uq_external_links_job_src_tgt`** (唯一約束): `(job_id, source_url, target_url)`。用於從資料庫層面防止在同一任務中重複記錄相同的來源母頁面與目標外部網址。
 * **`ix_external_links_job_created`** (複合索引): `(job_id, created_at)`。用於加速巨量資料的分頁與排序。
 * **`ix_external_links_job_status_ip`** (複合索引): `(job_id, http_status_code, ip_address)`。用於加速狀態統計與篩選。
+* **`ix_external_links_job_category`** (複合索引): `(job_id, status_category)`。用於加速統計摘要與分類篩選。
 * **`ix_external_links_job_domain`** (複合索引): `(job_id, target_domain)`。用於加速依網域群組統計 (`group_by=domain`)。
+
+---
+
+## 4. 統一狀態分類 (`status_category`) 定義參考
+
+為了提升統計與聚合查詢的效能，系統在 `crawl_queue` (內部連結) 與 `external_links` (外部連結) 中皆實作了 `status_category` 欄位。這些分類是在資料寫入或背景回填時，依據底層的 HTTP 狀態碼、IP 解析結果與錯誤訊息，預先計算好的標準化結果。
+
+### `external_links` (外部連結) 的狀態分類
+| 分類代碼 | 說明 | 判斷邏輯 |
+| :--- | :--- | :--- |
+| **`healthy`** | 正常連結 | HTTP 狀態碼 < 400 |
+| **`dns_failed`** | DNS 錯誤 | 網域無法解析出任何 IP 位址 |
+| **`not_found`** | 資源遺失 | HTTP 狀態碼為 404 或 410 |
+| **`server_error`** | 伺服器異常 | HTTP 狀態碼落在 500 ~ 599 之間 |
+| **`connection_error`** | 底層異常 | DNS 成功但無法取得狀態碼 (例如連線逾時、連線被拒絕、SSL 憑證失敗等) |
+| **`other_error`** | 其他異常 | HTTP 狀態碼 >= 400，且不屬於上述其他錯誤類別 |
+| **`blocked`** | 權限阻擋 | HTTP 狀態碼為 401, 403, 405, 406 或 429 |
+
+### `crawl_queue` (內部連結) 的狀態分類
+內部連結的 `status_category` 是建立在原本的 `status` 基礎上。若狀態並非 `failed`，分類與 `status` 一致；若為 `failed`，則進一步細分錯誤樣態：
+| 分類代碼 | 說明 | 判斷邏輯 |
+| :--- | :--- | :--- |
+| **`pending`** | 等待爬取 | 尚未開始執行的佇列項目 |
+| **`completed`** | 成功爬取 | 成功抓取 HTML 內容並解析 |
+| **`skip`** | 跳過爬取 | 因不符合網域、或資源類型 (MIME/副檔名) 排除而跳過 |
+| **`server_error`** | 伺服器異常 | [失敗類] HTTP 狀態碼落在 500 ~ 599 之間 |
+| **`connection_error`** | 底層異常 | [失敗類] 無狀態碼且非屬連線逾時的底層錯誤 (例如 DNS 解析失敗、憑證無效或連線被拒等) |
+| **`timeout`** | 連線逾時 | [失敗類] 無狀態碼且例外訊息中包含 timeout 關鍵字 |
+| **`not_found`** | 資源遺失 | [失敗類] HTTP 狀態碼為 404 或 410 |
+| **`other_error`** | 其他異常 | [失敗類] 其他未分類的 HTTP 異常狀態碼 |
+| **`warning`** | 網頁截斷 | [失敗類] 爬取有異狀但不算完全失敗 (例如檔案過大被截斷) |
+| **`blocked`** | 權限阻擋 | [失敗類] HTTP 狀態碼為 401, 403, 405, 406 或 429 |
+
+### API 與 CLI 過濾器 (`filter`) 對應關係
+
+在系統的 API 與 CLI 工具中，使用者可透過 `filter` 參數快速篩選結果。
+基本原理上，`filter` 參數的多數值會**直接一對一映射**到資料庫的 `status_category` 欄位（例如傳入 `not_found` 就會直接查詢 `status_category = 'not_found'`）。
+
+為了實務查詢的便利性，系統針對**外部連結**額外提供了幾種複合查詢的假名 (Alias) 或進階過濾條件。與 `status_category` **不屬於一對一直接對應**的特殊 `filter` 參數表列如下：
+
+| 特殊 Filter 名稱 | 在資料庫的實際查詢行為 |
+| :--- | :--- |
+| `dead` | 等同於查詢 `status_category = 'dns_failed'` 的別名。 |
+| `broken` | **(複合條件)** 比對 `status_category IN ('not_found', 'server_error', 'connection_error', 'other_error')`。此為廣義的失效連結集合，但不包含 `dns_failed` 與 `blocked`。 |
+| `insecure` | **(進階條件)** 僅比對 `is_secure = False` (與 `status_category` 欄位無關)。 |
+| `all` | 無篩選條件，回傳所有資料。 |
+
+> **註解**：除了上述四個特殊參數外，其餘所有過濾參數（包含內部連結的所有過濾條件）皆為 `filter == status_category` 的直接一對一比對。

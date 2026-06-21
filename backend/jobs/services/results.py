@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from sqlalchemy import Integer, String, asc, case, cast, desc
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session as DBSession
-from sqlalchemy.sql.functions import count
+from sqlalchemy.sql.functions import coalesce, count
 from sqlalchemy.sql.functions import max as sql_max
 from sqlalchemy.sql.functions import min as sql_min
 from sqlalchemy.sql.functions import sum as sql_sum
@@ -530,104 +530,6 @@ def get_job_results(
     return _get_job_results_no_grouping(query, query_args)
 
 
-def _classify_link_status(lnk: ExternalLink) -> tuple[bool, bool, bool, bool, bool, bool, bool, bool]:
-    """
-    分類外連的狀態。
-
-    Args:
-        lnk (ExternalLink): 參數說明。
-
-    Returns:
-        object: 回傳說明。
-    """
-    is_dns_failed = not lnk.ip_address
-    c = lnk.http_status_code
-    is_blocked = c in (401, 403, 405, 406, 429)
-    is_insecure = not lnk.is_secure
-    is_healthy = bool(lnk.ip_address) and c is not None and c < 400
-
-    is_not_found = c in (404, 410)
-    is_server_error = c is not None and 500 <= c < 600
-    is_connection_error = c is None and bool(lnk.ip_address)
-    is_other_error = c is not None and ((400 <= c < 500 and not is_blocked and not is_not_found) or c >= 600)
-
-    return (
-        is_dns_failed,
-        is_not_found,
-        is_server_error,
-        is_connection_error,
-        is_other_error,
-        is_blocked,
-        is_insecure,
-        is_healthy,
-    )
-
-
-def _get_grouped_results_summary(query: Query, group_by: str) -> dict[str, int]:
-    """
-    計算分組後的聚合統計結果。
-
-    Args:
-        query (Query): SQLAlchemy 查詢物件。
-        group_by (str): 分組依據。
-
-    Returns:
-        dict[str, int]: 包含 total, healthy_count, dns_failed_count, http_error_count, insecure_count 的統計結果。
-    """
-    sets = defaultdict(set)
-    status_keys = (
-        "dns_failed",
-        "not_found",
-        "server_error",
-        "connection_error",
-        "other_error",
-        "blocked",
-        "insecure",
-        "healthy_count",
-    )
-
-    if group_by == "target":
-
-        def key_func(lnk: ExternalLink) -> str:
-            return lnk.target_url
-
-    elif group_by == "source":
-
-        def key_func(lnk: ExternalLink) -> str:
-            return lnk.source_url
-
-    elif group_by == "domain":
-
-        def key_func(lnk: ExternalLink) -> str:
-            return get_domain(lnk.target_url) or "unknown"
-
-    else:
-
-        def key_func(lnk: ExternalLink) -> object:
-            return lnk.id
-
-    for lnk in query.yield_per(2000):
-        key = key_func(lnk)
-        sets["all"].add(key)
-
-        statuses = _classify_link_status(lnk)
-        for status_name, is_active in zip(status_keys, statuses):
-            if is_active:
-                sets[status_name].add(key)
-
-    return {
-        "total_external": len(sets["all"]),
-        "dns_failed": len(sets["dns_failed"]),
-        "not_found": len(sets["not_found"]),
-        "server_error": len(sets["server_error"]),
-        "connection_error": len(sets["connection_error"]),
-        "other_error": len(sets["other_error"]),
-        "blocked": len(sets["blocked"]),
-        "insecure": len(sets["insecure"]),
-        "healthy_count": len(sets["healthy_count"]),
-    }
-
-
 def _get_results_summary_no_grouping(db: DBSession, job_id: str, exclude: str | None = None) -> dict[str, int]:
     """
     計算無分組下的外連結果統計摘要。
@@ -640,76 +542,40 @@ def _get_results_summary_no_grouping(db: DBSession, job_id: str, exclude: str | 
     Returns:
         object: 回傳說明。
     """
-    # 透過單次聚合查詢大幅減少資料庫 I/O，優化百萬級外連任務的報表讀取效能
-    query = db.query(
-        count(ExternalLink.id).label("total"),
-        sql_sum(
-            case(
-                (
-                    (ExternalLink.ip_address.is_(None)) | (ExternalLink.ip_address == ""),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("dns_failed"),
-        sql_sum(case((ExternalLink.http_status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
-        sql_sum(
-            case(((ExternalLink.http_status_code >= 500) & (ExternalLink.http_status_code < 600), 1), else_=0)
-        ).label("server_error"),
-        sql_sum(
-            case(
-                (
-                    (ExternalLink.http_status_code.is_(None))
-                    & (ExternalLink.ip_address.isnot(None))
-                    & (ExternalLink.ip_address != ""),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("connection_error"),
-        sql_sum(
-            case(
-                (
-                    (
-                        (ExternalLink.http_status_code >= 400)
-                        & (ExternalLink.http_status_code < 500)
-                        & (~ExternalLink.http_status_code.in_([404, 410, 401, 403, 405, 406, 429]))
-                    )
-                    | (ExternalLink.http_status_code >= 600),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("other_error"),
-        sql_sum(case((ExternalLink.http_status_code.in_([401, 403, 405, 406, 429]), 1), else_=0)).label("blocked"),
-        sql_sum(case((ExternalLink.is_secure.is_(False), 1), else_=0)).label("insecure"),
-    ).filter(ExternalLink.job_id == job_id)
-
+    query = db.query(ExternalLink.status_category, count(ExternalLink.id).label("cnt")).filter(
+        ExternalLink.job_id == job_id
+    )
     query = apply_job_result_filters(query, exclude=exclude)
+    rows = query.group_by(ExternalLink.status_category).all()
 
-    stats = query.first()
+    insecure_query = db.query(count(ExternalLink.id)).filter(
+        ExternalLink.job_id == job_id, ExternalLink.is_secure.is_(False)
+    )
+    insecure_query = apply_job_result_filters(insecure_query, exclude=exclude)
+    insecure_count = insecure_query.scalar() or 0
 
-    total_external = int(stats.total) if stats and stats.total else 0
-    dns_failed = int(stats.dns_failed) if stats and stats.dns_failed else 0
-    not_found = int(stats.not_found) if stats and stats.not_found else 0
-    server_error = int(stats.server_error) if stats and stats.server_error else 0
-    connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
-    other_error = int(stats.other_error) if stats and stats.other_error else 0
-    blocked = int(stats.blocked) if stats and stats.blocked else 0
-    insecure = int(stats.insecure) if stats and stats.insecure else 0
-
-    healthy_count = total_external - dns_failed - not_found - server_error - connection_error - other_error - blocked
+    total_external = 0
+    stats = {
+        k: 0
+        for k in ["dns_failed", "not_found", "server_error", "connection_error", "other_error", "blocked", "healthy"]
+    }
+    for row in rows:
+        cat = row.status_category
+        cnt = int(row.cnt)
+        total_external += cnt
+        if cat in stats:
+            stats[cat] = cnt
 
     return {
         "total_external": total_external,
-        "dns_failed": dns_failed,
-        "not_found": not_found,
-        "server_error": server_error,
-        "connection_error": connection_error,
-        "other_error": other_error,
-        "blocked": blocked,
-        "insecure": insecure,
-        "healthy_count": healthy_count,
+        "dns_failed": stats["dns_failed"],
+        "not_found": stats["not_found"],
+        "server_error": stats["server_error"],
+        "connection_error": stats["connection_error"],
+        "other_error": stats["other_error"],
+        "blocked": stats["blocked"],
+        "insecure": insecure_count,
+        "healthy_count": stats["healthy"],
     }
 
 
@@ -726,19 +592,51 @@ def _get_results_summary_grouped(db: DBSession, job_id: str, exclude: str | None
     Returns:
         object: 回傳說明。
     """
-    query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
+    if group_by == "target":
+        key_col = ExternalLink.target_url
+    elif group_by == "source":
+        key_col = ExternalLink.source_url
+    elif group_by == "domain":
+        key_col = ExternalLink.target_domain
+    else:
+        key_col = ExternalLink.id
+
+    query = db.query(ExternalLink.status_category, count(key_col.distinct()).label("cnt")).filter(
+        ExternalLink.job_id == job_id
+    )
     query = apply_job_result_filters(query, exclude=exclude)
-    stats_dict = _get_grouped_results_summary(query, group_by)
+    rows = query.group_by(ExternalLink.status_category).all()
+
+    insecure_query = db.query(count(key_col.distinct())).filter(
+        ExternalLink.job_id == job_id, ExternalLink.is_secure.is_(False)
+    )
+    insecure_query = apply_job_result_filters(insecure_query, exclude=exclude)
+    insecure_count = insecure_query.scalar() or 0
+
+    total_query = db.query(count(key_col.distinct())).filter(ExternalLink.job_id == job_id)
+    total_query = apply_job_result_filters(total_query, exclude=exclude)
+    total_external = total_query.scalar() or 0
+
+    stats = {
+        k: 0
+        for k in ["dns_failed", "not_found", "server_error", "connection_error", "other_error", "blocked", "healthy"]
+    }
+    for row in rows:
+        cat = row.status_category
+        cnt = int(row.cnt)
+        if cat in stats:
+            stats[cat] = cnt
+
     return {
-        "total_external": stats_dict["total_external"],
-        "dns_failed": stats_dict["dns_failed"],
-        "not_found": stats_dict["not_found"],
-        "server_error": stats_dict["server_error"],
-        "connection_error": stats_dict["connection_error"],
-        "other_error": stats_dict["other_error"],
-        "blocked": stats_dict["blocked"],
-        "insecure": stats_dict["insecure"],
-        "healthy_count": stats_dict["healthy_count"],
+        "total_external": total_external,
+        "dns_failed": stats["dns_failed"],
+        "not_found": stats["not_found"],
+        "server_error": stats["server_error"],
+        "connection_error": stats["connection_error"],
+        "other_error": stats["other_error"],
+        "blocked": stats["blocked"],
+        "insecure": insecure_count,
+        "healthy_count": stats["healthy"],
     }
 
 
@@ -1239,7 +1137,7 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
 
     Args:
         query (Query): SQLAlchemy 查詢物件。
-        status_filter (str | None): 狀態篩選條件。
+        status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
 
     Returns:
         Query: 加上過濾條件後的 SQLAlchemy 查詢物件。
@@ -1247,34 +1145,7 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
     if not status_filter or status_filter == "all":
         return query
 
-    if status_filter == "not_found":
-        query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code.in_([404, 410]))
-    elif status_filter == "server_error":
-        query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code >= 500, CrawlQueue.status_code < 600)
-    elif status_filter == "access_denied":
-        query = query.filter(CrawlQueue.status == "failed", CrawlQueue.status_code.in_([401, 403]))
-    elif status_filter == "timeout":
-        query = query.filter(
-            CrawlQueue.status == "failed",
-            CrawlQueue.status_code.is_(None),
-            (CrawlQueue.error_message.ilike("%timeout%")) | (CrawlQueue.error_message.ilike("%timed out%")),
-        )
-    elif status_filter == "connection_error":
-        query = query.filter(
-            CrawlQueue.status == "failed",
-            CrawlQueue.status_code.is_(None),
-            ~CrawlQueue.error_message.ilike("%timeout%"),
-            ~CrawlQueue.error_message.ilike("%timed out%"),
-        )
-    elif status_filter == "warning":
-        query = query.filter(CrawlQueue.status == "warning")
-    elif status_filter == "other_error":
-        query = query.filter(
-            CrawlQueue.status == "failed",
-            CrawlQueue.status_code.isnot(None),
-            ~CrawlQueue.status_code.in_([404, 410, 401, 403]),
-            (CrawlQueue.status_code < 500) | (CrawlQueue.status_code >= 600),
-        )
+    query = query.filter(CrawlQueue.status_category == status_filter)
     return query
 
 
@@ -1291,46 +1162,24 @@ def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, 
     """
     query = db.query(
         count(CrawlQueue.id).label("total"),
-        sql_sum(case((CrawlQueue.status_code.in_([404, 410]), 1), else_=0)).label("not_found"),
-        sql_sum(case(((CrawlQueue.status_code >= 500) & (CrawlQueue.status_code < 600), 1), else_=0)).label(
-            "server_error"
-        ),
-        sql_sum(case((CrawlQueue.status_code.in_([401, 403]), 1), else_=0)).label("access_denied"),
-        sql_sum(
-            case(
-                (
-                    (CrawlQueue.status == "failed")
-                    & (CrawlQueue.status_code.is_(None))
-                    & ((CrawlQueue.error_message.ilike("%timeout%")) | (CrawlQueue.error_message.ilike("%timed out%"))),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("timeout"),
-        sql_sum(
-            case(
-                (
-                    (CrawlQueue.status == "failed")
-                    & (CrawlQueue.status_code.is_(None))
-                    & (~CrawlQueue.error_message.ilike("%timeout%"))
-                    & (~CrawlQueue.error_message.ilike("%timed out%")),
-                    1,
-                ),
-                else_=0,
-            )
-        ).label("connection_error"),
-        sql_sum(case((CrawlQueue.status == "warning", 1), else_=0)).label("warning"),
+        sql_sum(case((CrawlQueue.status_category == "not_found", 1), else_=0)).label("not_found"),
+        sql_sum(case((CrawlQueue.status_category == "server_error", 1), else_=0)).label("server_error"),
+        sql_sum(case((CrawlQueue.status_category == "blocked", 1), else_=0)).label("blocked"),
+        sql_sum(case((CrawlQueue.status_category == "timeout", 1), else_=0)).label("timeout"),
+        sql_sum(case((CrawlQueue.status_category == "connection_error", 1), else_=0)).label("connection_error"),
+        sql_sum(case((CrawlQueue.status_category == "warning", 1), else_=0)).label("warning"),
+        sql_sum(case((CrawlQueue.status_category == "other_error", 1), else_=0)).label("other_error"),
     ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
 
     stats = query.first()
     total = int(stats.total) if stats and stats.total else 0
     not_found = int(stats.not_found) if stats and stats.not_found else 0
     server_error = int(stats.server_error) if stats and stats.server_error else 0
-    access_denied = int(stats.access_denied) if stats and stats.access_denied else 0
+    blocked = int(stats.blocked) if stats and stats.blocked else 0
     timeout = int(stats.timeout) if stats and stats.timeout else 0
     connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
     warning = int(stats.warning) if stats and stats.warning else 0
-    other_error = total - not_found - server_error - access_denied - timeout - connection_error - warning
+    other_error = int(stats.other_error) if stats and stats.other_error else 0
 
     return {
         "total": total,
@@ -1340,7 +1189,7 @@ def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, 
         "not_found": not_found,
         "other_error": other_error,
         "warning": warning,
-        "access_denied": access_denied,
+        "blocked": blocked,
     }
 
 
@@ -1356,50 +1205,46 @@ def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: 
     Returns:
         object: 回傳說明。
     """
-    sets = defaultdict(set)
-    query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
-
     if group_by == "source":
-
-        def key_func(q: CrawlQueue) -> str:
-            return q.source_url or ""
-
+        key_col = coalesce(CrawlQueue.source_url, "")
     else:
+        key_col = CrawlQueue.id
 
-        def key_func(q: CrawlQueue) -> object:
-            return q.id
+    query = db.query(
+        count(key_col.distinct()).label("total"),
+        count(case((CrawlQueue.status_category == "not_found", key_col), else_=None).distinct()).label("not_found"),
+        count(case((CrawlQueue.status_category == "server_error", key_col), else_=None).distinct()).label(
+            "server_error"
+        ),
+        count(case((CrawlQueue.status_category == "blocked", key_col), else_=None).distinct()).label("blocked"),
+        count(case((CrawlQueue.status_category == "timeout", key_col), else_=None).distinct()).label("timeout"),
+        count(case((CrawlQueue.status_category == "connection_error", key_col), else_=None).distinct()).label(
+            "connection_error"
+        ),
+        count(case((CrawlQueue.status_category == "warning", key_col), else_=None).distinct()).label("warning"),
+        count(case((CrawlQueue.status_category == "other_error", key_col), else_=None).distinct()).label("other_error"),
+    ).filter(CrawlQueue.job_id == job_id, CrawlQueue.status.in_(["failed", "warning"]))
 
-    for q in query.yield_per(2000):
-        key = key_func(q)
-        sets["all"].add(key)
+    stats = query.first()
 
-        c = q.status_code
-        msg = str(q.error_message or "").lower()
-
-        if q.status == "warning":
-            sets["warning"].add(key)
-        elif c in (404, 410):
-            sets["not_found"].add(key)
-        elif c is not None and 500 <= c < 600:
-            sets["server_error"].add(key)
-        elif c in (401, 403):
-            sets["access_denied"].add(key)
-        elif c is None and ("timeout" in msg or "timed out" in msg):
-            sets["timeout"].add(key)
-        elif c is None:
-            sets["connection_error"].add(key)
-        else:
-            sets["other_error"].add(key)
+    total = int(stats.total) if stats and stats.total else 0
+    not_found = int(stats.not_found) if stats and stats.not_found else 0
+    server_error = int(stats.server_error) if stats and stats.server_error else 0
+    blocked = int(stats.blocked) if stats and stats.blocked else 0
+    timeout = int(stats.timeout) if stats and stats.timeout else 0
+    connection_error = int(stats.connection_error) if stats and stats.connection_error else 0
+    warning = int(stats.warning) if stats and stats.warning else 0
+    other_error = int(stats.other_error) if stats and stats.other_error else 0
 
     return {
-        "total": len(sets["all"]),
-        "server_error": len(sets["server_error"]),
-        "connection_error": len(sets["connection_error"]),
-        "timeout": len(sets["timeout"]),
-        "not_found": len(sets["not_found"]),
-        "other_error": len(sets["other_error"]),
-        "warning": len(sets["warning"]),
-        "access_denied": len(sets["access_denied"]),
+        "total": total,
+        "server_error": server_error,
+        "connection_error": connection_error,
+        "timeout": timeout,
+        "not_found": not_found,
+        "other_error": other_error,
+        "warning": warning,
+        "blocked": blocked,
     }
 
 

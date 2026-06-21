@@ -29,7 +29,7 @@ class ExportOptions:
     匯出結果的進階選項。
 
     Attributes:
-        status_filter (str | None): 狀態篩選條件。
+        status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
         group_by (str): 聚合方式。
         exclude (str | None): 欲排除的網域。
     """
@@ -185,6 +185,7 @@ def export_internal_job_results(
                         "source_url": d["Source URL"],
                         "url": d["URL"],
                         "status": d["Status"],
+                        "status_category": d["Status Category"],
                         "depth": d["Depth"],
                         "retry_count": d["Retry Count"],
                         "http_status_code": d["HTTP Status Code"],
@@ -227,6 +228,7 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
                     "Source URL",
                     "URL",
                     "Status",
+                    "Status Category",
                     "Depth",
                     "Retry Count",
                     "HTTP Status Code",
@@ -242,6 +244,7 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
                             d["Source URL"],
                             d["URL"],
                             d["Status"],
+                            d["Status Category"],
                             d["Depth"],
                             d["Retry Count"],
                             d["HTTP Status Code"],

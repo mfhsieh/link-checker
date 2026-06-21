@@ -138,6 +138,7 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
         "Source URL": q.source_url if q.source_url else "",
         "URL": q.url,
         "Status": q.status,
+        "Status Category": q.status_category,
         "Depth": q.depth,
         "Retry Count": q.retry_count,
         "HTTP Status Code": q.status_code if q.status_code is not None else "",
@@ -290,3 +291,74 @@ def create_optimized_engine(  # pylint: disable=too-many-arguments
             cursor.close()
 
     return engine
+
+
+# pylint: disable=too-many-return-statements
+def determine_external_link_status_category(ip_address: str | None, status_code: int | None) -> str:
+    """
+    根據目標的 IP 解析結果與 HTTP 狀態碼，判斷外部連結的狀態分類。
+
+    Args:
+        ip_address (str | None): 網域解析出的 IP 位址。
+        status_code (int | None): 取得的 HTTP 狀態碼。
+
+    Returns:
+        str: 分類字串 (例如 "healthy", "dns_failed", "not_found" 等)。
+    """
+    if not ip_address:
+        return "dns_failed"
+
+    if status_code is None:
+        return "connection_error"
+
+    if status_code in (404, 410):
+        return "not_found"
+
+    if 500 <= status_code < 600:
+        return "server_error"
+
+    if status_code in (401, 403, 405, 406, 429):
+        return "blocked"
+
+    if status_code >= 400:
+        return "other_error"
+
+    return "healthy"
+
+
+# pylint: disable=too-many-return-statements
+def determine_internal_link_status_category(status: str, status_code: int | None, error_message: str | None) -> str:
+    """
+    根據 CrawlQueue 的狀態、HTTP 狀態碼與錯誤訊息，判斷內部連結的狀態分類。
+
+    Args:
+        status (str): CrawlQueue 的當前狀態。
+        status_code (int | None): 取得的 HTTP 狀態碼。
+        error_message (str | None): 例外或錯誤訊息。
+
+    Returns:
+        str: 分類字串 (例如 "healthy", "warning", "not_found", "server_error" 等)。
+    """
+    if status == "warning":
+        return "warning"
+
+    if status != "failed":
+        return status
+
+    msg = str(error_message or "").lower()
+
+    if status_code is None:
+        if "timeout" in msg or "timed out" in msg:
+            return "timeout"
+        return "connection_error"
+
+    if status_code in (404, 410):
+        return "not_found"
+
+    if 500 <= status_code < 600:
+        return "server_error"
+
+    if status_code in (401, 403, 405, 406, 429):
+        return "blocked"
+
+    return "other_error"

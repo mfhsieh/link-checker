@@ -93,6 +93,11 @@
         ExportOptions,
     )
     ```
+- **過濾條件參數同步**:
+  - `cli.py` 會動態引入後端的錯誤狀態過濾常數，確保 CLI 命令列的 `--filter` 選項與 Web API 支援的篩選條件保持 100% 同步：
+    ```python
+    from backend.jobs.services.results import ERROR_STATUS_FILTERS
+    ```
 
 ---
 
@@ -116,6 +121,10 @@
 - **`manage_job_data.py`** (被 `job_sync.sh` 呼叫):
   - 直接依賴 `crawler.models` 中的 `Job`, `CrawlQueue`, `ExternalLink` 進行資料的 JSONL 序列化與反序列化。
   - 依賴 `backend.config` 以取得當前啟動環境的資料庫 URL。
+- **`backfill_status_category.py`**:
+  - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `CrawlQueue` 並更新 `status_category` 欄位。
+  - 直接依賴 `crawler.utils` 內部與外部連結的狀態判斷函式 (`determine_external_link_status_category` 等) 來計算標準化分類。
+  - 依賴 `backend.config` 獲取 Crawler DB 連線字串。
 - **`backfill_target_domain.py`**:
   - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `Job` 並更新 `target_domain` 欄位。
   - 依賴 `backend.config` 獲取 Crawler DB 連線字串。
