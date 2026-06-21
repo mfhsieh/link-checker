@@ -11,8 +11,10 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from sqlalchemy import Engine
+from sqlalchemy import Engine, case
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.sql.functions import count as sql_count
+from sqlalchemy.sql.functions import sum as sql_sum
 
 from crawler.models import Base, CrawlQueue, ExternalLink, Job
 from crawler.runner import JobRunner
@@ -214,20 +216,25 @@ class JobManager:
             if not job:
                 return None
 
-            total_queue = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
-            completed = (
-                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "completed").count()
+            queue_stats = (
+                session.query(
+                    sql_count(CrawlQueue.id).label("total"),
+                    sql_sum(case((CrawlQueue.status == "completed", 1), else_=0)).label("completed"),
+                    sql_sum(case((CrawlQueue.status == "warning", 1), else_=0)).label("warning"),
+                    sql_sum(case((CrawlQueue.status == "pending", 1), else_=0)).label("pending"),
+                    sql_sum(case((CrawlQueue.status == "failed", 1), else_=0)).label("failed"),
+                    sql_sum(case((CrawlQueue.status == "skip", 1), else_=0)).label("skipped"),
+                )
+                .filter(CrawlQueue.job_id == job_id)
+                .first()
             )
-            warning = (
-                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "warning").count()
-            )
-            pending = (
-                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "pending").count()
-            )
-            failed = (
-                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed").count()
-            )
-            skipped = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "skip").count()
+
+            total_queue = int(queue_stats.total) if queue_stats and queue_stats.total else 0
+            completed = int(queue_stats.completed) if queue_stats and queue_stats.completed else 0
+            warning = int(queue_stats.warning) if queue_stats and queue_stats.warning else 0
+            pending = int(queue_stats.pending) if queue_stats and queue_stats.pending else 0
+            failed = int(queue_stats.failed) if queue_stats and queue_stats.failed else 0
+            skipped = int(queue_stats.skipped) if queue_stats and queue_stats.skipped else 0
 
             total_external = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
 

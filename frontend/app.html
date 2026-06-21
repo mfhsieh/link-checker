@@ -310,16 +310,16 @@
                 <div class="stat-value text-xl text-warning" id="stat-warning">0</div>
               </div>
               <div class="stat-card" style="padding:0.75rem">
-                <div class="stat-label">等待</div>
-                <div class="stat-value text-xl" id="stat-pending">0</div>
-              </div>
-              <div class="stat-card" style="padding:0.75rem">
                 <div class="stat-label text-muted">略過</div>
                 <div class="stat-value text-xl text-muted" id="stat-skipped">0</div>
               </div>
               <div class="stat-card" style="padding:0.75rem">
                 <div class="stat-label text-danger">失敗</div>
                 <div class="stat-value text-xl text-danger" id="stat-failed">0</div>
+              </div>
+              <div class="stat-card" style="padding:0.75rem">
+                <div class="stat-label">等待</div>
+                <div class="stat-value text-xl" id="stat-pending">0</div>
               </div>
             </div>
           </div>
@@ -337,7 +337,7 @@
             style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:0.75rem">
             <div class="stat-card filter-card active" data-filter="all" data-desc="此任務探索到的所有不重複外部連結總數，包含正常與失效的連結。"
               data-color="var(--color-brand-400)" style="padding:0.75rem">
-              <div class="stat-label">連結總數</div>
+              <div class="stat-label">診斷總數</div>
               <div class="stat-value" id="summary-total">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">不重複的外部連結總數量</div>
             </div>
@@ -464,7 +464,7 @@
             style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:0.75rem">
             <div class="stat-card filter-card active" data-filter="all" data-desc="此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件。"
               data-color="var(--color-brand-400)" style="padding:0.75rem">
-              <div class="stat-label">紀錄總數</div>
+              <div class="stat-label">診斷總數</div>
               <div class="stat-value text-brand" id="int-summary-total">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">包含失敗與截斷的總數量</div>
             </div>

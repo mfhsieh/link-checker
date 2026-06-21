@@ -49,6 +49,7 @@ def _build_invitation_email(
         f"此為系統自動發送的郵件，請勿回覆。"
     )
 
+    # pylint: disable=duplicate-code
     html_body = f"""\
 <!DOCTYPE html>
 <html lang="zh-TW">
