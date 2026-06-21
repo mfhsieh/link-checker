@@ -37,7 +37,7 @@
     *   **狀態管理**：在檔案內部透過 `setup_databases()` 與 `teardown_databases()` 管理其專屬的 `db/test_auth_api.db` 與 `db/test_crawler_api.db` 資料庫檔案。
     *   **主要測試範疇**：
         1. **端點功能驗證**：登入/登出、修改密碼、設定密碼（Pending 帳號）、忘記/重設密碼；管理員端點（邀請使用者、重新邀請、停用/啟用、角色權限 Promote/Demote、修改/取得全域配置、SMTP 發信測試、操作日誌取得）；任務控制（建立、啟動、暫停、恢復、重置、重試失敗、任務移交、管理員接管與刪除）。
-        2. **真實劇本情境測試 (Real Scenario Flow)**：利用 Mock Server 為靶機，模擬真實使用者登入、建立並啟動爬蟲任務、API 狀態輪詢 (Polling)、檢驗外連結果與匯出 CSV/JSON 報表的完整閉環流程。
+        2. **真實劇本情境測試 (Real Scenario Flow)**：利用 Mock Server 為靶機，模擬真實使用者登入、建立並啟動爬蟲任務、API 狀態輪詢 (Polling)、檢驗內外連結掃描結果與匯出 CSV/JSON 報表的完整閉環流程。
 
 *   **`test/test_cli.py`**：
     *   **職責**：針對 CLI 任務調度與核心爬蟲引擎進行單元測試與整合測試。

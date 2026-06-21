@@ -16,7 +16,7 @@
   - **系統管理**: `/api/admin/users`, `/api/admin/logs`
 - **安全防禦依賴**: POST / PATCH / DELETE 請求必須在 Request Header 中附加 `X-CSRF-Token`（讀取自 Cookie中的 `csrf_token`）。
 - **前端內部公用庫依賴**:
-  - **公用 UI 與通知**: 所有業務邏輯模組 (`jobs.js`, `login.js` 等) 皆依賴 [frontend/js/toast.js](file:///home/mfhsieh/projects/python/link-checker/frontend/js/toast.js) 與 [frontend/js/ui.js](file:///home/mfhsieh/projects/python/link-checker/frontend/js/ui.js) 來進行全域通知與表單狀態重置。
+  - **公用通知**: 所有業務邏輯模組 (`jobs.js`, `auth.js` 等) 皆依賴 [frontend/js/toast.js](file:///home/mfhsieh/projects/python/link-checker/frontend/js/toast.js) 來進行全域通知與警示。
 
 ---
 

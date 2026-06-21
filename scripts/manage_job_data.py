@@ -26,7 +26,10 @@ sys.path.insert(0, PROJECT_ROOT)
 # pylint: disable=wrong-import-position, import-error
 from backend.config import get_settings  # noqa: E402
 from crawler.models import CrawlQueue, ExternalLink, Job  # noqa: E402
-from crawler.utils import determine_external_link_status_category  # noqa: E402
+from crawler.utils import (  # noqa: E402
+    determine_external_link_status_category,
+    determine_internal_link_status_category,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger: logging.Logger = logging.getLogger("job_sync")
@@ -94,6 +97,7 @@ def export_job(job_id: str, output_path: str) -> None:
                     "retry_count": q.retry_count,
                     "depth": q.depth,
                     "error_message": q.error_message,
+                    "status_category": q.status_category,
                     "created_at": q.created_at.isoformat(),
                     "updated_at": q.updated_at.isoformat(),
                 }
@@ -209,6 +213,10 @@ def import_job(input_path: str, new_user_id: str) -> None:
                             retry_count=q_data["retry_count"],
                             depth=q_data["depth"],
                             error_message=q_data["error_message"],
+                            status_category=q_data.get("status_category")
+                            or determine_internal_link_status_category(
+                                q_data["status"], q_data["status_code"], q_data.get("error_message")
+                            ),
                             created_at=datetime.fromisoformat(q_data["created_at"]),
                             updated_at=datetime.fromisoformat(q_data["updated_at"]),
                         )

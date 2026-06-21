@@ -41,13 +41,13 @@ sudo -u postgres psql
 
 ```sql
 -- 1. 建立專用使用者（請將 'your_secure_password' 替換為您的密碼）
-CREATE USER elc_user WITH PASSWORD 'your_secure_password';
+CREATE USER lc_user WITH PASSWORD 'your_secure_password';
 
 -- 2. 建立 Auth 資料庫，並將擁有權指定給該使用者
-CREATE DATABASE auth_db OWNER elc_user;
+CREATE DATABASE auth_db OWNER lc_user;
 
 -- 3. 建立 Crawler 資料庫，並將擁有權指定給該使用者
-CREATE DATABASE crawler_db OWNER elc_user;
+CREATE DATABASE crawler_db OWNER lc_user;
 
 -- 4. 退出 psql
 \q
@@ -67,8 +67,8 @@ MIGRATION_SOURCE_SQLITE_URL="sqlite:///db/auth.db"
 MIGRATION_SOURCE_CRAWLER_SQLITE_URL="sqlite:///db/crawler.db"
 
 # 目標 PostgreSQL 連線 DSN 設定
-AUTH_DB_URL="postgresql://elc_user:your_secure_password@localhost:5432/auth_db"
-CRAWLER_DB_URL="postgresql://elc_user:your_secure_password@localhost:5432/crawler_db"
+AUTH_DB_URL="postgresql://lc_user:your_secure_password@localhost:5432/auth_db"
+CRAWLER_DB_URL="postgresql://lc_user:your_secure_password@localhost:5432/crawler_db"
 
 # PostgreSQL 進階連線池設定
 DB_POOL_SIZE=20

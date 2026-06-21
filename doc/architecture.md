@@ -1,6 +1,6 @@
 # 網站連結檢查系統 (Link Checker) 架構說明
 
-本文件旨在概述系統的目錄結構與核心設計理念。專案目標為建立一個能夠遍歷特定網域，找出內部與外部網域連結並檢查其有效性與安全性的高擴充性爬蟲系統。
+本文件旨在概述系統的目錄結構與核心設計理念。專案目標為建立一個能夠遍歷特定網域，找出內部與外部連結並檢查其有效性與安全性的爬蟲系統。
 
 ## 專案目錄架構
 
@@ -29,13 +29,13 @@ link-checker/
 │   └── main.py         # FastAPI 應用程式進入點
 ├── frontend/           # 網站前台 UI (原生 Vanilla JS/CSS)
 │   ├── css/            # Vanilla CSS 樣式表
+│   ├── image/          # 靜態圖片與圖示資源
 │   ├── js/             # Vanilla JS (ESM) 邏輯模組
 │   │   ├── api.js, auth.js, auth-reset.js # API 與身分驗證
 │   │   ├── jobs.js, job-detail.js         # 任務列表與詳情
 │   │   ├── compare.js, duplicate.js       # 任務比對與複製
 │   │   ├── transfer.js                    # 任務移交
-│   │   ├── toast.js                       # 全域通知元件 (Toast UI 封裝)
-│   │   └── ui.js                          # 公用 UI 渲染與 DOM 操作元件庫
+│   │   └── toast.js                       # 全域通知元件 (Toast UI 封裝)
 │   ├── index.html      # 登入與首頁
 │   ├── app.html        # 爬蟲任務管理主介面
 │   ├── admin.html      # 系統管理員後台介面
@@ -89,6 +89,7 @@ link-checker/
 │   ├── test_api.py     # API 端點與 Web 後台整合測試
 │   ├── test_cli.py     # CLI 爬蟲核心與調度整合測試
 │   ├── test_admin_logs.py # 後台安全稽核日誌整合測試
+│   ├── test_scheduler.py  # 任務排程器自動化測試
 │   ├── test_server/    # 本機 Mock HTTP 測試伺服器靶機
 │   └── e2e/            # Playwright 前端介面自動化測試
 │       ├── conftest.py
@@ -104,7 +105,7 @@ link-checker/
 
 ### 模組依賴關係圖
 
-本專案之各模組（Frontend, Backend, Crawler 與 CLI）已實現完全解耦，其依賴關係如下：
+本專案各模組（Frontend, Backend, Crawler 與 CLI）以儘可能解耦為目標，其依賴關係如下：
 
 ```mermaid
 graph TD
@@ -126,16 +127,16 @@ graph TD
 本系統整體架構分為以下四個核心層級：
 
 1. **前端展示層 (Frontend Layer)**
-   * 完全採用原生 Vanilla JS (ESM) 與 Vanilla CSS 開發，不依賴任何前端框架，確保極低的維護成本與供應鏈安全。
+   * 原生 Vanilla JS (ESM) 與 Vanilla CSS，不依賴任何前端框架，確保極低的維護成本與供應鏈安全。
    * 採用 Single Page Application (SPA) 架構，所有狀態更新皆透過 REST API 與 Server-Sent Events (SSE) 即時通訊獲取，並具備前端路由解析能力。
 
 2. **Web 服務層 (API & Application Layer)**
-   * 採用 FastAPI 框架提供非同步高效能的 HTTP 服務，負責處理路由、身分驗證 (Auth/Session)、CSRF 防禦、全域配置管理與請求校驗。
-   * **進程隔離 (Subprocess Bridge)**：Web 服務絕不直接在主記憶體內執行爬蟲，而是負責生成 (Spawn) 獨立的子程序呼叫 Crawler 引擎，藉此保護 API 主事件迴圈不被阻塞。
+   * 採用 FastAPI 框架提供非同步的 HTTP 服務，負責處理路由、身分驗證 (Auth/Session)、CSRF 防禦、全域配置管理與請求校驗。
+   * **進程隔離 (Subprocess Bridge)**：Web 服務不直接在主記憶體內執行爬蟲，而是負責生成 (Spawn) 獨立的子程序呼叫 Crawler 引擎，藉此保護 API 主事件迴圈不被阻塞。
 
 3. **爬蟲核心引擎 (Crawler Core)**
-   * 具備高度自治性，由 CLI (`cli.py`) 直接驅動，能在沒有 Web 伺服器的情況下獨立完成所有工作。
-   * 結合 `httpx` 與 `BeautifulSoup4`，負責處理網路探測、HTML 樹解析、防護機制穿透 (Anti-Bot Bypass) 與錯誤重試。
+   * CLI (`cli.py`) 直接驅動，能在沒有 Web 伺服器的情況下獨立完成所有工作。
+   * 結合 `httpx` 與 `BeautifulSoup4`，負責網路探測、HTML 解析、防護機制穿透 (Anti-Bot Bypass) 與錯誤重試。
    * 全程由資料庫狀態 (State-driven) 引導執行，具備中斷恢復、協同暫停與殭屍進程防禦等高可靠度機制。
 
 4. **資料持久層 (Data Layer)**

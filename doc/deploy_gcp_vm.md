@@ -56,11 +56,11 @@ sudo -u postgres psql
 2. 執行以下 SQL 建立獨立的資料庫與使用者（請將密碼替換為您自訂的高強度密碼）：
 ```sql
 -- 建立專用使用者
-CREATE USER elc_user WITH PASSWORD 'your_secure_password';
+CREATE USER lc_user WITH PASSWORD 'your_secure_password';
 
 -- 建立 Auth 與 Crawler 專屬資料庫，並賦予權限
-CREATE DATABASE auth_db OWNER elc_user;
-CREATE DATABASE crawler_db OWNER elc_user;
+CREATE DATABASE auth_db OWNER lc_user;
+CREATE DATABASE crawler_db OWNER lc_user;
 
 -- 退出 psql
 \q
@@ -76,7 +76,7 @@ sudo mkdir -p /opt/link-checker
 sudo chown -R $USER:$USER /opt/link-checker
 
 # 複製您的程式碼至該目錄
-git clone <您的 Git 儲存庫網址> /opt/link-checker
+git clone https://github.com/mfhsieh/link-checker.git /opt/link-checker
 cd /opt/link-checker
 ```
 
@@ -100,8 +100,8 @@ nano .env
 
 > **重要**：請將 `.env` 檔案中的資料庫連線字串修改為您剛才建立的 PostgreSQL 資訊，確保系統以高效能模式運行：
 > ```ini
-> AUTH_DB_URL="postgresql://elc_user:your_secure_password@localhost:5432/auth_db"
-> CRAWLER_DB_URL="postgresql://elc_user:your_secure_password@localhost:5432/crawler_db"
+> AUTH_DB_URL="postgresql://lc_user:your_secure_password@localhost:5432/auth_db"
+> CRAWLER_DB_URL="postgresql://lc_user:your_secure_password@localhost:5432/crawler_db"
 > ```
 
 2. 初始化系統，建立第一位管理員帳號：
@@ -115,7 +115,7 @@ python cli.py --create-admin admin@example.com
 
 ## 步驟六：設定 Systemd 背景服務
 
-為了讓系統在您關閉 SSH 視窗後繼續運行，甚至在 VM 重開機後自動啟動，我們需要設定 Systemd。
+為了讓系統在您關閉 SSH 視窗後繼續運行，在 VM 重開機後自動啟動，我們需要設定 Systemd。
 
 1. 建立服務設定檔：
 
@@ -161,7 +161,7 @@ sudo systemctl status link-checker
 
 ## 步驟七：設定 Nginx 反向代理 (Reverse Proxy)
 
-雖然系統預設運行在 `8000` 埠，但基於安全性與網頁標準，建議使用 Nginx 將 HTTP (80) 導向至內部的 8000 埠。
+雖然系統預設運行在 `8000` 埠，但基於伺服器管理慣例與網頁標準，建議先使用 Nginx 將 HTTP (80 埠) 導向至內部的 8000 埠（後續的憑證步驟會再由 Certbot 自動接管並升級至 HTTPS 443 埠）。
 
 1. 建立 Nginx 設定檔：
 
@@ -216,7 +216,7 @@ sudo systemctl restart nginx
 
 ## 步驟八：登入系統
 
-現在，您可以直接在瀏覽器輸入 GCP VM 的**外部 IP 位址**：
+現在，您可以直接在瀏覽器輸入 GCP VM 的 **外部 IP 位址**：
 
 ```text
 http://<您的 VM 外部 IP>/
@@ -230,7 +230,7 @@ http://<您的 VM 外部 IP>/
 
 ## 步驟九：設定網域與 HTTPS 安全憑證 (Certbot)
 
-為了確保系統資料（如帳號密碼、爬蟲日誌）傳輸時的機密性，強烈建議您使用 Let's Encrypt 提供的免費 SSL 憑證將 HTTP 升級為 HTTPS。
+為了確保系統資料（如帳號密碼、爬蟲日誌）傳輸時的機密性，強烈建議您使用 SSL 憑證 (例如 Let's Encrypt 提供的免費憑證) 將 HTTP 升級為 HTTPS。
 
 1. **設定 DNS 紀錄**：
    前往您的網域註冊商 (如 GoDaddy、Cloudflare 等)，新增一筆 **A 紀錄**，將您的網域 (例如 `example.com`) 指向這台 GCP VM 的外部 IP。
