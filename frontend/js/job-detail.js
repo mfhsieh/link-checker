@@ -320,6 +320,7 @@ export function destroyJobDetailPage() {
 async function refreshJobDetail(jobId) {
     try {
         const job = await api.get(`/api/jobs/${jobId}`);
+        if (jobId !== _currentJobId) return;
         renderJobInfo(job);
 
         const isActuallyRunning = ['running', 'starting'].includes(job.status) || job.is_running;
@@ -365,10 +366,12 @@ async function loadInternalResultsPage(jobId) {
             params.col_filters = JSON.stringify(activeFilters);
         }
         const res = await api.get(`/api/jobs/${jobId}/internal-results`, params);
+        if (jobId !== _currentJobId) return;
         if (tableEl) tableEl.style.opacity = '1';
         renderInternalResultsTable(res, containerEl);
         renderInternalPagination(res, jobId);
     } catch (err) {
+        if (jobId !== _currentJobId) return;
         containerEl.replaceChildren();
         const emptyStateEl = document.createElement('div');
         emptyStateEl.className = 'empty-state';
@@ -1089,6 +1092,7 @@ async function loadExternalResults(jobId) {
             params.group_by = _currentGroupBy;
         }
         const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
+        if (jobId !== _currentJobId) return;
         renderResultsSummary(summary);
     } catch (_) { /* 忽略 */ }
 
@@ -1114,6 +1118,7 @@ async function loadInternalResults(jobId) {
             params.group_by = _internalGroupBy;
         }
         const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
+        if (jobId !== _currentJobId) return;
         renderInternalSummary(summary);
     } catch (_) { /* 忽略 */ }
 
@@ -1170,10 +1175,12 @@ async function loadResultsPage(jobId) {
             params.col_filters = JSON.stringify(activeFilters);
         }
         const res = await api.get(`/api/jobs/${jobId}/results`, params);
+        if (jobId !== _currentJobId) return;
         if (tableEl) tableEl.style.opacity = '1';
         renderResultsTable(res, containerEl);
         renderPagination(res, jobId);
     } catch (err) {
+        if (jobId !== _currentJobId) return;
         containerEl.replaceChildren();
         const emptyStateEl = document.createElement('div');
         emptyStateEl.className = 'empty-state';
