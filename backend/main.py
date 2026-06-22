@@ -213,6 +213,32 @@ if os.path.isdir(_frontend_dir):
         """
         return _serve_html_with_nonce("admin.html", request)
 
+    @app.get("/help.html", include_in_schema=False, response_model=None)
+    def serve_help(request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        提供說明與教學頁面。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 help.html 回應。
+        """
+        return _serve_html_with_nonce("help.html", request)
+
+    @app.get("/faq.html", include_in_schema=False, response_model=None)
+    def serve_faq(request: Request) -> HTMLResponse | RedirectResponse:
+        """
+        提供常見問答頁面。
+
+        Args:
+            request (Request): FastAPI 請求物件。
+
+        Returns:
+            HTMLResponse | RedirectResponse: 注入 nonce 後的 faq.html 回應。
+        """
+        return _serve_html_with_nonce("faq.html", request)
+
     @app.get("/set-password.html", include_in_schema=False, response_model=None)
     def serve_set_password(request: Request) -> HTMLResponse | RedirectResponse:
         """

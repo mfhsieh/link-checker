@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>說明與教學 — 網站連結檢查系統</title>
+  <meta name="description" content="管理外部連結掃描任務，查閱進度與結果。" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/components.css" />
+  <link rel="stylesheet" href="/static/css/layout.css" />
+  <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
+</head>
+
+<body>
+
+  <div class="app-shell" id="app-shell">
+
+    <!-- ── Top Bar ──────────────────────────────────────────── -->
+    <header class="topbar">
+      <a class="topbar-brand" href="/app.html" id="topbar-brand">
+        <div class="topbar-logo" aria-hidden="true" title="Link Checker">
+          <img src="/static/image/logo.svg" alt="Link Checker" style="width: 18px; height: 18px;" />
+        </div>
+        <span class="topbar-title">網站連結檢查系統</span>
+      </a>
+      <div class="topbar-actions">
+        <div class="topbar-user" id="topbar-user" role="button" tabindex="0" title="帳號選單">
+          <div class="topbar-avatar" id="topbar-avatar">-</div>
+          <div class="topbar-user-info">
+            <span class="topbar-user-name" id="topbar-email">載入中...</span>
+            <span class="topbar-user-role" id="topbar-role"></span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="change-pwd-btn" title="修改密碼">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" style="width:16px;height:16px">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span class="btn-text">修改密碼</span>
+        </button>
+        <button class="btn btn-ghost btn-sm" id="logout-btn" title="登出">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" style="width:16px;height:16px">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          <span class="btn-text">登出</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Sidebar ────────────────────────────────────────── -->
+    <nav class="sidebar" aria-label="主導覽">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">任務管理</div>
+        <ul class="sidebar-nav">
+          <li>
+            <a class="sidebar-item" id="nav-jobs" href="/app.html#/jobs" data-view="jobs">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              我的任務
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-duplicate" href="/app.html#/duplicate" data-view="duplicate">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              </svg>
+              複製任務
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-compare" href="/app.html#/compare" data-view="compare">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
+              </svg>
+              比對任務
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-transfer" href="/app.html#/transfer" data-view="transfer">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+              </svg>
+              移交任務
+            </a>
+          </li>
+          <li>
+            <a class="sidebar-item" id="nav-new-job" href="/app.html#/new" data-view="new">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              新增任務
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">支援</div>
+        <ul class="sidebar-nav">
+          <li>
+            <a class="sidebar-item active" id="nav-help" href="#" data-view="help">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+              </svg>
+              說明與教學
+            </a>
+          </li>
+
+          <li>
+            <a class="sidebar-item" id="nav-faq" href="/faq.html">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+              </svg>
+              常見問答
+            </a>
+          </li>
+
+        </ul>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- 後台管理（僅 admin 可見）-->
+      <div class="sidebar-section" id="admin-nav-section" style="display:none">
+        <div class="sidebar-section-title">後台管理</div>
+        <ul class="sidebar-nav">
+          <li>
+            <a class="sidebar-item" href="/admin.html">
+              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              進入後台
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- ── Main Content ────────────────────────────────────── -->
+    <main class="main-content" id="main-content">
+<!-- ── 說明與教學視圖 ────────────────────────────────────── -->
+      <div id="view-help" style="display:block">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">說明與教學</h1>
+            <p class="page-subtitle">帶您快速了解系統原理與完整操作流程</p>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+
+          <!-- 第一區：原理介紹 -->
+          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">🔍
+              系統原理：這是什麼工具？</h2>
+            <p>想像系統是一個「<strong>自動化巡邏員（爬蟲）</strong>」，您給他一個起始網頁後，他會幫您點擊網頁上的每一個連結，一層一層地探索整個網站。</p>
+            <p>這套系統的特殊使命是：<strong>找出所有連到「外部網站」的連結，並檢查它們有沒有壞掉。</strong></p>
+            <ul style="padding-left:1.5rem; margin-top:0.5rem; margin-bottom:0;">
+              <li style="margin-bottom:0.5rem;"><strong>防範失效連結：</strong> 幫您抓出網頁上已經變成「找不到網頁 (404)」的外部連結，避免使用者點擊後看到錯誤畫面。
+              </li>
+              <li style="margin-bottom:0.5rem;"><strong>防範資安風險：</strong> 幫您揪出已過期失效的「無主網域」，讓您在被駭客搶註並植入惡意內容前及早移除。</li>
+              <li style="margin-bottom:0.5rem;"><strong>檢查傳輸安全：</strong> 幫您揪出哪些外部連結還在使用不安全的明文 HTTP 傳輸（非 HTTPS）。</li>
+              <li><strong>彙整不重複連結：</strong> 幫您將相同目標的網址自動合併，列出所有不重複的外部連結清單，以利您逐一檢視與清查。</li>
+            </ul>
+          </div>
+
+          <!-- 第二區：核心名詞解釋 -->
+          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">📖 核心名詞解釋
+            </h2>
+            <p>在開始新增任務前，請先了解以下三個最重要的概念：</p>
+            <div style="display:grid; gap:1rem; margin-top:1rem;">
+              <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">📍 起始 URL (Start URL)
+                </div>
+                <div>這是巡邏員出發的第一個網頁（例如您的官網首頁）。他會從這裡開始蒐集連結。</div>
+              </div>
+              <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🏠 目標網域 (Target Domains)
+                </div>
+                <div>這是您劃定的「<strong>巡邏範圍（圍牆）</strong>」。爬蟲只會在這個網域內不斷點擊與深入，不會跑到別人的網站去繼續往下爬，以免爬到整個網際網路。
+                </div>
+              </div>
+              <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🌍 信任網域 (Trusted
+                  Domains)
+                </div>
+                <div>
+                  這是用來判定安不安全的「<strong>檢查哨</strong>」。只要網址不在這個網域內，系統就會把它當作外部連結，並對它敲門測試（檢查存活與安全），但<strong>不會走進去</strong>繼續往下爬。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 第三區：操作步驟 -->
+          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">🚀 任務操作步驟
+            </h2>
+            <ol style="padding-left:1.5rem; margin-bottom:0;">
+              <li style="margin-bottom:0.75rem;">
+                <strong style="color:var(--text-primary)">新增任務：</strong>點擊左側導覽列的「新增任務」。
+              </li>
+              <li style="margin-bottom:0.75rem;">
+                <strong style="color:var(--text-primary)">填寫網址與範圍：</strong>貼上您要掃描的「起始
+                URL」。系統通常會自動幫您預填「目標網域」及「信任網域」。但您可以按照自身狀況調整，例如：<strong
+                  style="color:var(--text-primary)">在「目標網域」新增子網站</strong>、<strong
+                  style="color:var(--text-primary)">在「信任網域」新增 gov.tw 網域</strong>。
+              </li>
+              <li style="margin-bottom:0.75rem;">
+                <strong style="color:var(--text-primary)">調整進階設定（可選）：</strong>您可以根據需求填寫進階參數：
+                <ul style="padding-left:1.5rem; margin-top:0.25rem; list-style-type:circle;">
+                  <li style="margin-bottom:0.25rem;"><strong>忽略的副檔名：</strong>系統已預設數十種不需要檢查的檔案副檔名（例如 <code>.pdf</code> 或
+                    <code>.zip</code>），你可以再新增特定需求。
+                  </li>
+                  <li style="margin-bottom:0.25rem;"><strong>忽略的路徑規則
+                      (Regex)：</strong>讓爬蟲跳過不需要檢查的特定網址。例如：下載附件的特定網址型式。</li>
+                  <li style="margin-bottom:0.25rem;"><strong>最大爬取深度：</strong>限制爬蟲最多只能點進去幾層。留空代表不管多深都爬。</li>
+                  <li style="margin-bottom:0.25rem;"><strong>最大抓取頁數：</strong>限制爬蟲最多只能抓幾個網頁，避免大型網站掃描太久。</li>
+                  <li style="margin-bottom:0.25rem;"><strong>請求延遲：</strong>爬蟲點擊下一頁前要等待的秒數，避免您的網站伺服器被爬蟲點掛（建議維持預設值）。</li>
+                  <li style="margin-bottom:0.25rem;"><strong>連線逾時：</strong>爬蟲等待目標網站回應的最長秒數，超過時間將判定為連線失敗。</li>
+                  <li><strong>失敗重試次數：</strong>遇到暫時性連線異常時系統自動重試的次數。</li>
+                </ul>
+                <div
+                  style="margin-top:0.5rem; padding:0.625rem 0.75rem; background:var(--surface-raised); border-radius:0.375rem; font-size:0.875rem;">
+                  <strong style="color:var(--text-primary)">💡
+                    測試提醒：</strong>如果是進行測試，請務必設定「最大爬取深度」及「最大抓取頁數」，以節省時間並避免對伺服器產生壓力。
+                </div>
+              </li>
+              <li style="margin-bottom:0.75rem;">
+                <strong style="color:var(--text-primary)">建立並啟動：</strong>點擊「建立任務並開始」，畫面會跳轉至任務詳情，您可以即時看到進度條與發現的外連數量正在增加。
+              </li>
+              <li style="margin-bottom:0.75rem;">
+                <strong
+                  style="color:var(--text-primary)">排除指定網域（可選）：</strong>在任務詳情的結果列表中，您可以點選搜尋列旁的「設定排除網域」按鈕，將不需要關注的網域（如社群平台）隱藏並排除於報表之外。
+              </li>
+              <li>
+                <strong
+                  style="color:var(--text-primary)">接收通知與匯出報表：</strong>任務完成後，系統會自動發送通知信至您的信箱。您可以在下方「外部連結結果」列表查看失效的連結，或是將結果下載至電腦查看。
+              </li>
+            </ol>
+          </div>
+
+          <!-- 第四區：效能與優化 -->
+          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">⚡ 系統效能與優化機制
+            </h2>
+            <p>面對擁有大量網頁與連結的網站，本系統內建了多項優化機制，在不影響目標伺服器正常運作的前提下，提升掃描效能與準確率：</p>
+            <ul style="padding-left:1.5rem; margin-top:0.5rem; margin-bottom:0;">
+              <li style="margin-bottom:0.5rem;"><strong>外連探測快取與並發：</strong>
+                若相同的外部連結重複出現，系統會利用「快取機制」紀錄前次結果，避免重複發送請求。同時採用多工並發技術，有效縮短整體檢驗時間。</li>
+              <li style="margin-bottom:0.5rem;"><strong>MIME 類型檢查：</strong>
+                系統在發送請求時，會先檢查目標的檔案資訊（標頭）。若判斷為影音或壓縮檔等非網頁檔案，會主動中斷連線，節省網路頻寬與處理時間。</li>
+              <li style="margin-bottom:0.5rem;"><strong>動態降級讀取技術：</strong> 部分大型社群平台（如 Facebook,
+                Instagram）會阻擋自動化探測程式。本系統可自動降級為微量讀取模式，減少外部連結被誤判為失效的機率。</li>
+              <li style="margin-bottom:0.5rem;"><strong>自訂信任網域：</strong> 您可以將特定的關聯網域（如 <code>gov.tw</code>
+                或子公司網址）加入「信任網域」，系統會將其視為內部連結並略過外部存活探測，節省不必要的檢查時間。</li>
+              <li><strong>彈性的資源控制：</strong> 系統支援「最大抓取頁數」限制，並可自訂「忽略的路徑規則」與「忽略的副檔名」，讓您能針對重點頁面進行掃描，避開不需要檢查的歷史或靜態資源區塊。
+              </li>
+            </ul>
+          </div>
+
+          
+
+        </div>
+      </div>
+
+      
+</main>
+  </div>
+
+  <!-- ── 任務完整設定檢視 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="job-config-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:600px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div class="d-flex justify-between align-center mb-6">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0">任務設定參數 (唯讀)</h2>
+        <button id="job-config-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div class="form-group mb-6">
+        <div id="job-config-display-container" style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem;"></div>
+      </div>
+      <div class="d-flex justify-end">
+        <button type="button" class="btn btn-primary" id="job-config-ok">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 預設清單檢視 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="default-list-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:500px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div class="d-flex justify-between align-center mb-6">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="default-list-title">預設清單</h2>
+        <button id="default-list-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div class="form-group mb-6">
+        <textarea class="form-textarea" id="default-list-display" rows="12" readonly
+          style="font-family:monospace; font-size:0.875rem; line-height:1.4; background:var(--surface-raised); color:var(--text-primary); cursor:default;"></textarea>
+      </div>
+      <div class="d-flex justify-end">
+        <button type="button" class="btn btn-primary" id="default-list-ok">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 變更密碼 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="change-pwd-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div class="d-flex justify-between align-center mb-6">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0">修改密碼</h2>
+        <button id="change-pwd-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <form id="change-pwd-form">
+        <div class="d-flex flex-col gap-4 mb-6">
+          <div class="form-group">
+            <label class="form-label" for="current-password">現有密碼 <span class="required">*</span></label>
+            <input class="form-input" type="password" id="current-password" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-password-change">新密碼 <span class="required">*</span></label>
+            <input class="form-input" type="password" id="new-password-change" required />
+            <div style="margin-top:0.5rem">
+              <div class="progress-bar">
+                <div class="progress-fill" id="pwd-strength-bar" style="width:0%;transition:width 0.3s,background 0.3s">
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:0.25rem">
+                <span class="form-hint">密碼強度</span>
+                <span class="text-xs font-medium" id="pwd-strength-label" style="transition:color 0.3s"></span>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="confirm-password-change">確認新密碼 <span class="required">*</span></label>
+            <input class="form-input" type="password" id="confirm-password-change" required />
+          </div>
+          <div
+            style="font-size:0.8125rem;color:var(--text-muted);background:var(--surface-overlay);padding:0.875rem;border-radius:0.5rem">
+            <div style="font-weight:600;color:var(--text-secondary);margin-bottom:0.375rem">密碼安全要求</div>
+            <ul style="list-style:disc;padding-left:1.25rem;display:flex;flex-direction:column;gap:0.25rem;margin:0">
+              <li>長度至少 12 個字元</li>
+              <li>需包含大寫、小寫、數字、特殊符號中的至少 3 類</li>
+              <li>不得包含電子郵件帳號名稱（@ 之前的字串）</li>
+            </ul>
+          </div>
+          <div id="change-pwd-error" style="color:var(--color-danger-400);font-size:0.875rem"></div>
+        </div>
+        <div class="d-flex justify-end gap-3">
+          <button type="button" class="btn btn-ghost" id="change-pwd-cancel">取消</button>
+          <button type="submit" class="btn btn-primary" id="change-pwd-submit">儲存修改</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── 共用確認 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="confirm-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div class="d-flex justify-between align-center mb-4">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
+        <button id="confirm-modal-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div class="mb-6" style="color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
+        id="confirm-modal-message"></div>
+      <div class="d-flex justify-end gap-3">
+        <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 排除網域 Modal ────────────────────────────────────── -->
+  <div class="modal-overlay" id="exclude-domains-modal"
+    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
+    <div class="modal-content card"
+      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
+      <div class="d-flex justify-between align-center mb-6">
+        <h2 style="font-size:1.25rem; font-weight:600; margin:0">排除指定網域</h2>
+        <button id="exclude-domains-close"
+          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
+      </div>
+      <div class="form-group" style="margin-bottom:0.5rem">
+        <label
+          style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
+          <input type="checkbox" id="exclude-domains-enabled" checked /> 啟用排除過濾
+        </label>
+      </div>
+      <div class="form-group mb-6">
+        <label class="form-label" for="exclude-domains-textarea">網域清單 (每行一個)</label>
+        <textarea class="form-textarea" id="exclude-domains-textarea" rows="6"
+          placeholder="facebook.com&#10;youtube.com"></textarea>
+        <div class="form-hint" style="margin-top:0.5rem">這些網域將從結果列表中隱藏，並自動儲存在您的瀏覽器中。</div>
+      </div>
+      <div class="d-flex justify-end gap-3">
+        <button type="button" class="btn btn-ghost" id="exclude-domains-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="exclude-domains-submit">確定儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container"></div>
+
+  <script type="module">
+    import { logout, getCurrentUser } from '/static/js/auth.js';
+
+    async function initUser() {
+      const user = await getCurrentUser();
+      if (!user) { window.location.replace('/'); return; }
+
+      const emailEl = document.getElementById('topbar-email');
+      const roleEl = document.getElementById('topbar-role');
+      const avatarEl = document.getElementById('topbar-avatar');
+      const adminSection = document.getElementById('admin-nav-section');
+
+      if (emailEl) emailEl.textContent = user.email;
+      if (roleEl) roleEl.textContent = user.role === 'admin' ? '管理員' : '使用者';
+      if (avatarEl) avatarEl.textContent = user.email.charAt(0).toUpperCase();
+
+      if (adminSection && user.role === 'admin') {
+        adminSection.style.display = '';
+      }
+    }
+
+    // 登出
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      logout();
+    });
+
+    initUser();
+  </script>
+
+</body>
+
+</html>
