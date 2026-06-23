@@ -79,6 +79,11 @@ pip install -r requirements.txt
 
 若要自訂組態，請建立 `.env` 檔案並設定以下變數（用於覆寫預設值）：
 
+> ⚠️ **安全提醒**：`.env` 檔案通常會用來儲存機敏資訊（例如 SMTP 密碼或 Proxy 帳密等）。請務必在建立檔案後**更改其讀寫權限**，防止未經授權的存取。在 Linux/macOS 環境下，建議執行以下指令：
+> ```bash
+> chmod 600 .env
+> ```
+
 ```env
 # 指定資料庫位置
 AUTH_DB_URL="sqlite:///db/auth.db"
