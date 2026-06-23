@@ -876,6 +876,10 @@ def _handle_serve(args: argparse.Namespace) -> None:
         SystemExit: 當缺少必要套件或啟動伺服器發生例外錯誤時終止程式。
     """
     logging.info("啟動 Web 後端伺服器...")
+    print("\n" + "="*50)
+    print("🚀 系統已準備就緒！")
+    print("👉 請打開瀏覽器，前往： http://127.0.0.1:8000")
+    print("="*50 + "\n")
     try:
         import uvicorn  # pylint: disable=import-outside-toplevel
 
