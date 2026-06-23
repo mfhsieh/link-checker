@@ -291,11 +291,11 @@
               <code>path</code> 結束，就將它視為忽略名單」。這種寫法能精準保留目標目錄，且能避免不小心放行名稱相似的目錄（例如 <code>pathway</code>）。
             </p>
             <p style="margin-top:0; margin-bottom:0.5rem;">
-              此外，如果遇到的是<strong>子網域</strong>（例如 <code>https://cgi.example.com/</code>），因為開頭不符合
-              <code>https://example.com/</code>，所以這條規則不會將它忽略，而是交由系統的其他規則來判定是否抓取。
+              💡 接近最後的 <code>?:</code> 則代表「非捕獲群組」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
             </p>
             <p style="margin-top:0; margin-bottom:0;">
-              接近最後的 <code>?:</code> 則代表「非捕獲群組」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
+              💡 此外，如果遇到的是<strong>子網域</strong>（例如 <code>https://cgi.example.com/</code>），因為開頭不符合
+              <code>https://example.com/</code>，所以這條規則不會將它忽略，而是交由系統的其他規則來判定是否抓取。
             </p>
 
             <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;" />
@@ -318,7 +318,7 @@
               <code>https://example.com/</code> 且緊接著是這三個目錄其中之一的網址，然後把它跳過。
             </p>
             <p style="margin-top:0; margin-bottom:0;">
-              加上 <code>?:</code> 則代表「非捕獲群組 (Non-capturing group)」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
+              💡 加上 <code>?:</code> 則代表「非捕獲群組 (Non-capturing group)」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
             </p>
           </div>
 
