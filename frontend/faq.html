@@ -231,10 +231,20 @@
               許多大型網站（如 Facebook 等社群平台）設有嚴格的防爬蟲機制。當系統自動檢查這些連結時，可能會被對方阻擋並回傳 HTTP 錯誤（例如 403
               禁止存取）。雖然系統會嘗試繞過防護，但仍可能會出現大量的錯誤回報，這屬於正常現象。
             </p>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 報表裡出現 [SSL: CERTIFICATE_VERIFY_FAILED] 錯誤是什麼意思？</h4>
+            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 報表裡出現 [SSL:
+              CERTIFICATE_VERIFY_FAILED] 錯誤是什麼意思？</h4>
             <p style="margin-top:0; margin-bottom:1.25rem;">
-              這代表小幫手在連線該網站時，發現對方的「安全憑證 (SSL)」有問題，因此基於安全考量主動中斷了連線。最常見的原因是該網站發生了「憑證斷鍊 (Certificate Chain Incomplete)」，也就是網站工程師在設定憑證時少裝了中繼憑證。<br>
-              遇到這種狀況時，您可以將該網址貼到 <a href="https://www.sslshopper.com/ssl-checker.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="text-decoration:none; display:inline-flex; vertical-align:middle; margin:0 0.25rem;">SSL Checker <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a> 進行檢查。如果檢查結果出現紅色的斷鍊警告，那就代表是對方網站沒設定好，跟您無關！
+              這代表小幫手在連線該網站時，發現對方的「安全憑證 (SSL)」有問題，因此基於安全考量主動中斷了連線。最常見的原因是該網站發生了「憑證斷鍊 (Certificate Chain
+              Incomplete)」，也就是網站工程師在設定憑證時少裝了中繼憑證。<br>
+              遇到這種狀況時，您可以將該網址貼到 <a href="https://www.sslshopper.com/ssl-checker.html" target="_blank"
+                rel="noopener noreferrer" class="btn btn-secondary btn-sm"
+                style="text-decoration:none; display:inline-flex; vertical-align:middle; margin:0 0.25rem;">SSL Checker
+                <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg></a> 進行檢查。如果檢查結果出現紅色的斷鍊警告，那就代表是對方網站沒設定好，跟您無關！
             </p>
             <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務卡在「執行中」或是發生未知的錯誤怎麼辦？</h4>
             <p style="margin-top:0; margin-bottom:0;">
@@ -276,11 +286,16 @@
                 </div>
               </li>
             </ol>
-            <p style="margin-top:0; margin-bottom:0;"><strong>💡 原理說明</strong>：這段語法的意思是「只要是
+            <p style="margin-top:0; margin-bottom:0.5rem;"><strong>💡 原理說明</strong>：這段語法的意思是「只要是
               <code>https://example.com/</code> 底下的網址，如果接下來的路徑<strong>不是</strong> <code>path/</code> 或剛好在
               <code>path</code> 結束，就將它視為忽略名單」。這種寫法能精準保留目標目錄，且能避免不小心放行名稱相似的目錄（例如 <code>pathway</code>）。
+            </p>
+            <p style="margin-top:0; margin-bottom:0.5rem;">
               此外，如果遇到的是<strong>子網域</strong>（例如 <code>https://cgi.example.com/</code>），因為開頭不符合
               <code>https://example.com/</code>，所以這條規則不會將它忽略，而是交由系統的其他規則來判定是否抓取。
+            </p>
+            <p style="margin-top:0; margin-bottom:0;">
+              接近最後的 <code>?:</code> 則代表「非捕獲群組」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
             </p>
 
             <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;" />
@@ -297,10 +312,13 @@
             </p>
             <div
               style="background: var(--surface-base); padding: 0.75rem; border-radius: var(--radius-md); font-family: monospace; margin-top: 0.5rem; margin-bottom: 0.5rem; border: 1px solid var(--border-color);">
-              ^https://example\.com/(downloads|files|assets)/
+              ^https://example\.com/(?:downloads|files|assets)/
             </div>
-            <p style="margin-top:0; margin-bottom:0;"><strong>💡 原理說明</strong>：這段語法會精準比對開頭為
+            <p style="margin-top:0; margin-bottom:0.5rem;"><strong>💡 原理說明</strong>：這段語法會精準比對開頭為
               <code>https://example.com/</code> 且緊接著是這三個目錄其中之一的網址，然後把它跳過。
+            </p>
+            <p style="margin-top:0; margin-bottom:0;">
+              加上 <code>?:</code> 則代表「非捕獲群組 (Non-capturing group)」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
             </p>
           </div>
 
