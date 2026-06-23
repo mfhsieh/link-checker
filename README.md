@@ -80,21 +80,12 @@ pip install -r requirements.txt
 若要自訂組態，請建立 `.env` 檔案並設定以下變數（用於覆寫預設值）：
 
 ```env
-# 資料庫連線
+# 指定資料庫位置
 AUTH_DB_URL="sqlite:///db/auth.db"
 CRAWLER_DB_URL="sqlite:///db/crawler.db"
 
 # 開發階段可設為 true，將郵件內容輸出至終端機而不實際寄送
-# SMTP_CONSOLE_MODE=true
-
-# SMTP 設定 (邀請與通知郵件)
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USE_TLS=true
-SMTP_USERNAME="your-smtp-username"
-SMTP_PASSWORD="your-smtp-password"
-SMTP_FROM_NAME="網站連結檢查系統"
-SMTP_FROM_EMAIL="noreply@example.com"
+SMTP_CONSOLE_MODE=true
 ```
 
 ### 4. 系統管理員初始化
