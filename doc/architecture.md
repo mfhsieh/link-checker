@@ -7,6 +7,7 @@
 ```text
 link-checker/
 ├── .env                # 環境變數設定檔 (如資料庫路徑、SMTP 憑證等)
+├── .env.example        # 環境變數範例檔 (提供可用的設定項目參考)
 ├── .gitignore          # git 追蹤忽略清單
 ├── .pylintrc           # Pylint 靜態程式碼分析設定檔
 ├── ruff.toml           # Ruff 程式碼排版設定檔
@@ -16,7 +17,15 @@ link-checker/
 ├── backend/            # 網站後台 (FastAPI / Web API Server)
 │   ├── __init__.py
 │   ├── admin/          # 後台管理員 API 模組
+│   │   ├── __init__.py
+│   │   └── router.py   # 管理員專用 API 路由
 │   ├── auth/           # 身分驗證與 Session 管理模組
+│   │   ├── __init__.py
+│   │   ├── db.py       # Auth DB 連線與初始化
+│   │   ├── models.py   # 使用者與 Session 資料庫模型
+│   │   ├── password.py # 密碼雜湊與驗證工具
+│   │   ├── router.py   # 登入、驗證與密碼管理 API 路由
+│   │   └── service.py  # 身分驗證核心業務邏輯
 │   ├── jobs/           # 任務管理與排程 API 模組
 │   │   ├── constants.py# 任務設定鍵值共用常數
 │   │   ├── router.py   # 任務模組總路由聚合器
@@ -39,6 +48,8 @@ link-checker/
 │   ├── index.html      # 登入與首頁
 │   ├── app.html        # 爬蟲任務管理主介面
 │   ├── admin.html      # 系統管理員後台介面
+│   ├── faq.html        # 常見問答 (FAQ) 介面
+│   ├── help.html       # 系統說明與教學介面
 │   ├── forgot-password.html # 忘記密碼申請介面
 │   ├── reset-password.html  # 重設密碼介面
 │   └── set-password.html # 首次登入密碼設定介面
@@ -95,7 +106,8 @@ link-checker/
 │       ├── conftest.py
 │       ├── test_admin.py
 │       ├── test_app.py
-│       └── test_auth.py
+│       ├── test_auth.py
+│       └── test_duplicate.py
 └── tmp/                # 暫存檔與備份目錄
 ```
 
