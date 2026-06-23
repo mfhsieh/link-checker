@@ -122,7 +122,8 @@
           <li>
             <a class="sidebar-item" id="nav-faq" href="/faq.html">
               <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
               </svg>
               常見問答
             </a>
@@ -153,173 +154,159 @@
 
     <!-- ── Main Content ────────────────────────────────────── -->
     <main class="main-content" id="main-content">
-<!-- ── 說明與教學視圖 ────────────────────────────────────── -->
+      <!-- ── 說明與教學視圖 ────────────────────────────────────── -->
       <div id="view-help" style="display:block">
         <div class="page-header">
           <div>
             <h1 class="page-title">說明與教學</h1>
-            <p class="page-subtitle">帶您快速了解系統原理與完整操作流程</p>
+            <p class="page-subtitle">三分鐘搞懂這個工具能幫你做什麼！</p>
           </div>
         </div>
 
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
 
-          <!-- 第一區：原理介紹 -->
+          <!-- 原理介紹 -->
           <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">🔍
-              系統原理：這是什麼工具？</h2>
-            <p>想像系統是一個「<strong>自動化巡邏員（爬蟲）</strong>」，您給他一個起始網頁後，他會幫您點擊網頁上的每一個連結，一層一層地探索整個網站。</p>
-            <p>這套系統的特殊使命是：<strong>找出所有連到「外部網站」的連結，並檢查它們有沒有壞掉。</strong></p>
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
+              🤖 這個工具到底在幹嘛？
+            </h2>
+            <p>想像系統是一個「<strong>虛擬小幫手（爬蟲）</strong>」。你給他一個網址，他就會點進去，順著網頁上的超連結，一頁一頁地逛遍你的整個網站。</p>
+            <p>小幫手最重要的任務是：<strong>幫你找出網站裡所有的連結（包含連到別人的、以及連到自己站內的），並檢查它們有沒有壞掉！</strong></p>
             <ul style="padding-left:1.5rem; margin-top:0.5rem; margin-bottom:0;">
-              <li style="margin-bottom:0.5rem;"><strong>防範失效連結：</strong> 幫您抓出網頁上已經變成「找不到網頁 (404)」的外部連結，避免使用者點擊後看到錯誤畫面。
+              <li style="margin-bottom:0.5rem;"><strong>抓出死結（內部與外部）</strong>： 幫你找出網頁上那些連不到東西、點了會出現「404
+                找不到網頁」的失效連結，避免讀者點到錯誤畫面。</li>
+              <li style="margin-bottom:0.5rem;"><strong>保護讀者安全（外部）</strong>：
+                有些外部網站可能已經倒閉、網域過期了。如果被壞人偷偷買下那個網址放病毒，你的讀者點過去就會受害！小幫手會提早揪出這些過期的連結讓你刪掉。</li>
+              <li style="margin-bottom:0.5rem;"><strong>揪出沒加密的連結（外部）</strong>： 告訴你哪些連到外面的連結還在用不安全的
+                <code>http://</code>，提醒你改成有加密保護的 <code>https://</code>。
               </li>
-              <li style="margin-bottom:0.5rem;"><strong>防範資安風險：</strong> 幫您揪出已過期失效的「無主網域」，讓您在被駭客搶註並植入惡意內容前及早移除。</li>
-              <li style="margin-bottom:0.5rem;"><strong>檢查傳輸安全：</strong> 幫您揪出哪些外部連結還在使用不安全的明文 HTTP 傳輸（非 HTTPS）。</li>
-              <li><strong>彙整不重複連結：</strong> 幫您將相同目標的網址自動合併，列出所有不重複的外部連結清單，以利您逐一檢視與清查。</li>
+              <li><strong>整理出一目了然的清單</strong>： 最後會給你兩張大報表，分別列出「內部連結」和「外部連結」的健康狀況。</li>
             </ul>
           </div>
 
-          <!-- 第二區：核心名詞解釋 -->
+          <!-- 核心名詞解釋 -->
           <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">📖 核心名詞解釋
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
+              📖 三個一定要懂的重要名詞
             </h2>
-            <p>在開始新增任務前，請先了解以下三個最重要的概念：</p>
+            <p>在開始叫小幫手工作前，你必須先認識這三個詞：</p>
             <div style="display:grid; gap:1rem; margin-top:1rem;">
               <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
-                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">📍 起始 URL (Start URL)
-                </div>
-                <div>這是巡邏員出發的第一個網頁（例如您的官網首頁）。他會從這裡開始蒐集連結。</div>
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">📍 出發點 (起始 URL)</div>
+                <div>就像是小幫手出發探險的第一站（通常是你的官網首頁）。他會從這裡開始，把網頁上的連結通通點進去。</div>
               </div>
               <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
-                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🏠 目標網域 (Target Domains)
-                </div>
-                <div>這是您劃定的「<strong>巡邏範圍（圍牆）</strong>」。爬蟲只會在這個網域內不斷點擊與深入，不會跑到別人的網站去繼續往下爬，以免爬到整個網際網路。
-                </div>
-              </div>
-              <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
-                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🌍 信任網域 (Trusted
-                  Domains)
-                </div>
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🏠 自家的圍牆 (目標網域)</div>
                 <div>
-                  這是用來判定安不安全的「<strong>檢查哨</strong>」。只要網址不在這個網域內，系統就會把它當作外部連結，並對它敲門測試（檢查存活與安全），但<strong>不會走進去</strong>繼續往下爬。
+                  這是你給小幫手規定的「<strong>活動範圍</strong>」。他只會在這面圍牆（你的網域）裡面四處逛。如果遇到連去別人家網站的連結，他只會站在門口確認「這條路是不是通的？」，<strong>絕對不會</strong>跑去別人家裡面繼續逛，不然他會把全宇宙的網頁都逛完！
                 </div>
+              </div>
+              <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🌍 自己人免檢哨站 (信任網域)</div>
+                <div>有時候你會有很多個自己的信任的網站（比如 <code>gov.tw</code>
+                  結尾的其他網站）。你可以把這些自己人加入信任名單，這樣小幫手遇到這些網址時，就知道「喔！這是自己人，不需要特別當成外部連結來抓錯」。</div>
               </div>
             </div>
           </div>
 
-          <!-- 第三區：操作步驟 -->
+          <!-- 操作步驟 -->
           <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">🚀 任務操作步驟
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
+              🚀 開始你的第一次掃描任務！
             </h2>
             <ol style="padding-left:1.5rem; margin-bottom:0;">
               <li style="margin-bottom:0.75rem;">
-                <strong style="color:var(--text-primary)">新增任務：</strong>點擊左側導覽列的「新增任務」。
+                <strong style="color:var(--text-primary)">新增任務</strong>：點擊左側導覽列的「新增任務」。
               </li>
               <li style="margin-bottom:0.75rem;">
-                <strong style="color:var(--text-primary)">填寫網址與範圍：</strong>貼上您要掃描的「起始
-                URL」。系統通常會自動幫您預填「目標網域」及「信任網域」。但您可以按照自身狀況調整，例如：<strong
-                  style="color:var(--text-primary)">在「目標網域」新增子網站</strong>、<strong
-                  style="color:var(--text-primary)">在「信任網域」新增 gov.tw 網域</strong>。
+                <strong style="color:var(--text-primary)">設定出發點與圍牆</strong>：貼上你要檢查的「起始 URL」。系統通常很聰明，會自動幫你把「目標網域」填好。
               </li>
               <li style="margin-bottom:0.75rem;">
-                <strong style="color:var(--text-primary)">調整進階設定（可選）：</strong>您可以根據需求填寫進階參數：
+                <strong style="color:var(--text-primary)">設定煞車機制（很重要！必看！）</strong>：為了不讓小幫手跑到天荒地老，建議您要設定以下限制：
                 <ul style="padding-left:1.5rem; margin-top:0.25rem; list-style-type:circle;">
-                  <li style="margin-bottom:0.25rem;"><strong>忽略的副檔名：</strong>系統已預設數十種不需要檢查的檔案副檔名（例如 <code>.pdf</code> 或
-                    <code>.zip</code>），你可以再新增特定需求。
-                  </li>
-                  <li style="margin-bottom:0.25rem;"><strong>忽略的路徑規則
-                      (Regex)：</strong>讓爬蟲跳過不需要檢查的特定網址。例如：下載附件的特定網址型式。</li>
-                  <li style="margin-bottom:0.25rem;"><strong>最大爬取深度：</strong>限制爬蟲最多只能點進去幾層。留空代表不管多深都爬。</li>
-                  <li style="margin-bottom:0.25rem;"><strong>最大抓取頁數：</strong>限制爬蟲最多只能抓幾個網頁，避免大型網站掃描太久。</li>
-                  <li style="margin-bottom:0.25rem;"><strong>請求延遲：</strong>爬蟲點擊下一頁前要等待的秒數，避免您的網站伺服器被爬蟲點掛（建議維持預設值）。</li>
-                  <li style="margin-bottom:0.25rem;"><strong>連線逾時：</strong>爬蟲等待目標網站回應的最長秒數，超過時間將判定為連線失敗。</li>
-                  <li><strong>失敗重試次數：</strong>遇到暫時性連線異常時系統自動重試的次數。</li>
+                  <li style="margin-bottom:0.25rem;"><strong>最大抓取頁數</strong>：如果你的網站超大（有幾萬頁），請一定要設定一個上限（例如 500
+                    頁），不然掃描會花上好幾天。</li>
+                  <li style="margin-bottom:0.25rem;"><strong>最大爬取深度</strong>：也就是小幫手能「連點幾層連結」。設定 2 或 3
+                    層，可以讓他只檢查比較表層、重要的頁面。</li>
                 </ul>
-                <div
-                  style="margin-top:0.5rem; padding:0.625rem 0.75rem; background:var(--surface-raised); border-radius:0.375rem; font-size:0.875rem;">
-                  <strong style="color:var(--text-primary)">💡
-                    測試提醒：</strong>如果是進行測試，請務必設定「最大爬取深度」及「最大抓取頁數」，以節省時間並避免對伺服器產生壓力。
-                </div>
               </li>
               <li style="margin-bottom:0.75rem;">
-                <strong style="color:var(--text-primary)">建立並啟動：</strong>點擊「建立任務並開始」，畫面會跳轉至任務詳情，您可以即時看到進度條與發現的外連數量正在增加。
-              </li>
-              <li style="margin-bottom:0.75rem;">
-                <strong
-                  style="color:var(--text-primary)">排除指定網域（可選）：</strong>在任務詳情的結果列表中，您可以點選搜尋列旁的「設定排除網域」按鈕，將不需要關注的網域（如社群平台）隱藏並排除於報表之外。
+                <strong style="color:var(--text-primary)">建立並啟動</strong>：按下「建立任務並開始」，然後你就可以泡杯咖啡，看著進度條慢慢跑囉！
               </li>
               <li>
-                <strong
-                  style="color:var(--text-primary)">接收通知與匯出報表：</strong>任務完成後，系統會自動發送通知信至您的信箱。您可以在下方「外部連結結果」列表查看失效的連結，或是將結果下載至電腦查看。
+                <strong style="color:var(--text-primary)">看報表抓蟲</strong>：任務跑完後，系統會給你一份報告，你就可以根據報告去網站後台把那些壞掉的連結通通修好！
               </li>
             </ol>
           </div>
 
-          <!-- 第四區：效能與優化 -->
+          <!-- 參數大解密 -->
           <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">⚡ 系統效能與優化機制
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
+              ⚙️ 參數設定大解密
             </h2>
-            <p>面對擁有大量網頁與連結的網站，本系統內建了多項優化機制，在不影響目標伺服器正常運作的前提下，提升掃描效能與準確率：</p>
+            <p>建立任務時會看到很多設定欄位，別怕！把它們想像成你給小幫手出任務前下的「特別規定」就好：</p>
             <ul style="padding-left:1.5rem; margin-top:0.5rem; margin-bottom:0;">
-              <li style="margin-bottom:0.5rem;"><strong>外連探測快取與並發：</strong>
-                若相同的外部連結重複出現，系統會利用「快取機制」紀錄前次結果，避免重複發送請求。同時採用多工並發技術，有效縮短整體檢驗時間。</li>
-              <li style="margin-bottom:0.5rem;"><strong>MIME 類型檢查：</strong>
-                系統在發送請求時，會先檢查目標的檔案資訊（標頭）。若判斷為影音或壓縮檔等非網頁檔案，會主動中斷連線，節省網路頻寬與處理時間。</li>
-              <li style="margin-bottom:0.5rem;"><strong>動態降級讀取技術：</strong> 部分大型社群平台（如 Facebook,
-                Instagram）會阻擋自動化探測程式。本系統可自動降級為微量讀取模式，減少外部連結被誤判為失效的機率。</li>
-              <li style="margin-bottom:0.5rem;"><strong>自訂信任網域：</strong> 您可以將特定的關聯網域（如 <code>gov.tw</code>
-                或子公司網址）加入「信任網域」，系統會將其視為內部連結並略過外部存活探測，節省不必要的檢查時間。</li>
-              <li><strong>彈性的資源控制：</strong> 系統支援「最大抓取頁數」限制，並可自訂「忽略的路徑規則」與「忽略的副檔名」，讓您能針對重點頁面進行掃描，避開不需要檢查的歷史或靜態資源區塊。
+              <li style="margin-bottom:0.5rem;"><strong>起始 URL</strong>： 小幫手跳傘降落的「第一站」。他會從這個網頁開始，尋找並點擊其他連結。</li>
+              <li style="margin-bottom:0.5rem;"><strong>目標網域</strong>：
+                小幫手的「活動範圍（圍牆）」。只允許他在這幾個網域內四處逛，超過這個範圍就只會在門口看一眼，不會走進去。</li>
+              <li style="margin-bottom:0.5rem;"><strong>信任網域</strong>： 「自己人免檢名單」。如果連到的網站是自己信任的其他網站，就直接放行，不用當作「外部連結」來列管。
+              </li>
+              <li style="margin-bottom:0.5rem;"><strong>忽略的路徑規則 (Regex)</strong>：
+                這是給高手的過濾器。你可以寫一段特殊的語法，讓小幫手只要看到符合規則的網址，就直接假裝沒看到跳過去。</li>
+              <li style="margin-bottom:0.5rem;"><strong>忽略的副檔名</strong>： 告訴小幫手：「如果你看到是 <code>.pdf</code> 或是
+                <code>.zip</code> 結尾的檔案，就不要理它！」（系統其實已經幫你預設好最常用的副檔名了）
+              </li>
+              <li style="margin-bottom:0.5rem;"><strong>社群與反爬蟲網域</strong>： 告訴小幫手：「這幾個網站（像是
+                Facebook）脾氣很差，防備心很重。如果遇到他們，記得放慢腳步、輕輕敲門。」這能大幅減少被對方當作惡意攻擊而擋在門外的機率。</li>
+              <li style="margin-bottom:0.5rem;"><strong>自簽憑證豁免網域</strong>：
+                網站的安全憑證就像是「身分證」。有些公司內部測試用的網站，只有自己發的臨時身分證。把網址填在這，就是跟小幫手說：「雖然他沒有正式身分證，但他是我們自己人，直接放行，不要報錯！」</li>
+              <li><strong>特定網域延遲 (秒)</strong>： 專門為某些「特別脆弱」的網站設計的專屬煞車。例如，你可以規定：「平常點其他網站只要休息 2 秒，但如果點到
+                <code>old.example.com</code> 這個老主機時，必須強制休息 10 秒」，以免把它操壞。
+              </li>
+              <li style="margin-bottom:0.5rem;"><strong>最大爬取深度</strong>： 規定小幫手「最多只能連點幾層連結」。像是一層層打開的門，設定 2
+                的話，他往內走兩層之後就不會再往下挖了。這能避免他迷失在無底洞裡。</li>
+              <li style="margin-bottom:0.5rem;"><strong>最大抓取頁數</strong>： 給小幫手一個「業績上限」。例如設定 500，他看完 500
+                頁就會直接打卡下班。這是保護你的網站伺服器不要過勞死的最強煞車！</li>
+              <li style="margin-bottom:0.5rem;"><strong>請求延遲</strong>：
+                規定小幫手每點擊下一個網頁前，必須「發呆喘口氣」幾秒鐘。這樣你的網站才不會因為被點太快而大塞車當機。</li>
+              <li style="margin-bottom:0.5rem;"><strong>失敗重試次數</strong>： 給別人一次機會！如果第一次連線失敗，小幫手會再多試幾次，如果真的都不行才宣告放棄。</li>
+              <li style="margin-bottom:0.5rem;"><strong>總連線逾時</strong>：
+                小幫手看「一整個網頁」的總耐心上限。這包含了他下載圖片、讀取整個網頁內容的時間。如果等太久還沒跑完，他就會直接放棄。</li>
+              <li style="margin-bottom:0.5rem;"><strong>TCP 連線逾時</strong>：
+                小幫手「按門鈴等對方開門」的耐心上限。按了門鈴後，如果對方連第一聲「歡迎光臨」都遲遲不說，小幫手就會認定這間店沒開。</li>
+              <li style="margin-bottom:0.5rem;"><strong>外連探測逾時</strong>：
+                這是專門用來檢查「連到外面的網站」有沒有壞掉的耐心時間。因為他只是在門口確認這家店還在不在，不用走進去逛，所以這個時間通常可以設定短一點，讓他動作快一點。
               </li>
             </ul>
           </div>
 
-          
+          <!-- 效能與優化 -->
+          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
+            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
+              💡 進階小知識（讓你變得更厲害）
+            </h2>
+            <p>當你開始熟悉系統後，你一定會遇到以下這些狀況：</p>
+            <ul style="padding-left:1.5rem; margin-top:0.5rem; margin-bottom:0;">
+              <li style="margin-bottom:0.5rem;"><strong>為什麼臉書 (Facebook)
+                  等社群連結總是顯示壞掉或錯誤？</strong><br>因為這些大型社群網站有很強的防護機制，他們看到小幫手這種「機器人」來敲門，就會直接把他擋在門外（顯示 403
+                錯誤或是遭到阻擋）。這<strong>不代表</strong>那個連結壞了，只是對方不歡迎機器人而已。</li>
+              <li style="margin-bottom:0.5rem;">
+                <strong>覺得某個網址的錯誤很煩，不想再看到了？</strong><br>你可以在結果列表使用「<strong>排除指定網域</strong>」的功能，把不想看的網域（例如上述的
+                Facebook）隱藏起來，眼不見為淨！
+              </li>
+              <li style="margin-bottom:0.5rem;">
+                <strong>為什麼掃描速度有點慢？</strong><br>在進階設定裡有一個叫「<strong>請求延遲</strong>」的數值。為了不讓小幫手點太快、把你的網站伺服器搞到當機，系統規定他每看一頁就要「喘口氣（延遲幾秒）」。這是為了保護你的網站，所以稍微等一下是值得的喔！
+              </li>
+              <li><strong>可以不要檢查圖片或 PDF
+                  檔嗎？</strong><br>可以！在進階設定裡找到「<strong>忽略的副檔名</strong>」，系統預設已經幫你跳過很多不必要的檔案了，你也可以自己再把不需要檢查的檔案類型加上去。</li>
+            </ul>
+          </div>
 
         </div>
       </div>
 
-      
-</main>
-  </div>
 
-  <!-- ── 任務完整設定檢視 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="job-config-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:600px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">任務設定參數 (唯讀)</h2>
-        <button id="job-config-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group mb-6">
-        <div id="job-config-display-container" style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem;"></div>
-      </div>
-      <div class="d-flex justify-end">
-        <button type="button" class="btn btn-primary" id="job-config-ok">確定</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 預設清單檢視 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="default-list-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:500px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="default-list-title">預設清單</h2>
-        <button id="default-list-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group mb-6">
-        <textarea class="form-textarea" id="default-list-display" rows="12" readonly
-          style="font-family:monospace; font-size:0.875rem; line-height:1.4; background:var(--surface-raised); color:var(--text-primary); cursor:default;"></textarea>
-      </div>
-      <div class="d-flex justify-end">
-        <button type="button" class="btn btn-primary" id="default-list-ok">確定</button>
-      </div>
-    </div>
+    </main>
   </div>
 
   <!-- ── 變更密碼 Modal ────────────────────────────────────── -->
@@ -375,58 +362,12 @@
     </div>
   </div>
 
-  <!-- ── 共用確認 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="confirm-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-4">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
-        <button id="confirm-modal-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="mb-6" style="color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
-        id="confirm-modal-message"></div>
-      <div class="d-flex justify-end gap-3">
-        <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
-        <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 排除網域 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="exclude-domains-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">排除指定網域</h2>
-        <button id="exclude-domains-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group" style="margin-bottom:0.5rem">
-        <label
-          style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
-          <input type="checkbox" id="exclude-domains-enabled" checked /> 啟用排除過濾
-        </label>
-      </div>
-      <div class="form-group mb-6">
-        <label class="form-label" for="exclude-domains-textarea">網域清單 (每行一個)</label>
-        <textarea class="form-textarea" id="exclude-domains-textarea" rows="6"
-          placeholder="facebook.com&#10;youtube.com"></textarea>
-        <div class="form-hint" style="margin-top:0.5rem">這些網域將從結果列表中隱藏，並自動儲存在您的瀏覽器中。</div>
-      </div>
-      <div class="d-flex justify-end gap-3">
-        <button type="button" class="btn btn-ghost" id="exclude-domains-cancel">取消</button>
-        <button type="button" class="btn btn-primary" id="exclude-domains-submit">確定儲存</button>
-      </div>
-    </div>
-  </div>
-
   <div class="toast-container"></div>
 
   <script type="module">
-    import { logout, getCurrentUser } from '/static/js/auth.js';
+    import * as api from '/static/js/api.js';
+    import { toast } from '/static/js/toast.js';
+    import { logout, getCurrentUser, initPasswordStrength } from '/static/js/auth.js';
 
     async function initUser() {
       const user = await getCurrentUser();
@@ -449,6 +390,79 @@
     // 登出
     document.getElementById('logout-btn').addEventListener('click', async () => {
       logout();
+    });
+
+    // 變更密碼功能
+    const changePwdModal = document.getElementById('change-pwd-modal');
+    const changePwdBtn = document.getElementById('change-pwd-btn');
+    const changePwdClose = document.getElementById('change-pwd-close');
+    const changePwdCancel = document.getElementById('change-pwd-cancel');
+    const changePwdForm = document.getElementById('change-pwd-form');
+    const pwdStrengthBar = document.getElementById('pwd-strength-bar');
+    const pwdStrengthLabel = document.getElementById('pwd-strength-label');
+    const newPwdInput = document.getElementById('new-password-change');
+
+    if (newPwdInput && pwdStrengthBar && pwdStrengthLabel) {
+      initPasswordStrength(newPwdInput, pwdStrengthBar, pwdStrengthLabel);
+    }
+
+    function openChangePwdModal() {
+      changePwdModal.style.display = 'flex';
+      changePwdForm.reset();
+      document.getElementById('change-pwd-error').textContent = '';
+      if (pwdStrengthBar) {
+        pwdStrengthBar.style.width = '0%';
+        pwdStrengthBar.style.background = '';
+      }
+      if (pwdStrengthLabel) {
+        pwdStrengthLabel.textContent = '';
+      }
+    }
+
+    function closeChangePwdModal() {
+      changePwdModal.style.display = 'none';
+    }
+
+    changePwdBtn.addEventListener('click', openChangePwdModal);
+    changePwdClose.addEventListener('click', closeChangePwdModal);
+    changePwdCancel.addEventListener('click', closeChangePwdModal);
+
+    changePwdForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPwd = document.getElementById('current-password').value;
+      const newPwd = newPwdInput.value;
+      const confirmPwd = document.getElementById('confirm-password-change').value;
+      const errorEl = document.getElementById('change-pwd-error');
+      const submitBtn = document.getElementById('change-pwd-submit');
+
+      errorEl.textContent = '';
+
+      if (newPwd !== confirmPwd) {
+        errorEl.textContent = '新密碼與確認密碼不一致。';
+        return;
+      }
+
+      if (currentPwd === newPwd) {
+        errorEl.textContent = '新密碼不得與現有密碼相同。';
+        return;
+      }
+
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+
+      try {
+        await api.patch('/api/auth/password', {
+          current_password: currentPwd,
+          new_password: newPwd
+        });
+        toast.success('密碼已成功修改。');
+        closeChangePwdModal();
+      } catch (err) {
+        errorEl.textContent = err.message || '修改密碼失敗。';
+      } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+      }
     });
 
     initUser();

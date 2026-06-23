@@ -165,8 +165,20 @@
 
         <div style="display:flex; flex-direction:column; gap:1.5rem;">
 
-          <!-- 第五區：常見問題 -->
+          <!-- 常見問題 -->
           <div class="card" style="line-height:1.6; color:var(--text-secondary)">
+            <div
+              style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                style="width: 24px; height: 24px; margin-right: 0.75rem; color: var(--text-primary); flex-shrink: 0;">
+                <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round"></line>
+              </svg>
+              <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">常見問題</h2>
+            </div>
 
             <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務詳情「外部連結診斷」下的各個方塊代表什麼意思？
             </h4>
@@ -225,50 +237,72 @@
             </p>
           </div>
 
+          <!-- ── 進階設定與規則 ────────────────────────────────────── -->
+          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
+            <div
+              style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                style="width: 24px; height: 24px; margin-right: 0.75rem; color: var(--text-primary); flex-shrink: 0;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                </path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
+                </path>
+              </svg>
+              <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">進階設定與規則</h2>
+            </div>
+
+            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">
+              Q: 當目標是特定子目錄 (例如 <code>https://example.com/path/</code>) 時，如何設定讓爬蟲只抓取該目錄下的網址？
+            </h4>
+            <p style="margin-top:0; margin-bottom:0.5rem;">
+              如果您只想讓爬蟲專注在特定的子目錄底下，不希望它連到網站的其他地方（如首頁或其他目錄），您可以利用「進階過濾與網路」中的 <strong>忽略的路徑規則 (Regex)</strong> 功能來達成。
+            </p>
+            <p style="margin-top:0; margin-bottom:0.5rem;">請在建立任務時這樣設定：</p>
+            <ol style="margin-top: 0.5rem; margin-bottom: 1.25rem; padding-left: 1.5rem; line-height:1.6;">
+              <li style="margin-bottom:0.5rem;"><strong>起始網址</strong>：填寫您的目標目錄，例如 <code>https://example.com/path/</code>
+              </li>
+              <li style="margin-bottom:0.5rem;"><strong>目標網域</strong>：填寫您的網域，例如 <code>example.com</code></li>
+              <li><strong>忽略的路徑規則 (Regex)</strong>：利用「負向先行斷言 (?!)」的精準寫法，把同網域下<strong>不屬於</strong>該目錄的網址都忽略掉。寫法如下：
+                <div
+                  style="background: var(--surface-base); padding: 0.75rem; border-radius: var(--radius-md); font-family: monospace; margin-top: 0.5rem; margin-bottom: 0.5rem; border: 1px solid var(--border-color);">
+                  ^https://example\.com/(?!path(?:/|$))
+                </div>
+              </li>
+            </ol>
+            <p style="margin-top:0; margin-bottom:0;"><strong>💡 原理說明</strong>：這段語法的意思是「只要是
+              <code>https://example.com/</code> 底下的網址，如果接下來的路徑<strong>不是</strong> <code>path/</code> 或剛好在
+              <code>path</code> 結束，就將它視為忽略名單」。這種寫法能精準保留目標目錄，且能避免不小心放行名稱相似的目錄（例如 <code>pathway</code>）。
+              此外，如果遇到的是<strong>子網域</strong>（例如 <code>https://cgi.example.com/</code>），因為開頭不符合
+              <code>https://example.com/</code>，所以這條規則不會將它忽略，而是交由系統的其他規則來判定是否抓取。
+            </p>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;" />
+
+            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">
+              Q: 網站裡有一大堆下載附件的連結，可以不要爬它們來節省時間嗎？
+            </h4>
+            <p style="margin-top:0; margin-bottom:0.5rem;">
+              可以的！除了系統內建的「忽略的副檔名」功能外，有時候網站的下載連結是放在特定的路徑下（例如 <code>/downloads/</code> 或 <code>/files/</code>
+              目錄）。為了大幅加快整個爬取的時間，您可以利用 <strong>忽略的路徑規則 (Regex)</strong> 把這些連結通通排除。
+            </p>
+            <p style="margin-top:0; margin-bottom:0.5rem;">例如，如果您想在 <code>example.com</code> 網站中，忽略所有
+              <code>downloads</code>、<code>files</code> 或 <code>assets</code> 目錄下的網址，只需在欄位中填入：
+            </p>
+            <div
+              style="background: var(--surface-base); padding: 0.75rem; border-radius: var(--radius-md); font-family: monospace; margin-top: 0.5rem; margin-bottom: 0.5rem; border: 1px solid var(--border-color);">
+              ^https://example\.com/(downloads|files|assets)/
+            </div>
+            <p style="margin-top:0; margin-bottom:0;"><strong>💡 原理說明</strong>：這段語法會精準比對開頭為
+              <code>https://example.com/</code> 且緊接著是這三個目錄其中之一的網址，然後把它跳過。
+            </p>
+          </div>
+
         </div>
       </div>
 
-
     </main>
-  </div>
-
-  <!-- ── 任務完整設定檢視 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="job-config-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:600px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">任務設定參數 (唯讀)</h2>
-        <button id="job-config-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group mb-6">
-        <div id="job-config-display-container" style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem;"></div>
-      </div>
-      <div class="d-flex justify-end">
-        <button type="button" class="btn btn-primary" id="job-config-ok">確定</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 預設清單檢視 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="default-list-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:500px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="default-list-title">預設清單</h2>
-        <button id="default-list-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group mb-6">
-        <textarea class="form-textarea" id="default-list-display" rows="12" readonly
-          style="font-family:monospace; font-size:0.875rem; line-height:1.4; background:var(--surface-raised); color:var(--text-primary); cursor:default;"></textarea>
-      </div>
-      <div class="d-flex justify-end">
-        <button type="button" class="btn btn-primary" id="default-list-ok">確定</button>
-      </div>
-    </div>
   </div>
 
   <!-- ── 變更密碼 Modal ────────────────────────────────────── -->
@@ -324,58 +358,12 @@
     </div>
   </div>
 
-  <!-- ── 共用確認 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="confirm-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-4">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
-        <button id="confirm-modal-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="mb-6" style="color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
-        id="confirm-modal-message"></div>
-      <div class="d-flex justify-end gap-3">
-        <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
-        <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 排除網域 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="exclude-domains-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">排除指定網域</h2>
-        <button id="exclude-domains-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group" style="margin-bottom:0.5rem">
-        <label
-          style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
-          <input type="checkbox" id="exclude-domains-enabled" checked /> 啟用排除過濾
-        </label>
-      </div>
-      <div class="form-group mb-6">
-        <label class="form-label" for="exclude-domains-textarea">網域清單 (每行一個)</label>
-        <textarea class="form-textarea" id="exclude-domains-textarea" rows="6"
-          placeholder="facebook.com&#10;youtube.com"></textarea>
-        <div class="form-hint" style="margin-top:0.5rem">這些網域將從結果列表中隱藏，並自動儲存在您的瀏覽器中。</div>
-      </div>
-      <div class="d-flex justify-end gap-3">
-        <button type="button" class="btn btn-ghost" id="exclude-domains-cancel">取消</button>
-        <button type="button" class="btn btn-primary" id="exclude-domains-submit">確定儲存</button>
-      </div>
-    </div>
-  </div>
-
   <div class="toast-container"></div>
 
   <script type="module">
-    import { logout, getCurrentUser } from '/static/js/auth.js';
+    import * as api from '/static/js/api.js';
+    import { toast } from '/static/js/toast.js';
+    import { logout, getCurrentUser, initPasswordStrength } from '/static/js/auth.js';
 
     async function initUser() {
       const user = await getCurrentUser();
@@ -398,6 +386,79 @@
     // 登出
     document.getElementById('logout-btn').addEventListener('click', async () => {
       logout();
+    });
+
+    // 變更密碼功能
+    const changePwdModal = document.getElementById('change-pwd-modal');
+    const changePwdBtn = document.getElementById('change-pwd-btn');
+    const changePwdClose = document.getElementById('change-pwd-close');
+    const changePwdCancel = document.getElementById('change-pwd-cancel');
+    const changePwdForm = document.getElementById('change-pwd-form');
+    const pwdStrengthBar = document.getElementById('pwd-strength-bar');
+    const pwdStrengthLabel = document.getElementById('pwd-strength-label');
+    const newPwdInput = document.getElementById('new-password-change');
+
+    if (newPwdInput && pwdStrengthBar && pwdStrengthLabel) {
+      initPasswordStrength(newPwdInput, pwdStrengthBar, pwdStrengthLabel);
+    }
+
+    function openChangePwdModal() {
+      changePwdModal.style.display = 'flex';
+      changePwdForm.reset();
+      document.getElementById('change-pwd-error').textContent = '';
+      if (pwdStrengthBar) {
+        pwdStrengthBar.style.width = '0%';
+        pwdStrengthBar.style.background = '';
+      }
+      if (pwdStrengthLabel) {
+        pwdStrengthLabel.textContent = '';
+      }
+    }
+
+    function closeChangePwdModal() {
+      changePwdModal.style.display = 'none';
+    }
+
+    changePwdBtn.addEventListener('click', openChangePwdModal);
+    changePwdClose.addEventListener('click', closeChangePwdModal);
+    changePwdCancel.addEventListener('click', closeChangePwdModal);
+
+    changePwdForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPwd = document.getElementById('current-password').value;
+      const newPwd = newPwdInput.value;
+      const confirmPwd = document.getElementById('confirm-password-change').value;
+      const errorEl = document.getElementById('change-pwd-error');
+      const submitBtn = document.getElementById('change-pwd-submit');
+
+      errorEl.textContent = '';
+
+      if (newPwd !== confirmPwd) {
+        errorEl.textContent = '新密碼與確認密碼不一致。';
+        return;
+      }
+
+      if (currentPwd === newPwd) {
+        errorEl.textContent = '新密碼不得與現有密碼相同。';
+        return;
+      }
+
+      submitBtn.classList.add('loading');
+      submitBtn.disabled = true;
+
+      try {
+        await api.patch('/api/auth/password', {
+          current_password: currentPwd,
+          new_password: newPwd
+        });
+        toast.success('密碼已成功修改。');
+        closeChangePwdModal();
+      } catch (err) {
+        errorEl.textContent = err.message || '修改密碼失敗。';
+      } finally {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+      }
     });
 
     initUser();

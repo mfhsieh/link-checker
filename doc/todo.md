@@ -43,3 +43,8 @@
 * **功能描述**：目前專案雖已大規模採用 Type Hinting，但尚未達到完全無錯的狀態（掃描仍有百餘個 `mypy` 錯誤，主要為 `dict[str, object]` 協變性操作或測試檔參數型別等議題）。
 * **規劃方案**：逐一排除剩餘的 `mypy` 型別報錯，待全站檢查通過後，再將 `mypy --explicit-package-bases backend/ crawler/ cli.py scripts/ test/` 正式納入開發者的 Workflow 檢驗清單與未來的 CI/CD 流程中，確保最高標準的靜態型別安全。
 * **狀態**：**待後續優化（Pending Review）**。
+
+## 7. 擴充與完善系統輔助說明 (Help & FAQ)
+* **功能描述**：目前前端的 `help.html` 與 `faq.html` 已建立基礎架構，但部分教學內容與問答細節尚待補齊。
+* **規劃方案**：將 `frontend/help.html` 的支援與說明教學內容，以及 `frontend/faq.html` 的常見問答內容補充完整，提供使用者更詳盡的操作指引與問題排解。
+* **狀態**：**待後續優化（Pending Review）**。
