@@ -192,7 +192,7 @@
               <li style="margin-bottom:0.5rem;"><strong>伺服器異常</strong>：對方網站的主機現在當機了 (例如 500
                 錯誤)，可以過幾天再來看它修好了沒。但也有可能對方只是不喜歡爬蟲，故意對爬蟲說不歡迎進門。</li>
               <li style="margin-bottom:0.5rem;">
-                <strong">底層異常</strong>：連線失敗，通常是因為對方的安全設定有問題（例如：憑證過期、憑證串鍊不正確），或是對方直接拒絕您連線。
+                <strong>底層異常</strong>：連線失敗，通常是因為對方的安全設定有問題（例如：憑證過期、憑證串鍊不正確），或是對方直接拒絕您連線。
               </li>
               <li style="margin-bottom:0.5rem;"><strong>其他異常</strong>：不屬於上述原因的連線錯誤。例如：系統根本看不懂這個連線是要幹嘛的 (例如 400 錯誤)。</li>
               <li style="margin-bottom:0.5rem;"><strong>遭到阻擋</strong>：對方網站的防護機制把我們的爬蟲擋在門外了（例如
@@ -206,9 +206,8 @@
             </h4>
             <ul style="margin-top:0; margin-bottom:1.25rem; padding-left:1.5rem; line-height:1.6">
               <li style="margin-bottom:0.5rem;"><strong>診斷總數</strong>：爬蟲逛您自己網站時，總共遇到幾次失敗或壞掉的狀況。</li>
-              <li style="margin-bottom:0.5rem;">
-                <strong">伺服器異常</strong>：您的網站當機了 (例如 500
-                  錯誤)。這很嚴重，如果不是您故意擋爬蟲的話，代表讀者可能也會看到當機畫面，請趕快找工程師修理！
+              <li style="margin-bottom:0.5rem;"><strong>伺服器異常</strong>：您的網站當機了 (例如 500
+                錯誤)。這很嚴重，如果不是您故意擋爬蟲的話，代表讀者可能也會看到當機畫面，請趕快找工程師修理！
               </li>
               <li style="margin-bottom:0.5rem;"><strong>底層異常</strong>：網路連線有問題，可能是您的防火牆設定錯了，或是您網站的憑證壞了。</li>
               <li style="margin-bottom:0.5rem;"><strong>連線逾時</strong>：您的網站回應太慢了，爬蟲等太久只好放棄。可能是現在網站大塞車，或是主機跑不動了。</li>
@@ -247,9 +246,33 @@
                 </svg></a> 進行檢查。如果檢查結果出現紅色的斷鍊警告，那就代表是對方網站沒設定好，跟您無關！
             </p>
             <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務卡在「執行中」或是發生未知的錯誤怎麼辦？</h4>
-            <p style="margin-top:0; margin-bottom:0;">
+            <p style="margin-top:0; margin-bottom:1.25rem;">
               您可以點擊任務詳情中的「暫停」按鈕，並在暫停後點擊「重置」來重新開始。如果任務徹底卡死，請聯絡系統管理員從後台進行「強制接管」。
             </p>
+            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務失敗或修復連結後，該如何重新測試？</h4>
+            <p style="margin-top:0; margin-bottom:0.5rem;">
+              系統提供兩種層級的重新測試方式，您可以根據需求選擇：
+            </p>
+            <p style="margin-top:0; margin-bottom:0.5rem;"><strong>1. 任務層級（針對整個掃描任務）</strong></p>
+            <ul style="margin-top:0; margin-bottom:0.5rem; padding-left:1.5rem; line-height:1.6">
+              <li style="margin-bottom:0.5rem;"><strong>重置 (Reset)</strong>：刪除該任務所有的掃描紀錄，從頭開始重新爬取整個網站。</li>
+              <li style="margin-bottom:0.5rem;"><strong>重試 (Retry)</strong>：保留已成功的掃描紀錄，並針對先前<strong>「內部連結失敗的目標
+                  URL」</strong>以及<strong>「外部連結失敗的來源頁面」</strong>重新爬取。
+              </li>
+            </ul>
+            <p style="margin-top:0; margin-bottom:0.5rem;"><strong>2. URL 層級 (針對局部重新探測)</strong></p>
+            <p style="margin-top:0; margin-bottom:0.5rem;">
+              當您修復了幾個損壞的網頁或連結時，無須重新掃描整個網站。只要任務不在執行中，即可針對特定項目進行「局部重新探測」。探測行為會依據連結類型與檢視模式而有所不同：
+            </p>
+            <ul style="margin-top:0; margin-bottom:0; padding-left:1.5rem; line-height:1.6">
+              <li style="margin-bottom:0.5rem;"><strong>內部連結</strong>：在<strong>「平舖列表」</strong>檢視時，是對<strong>「目標
+                  URL」</strong>的重新爬取，系統會重新解析「目標 URL」及其底下的內部連結與外部連結。</li>
+              <li style="margin-bottom:0.5rem;"><strong>外部連結</strong>：在依<strong>「外連目標」</strong>聚合時，是對外連目標的<strong>「目標
+                  URL」</strong>的重新爬取。系統會再次發出 HTTP 請求確認對方網站是否恢復正常。</li>
+              <li>
+                <strong>外部連結</strong>：在依<strong>「自家網頁」</strong>聚合時，是對自家網頁的<strong>「來源頁面」</strong>重新爬取，系統會重新解析「來源頁面」及其底下的內部連結與外部連結。
+              </li>
+            </ul>
           </div>
 
           <!-- ── 進階設定與規則 ────────────────────────────────────── -->

@@ -29,10 +29,12 @@ from backend.jobs.schemas import (
     ExportQueryArgs,
     InternalResultQuery,
     JobResultQuery,
+    PartialExportRequest,
 )
 from backend.jobs.services import external_results, internal_results
 from backend.jobs.services.exporter import _sanitize_csv_value
-from crawler.models import Job
+from crawler.models import CrawlQueue, ExternalLink, Job
+from crawler.utils import format_crawl_queue_item
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -304,6 +306,100 @@ def export_internal_results(
         csv_generator(),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+    )
+
+
+@router.post("/{job_id}/export/partial")
+def export_partial_results(
+    job_id: str,
+    body: PartialExportRequest,
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_crawler_db),
+) -> Response:
+    """
+    局部匯出 (依據使用者在前端勾選的項目進行 CSV 匯出)。
+
+    Args:
+        job_id (str): 任務 UUID。
+        body (PartialExportRequest): 局部匯出請求，包含要匯出的網址清單與連結類型。
+        current_user (User): 當前登入使用者。
+        db (DBSession): Crawler 資料庫 Session。
+
+    Returns:
+        Response: 包含匯出檔案內容的 FastAPI Response 物件。
+
+    Raises:
+        HTTPException 404: 若任務不存在或不屬於當前使用者。
+        HTTPException 400: 若網址清單為空。
+    """
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job or job.user_id != current_user.id:
+            raise ValueError(f"找不到任務 ID: {job_id}")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+    if not body.urls:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="網址清單不可為空")
+
+    filename = f"job_{job_id}_partial_export_{body.link_type}.csv"
+
+    def csv_generator() -> Generator[str, None, None]:
+        """
+        產生局部匯出 CSV 格式輸出字串的產生器。
+
+        Yields:
+            str: 區塊的 CSV 字串。
+        """
+        yield "\ufeff"
+        output = io.StringIO()
+        writer = None
+
+        if body.link_type == "external":
+            query = (
+                db.query(ExternalLink)
+                .filter(ExternalLink.job_id == job_id, ExternalLink.target_url.in_(body.urls))
+                .order_by(ExternalLink.created_at)
+            )
+
+            for lnk in query.yield_per(2000):
+                row_data = {
+                    "Source URL": lnk.source_url,
+                    "Target URL": lnk.target_url,
+                    "IP Address": lnk.ip_address,
+                    "Secure": lnk.is_secure,
+                    "HTTP Status Code": lnk.http_status_code,
+                    "Error Message": lnk.error_message,
+                    "Created At": lnk.created_at.isoformat(),
+                }
+                if writer is None:
+                    writer = csv.DictWriter(output, fieldnames=list(row_data.keys()))
+                    writer.writeheader()
+                writer.writerow(_sanitize_csv_dict(row_data))
+                yield output.getvalue()
+                output.seek(0)
+                output.truncate(0)
+        else:
+            query = (
+                db.query(CrawlQueue)
+                .filter(CrawlQueue.job_id == job_id, CrawlQueue.url.in_(body.urls))
+                .order_by(CrawlQueue.created_at)
+            )
+
+            for lnk in query.yield_per(2000):
+                row_data = format_crawl_queue_item(lnk)
+                if writer is None:
+                    writer = csv.DictWriter(output, fieldnames=list(row_data.keys()))
+                    writer.writeheader()
+                writer.writerow(_sanitize_csv_dict(row_data))
+                yield output.getvalue()
+                output.seek(0)
+                output.truncate(0)
+
+    return StreamingResponse(
+        csv_generator(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

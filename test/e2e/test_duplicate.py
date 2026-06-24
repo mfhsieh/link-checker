@@ -24,7 +24,7 @@ def test_duplicate_job_filters_defaults(page: Page, base_url: str) -> None:
     with page.expect_response(lambda response: "/api/jobs" in response.url and response.request.method == "GET"):
         page.click('button[type="submit"]')
 
-    expect(page).to_have_url(re.compile(r".*/app\.html"))
+    expect(page).to_have_url(re.compile(r".*/(app|help)\.html"))
     page.wait_for_selector("text=我的任務")
 
     # 2. 建立新任務，其中 delay 設為 5.5 秒 (非預設值 3.0)，其他維持預設

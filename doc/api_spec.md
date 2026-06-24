@@ -456,6 +456,34 @@
 - **422**: Validation Error
 ---
 
+## POST /api/jobs/{job_id}/reprobe
+**摘要**: Reprobe Job Links
+
+**說明**: 局部重新發起 HTTP 探測。
+
+
+**Args**:
+- `job_id` (str): 任務 ID。
+- `body` (ReprobeRequest): 包含連結類型與欲探測的網址清單。
+- `current_user` (User): 當前登入的使用者。
+- `manager` (JobManager): JobManager 實例。
+- `db` (DBSession): 資料庫連線。
+
+
+**Returns**:
+- `dict[str, object]`: 操作成功訊息或更新結果。
+
+**標籤**: jobs
+
+### 請求內容 (Request Body)
+- **Content-Type**: `application/json`
+- **Schema**: `ReprobeRequest` (參考下方 Schema 定義)
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
 ## POST /api/jobs/{job_id}/transfer
 **摘要**: Transfer Job
 
@@ -688,6 +716,38 @@
 - `HTTPException 404`: 若任務不存在或不屬於當前使用者。
 
 **標籤**: jobs
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
+## POST /api/jobs/{job_id}/export/partial
+**摘要**: Export Partial Results
+
+**說明**: 局部匯出 (依據使用者在前端勾選的項目進行 CSV 匯出)。
+
+
+**Args**:
+- `job_id` (str): 任務 UUID。
+- `body` (PartialExportRequest): 局部匯出請求，包含要匯出的網址清單與連結類型。
+- `current_user` (User): 當前登入使用者。
+- `db` (DBSession): Crawler 資料庫 Session。
+
+
+**Returns**:
+- `Response`: 包含匯出檔案內容的 FastAPI Response 物件。
+
+
+**Raises**:
+- `HTTPException 404`: 若任務不存在或不屬於當前使用者。
+- `HTTPException 400`: 若網址清單為空。
+
+**標籤**: jobs
+
+### 請求內容 (Request Body)
+- **Content-Type**: `application/json`
+- **Schema**: `PartialExportRequest` (參考下方 Schema 定義)
 
 ### 回應 (Responses)
 - **200**: Successful Response
@@ -1238,6 +1298,34 @@ MimeType 過濾設定。
 |---|---|---|---|
 | `enabled` | boolean | 是 |  |
 | `allowed_types` | array | 是 |  |
+
+---
+
+## PartialExportRequest
+局部匯出請求的 Schema。
+
+Attributes:
+    link_type (Literal["internal", "external"]): 欲匯出的連結類型。
+    urls (list[str]): 欲匯出的網址清單。
+
+| 屬性名稱 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `link_type` | string | 是 |  |
+| `urls` | array | 是 |  |
+
+---
+
+## ReprobeRequest
+局部重新探測請求的 Schema。
+
+Attributes:
+    link_type (Literal["internal", "external"]): 欲探測的連結類型。
+    urls (list[str]): 欲重新探測的網址清單。
+
+| 屬性名稱 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `link_type` | string | 是 |  |
+| `urls` | array | 是 |  |
 
 ---
 

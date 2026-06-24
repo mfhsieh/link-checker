@@ -11,8 +11,8 @@
 - **通訊方式**: 透過 AJAX / Fetch 進行異步通訊，API 基礎網址設定為同源 `BASE_URL = ''`（參見 [frontend/js/api.js](file:///home/mfhsieh/projects/python/link-checker/frontend/js/api.js)）。
 - **主要依賴的 API 路由端點**:
   - **身分驗證**: `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/password/reset`
-  - **任務管理**: `/api/jobs` (CRUD), `/api/jobs/{job_id}/start`, `/api/jobs/{job_id}/pause`, `/api/jobs/{job_id}/results`
-  - **報表匯出**: `/api/jobs/{job_id}/results/export`, `/api/jobs/{job_id}/internal-results/export`, `/api/jobs/{job_id}/export/full`
+  - **任務管理**: `/api/jobs` (CRUD), `/api/jobs/{job_id}/start`, `/api/jobs/{job_id}/pause`, `/api/jobs/{job_id}/reprobe`, `/api/jobs/{job_id}/results`
+  - **報表匯出**: `/api/jobs/{job_id}/results/export`, `/api/jobs/{job_id}/internal-results/export`, `/api/jobs/{job_id}/export/full`, `/api/jobs/{job_id}/export/partial`
   - **系統管理**: `/api/admin/users`, `/api/admin/logs`
 - **安全防禦依賴**: POST / PATCH / DELETE 請求必須在 Request Header 中附加 `X-CSRF-Token`（讀取自 Cookie中的 `csrf_token`）。
 - **前端內部公用庫依賴**:
@@ -43,7 +43,7 @@
     ```python
     from crawler.manager import JobManager
     ```
-  - **任務管理與查詢**: [backend/jobs/services/management.py](../backend/jobs/services/management.py) 與 [backend/jobs/services/results.py](../backend/jobs/services/results.py) 中，直接調用 `JobManager` 類別並引入 `crawler.models`。
+  - **任務管理、查詢與局部重測**: [backend/jobs/services/management.py](../backend/jobs/services/management.py)、[backend/jobs/services/results.py](../backend/jobs/services/results.py) 與 [backend/jobs/services/reprobe.py](../backend/jobs/services/reprobe.py) 中，直接調用 `JobManager` 類別並引入 `crawler.models`。
 - **核心引入語句 (Imports)**:
   - `from crawler.manager import JobManager, JobCreateOptions`
   - `from crawler.models import Job, CrawlQueue, ExternalLink`
@@ -128,3 +128,5 @@
 - **`backfill_target_domain.py`**:
   - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `Job` 並更新 `target_domain` 欄位。
   - 依賴 `backend.config` 獲取 Crawler DB 連線字串。
+- **`gen_api_doc.py`**:
+  - 直接依賴 `backend.main` 匯入 FastAPI `app` 實例，以動態萃取 OpenAPI Schema。

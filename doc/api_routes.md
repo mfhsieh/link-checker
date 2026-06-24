@@ -28,6 +28,7 @@
 | `POST` | `/api/jobs/{job_id}/resume` | 恢復已暫停的任務（只允許 paused 狀態）。 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/reset` | 重置任務（清除結果並回到 pending 狀態）。 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/retry-failed` | 局部重試任務中的失敗項目。 | 已登入（僅限自身任務） |
+| `POST` | `/api/jobs/{job_id}/reprobe` | 局部重新發起 HTTP 探測。 | 已登入（僅限自身任務） |
 | `POST` | `/api/jobs/{job_id}/transfer` | 將任務移交給其他使用者。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results` | 外連結果列表（支援篩選、搜尋、去重聚合與分頁）。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/summary` | 取得任務結果統計摘要。 | 已登入（僅限自身任務） |
@@ -36,6 +37,7 @@
 | `GET` | `/api/jobs/{job_id}/internal-results` | 取得內部網頁爬取失敗的紀錄列表（支援分頁）。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/export` | 匯出外連結果（CSV 或 JSON 格式下載）。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/internal-results/export` | 匯出內部失效結果（CSV 或 JSON 格式下載）。 | 已登入（僅限自身任務） |
+| `POST` | `/api/jobs/{job_id}/export/partial` | 局部匯出 (依據使用者在前端勾選的項目進行 CSV 匯出)。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/export/full` | 匯出完整報表 (ZIP 壓縮檔)，內含爬取紀錄與外連清單。 | 已登入（僅限自身任務） |
 
 ## 3. 系統管理台 API (`/api/admin`)

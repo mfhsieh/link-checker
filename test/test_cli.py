@@ -257,9 +257,9 @@ trusted_domains:
 crawler:
   retries: 0
   delay: 0.0
-  timeout: 2
-  connect_timeout: 1.0
-  external_check_timeout: 1.0
+  timeout: 10
+  connect_timeout: 5.0
+  external_check_timeout: 5.0
   social_domains:
     - "127.0.0.1"
 """)

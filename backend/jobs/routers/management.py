@@ -23,10 +23,17 @@ from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
 from backend.config import get_settings
-from backend.deps import get_auth_db, get_current_user, get_job_manager, require_csrf
+from backend.deps import get_auth_db, get_crawler_db, get_current_user, get_job_manager, require_csrf
 from backend.jobs.constants import ALLOWED_CRAWLER_CONFIG_KEYS
-from backend.jobs.schemas import CreateJobRequest, JobCreateConfig, JobDetailResponse, TransferJobRequest
+from backend.jobs.schemas import (
+    CreateJobRequest,
+    JobCreateConfig,
+    JobDetailResponse,
+    ReprobeRequest,
+    TransferJobRequest,
+)
 from backend.jobs.services import management as job_management
+from backend.jobs.services.reprobe import reprobe_external_links, reprobe_internal_links
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
     _sanitize_crawler_types,
@@ -351,6 +358,39 @@ def retry_failed_job(
     try:
         job_management.retry_failed_job(manager, job_id, current_user.id)
         return {"message": "任務失敗項目已重置。"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+@router.post("/{job_id}/reprobe")
+def reprobe_job_links(
+    job_id: str,
+    body: ReprobeRequest,
+    current_user: User = Depends(get_current_user),
+    manager: JobManager = Depends(get_job_manager),
+    db: DBSession = Depends(get_crawler_db),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, object]:
+    """
+    局部重新發起 HTTP 探測。
+
+    Args:
+        job_id (str): 任務 ID。
+        body (ReprobeRequest): 包含連結類型與欲探測的網址清單。
+        current_user (User): 當前登入的使用者。
+        manager (JobManager): JobManager 實例。
+        db (DBSession): 資料庫連線。
+
+    Returns:
+        dict[str, object]: 操作成功訊息或更新結果。
+    """
+    if not body.urls:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="網址清單不可為空")
+
+    try:
+        if body.link_type == "external":
+            return reprobe_external_links(db, manager, job_id, current_user.id, body.urls)
+        return reprobe_internal_links(db, manager, job_id, current_user.id, body.urls)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 

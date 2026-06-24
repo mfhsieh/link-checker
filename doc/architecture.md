@@ -31,7 +31,7 @@ link-checker/
 │   │   ├── router.py   # 任務模組總路由聚合器
 │   │   ├── schemas.py  # 任務模組專用 Pydantic 與依賴注入 Model
 │   │   ├── routers/    # 子 API 路由定義 (管理、結果、匯出)
-│   │   └── services/   # 任務核心服務 (管理、進程、結果、郵件通知、報表匯出)
+│   │   └── services/   # 任務核心服務 (管理、進程、結果、郵件通知、報表匯出、局部重新探測)
 │   ├── config.py       # 系統組態與環境變數設定
 │   ├── deps.py         # 依賴注入 (如 Session, Current User)
 │   ├── email_sender.py # SMTP 郵件發送服務

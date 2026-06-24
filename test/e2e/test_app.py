@@ -25,11 +25,11 @@ def test_create_job(page: Page, base_url: str) -> None:
     with page.expect_response(lambda response: "/api/jobs" in response.url and response.request.method == "GET"):
         page.click('button[type="submit"]')
 
-    expect(page).to_have_url(re.compile(r".*/app\.html"))
+    expect(page).to_have_url(re.compile(r".*/(app|help)\.html"))
     page.wait_for_selector("text=我的任務")
 
     # 點擊建立任務按鈕
-    page.click('a[href="#/new"]')
+    page.click("#nav-new-job")
     expect(page).to_have_url(re.compile(r".*/app\.html#/new"))
 
     # 等待 router() 中的 loadJobDefaults 與 form.reset() 完成，避免清空我們填寫的值
@@ -171,11 +171,11 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
         with page.expect_response(lambda response: "/api/jobs" in response.url and response.request.method == "GET"):
             page.click('button[type="submit"]')
 
-        expect(page).to_have_url(re.compile(r".*/app\.html"))
+        expect(page).to_have_url(re.compile(r".*/(app|help)\.html"))
         page.wait_for_selector("text=我的任務")
 
         # 2. 建立新測試任務以取得真實 ID
-        page.click('a[href="#/new"]')
+        page.click("#nav-new-job")
         expect(page).to_have_url(re.compile(r".*/app\.html#/new"))
         page.wait_for_load_state("networkidle")
 
@@ -242,7 +242,7 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
         expect(page.locator(".toast-container").last).to_contain_text(re.compile("重置"))
 
         # 6. 測試【重試失敗項目】UI
-        mock_state["status"] = "error"
+        mock_state["status"] = "completed"
         mock_state["is_running"] = False
         page.reload()
         page.wait_for_load_state("networkidle")

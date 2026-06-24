@@ -730,6 +730,61 @@
         }
       }
     },
+    "/api/jobs/{job_id}/reprobe": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Reprobe Job Links",
+        "description": "局部重新發起 HTTP 探測。\n\nArgs:\n    job_id (str): 任務 ID。\n    body (ReprobeRequest): 包含連結類型與欲探測的網址清單。\n    current_user (User): 當前登入的使用者。\n    manager (JobManager): JobManager 實例。\n    db (DBSession): 資料庫連線。\n\nReturns:\n    dict[str, object]: 操作成功訊息或更新結果。",
+        "operationId": "reprobe_job_links_api_jobs__job_id__reprobe_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReprobeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Reprobe Job Links Api Jobs  Job Id  Reprobe Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/jobs/{job_id}/transfer": {
       "post": {
         "tags": [
@@ -1455,6 +1510,57 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/export/partial": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Export Partial Results",
+        "description": "局部匯出 (依據使用者在前端勾選的項目進行 CSV 匯出)。\n\nArgs:\n    job_id (str): 任務 UUID。\n    body (PartialExportRequest): 局部匯出請求，包含要匯出的網址清單與連結類型。\n    current_user (User): 當前登入使用者。\n    db (DBSession): Crawler 資料庫 Session。\n\nReturns:\n    Response: 包含匯出檔案內容的 FastAPI Response 物件。\n\nRaises:\n    HTTPException 404: 若任務不存在或不屬於當前使用者。\n    HTTPException 400: 若網址清單為空。",
+        "operationId": "export_partial_results_api_jobs__job_id__export_partial_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartialExportRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3024,6 +3130,60 @@
         ],
         "title": "MimeTypeFilterConfig",
         "description": "MimeType 過濾設定。"
+      },
+      "PartialExportRequest": {
+        "properties": {
+          "link_type": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "external"
+            ],
+            "title": "Link Type"
+          },
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Urls"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "link_type",
+          "urls"
+        ],
+        "title": "PartialExportRequest",
+        "description": "局部匯出請求的 Schema。\n\nAttributes:\n    link_type (Literal[\"internal\", \"external\"]): 欲匯出的連結類型。\n    urls (list[str]): 欲匯出的網址清單。"
+      },
+      "ReprobeRequest": {
+        "properties": {
+          "link_type": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "external"
+            ],
+            "title": "Link Type"
+          },
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Urls"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "link_type",
+          "urls"
+        ],
+        "title": "ReprobeRequest",
+        "description": "局部重新探測請求的 Schema。\n\nAttributes:\n    link_type (Literal[\"internal\", \"external\"]): 欲探測的連結類型。\n    urls (list[str]): 欲重新探測的網址清單。"
       },
       "ResetPasswordRequest": {
         "properties": {

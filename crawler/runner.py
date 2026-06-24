@@ -298,12 +298,17 @@ class JobRunner:
                 .first()
             )
 
-            if not queue_item:
-                logger.info("任務 %s 已無等待中的網址。任務完成。", self.job_id)
-                self._mark_job_completed(session, job)
-                break
+            if queue_item:
+                self._process_item(session, queue_item, crawler)
+                continue
 
-            self._process_item(session, queue_item, crawler)
+            # 若無等待中的內部網址，則檢查是否有 pending 的外部連結需重測
+            if self._process_pending_external_links(session, crawler):
+                continue
+
+            logger.info("任務 %s 已無等待中的網址或外部連結。任務完成。", self.job_id)
+            self._mark_job_completed(session, job)
+            break
 
     def _mark_job_completed(self, session: Session, job: Job) -> None:
         """
@@ -317,6 +322,55 @@ class JobRunner:
         session.commit()
         if self.status_callback:
             self.status_callback(self.job_id, "completed")
+
+    def _process_pending_external_links(self, session: Session, crawler: CrawlerCore) -> bool:
+        """
+        處理被標記為 pending 狀態的外部連結 (非同步重測情境)。
+
+        Args:
+            session (Session): SQLAlchemy Session 實例。
+            crawler (CrawlerCore): 爬蟲核心引擎。
+
+        Returns:
+            bool: 若有處理到 pending 資料則回傳 True，否則回傳 False。
+        """
+        pending_exts = (
+            session.query(ExternalLink)
+            .filter(
+                ExternalLink.job_id == self.job_id,
+                ExternalLink.status_category == "pending",
+            )
+            .limit(100)
+            .all()
+        )
+        if not pending_exts:
+            return False
+
+        unique_urls = list({ext.target_url for ext in pending_exts})
+        logger.info("發現 %d 個待重測的外部連結，批次處理中...", len(unique_urls))
+
+        if self.executor:
+
+            def check_single(link: str) -> tuple[str, str | None, int | None, str | None]:
+                return self._check_single_link(link, crawler)
+
+            results = list(self.executor.map(check_single, unique_urls))
+            res_dict = {res[0]: res for res in results}
+
+            for ext in pending_exts:
+                if ext.target_url in res_dict:
+                    _, res_ip, res_code, res_err = res_dict[ext.target_url]
+                    ext.ip_address = res_ip
+                    ext.http_status_code = res_code
+                    ext.error_message = res_err
+                    ext.is_secure = ext.target_url.startswith("https://")
+                    ext.status_category = determine_external_link_status_category(res_ip, res_code)
+                    self.state.checked_links_cache[ext.target_url] = (res_ip, res_code, res_err)
+
+            session.commit()
+            return True
+
+        return False
 
     def _process_item(
         self,

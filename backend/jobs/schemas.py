@@ -4,6 +4,7 @@
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from fastapi import (
     Depends,
@@ -458,3 +459,29 @@ class InternalResultQuery:  # pylint: disable=too-few-public-methods,too-many-in
     sort_by: str | None = None
     sort_asc: bool = True
     col_filters: str | None = None
+
+
+class ReprobeRequest(BaseModel):
+    """局部重新探測請求的 Schema。
+
+    Attributes:
+        link_type (Literal["internal", "external"]): 欲探測的連結類型。
+        urls (list[str]): 欲重新探測的網址清單。
+    """
+
+    model_config = {"extra": "forbid"}
+    link_type: Literal["internal", "external"]
+    urls: list[str]
+
+
+class PartialExportRequest(BaseModel):
+    """局部匯出請求的 Schema。
+
+    Attributes:
+        link_type (Literal["internal", "external"]): 欲匯出的連結類型。
+        urls (list[str]): 欲匯出的網址清單。
+    """
+
+    model_config = {"extra": "forbid"}
+    link_type: Literal["internal", "external"]
+    urls: list[str]

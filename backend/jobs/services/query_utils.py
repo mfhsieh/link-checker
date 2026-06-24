@@ -7,7 +7,6 @@
 import json
 import logging
 from collections.abc import Callable
-from typing import Any
 
 from sqlalchemy import asc, desc
 from sqlalchemy.orm import Query
@@ -102,11 +101,11 @@ def _apply_sorting(
 # pylint: disable=too-many-arguments
 def execute_paginated_query(
     query: Query,
-    query_args: Any,
+    query_args: object,
     filter_map: dict[str, Callable],
     sort_map: dict[str, object],
     default_sort: object,
-    row_mapper: Callable[[Any], dict[str, object]],
+    row_mapper: Callable[[object], dict[str, object]],
     is_having: bool = False,
 ) -> dict[str, object]:
     """
@@ -114,11 +113,11 @@ def execute_paginated_query(
 
     Args:
         query (Query): SQLAlchemy 基礎查詢物件。
-        query_args (Any): 包含分頁與排序參數的資料類別 (例如 JobResultQuery)。
+        query_args (object): 包含分頁與排序參數的資料類別 (例如 JobResultQuery)。
         filter_map (dict[str, Callable]): 欄位名稱對應的過濾函式。
         sort_map (dict[str, object]): 欄位名稱對應的排序物件。
         default_sort (object): 預設排序物件。
-        row_mapper (Callable[[Any], dict[str, object]]): 將單筆資料庫紀錄轉換為目標字典的函式。
+        row_mapper (Callable[[object], dict[str, object]]): 將單筆資料庫紀錄轉換為目標字典的函式。
         is_having (bool): 是否使用 having 過濾。
 
     Returns:

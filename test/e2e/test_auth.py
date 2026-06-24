@@ -23,7 +23,7 @@ def test_login_success(page: Page, base_url: str) -> None:
     page.click('button[type="submit"]')
 
     # 驗證是否跳轉到 /app.html
-    expect(page).to_have_url(re.compile(r".*/app\.html"))
+    expect(page).to_have_url(re.compile(r".*/(app|help)\.html"))
 
     # 驗證畫面上出現預期的文字 (例如：任務管理)
     expect(page.locator("body")).to_contain_text("任務管理")

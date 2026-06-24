@@ -10,6 +10,8 @@ import { toast } from './toast.js';
 let _eventSource = null;
 /** @type {string|null} 目前的任務 ID */
 let _currentJobId = null;
+/** @type {string|null} 目前任務的狀態 */
+let _currentJobStatus = null;
 /** @type {Object|null} 目前任務的設定快照 */
 let _currentJobConfig = null;
 /** @type {string|null} 目前外部連結的篩選狀態 (如 'dead', 'healthy' 等) */
@@ -46,6 +48,11 @@ let _internalColFilters = {};
 let _currentDetailHeaders = [];
 /** @type {Array<Object>} 外部連結當頁結果暫存 */
 let _currentResultItems = [];
+
+/** @type {Set<string>} 外部連結已選取項目 */
+let _extSelectedUrls = new Set();
+/** @type {Set<string>} 內部連結已選取項目 */
+let _intSelectedUrls = new Set();
 
 /**
  * 啟動 Server-Sent Events (SSE) 串流以接收即時任務更新。
@@ -224,6 +231,43 @@ function clearJobDetailUI() {
  * @param {string} jobId - 任務 ID
  * @returns {Promise<void>} 無回傳值
  */
+
+function updateExtToolbarButtons() {
+    const btnReprobe = document.getElementById('btn-ext-reprobe-selected');
+    const btnExport = document.getElementById('btn-ext-export-selected');
+    if (_extSelectedUrls.size > 0) {
+        if (btnReprobe) {
+            btnReprobe.style.display = 'inline-flex';
+            btnReprobe.textContent = `重新探測 (${_extSelectedUrls.size})`;
+        }
+        if (btnExport) {
+            btnExport.style.display = 'inline-flex';
+            btnExport.textContent = `匯出選取 (${_extSelectedUrls.size})`;
+        }
+    } else {
+        if (btnReprobe) btnReprobe.style.display = 'none';
+        if (btnExport) btnExport.style.display = 'none';
+    }
+}
+
+function updateIntToolbarButtons() {
+    const btnReprobe = document.getElementById('btn-int-reprobe-selected');
+    const btnExport = document.getElementById('btn-int-export-selected');
+    if (_intSelectedUrls.size > 0) {
+        if (btnReprobe) {
+            btnReprobe.style.display = 'inline-flex';
+            btnReprobe.textContent = `重新探測 (${_intSelectedUrls.size})`;
+        }
+        if (btnExport) {
+            btnExport.style.display = 'inline-flex';
+            btnExport.textContent = `匯出選取 (${_intSelectedUrls.size})`;
+        }
+    } else {
+        if (btnReprobe) btnReprobe.style.display = 'none';
+        if (btnExport) btnExport.style.display = 'none';
+    }
+}
+
 export async function initJobDetailPage(jobId) {
     _currentJobId = jobId;
     stopSseStream();
@@ -407,6 +451,8 @@ function renderInternalSummary(summary) {
  */
 function renderInternalResultsTable(res, containerEl) {
     _internalResultItems = res.items || [];
+    _intSelectedUrls.clear();
+    updateIntToolbarButtons();
 
     if (_internalResultItems.length === 0) {
         containerEl.replaceChildren();
@@ -424,6 +470,7 @@ function renderInternalResultsTable(res, containerEl) {
         return;
     }
 
+    const isJobActive = _currentJobStatus === 'running' || _currentJobStatus === 'starting';
     let headers = [];
     const isInternalGroupSource = _internalGroupBy === 'source';
 
@@ -440,6 +487,10 @@ function renderInternalResultsTable(res, containerEl) {
             { label: 'HTTP 狀態', key: 'HTTP Status Code' },
             { label: '錯誤訊息', key: 'Error Message' }
         ];
+    }
+
+    if (!isJobActive && _internalGroupBy === 'none') {
+        headers.unshift({ label: '', key: '_select', sortable: false, filterable: false });
     }
 
     let tableEl = containerEl.querySelector('.table');
@@ -461,9 +512,38 @@ function renderInternalResultsTable(res, containerEl) {
             headerTop.style.alignItems = 'center';
             if (h.sortable !== false) headerTop.style.cursor = 'pointer';
 
-            const label = document.createElement('span');
-            label.textContent = h.label;
-            headerTop.appendChild(label);
+            if (h.key === '_select') {
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.id = 'int-select-all';
+                cb.style.cursor = 'pointer';
+                cb.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    if (_internalGroupBy === 'none') {
+                        _internalResultItems.forEach(item => {
+                            const url = item.URL || item.url;
+                            if (isChecked) _intSelectedUrls.add(url);
+                            else _intSelectedUrls.delete(url);
+                        });
+                    } else if (_internalGroupBy === 'source') {
+                        _internalResultItems.forEach(item => {
+                            if (item.targets) {
+                                item.targets.forEach(t => {
+                                    if (isChecked) _intSelectedUrls.add(t.url);
+                                    else _intSelectedUrls.delete(t.url);
+                                });
+                            }
+                        });
+                    }
+                    renderInternalTbody(tableEl);
+                    updateIntToolbarButtons();
+                });
+                headerTop.appendChild(cb);
+            } else {
+                const label = document.createElement('span');
+                label.textContent = h.label;
+                headerTop.appendChild(label);
+            }
 
             if (h.sortable !== false) {
                 const sortIcon = document.createElement('span');
@@ -572,8 +652,34 @@ function renderInternalTbody(tableEl) {
     let tbody = tableEl.querySelector('tbody');
     tbody.replaceChildren();
 
+    const isJobActive = _currentJobStatus === 'running' || _currentJobStatus === 'starting';
+
     data.forEach(item => {
         const tr = document.createElement('tr');
+        const isIntSelectable = _internalGroupBy === 'none';
+        const url = item.URL || item.url;
+
+        if (isIntSelectable && !isJobActive) {
+            const tdCb = document.createElement('td');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.style.cursor = 'pointer';
+            cb.checked = _intSelectedUrls.has(url);
+            cb.addEventListener('change', (e) => {
+                if (e.target.checked) _intSelectedUrls.add(url);
+                else _intSelectedUrls.delete(url);
+                updateIntToolbarButtons();
+                const selectAllCb = document.getElementById('int-select-all');
+                if (selectAllCb && _internalResultItems.length > 0) {
+                    const allSelected = _internalResultItems.every(i => _intSelectedUrls.has(i.URL || i.url));
+                    const someSelected = _internalResultItems.some(i => _intSelectedUrls.has(i.URL || i.url));
+                    selectAllCb.checked = allSelected;
+                    selectAllCb.indeterminate = someSelected && !allSelected;
+                }
+            });
+            tdCb.appendChild(cb);
+            tr.appendChild(tdCb);
+        }
 
         if (_internalGroupBy === 'source') {
             const tdSource = document.createElement('td');
@@ -711,6 +817,31 @@ function renderInternalTbody(tableEl) {
 
         tbody.appendChild(tr);
     });
+
+    const selectAllCb = document.getElementById('int-select-all');
+    if (selectAllCb && _internalResultItems.length > 0) {
+        let allUrls = [];
+        if (_internalGroupBy === 'none') {
+            allUrls = _internalResultItems.map(i => i.URL || i.url);
+        } else if (_internalGroupBy === 'source') {
+            _internalResultItems.forEach(i => {
+                if (i.targets) allUrls.push(...i.targets.map(t => t.url));
+            });
+        }
+        
+        if (allUrls.length > 0) {
+            const allSelected = allUrls.every(u => _intSelectedUrls.has(u));
+            const someSelected = allUrls.some(u => _intSelectedUrls.has(u));
+            selectAllCb.checked = allSelected;
+            selectAllCb.indeterminate = someSelected && !allSelected;
+        } else {
+            selectAllCb.checked = false;
+            selectAllCb.indeterminate = false;
+        }
+    } else if (selectAllCb) {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = false;
+    }
 }
 
 /**
@@ -813,6 +944,14 @@ function renderJobInfo(job) {
 
     _currentJobConfig = job.config;
 
+    const previousJobStatus = _currentJobStatus;
+    _currentJobStatus = job.status;
+
+    // 若任務剛完成或暫停，觸發重新載入表格以顯示操作按鈕 (CheckBoxes)
+    if (previousJobStatus && ['running', 'starting'].includes(previousJobStatus) && !['running', 'starting'].includes(_currentJobStatus)) {
+        setTimeout(() => loadResults(_currentJobId), 100);
+    }
+
     const statusEl = el('job-status');
     if (statusEl) {
         let displayStatus = job.status;
@@ -865,7 +1004,7 @@ function renderJobInfo(job) {
     const canCompare = job.status === 'completed';
     const canTransfer = !isActuallyRunning;
     const canReset = ['completed', 'error', 'paused'].includes(job.status) && !job.is_running;
-    const canRetry = ['completed', 'error'].includes(job.status) && !job.is_running;
+    const canRetry = job.status === 'completed' && !job.is_running;
 
     toggleDisplay('btn-start-job', canStart);
     toggleDisplay('btn-resume-job', false);
@@ -1217,6 +1356,8 @@ function renderResultsSummary(summary) {
  */
 function renderResultsTable(res, containerEl) {
     _currentResultItems = res.items || [];
+    _extSelectedUrls.clear();
+    updateExtToolbarButtons();
 
     if (_currentResultItems.length === 0) {
         containerEl.replaceChildren();
@@ -1239,6 +1380,8 @@ function renderResultsTable(res, containerEl) {
     const isGroupSource = _currentGroupBy === 'source';
     const isGroupDomain = _currentGroupBy === 'domain';
 
+    const isJobActive = _currentJobStatus === 'running' || _currentJobStatus === 'starting';
+
     if (isGroupTarget) {
         _currentDetailHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: 'HTTPS', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '來源數', key: 'occurrence_count' }, { label: '錯誤訊息', key: 'error_message' }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
     } else if (isGroupSource) {
@@ -1247,6 +1390,10 @@ function renderResultsTable(res, containerEl) {
         _currentDetailHeaders = [{ label: '外部網域', key: 'domain' }, { label: '來源數', key: 'occurrence_count' }, { label: '不重複網址數', key: 'unique_urls_count' }, { label: '目標 URL', key: 'unique_urls', sortable: false, filterable: false }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
     } else {
         _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: 'HTTPS', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '錯誤訊息', key: 'error_message' }];
+    }
+
+    if (!isJobActive && (isGroupTarget || isGroupSource)) {
+        _currentDetailHeaders.unshift({ label: '', key: '_select', sortable: false, filterable: false });
     }
 
     let tableEl = containerEl.querySelector('.table');
@@ -1268,9 +1415,35 @@ function renderResultsTable(res, containerEl) {
             headerTop.style.alignItems = 'center';
             if (h.sortable !== false) headerTop.style.cursor = 'pointer';
 
-            const label = document.createElement('span');
-            label.textContent = h.label;
-            headerTop.appendChild(label);
+            if (h.key === '_select') {
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.id = 'ext-select-all';
+                cb.style.cursor = 'pointer';
+                cb.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    if (_currentTab === 'external') {
+                        _currentResultItems.forEach(item => {
+                            let urlsToSelect = [];
+                            if (_currentGroupBy === 'target') urlsToSelect.push(item.target_url);
+                            else if (_currentGroupBy === 'source') {
+                                if (item.source_url) urlsToSelect.push(item.source_url);
+                            }
+                            urlsToSelect.forEach(u => {
+                                if (isChecked) _extSelectedUrls.add(u);
+                                else _extSelectedUrls.delete(u);
+                            });
+                        });
+                        renderResultsTbody(tableEl);
+                        updateExtToolbarButtons();
+                    }
+                });
+                headerTop.appendChild(cb);
+            } else {
+                const label = document.createElement('span');
+                label.textContent = h.label;
+                headerTop.appendChild(label);
+            }
 
             if (h.sortable !== false) {
                 const sortIcon = document.createElement('span');
@@ -1349,7 +1522,10 @@ function renderResultsTbody(tableEl) {
     const isGroupSource = _currentGroupBy === 'source';
     const isGroupDomain = _currentGroupBy === 'domain';
 
+    const isJobActive = _currentJobStatus === 'running' || _currentJobStatus === 'starting';
+
     data.forEach(item => {
+
         if (isGroupDomain) {
             const tr = document.createElement('tr');
 
@@ -1454,6 +1630,31 @@ function renderResultsTbody(tableEl) {
         if (isGroupSource) {
             const tr = document.createElement('tr');
 
+            if (!isJobActive) {
+                const tdCb = document.createElement('td');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.style.cursor = 'pointer';
+                const url = item.source_url;
+                cb.checked = _extSelectedUrls.has(url);
+
+                cb.addEventListener('change', (e) => {
+                    if (e.target.checked) _extSelectedUrls.add(url);
+                    else _extSelectedUrls.delete(url);
+                    updateExtToolbarButtons();
+                    
+                    const selectAllCb = document.getElementById('ext-select-all');
+                    if (selectAllCb && _currentResultItems.length > 0) {
+                        const allSelected = _currentResultItems.every(i => _extSelectedUrls.has(i.source_url));
+                        const someSelected = _currentResultItems.some(i => _extSelectedUrls.has(i.source_url));
+                        selectAllCb.checked = allSelected;
+                        selectAllCb.indeterminate = someSelected && !allSelected;
+                    }
+                });
+                tdCb.appendChild(cb);
+                tr.appendChild(tdCb);
+            }
+
             const tdSource = document.createElement('td');
             tdSource.className = 'truncate';
             tdSource.style.maxWidth = '260px';
@@ -1547,6 +1748,30 @@ function renderResultsTbody(tableEl) {
         const statusClass = !status ? 'text-muted' : (status >= 400 ? 'text-danger' : 'text-success');
 
         const tr = document.createElement('tr');
+
+        const isSelectable = _currentGroupBy === 'target';
+        const targetUrl = item.target_url;
+        if (isSelectable && !isJobActive) {
+            const tdCb = document.createElement('td');
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.style.cursor = 'pointer';
+            cb.checked = _extSelectedUrls.has(targetUrl);
+            cb.addEventListener('change', (e) => {
+                if (e.target.checked) _extSelectedUrls.add(targetUrl);
+                else _extSelectedUrls.delete(targetUrl);
+                updateExtToolbarButtons();
+                const selectAllCb = document.getElementById('ext-select-all');
+                if (selectAllCb && _currentResultItems.length > 0) {
+                    const allSelected = _currentResultItems.every(i => _extSelectedUrls.has(i.target_url));
+                    const someSelected = _currentResultItems.some(i => _extSelectedUrls.has(i.target_url));
+                    selectAllCb.checked = allSelected;
+                    selectAllCb.indeterminate = someSelected && !allSelected;
+                }
+            });
+            tdCb.appendChild(cb);
+            tr.appendChild(tdCb);
+        }
 
         if (!isGroupTarget) {
             const tdSource = document.createElement('td');
@@ -1651,6 +1876,29 @@ function renderResultsTbody(tableEl) {
 
         tbody.appendChild(tr);
     });
+
+    const selectAllCb = document.getElementById('ext-select-all');
+    if (selectAllCb && _currentResultItems.length > 0) {
+        let allUrls = [];
+        if (_currentGroupBy === 'target') {
+            allUrls = _currentResultItems.map(i => i.target_url);
+        } else if (_currentGroupBy === 'source') {
+            allUrls = _currentResultItems.map(i => i.source_url);
+        }
+
+        if (allUrls.length > 0) {
+            const allSelected = allUrls.every(u => _extSelectedUrls.has(u));
+            const someSelected = allUrls.some(u => _extSelectedUrls.has(u));
+            selectAllCb.checked = allSelected;
+            selectAllCb.indeterminate = someSelected && !allSelected;
+        } else {
+            selectAllCb.checked = false;
+            selectAllCb.indeterminate = false;
+        }
+    } else if (selectAllCb) {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = false;
+    }
 }
 
 /**
@@ -1832,6 +2080,88 @@ function bindResultsControls() {
             await loadResults(_currentJobId);
         });
     });
+
+
+    // === 局部操作綁定 ===
+    const btnExtReprobe = document.getElementById('btn-ext-reprobe-selected');
+    if (btnExtReprobe) {
+        btnExtReprobe.addEventListener('click', async () => {
+            if (_extSelectedUrls.size === 0) return;
+            const isSourceGroup = _currentGroupBy === 'source';
+            const typeLabel = isSourceGroup ? '關聯的自家網頁（內部連結）' : '外部連結';
+            const ok = await showConfirm('重新探測', `確定要重新探測選取的 ${_extSelectedUrls.size} 個${typeLabel}嗎？`);
+            if (!ok) return;
+            try {
+                const linkType = isSourceGroup ? 'internal' : 'external';
+                const res = await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: linkType, urls: Array.from(_extSelectedUrls) });
+                if (isSourceGroup) {
+                    toast.success('已將關聯的自家網頁加入重新探測佇列');
+                    loadInternalResults(_currentJobId); // Internal changed, refresh it too
+                } else {
+                    toast.success('已將選取的外部連結設為待探測');
+                }
+                _extSelectedUrls.clear();
+                updateExtToolbarButtons();
+                loadExternalResults(_currentJobId);
+                refreshJobDetail(_currentJobId);
+            } catch (err) {
+                toast.error(err.message || '探測失敗');
+            }
+        });
+    }
+
+    const btnExtExport = document.getElementById('btn-ext-export-selected');
+    if (btnExtExport) {
+        btnExtExport.addEventListener('click', async () => {
+            if (_extSelectedUrls.size === 0) return;
+            try {
+                await api.download(`/api/jobs/${_currentJobId}/export/partial`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link_type: 'external', urls: Array.from(_extSelectedUrls) })
+                });
+                toast.success('匯出成功');
+            } catch (err) {
+                toast.error('匯出失敗');
+            }
+        });
+    }
+
+    const btnIntReprobe = document.getElementById('btn-int-reprobe-selected');
+    if (btnIntReprobe) {
+        btnIntReprobe.addEventListener('click', async () => {
+            if (_intSelectedUrls.size === 0) return;
+            const ok = await showConfirm('重新探測', `確定要將選取的 ${_intSelectedUrls.size} 個內部連結重新探測嗎？`);
+            if (!ok) return;
+            try {
+                const res = await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: 'internal', urls: Array.from(_intSelectedUrls) });
+                toast.success(res.message || '重置成功');
+                _intSelectedUrls.clear();
+                updateIntToolbarButtons();
+                loadInternalResults(_currentJobId);
+                refreshJobDetail(_currentJobId);
+            } catch (err) {
+                toast.error(err.message || '重置失敗');
+            }
+        });
+    }
+
+    const btnIntExport = document.getElementById('btn-int-export-selected');
+    if (btnIntExport) {
+        btnIntExport.addEventListener('click', async () => {
+            if (_intSelectedUrls.size === 0) return;
+            try {
+                await api.download(`/api/jobs/${_currentJobId}/export/partial`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link_type: 'internal', urls: Array.from(_intSelectedUrls) })
+                });
+                toast.success('匯出成功');
+            } catch (err) {
+                toast.error('匯出失敗');
+            }
+        });
+    }
 
     // ── 綁定排除網域 Modal 邏輯 ──────────────────────────────────────────
     const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
