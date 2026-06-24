@@ -456,8 +456,9 @@
           current_password: currentPwd,
           new_password: newPwd
         });
-        toast.success('密碼已成功修改。');
         closeChangePwdModal();
+        alert('密碼已修改，請使用新密碼重新登入');
+        logout();
       } catch (err) {
         errorEl.textContent = err.message || '修改密碼失敗。';
       } finally {
