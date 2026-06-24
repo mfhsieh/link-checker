@@ -1239,8 +1239,6 @@ async function loadExternalResults(jobId) {
     const containerEl = document.getElementById('results-container');
     if (!containerEl) return;
 
-    clearResultsSummaryUI();
-
     // 先載入統計摘要，讓使用者優先看到統計值
     const reqId = ++_currentExtSummaryReqId;
     try {
@@ -1268,8 +1266,6 @@ async function loadExternalResults(jobId) {
 async function loadInternalResults(jobId) {
     const containerEl = document.getElementById('internal-results-container');
     if (!containerEl) return;
-
-    clearInternalSummaryUI();
 
     // 先請求統計摘要，讓使用者優先看到統計值
     const reqId = ++_currentIntSummaryReqId;
