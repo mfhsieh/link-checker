@@ -215,6 +215,7 @@ erDiagram
         String(36) job_id FK "關聯任務的 ID (ON DELETE CASCADE)"
         Text url "準備爬取的網址"
         Text source_url "來源網頁網址"
+        Boolean is_secure "是否為 HTTPS 安全協定"
         String(50) status "處理狀態"
         Integer status_code "HTTP 狀態碼"
         String(30) status_category "統一狀態分類"
@@ -275,6 +276,7 @@ erDiagram
 | `job_id` | `String(36)` | **Foreign Key** (`jobs.id`, `ON DELETE CASCADE`) | 該網址隸屬於哪一個任務。 |
 | `url` | `Text` | `NOT NULL` | 準備或已經被爬取之頁面網址。 |
 | `source_url` | `Text` | `Nullable` | 發現此網址的來源網頁網址 (若是任務的起始網址則為 NULL)。 |
+| `is_secure` | `Boolean` | `Default: True` | 標記此內部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若為 HTTPS 則為 `True`，若為 HTTP 則為 `False`。 |
 | `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗), `skip` (因 MIME 或副檔名不符而跳過), `warning` (因超過容量上限被截斷)。 |
 | `status_code` | `Integer` | `Nullable` | 記錄爬取最終的 HTTP 狀態碼。前端與匯出引擎藉由綜合判斷此欄位與 `error_message`，將內部失敗動態歸類為 7 大失效樣態 (資源遺失、伺服器異常、權限不足、連線逾時、底層異常、網頁截斷、其他)。 |
 | `status_category` | `String(30)` | `Default: 'pending'` | 統一狀態分類（例如：`timeout`, `not_found`, `server_error` 等），透過分析程式於背景解析或回填，直接支援統計聚合查詢。 |

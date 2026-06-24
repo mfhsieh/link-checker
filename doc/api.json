@@ -1244,7 +1244,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(not_found|server_error|blocked|timeout|connection_error|other_error|warning|all)$"
+                  "pattern": "^(not_found|server_error|blocked|timeout|connection_error|other_error|warning|all|insecure)$"
                 },
                 {
                   "type": "null"
@@ -1478,7 +1478,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(not_found|server_error|blocked|timeout|connection_error|other_error|warning|all)$"
+                  "pattern": "^(not_found|server_error|blocked|timeout|connection_error|other_error|warning|all|insecure)$"
                 },
                 {
                   "type": "null"

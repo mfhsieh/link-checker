@@ -441,6 +441,7 @@ function renderInternalSummary(summary) {
     setTextContent('int-summary-other-error', summary.other_error ?? 0);
     setTextContent('int-summary-warning', summary.warning ?? 0);
     setTextContent('int-summary-blocked', summary.blocked ?? 0);
+    setTextContent('int-summary-insecure', summary.insecure ?? 0);
 }
 
 /**
@@ -484,6 +485,7 @@ function renderInternalResultsTable(res, containerEl) {
         headers = [
             { label: '來源頁面 (Source)', key: 'Source URL' },
             { label: '目標 URL', key: 'URL' },
+            { label: 'HTTPS', key: 'is_secure' },
             { label: 'HTTP 狀態', key: 'HTTP Status Code' },
             { label: '錯誤訊息', key: 'Error Message' }
         ];
@@ -800,6 +802,13 @@ function renderInternalTbody(tableEl) {
             aUrl.textContent = item.URL;
             tdUrl.appendChild(aUrl);
             tr.appendChild(tdUrl);
+
+            const tdSecure = document.createElement('td');
+            const spanSecure = document.createElement('span');
+            spanSecure.className = item.is_secure ? 'text-success' : 'text-danger';
+            spanSecure.textContent = item.is_secure ? '✓' : '✗';
+            tdSecure.appendChild(spanSecure);
+            tr.appendChild(tdSecure);
 
             const tdStatus = document.createElement('td');
             tdStatus.className = getInternalStatusColorClass(item['HTTP Status Code'], item['Error Message']);

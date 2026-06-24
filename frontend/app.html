@@ -516,7 +516,7 @@
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未預期的例外錯誤</div>
             </div>
             <div class="stat-card filter-card" data-filter="warning"
-              data-desc="網頁超過系統設定的最大下載上限，已被提早截斷。該網頁可能遺漏部分未被解析的外部連結。" data-color="var(--color-warning-500)"
+              data-desc="網頁超過系統設定的最大下載上限，已被提早截斷。該網頁可能遺漏部分未被解析的外部連結。" data-color="var(--color-warning-400)"
               style="padding:0.75rem">
               <div class="stat-label text-warning">網頁截斷</div>
               <div class="stat-value text-warning" id="int-summary-warning">0</div>
@@ -524,10 +524,17 @@
             </div>
             <div class="stat-card filter-card" data-filter="blocked"
               data-desc="未獲授權、拒絕存取、不允許的請求、不接受的請求、請求過多等狀態碼 (401, 403, 405, 406, 429)。這多數是正常的防禦行為，而非連結失效。"
-              data-color="var(--color-neutral-500)" style="padding:0.75rem">
+              data-color="var(--color-neutral-400)" style="padding:0.75rem">
               <div class="stat-label text-muted">權限阻擋</div>
               <div class="stat-value text-muted" id="int-summary-blocked">0</div>
               <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未獲授權或遭封鎖</div>
+            </div>
+            <div class="stat-card filter-card" data-filter="insecure"
+              data-desc="連結仍使用未加密的 HTTP 協定進行傳輸，容易遭到中間人監聽或劫持，建議將其升級為 HTTPS。" data-color="var(--color-warning-400)"
+              style="padding:0.75rem">
+              <div class="stat-label text-warning">非 HTTPS</div>
+              <div class="stat-value text-warning" id="int-summary-insecure">0</div>
+              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">使用明文 HTTP 傳輸</div>
             </div>
           </div>
           <!-- 卡片說明區塊 -->

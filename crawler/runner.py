@@ -476,6 +476,7 @@ class JobRunner:
                         source_url=queue_item.url,
                         status="pending",
                         status_category="pending",
+                        is_secure=link.startswith("https://"),
                         depth=next_depth,
                     )
                     session.add(new_item)

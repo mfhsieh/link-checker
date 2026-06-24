@@ -156,6 +156,7 @@ class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
     depth: Mapped[int] = mapped_column(default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     status_category: Mapped[str] = mapped_column(String(30), default="pending")
+    is_secure: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
 

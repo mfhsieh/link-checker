@@ -205,7 +205,7 @@ def export_internal_results(
     query_filter: str | None = Query(
         None,
         alias="filter",
-        pattern="^(not_found|server_error|blocked|timeout|connection_error|other_error|warning|all)$",
+        pattern="^(not_found|server_error|blocked|timeout|connection_error|other_error|warning|all|insecure)$",
     ),
     group_by: str = Query("none", pattern="^(none|source)$"),
     fmt: str = Query("csv", pattern="^(csv|json)$"),

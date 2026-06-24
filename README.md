@@ -141,6 +141,22 @@ python cli.py --help
 
 ---
 
+## 升級提醒 (Upgrading)
+
+> [!IMPORTANT]
+> 若您是從 **v1.8 或更低版本** 升級至 **v1.9 或更高版本**，因為 `crawl_queue` 新增 HTTPS 檢測欄位 (`is_secure`)，如使用 PostgreSQL，請務必手動執行以下指令（ `lc_user` 指  `crawler_db` 的 username）：
+> 
+> ```bash
+> sudo systemctl stop link-checker
+> psql -U lc_user -d crawler_db -c "ALTER TABLE crawl_queue ADD COLUMN is_secure BOOLEAN DEFAULT TRUE;"
+> psql -U lc_user -d crawler_db -c "UPDATE crawl_queue SET is_secure = FALSE WHERE url LIKE 'http://%';"
+> sudo systemctl start link-checker
+> ```
+> 
+> 若使用 SQLite，則可以刪除舊有的資料庫讓系統自動重建，或是參考上述 SQL 語法自行更新。
+
+---
+
 ## 授權條款
 本專案採用 **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-Hant)** 授權條款釋出。
 

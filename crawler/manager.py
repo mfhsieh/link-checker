@@ -117,6 +117,7 @@ class JobManager:
                 url=options.start_url,
                 source_url=None,
                 status="pending",
+                is_secure=options.start_url.startswith("https://"),
                 depth=0,
             )
             session.add(queue_item)

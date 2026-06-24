@@ -141,6 +141,7 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
         "Status Category": q.status_category,
         "Depth": q.depth,
         "Retry Count": q.retry_count,
+        "is_secure": q.is_secure,
         "HTTP Status Code": q.status_code if q.status_code is not None else "",
         "Error Message": q.error_message if q.error_message else "",
         "Created At": q.created_at.strftime("%Y-%m-%d %H:%M:%S"),
