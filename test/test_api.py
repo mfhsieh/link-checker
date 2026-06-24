@@ -249,10 +249,11 @@ def _run_api_full_flow() -> None:
     pwd_data = {"current_password": "Admin@12345678", "new_password": "SuperSecret!@#$123456"}
     res = client.patch("/api/auth/password", json=pwd_data, headers={"X-CSRF-Token": csrf_token})
     assert res.status_code in (200, 201, 202), f"Change password failed: {res.text}"
-    csrf_token = get_csrf_token(res, csrf_token)
-
-    # Change back to keep it simple or use new password for next steps
-    # We will just continue since session is still valid
+    # 密碼變更後，所有 Session 會被強制撤銷，需要使用新密碼重新登入
+    login_data_new = {"email": "admin@test.com", "password": "SuperSecret!@#$123456"}
+    res = client.post("/api/auth/login", json=login_data_new)
+    assert res.status_code in (200, 201, 202), f"Re-login failed: {res.text}"
+    csrf_token = get_csrf_token(res)
 
     # 5. Admin - Create User (Invite)
     invite_data = {"email": "user1@test.com"}

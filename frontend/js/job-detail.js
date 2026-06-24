@@ -49,6 +49,15 @@ let _currentDetailHeaders = [];
 /** @type {Array<Object>} 外部連結當頁結果暫存 */
 let _currentResultItems = [];
 
+/** @type {number} 用於防止外部連結載入的 Race Condition */
+let _currentExtReqId = 0;
+/** @type {number} 用於防止內部連結載入的 Race Condition */
+let _currentIntReqId = 0;
+/** @type {number} 用於防止外部連結統計載入的 Race Condition */
+let _currentExtSummaryReqId = 0;
+/** @type {number} 用於防止內部連結統計載入的 Race Condition */
+let _currentIntSummaryReqId = 0;
+
 /** @type {Set<string>} 外部連結已選取項目 */
 let _extSelectedUrls = new Set();
 /** @type {Set<string>} 內部連結已選取項目 */
@@ -157,7 +166,7 @@ function clearInternalSummaryUI() {
     const stats = [
         'int-summary-total', 'int-summary-server-error', 'int-summary-connection-error',
         'int-summary-timeout', 'int-summary-not-found', 'int-summary-other-error',
-        'int-summary-warning', 'int-summary-access-denied'
+        'int-summary-warning', 'int-summary-blocked', 'int-summary-insecure'
     ];
     stats.forEach(id => setTextContent(id, '-'));
 }
@@ -402,6 +411,8 @@ async function loadInternalResultsPage(jobId) {
         tableEl.style.opacity = '0.5';
     }
 
+    const reqId = ++_currentIntReqId;
+
     try {
         const params = { group_by: _internalGroupBy, page: _internalCurrentPage, page_size: 50, sort_by: _internalSort.key || undefined, sort_asc: _internalSort.asc };
         if (_internalFilter && _internalFilter !== 'all') params.filter = _internalFilter;
@@ -410,12 +421,12 @@ async function loadInternalResultsPage(jobId) {
             params.col_filters = JSON.stringify(activeFilters);
         }
         const res = await api.get(`/api/jobs/${jobId}/internal-results`, params);
-        if (jobId !== _currentJobId) return;
+        if (jobId !== _currentJobId || reqId !== _currentIntReqId) return;
         if (tableEl) tableEl.style.opacity = '1';
         renderInternalResultsTable(res, containerEl);
         renderInternalPagination(res, jobId);
     } catch (err) {
-        if (jobId !== _currentJobId) return;
+        if (jobId !== _currentJobId || reqId !== _currentIntReqId) return;
         containerEl.replaceChildren();
         const emptyStateEl = document.createElement('div');
         emptyStateEl.className = 'empty-state';
@@ -1231,6 +1242,7 @@ async function loadExternalResults(jobId) {
     clearResultsSummaryUI();
 
     // 先載入統計摘要，讓使用者優先看到統計值
+    const reqId = ++_currentExtSummaryReqId;
     try {
         const params = {};
         if (_currentExcludeEnabled && _currentExclude) {
@@ -1240,7 +1252,7 @@ async function loadExternalResults(jobId) {
             params.group_by = _currentGroupBy;
         }
         const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
-        if (jobId !== _currentJobId) return;
+        if (jobId !== _currentJobId || reqId !== _currentExtSummaryReqId) return;
         renderResultsSummary(summary);
     } catch (_) { /* 忽略 */ }
 
@@ -1260,13 +1272,14 @@ async function loadInternalResults(jobId) {
     clearInternalSummaryUI();
 
     // 先請求統計摘要，讓使用者優先看到統計值
+    const reqId = ++_currentIntSummaryReqId;
     try {
         const params = {};
         if (_internalGroupBy && _internalGroupBy !== 'none') {
             params.group_by = _internalGroupBy;
         }
         const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
-        if (jobId !== _currentJobId) return;
+        if (jobId !== _currentJobId || reqId !== _currentIntSummaryReqId) return;
         renderInternalSummary(summary);
     } catch (_) { /* 忽略 */ }
 
@@ -1308,6 +1321,8 @@ async function loadResultsPage(jobId) {
         tableEl.style.opacity = '0.5';
     }
 
+    const reqId = ++_currentExtReqId;
+
     try {
         const params = {
             filter: _currentFilter || undefined,
@@ -1323,12 +1338,12 @@ async function loadResultsPage(jobId) {
             params.col_filters = JSON.stringify(activeFilters);
         }
         const res = await api.get(`/api/jobs/${jobId}/results`, params);
-        if (jobId !== _currentJobId) return;
+        if (jobId !== _currentJobId || reqId !== _currentExtReqId) return;
         if (tableEl) tableEl.style.opacity = '1';
         renderResultsTable(res, containerEl);
         renderPagination(res, jobId);
     } catch (err) {
-        if (jobId !== _currentJobId) return;
+        if (jobId !== _currentJobId || reqId !== _currentExtReqId) return;
         containerEl.replaceChildren();
         const emptyStateEl = document.createElement('div');
         emptyStateEl.className = 'empty-state';
@@ -2009,71 +2024,55 @@ function renderPagination(res, jobId) {
 function bindResultsControls() {
     document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(chip => {
         chip.addEventListener('click', async () => {
-            const container = chip.closest('.grid-stats');
-            if (container.style.pointerEvents === 'none') return;
-            container.style.pointerEvents = 'none';
+            const filter = chip.dataset.filter;
+            _currentFilter = (_currentFilter === filter || filter === 'all') ? null : filter;
+            _currentPage = 1;
 
-            try {
-                const filter = chip.dataset.filter;
-                _currentFilter = (_currentFilter === filter || filter === 'all') ? null : filter;
-                _currentPage = 1;
+            let activeDesc = '';
+            let activeColor = 'var(--color-brand-400)';
 
-                let activeDesc = '';
-                let activeColor = 'var(--color-brand-400)';
-
-                document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(c => {
-                    const isActive = _currentFilter === c.dataset.filter || (_currentFilter === null && c.dataset.filter === 'all');
-                    c.classList.toggle('active', isActive);
-                    if (isActive) {
-                        activeDesc = c.dataset.desc;
-                        activeColor = c.dataset.color || 'var(--color-brand-400)';
-                    }
-                });
-                const descBox = document.getElementById('ext-filter-desc');
-                if (descBox) {
-                    descBox.style.borderLeftColor = activeColor;
-                    const span = descBox.querySelector('span');
-                    if (span) span.textContent = activeDesc;
+            document.querySelectorAll('#tab-content-external .filter-card[data-filter]').forEach(c => {
+                const isActive = _currentFilter === c.dataset.filter || (_currentFilter === null && c.dataset.filter === 'all');
+                c.classList.toggle('active', isActive);
+                if (isActive) {
+                    activeDesc = c.dataset.desc;
+                    activeColor = c.dataset.color || 'var(--color-brand-400)';
                 }
-                await loadResultsPage(_currentJobId);
-            } finally {
-                container.style.pointerEvents = '';
+            });
+            const descBox = document.getElementById('ext-filter-desc');
+            if (descBox) {
+                descBox.style.borderLeftColor = activeColor;
+                const span = descBox.querySelector('span');
+                if (span) span.textContent = activeDesc;
             }
+            await loadResultsPage(_currentJobId);
         });
     });
 
     document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(chip => {
         chip.addEventListener('click', async () => {
-            const container = chip.closest('.grid-stats');
-            if (container.style.pointerEvents === 'none') return;
-            container.style.pointerEvents = 'none';
+            const filter = chip.dataset.filter;
+            _internalFilter = (_internalFilter === filter || filter === 'all') ? null : filter;
+            _internalCurrentPage = 1;
 
-            try {
-                const filter = chip.dataset.filter;
-                _internalFilter = (_internalFilter === filter || filter === 'all') ? null : filter;
-                _internalCurrentPage = 1;
+            let activeDesc = '';
+            let activeColor = 'var(--color-brand-400)';
 
-                let activeDesc = '';
-                let activeColor = 'var(--color-brand-400)';
-
-                document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
-                    const isActive = _internalFilter === c.dataset.filter || (_internalFilter === null && c.dataset.filter === 'all');
-                    c.classList.toggle('active', isActive);
-                    if (isActive) {
-                        activeDesc = c.dataset.desc;
-                        activeColor = c.dataset.color || 'var(--color-brand-400)';
-                    }
-                });
-                const descBox = document.getElementById('int-filter-desc');
-                if (descBox) {
-                    descBox.style.borderLeftColor = activeColor;
-                    const span = descBox.querySelector('span');
-                    if (span) span.textContent = activeDesc;
+            document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
+                const isActive = _internalFilter === c.dataset.filter || (_internalFilter === null && c.dataset.filter === 'all');
+                c.classList.toggle('active', isActive);
+                if (isActive) {
+                    activeDesc = c.dataset.desc;
+                    activeColor = c.dataset.color || 'var(--color-brand-400)';
                 }
-                await loadInternalResultsPage(_currentJobId);
-            } finally {
-                container.style.pointerEvents = '';
+            });
+            const descBox = document.getElementById('int-filter-desc');
+            if (descBox) {
+                descBox.style.borderLeftColor = activeColor;
+                const span = descBox.querySelector('span');
+                if (span) span.textContent = activeDesc;
             }
+            await loadInternalResultsPage(_currentJobId);
         });
     });
 
