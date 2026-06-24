@@ -75,23 +75,14 @@ pip install -r requirements.txt
 
 ### 3. (可選) 設定環境變數 (.env)
 
-若您只是想在本機快速體驗，**可完全略過此步驟**，系統會自動以預設值建立 SQLite 資料庫。
+若您只是想在本機快速體驗，**可完全略過此步驟**，系統會自動以預設組態執行。
 
-若要自訂組態，請建立 `.env` 檔案並設定以下變數（用於覆寫預設值）：
+若要自訂組態，請參考 [.env.example](.env.example) 建立 `.env` 檔案。
 
 > ⚠️ **安全提醒**：`.env` 檔案通常會用來儲存機敏資訊（例如 SMTP 密碼或 Proxy 帳密等）。請務必在建立檔案後**更改其讀寫權限**，防止未經授權的存取。在 Linux/macOS 環境下，建議執行以下指令：
 > ```bash
 > chmod 600 .env
 > ```
-
-```env
-# 指定資料庫位置
-AUTH_DB_URL="sqlite:///db/auth.db"
-CRAWLER_DB_URL="sqlite:///db/crawler.db"
-
-# 開發階段可設為 true，將郵件內容輸出至終端機而不實際寄送
-SMTP_CONSOLE_MODE=true
-```
 
 ### 4. 系統管理員初始化
 
