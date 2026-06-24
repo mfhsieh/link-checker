@@ -588,6 +588,8 @@ def change_password(
     user.password_hash = hash_password(new_password)
     db.commit()
 
+    # 撤銷該使用者所有現有 Session，強制重新登入（與 reset_password 行為一致）
+    invalidate_all_user_sessions(db, user_id)
     _log_event(db, "password_changed", user_id=user_id)
 
 
