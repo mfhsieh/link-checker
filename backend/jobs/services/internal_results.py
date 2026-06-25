@@ -70,7 +70,7 @@ def stream_internal_errors(
 
     query = db.query(CrawlQueue).filter(
         CrawlQueue.job_id == query_args.job_id,
-        or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure.is_(False)),
+        or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure == False),
     )
     query = apply_internal_result_filters(query, query_args.status_filter)
 
@@ -108,7 +108,7 @@ def apply_internal_result_filters(query: Query, status_filter: str | None) -> Qu
         return query
 
     if status_filter == "insecure":
-        query = query.filter(CrawlQueue.is_secure.is_(False))
+        query = query.filter(CrawlQueue.is_secure == False)
     else:
         query = query.filter(CrawlQueue.status_category == status_filter)
     return query
@@ -134,9 +134,9 @@ def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, 
         sql_sum(case((CrawlQueue.status_category == "connection_error", 1), else_=0)).label("connection_error"),
         sql_sum(case((CrawlQueue.status_category == "warning", 1), else_=0)).label("warning"),
         sql_sum(case((CrawlQueue.status_category == "other_error", 1), else_=0)).label("other_error"),
-        sql_sum(case((CrawlQueue.is_secure.is_(False), 1), else_=0)).label("insecure"),
+        sql_sum(case((CrawlQueue.is_secure == False, 1), else_=0)).label("insecure"),
     ).filter(
-        CrawlQueue.job_id == job_id, or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure.is_(False))
+        CrawlQueue.job_id == job_id, or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure == False)
     )
 
     stats = query.first()
@@ -193,9 +193,9 @@ def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: 
         ),
         count(case((CrawlQueue.status_category == "warning", key_col), else_=None).distinct()).label("warning"),
         count(case((CrawlQueue.status_category == "other_error", key_col), else_=None).distinct()).label("other_error"),
-        count(case((CrawlQueue.is_secure.is_(False), key_col), else_=None).distinct()).label("insecure"),
+        count(case((CrawlQueue.is_secure == False, key_col), else_=None).distinct()).label("insecure"),
     ).filter(
-        CrawlQueue.job_id == job_id, or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure.is_(False))
+        CrawlQueue.job_id == job_id, or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure == False)
     )
 
     stats = query.first()
@@ -283,7 +283,7 @@ def _get_internal_errors_grouped_by_source(
         JSONGroupArray(target_obj).label("targets"),
     ).filter(
         CrawlQueue.job_id == query_args.job_id,
-        or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure.is_(False)),
+        or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure == False),
     )
 
     main_q = apply_internal_result_filters(main_q, query_args.status_filter)
@@ -387,7 +387,7 @@ def get_internal_errors(
 
     query = db.query(CrawlQueue).filter(
         CrawlQueue.job_id == query_args.job_id,
-        or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure.is_(False)),
+        or_(CrawlQueue.status.in_(["failed", "warning"]), CrawlQueue.is_secure == False),
     )
     query = apply_internal_result_filters(query, query_args.status_filter)
     return _get_internal_errors_no_grouping(query, query_args)
