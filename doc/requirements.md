@@ -408,6 +408,9 @@
   * **篩選防抖 (Filter Debounce)**：表格欄位的過濾輸入框（Filter Inputs）在輸入時必須實作 500ms 的防抖延遲（Debounce），避免使用者在打字時對後端伺服器發送大量冗餘的 HTTP 請求。
   * **半透明載入緩衝 (Opacity Loading Buffer)**：當使用者異動篩選、排序、分組且原本已有渲染表格時，系統不應清空整個區塊，而應將現有表格透明度設為 0.5，作為流暢且低干擾的載入中視覺反饋，避免畫面全白閃爍。
   * **API 串行加載減壓 (Sequential Loading)**：重新載入結果時，系統必須採用串行加載機制。優先加載並渲染分頁表格資料，待表格加載完成後，才發送請求去拉取統計卡片摘要（Summary），以此分散並減輕後端大運算並發請求的 CPU 與 IO 負載。
+* **後端查詢與資料庫效能優化 (Backend Query & Database Performance Optimization)**：
+  * **規避 PostgreSQL `ORDER BY ... LIMIT` 全表掃描陷阱**：在實作分頁查詢時，若遭遇稀疏條件過濾（例如只篩選數百萬筆資料中極少數的失效連結）並搭配 `ORDER BY id LIMIT n`，PostgreSQL 查詢最佳化器極易發生誤判，為了節省排序成本而選擇循序掃描 Primary Key 索引，最終導致災難性的全表掃描。為規避此問題，後端在動態排序時必須將預設的排序欄位轉換為表達式（例如：`default_sort = id + 0`），強制破壞該欄位的純粹性使資料庫無法依賴主鍵索引排序，進而被迫使用建立好的 Partial Index (部分索引) 先把少數符合條件的資料撈出後再於記憶體排序，確保查詢在毫秒內極速完成。此 `+ 0` 技巧亦完全相容於 SQLite 等輕量資料庫。
+  * **嚴謹的 SQLAlchemy Boolean 條件對應**：在後端 ORM 查詢中，針對 Boolean 條件（如 `is_secure`），嚴禁使用 `.is_(False)`，因為這會產生 `IS false` 的 SQL 語法，這在 PostgreSQL 中無法精確吻合建立部分索引時所宣告的 `is_secure = false` 條件，導致優化器放棄使用索引。必須強制使用 `== False` 來精準產生 `= false` 語句，確保與 Partial Index 的抽象語法樹 (AST) 完美契合。
 
 ### 7.4 全站資料表互動 (Client-side Table Sorting & Filtering)
 
