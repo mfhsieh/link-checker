@@ -357,7 +357,7 @@ def _get_job_results_no_grouping(
         query_args=query_args,
         filter_map=filter_map,
         sort_map=sort_map,
-        default_sort=ExternalLink.created_at,
+        default_sort=ExternalLink.id + 0,
         row_mapper=row_mapper,
     )
 
@@ -438,7 +438,7 @@ def get_results_summary(  # pylint: disable=too-many-locals
         key_col = ExternalLink.id
 
     count_expr = count(key_col.distinct()) if is_grouped else count(key_col)
-    insecure_expr = case((ExternalLink.is_secure.is_(False), key_col), else_=None)
+    insecure_expr = case((ExternalLink.is_secure == False, key_col), else_=None)
     insecure_count_expr = count(insecure_expr.distinct()) if is_grouped else count(insecure_expr)
 
     query = db.query(

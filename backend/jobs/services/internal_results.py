@@ -355,7 +355,7 @@ def _get_internal_errors_no_grouping(
         query_args=query_args,
         filter_map=filter_map,
         sort_map=sort_map,
-        default_sort=CrawlQueue.id,
+        default_sort=CrawlQueue.id + 0,
         row_mapper=format_crawl_queue_item,
     )
 
