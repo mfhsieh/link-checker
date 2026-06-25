@@ -98,6 +98,7 @@ def export_job(job_id: str, output_path: str) -> None:
                     "depth": q.depth,
                     "error_message": q.error_message,
                     "status_category": q.status_category,
+                    "is_secure": q.is_secure,
                     "created_at": q.created_at.isoformat(),
                     "updated_at": q.updated_at.isoformat(),
                 }
@@ -217,6 +218,7 @@ def import_job(input_path: str, new_user_id: str) -> None:
                             or determine_internal_link_status_category(
                                 q_data["status"], q_data["status_code"], q_data.get("error_message")
                             ),
+                            is_secure=q_data.get("is_secure", True),
                             created_at=datetime.fromisoformat(q_data["created_at"]),
                             updated_at=datetime.fromisoformat(q_data["updated_at"]),
                         )
