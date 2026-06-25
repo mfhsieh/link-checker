@@ -150,6 +150,7 @@ python cli.py --help
 > sudo systemctl stop link-checker
 > psql -U lc_user -d crawler_db -c "ALTER TABLE crawl_queue ADD COLUMN is_secure BOOLEAN DEFAULT TRUE;"
 > psql -U lc_user -d crawler_db -c "UPDATE crawl_queue SET is_secure = FALSE WHERE url LIKE 'http://%';"
+> psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crawl_queue_internal_issues ON crawl_queue (job_id) WHERE status IN ('failed', 'warning') OR is_secure = false;"
 > sudo systemctl start link-checker
 > ```
 > 

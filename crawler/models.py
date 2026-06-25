@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Query, mapped_column, relationship
 
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
@@ -144,6 +144,12 @@ class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
         Index("ix_crawl_queue_job_url", "job_id", "url"),
         Index("ix_crawl_queue_job_status_id", "job_id", "status", "id"),
         Index("ix_crawl_queue_job_category", "job_id", "status_category"),
+        Index(
+            "ix_crawl_queue_internal_issues",
+            "job_id",
+            postgresql_where=text("status IN ('failed', 'warning') OR is_secure = false"),
+            sqlite_where=text("status IN ('failed', 'warning') OR is_secure = 0"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
