@@ -32,7 +32,24 @@
 4. **時區處理 (Timezone)**：為相容 SQLite，系統目前統一採用無時區資訊 (Naive UTC) 進行寫入。若引入對時區嚴格敏感的引擎，需審慎評估是否改用 `DateTime(timezone=True)` 並處理向下相容問題。
 
 > [!TIP]
-> **客製化程式碼位置**：以上提及的資料庫連線工廠、引擎參數動態調校、以及 SQLite 專屬的效能事件攔截器（Event Listeners）實作，皆集中於 `crawler/utils.py` 中的 `get_db_session_factory` 函數內。若需擴充資料庫，請直接從該處著手修改。
+> **客製化程式碼位置**：
+> * **引擎與參數調校**：以上提及的 SQLAlchemy 引擎參數動態調校、以及 SQLite 專屬的效能事件攔截器（Event Listeners）實作，皆集中於 `crawler/utils.py` 中的 `create_optimized_engine` 函數內。若需擴充資料庫，請直接從該處開始。
+> * **Auth DB 連線與 SessionMaker**：位於 `backend/auth/db.py` 中，透過 `get_auth_session_local()` 進行初始化與調用。
+> * **Crawler DB 連線與 SessionMaker**：統一由 Crawler 核心引擎 `crawler/manager.py` 中的 `JobManager` 管理，FastAPI 則透過 `backend/deps.py` 的依賴注入取得其連線。
+
+### 1.3 查詢效能優化與 ORM 避坑指南 (Query Optimization & ORM Pitfalls)
+
+在同時兼容 SQLite 與 PostgreSQL 的雙引擎架構下，開發人員在撰寫 SQLAlchemy ORM 查詢時，必須特別注意以下效能陷阱與語法相容性：
+
+1. **規避 PostgreSQL `ORDER BY ... LIMIT` 全表掃描陷阱**：
+   * **問題情境**：在實作分頁查詢時，如果 `WHERE` 條件非常稀疏（例如在數百萬筆成功的連結中，只過濾出數十筆失效連結），並搭配 `ORDER BY id LIMIT 50`。PostgreSQL 的 Query Planner 為了節省排序成本，極易自作聰明地選擇循序掃描 Primary Key (`id`) 索引，期望能「邊掃描邊過濾，找到 50 筆就停下來」，最終卻導致災難性的 Full Table Scan，完全無視我們為失效狀態建立的高效 Partial Index。
+   * **優化策略**：在呼叫 `execute_paginated_query` 或自訂分頁排序時，請將排序欄位從單純的屬性轉換為**數學表達式**（例如使用 `default_sort=CrawlQueue.id + 0` 取代 `default_sort=CrawlQueue.id`）。這個小技巧會破壞 PostgreSQL 依賴主鍵索引排序的意圖，強迫優化器先去走 Partial Index 撈出極少數的資料後，再放入記憶體排序，查詢時間將從數十秒驟降至幾毫秒。
+   * **相容性**：SQLite 同樣支援 `id + 0` 這類運算式排序，此修改百分之百相容，且同樣能達成索引避險的效果。
+
+2. **嚴謹的 SQLAlchemy Boolean 條件映射**：
+   * **問題情境**：為了加速過濾出非安全協定的連結，我們在 `models.py` 建立了 Partial Index：`postgresql_where=text("... OR is_secure = false")` 以及 `sqlite_where=text("... OR is_secure = 0")`。但在 SQLAlchemy 撰寫查詢時，若使用 `.is_(False)`，它會產生出 `IS false` 的 SQL 語法。
+   * **優化策略**：在 PostgreSQL 中，`IS false` 與 `= false` 在抽象語法樹 (AST) 裡是完全不同的結構，會導致優化器判定索引條件不符而放棄使用 Partial Index。開發時**絕對禁止使用 `.is_(False)`**，請一律使用 `== False`。
+   * **相容性**：SQLAlchemy 極度聰明，當遇到 `== False` 時，在 PostgreSQL 會完美轉譯為 `= false`，而在 SQLite 則會轉譯為 `= 0`，完美對接兩種資料庫的 Partial Index 宣告。
 
 ---
 
@@ -291,6 +308,7 @@ erDiagram
 * **`ix_crawl_queue_job_url`**: `(job_id, url)`。用於去重檢查（避免全表掃描）。
 * **`ix_crawl_queue_job_status_id`**: `(job_id, status, id)`。用於極速提取下一個待爬取的佇列網址（包含排序）。
 * **`ix_crawl_queue_job_category`**: `(job_id, status_category)`。用於加速 API 的分類統計聚合查詢。
+* **`ix_crawl_queue_internal_issues`** (部分索引 / Partial Index): 僅針對 `(job_id)` 建立，並過濾條件 `WHERE status IN ('failed', 'warning') OR is_secure = false` (或 SQLite 的 `= 0`)。此索引專門設計用來避開數百萬筆成功連結，以毫秒級速度極速撈出有問題的內部連結報表，並完美配合 `id + 0` 數學表達式規避分頁排序的效能陷阱。
 
 #### `external_links` (發現的外部連結)
 此資料表負責記錄爬蟲分析網頁 HTML 後，過濾並蒐集到的所有**外部目標連結**。這與 `crawl_queue` 共同構成系統最核心的連結健康度診斷產出。
@@ -312,9 +330,9 @@ erDiagram
 ##### 索引與唯一約束資訊 (Indexes & Constraints)
 * **`uq_external_links_job_src_tgt`** (唯一約束): `(job_id, source_url, target_url)`。用於從資料庫層面防止在同一任務中重複記錄相同的來源母頁面與目標外部網址。
 * **`ix_external_links_job_created`** (複合索引): `(job_id, created_at)`。用於加速巨量資料的分頁與排序。
-* **`ix_external_links_job_status_ip`** (複合索引): `(job_id, http_status_code, ip_address)`。用於加速狀態統計與篩選。
 * **`ix_external_links_job_category`** (複合索引): `(job_id, status_category)`。用於加速統計摘要與分類篩選。
 * **`ix_external_links_job_domain`** (複合索引): `(job_id, target_domain)`。用於加速依網域群組統計 (`group_by=domain`)。
+* **`ix_external_links_insecure_issues`** (部分索引 / Partial Index): 僅針對 `(job_id)` 建立，並過濾條件 `WHERE is_secure = false` (或 SQLite 的 `= 0`)。此索引專門設計用來避開數百萬筆安全協定的正常外部連結，以毫秒級速度極速撈出非 HTTPS 的外部連結報表，並同樣完美配合 `id + 0` 數學表達式規避分頁排序的效能陷阱。
 
 ---
 
