@@ -58,6 +58,23 @@ let _currentExtSummaryReqId = 0;
 /** @type {number} 用於防止內部連結統計載入的 Race Condition */
 let _currentIntSummaryReqId = 0;
 
+/**
+ * 外部連結 Summary 快取。
+ * key 為影響 Summary 的參數字串（exclude + groupBy），
+ * data 為上次 API 回傳的統計物件。
+ * 當資料實際發生變動（重探測、重置、任務狀態轉換）時，設 key=null 以強制失效。
+ * @type {{ key: string|null, data: Object|null }}
+ */
+let _extSummaryCache = { key: null, data: null };
+
+/**
+ * 內部連結 Summary 快取。
+ * key 為影響 Summary 的參數字串（groupBy），
+ * data 為上次 API 回傳的統計物件。
+ * @type {{ key: string|null, data: Object|null }}
+ */
+let _intSummaryCache = { key: null, data: null };
+
 /** @type {Set<string>} 外部連結已選取項目 */
 let _extSelectedUrls = new Set();
 /** @type {Set<string>} 內部連結已選取項目 */
@@ -297,6 +314,10 @@ export async function initJobDetailPage(jobId) {
     _detailColFilters = {};
     _internalSort = { key: null, asc: true };
     _internalColFilters = {};
+
+    // 切換任務時，強制清除 Summary 快取
+    _extSummaryCache = { key: null, data: null };
+    _intSummaryCache = { key: null, data: null };
 
     // 清除舊的 UI 狀態 (如搜尋框、過濾器狀態)
     document.querySelectorAll('#tab-content-internal .filter-card[data-filter]').forEach(c => {
@@ -968,7 +989,10 @@ function renderJobInfo(job) {
     _currentJobStatus = job.status;
 
     // 若任務剛完成或暫停，觸發重新載入表格以顯示操作按鈕 (CheckBoxes)
+    // 同時使 Summary 快取失效，因為資料已更新
     if (previousJobStatus && ['running', 'starting'].includes(previousJobStatus) && !['running', 'starting'].includes(_currentJobStatus)) {
+        _extSummaryCache = { key: null, data: null };
+        _intSummaryCache = { key: null, data: null };
         setTimeout(() => loadResults(_currentJobId), 100);
     }
 
@@ -1063,6 +1087,9 @@ function bindControlButtons() {
         await api.post(`/api/jobs/${_currentJobId}/reset`);
         toast.success('任務已重置。');
         await refreshJobDetail(_currentJobId);
+        // 資料已全面重置，使快取失效
+        _extSummaryCache = { key: null, data: null };
+        _intSummaryCache = { key: null, data: null };
         await loadResults(_currentJobId);
     });
 
@@ -1072,6 +1099,9 @@ function bindControlButtons() {
         await api.post(`/api/jobs/${_currentJobId}/retry-failed`);
         toast.success('失敗項目已重置！您可以點擊啟動繼續任務。');
         await refreshJobDetail(_currentJobId);
+        // 資料已變動，使快取失效
+        _extSummaryCache = { key: null, data: null };
+        _intSummaryCache = { key: null, data: null };
         await loadResults(_currentJobId);
     });
 
@@ -1239,20 +1269,26 @@ async function loadExternalResults(jobId) {
     const containerEl = document.getElementById('results-container');
     if (!containerEl) return;
 
-    // 先載入統計摘要，讓使用者優先看到統計值
-    const reqId = ++_currentExtSummaryReqId;
-    try {
-        const params = {};
-        if (_currentExcludeEnabled && _currentExclude) {
-            params.exclude = _currentExclude;
-        }
-        if (_currentGroupBy && _currentGroupBy !== 'none') {
-            params.group_by = _currentGroupBy;
-        }
-        const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
-        if (jobId !== _currentJobId || reqId !== _currentExtSummaryReqId) return;
-        renderResultsSummary(summary);
-    } catch (_) { /* 忽略 */ }
+    // 計算此次 Summary 的快取 key（由影響 Summary 結果的參數組成）
+    const excludeVal = (_currentExcludeEnabled && _currentExclude) ? _currentExclude : '';
+    const summaryKey = `${excludeVal}|${_currentGroupBy}`;
+
+    if (_extSummaryCache.key === summaryKey && _extSummaryCache.data) {
+        // 快取命中，直接渲染，不發送 API 請求
+        renderResultsSummary(_extSummaryCache.data);
+    } else {
+        // 快取未命中或已失效，發送 API 請求
+        const reqId = ++_currentExtSummaryReqId;
+        try {
+            const params = {};
+            if (excludeVal) params.exclude = excludeVal;
+            if (_currentGroupBy && _currentGroupBy !== 'none') params.group_by = _currentGroupBy;
+            const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
+            if (jobId !== _currentJobId || reqId !== _currentExtSummaryReqId) return;
+            _extSummaryCache = { key: summaryKey, data: summary };
+            renderResultsSummary(summary);
+        } catch (_) { /* 忽略 */ }
+    }
 
     // 統計資料載入後，再載入結果列表
     await loadResultsPage(jobId);
@@ -1267,17 +1303,24 @@ async function loadInternalResults(jobId) {
     const containerEl = document.getElementById('internal-results-container');
     if (!containerEl) return;
 
-    // 先請求統計摘要，讓使用者優先看到統計值
-    const reqId = ++_currentIntSummaryReqId;
-    try {
-        const params = {};
-        if (_internalGroupBy && _internalGroupBy !== 'none') {
-            params.group_by = _internalGroupBy;
-        }
-        const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
-        if (jobId !== _currentJobId || reqId !== _currentIntSummaryReqId) return;
-        renderInternalSummary(summary);
-    } catch (_) { /* 忽略 */ }
+    // 計算此次 Summary 的快取 key（由影響 Summary 結果的參數組成）
+    const summaryKey = _internalGroupBy;
+
+    if (_intSummaryCache.key === summaryKey && _intSummaryCache.data) {
+        // 快取命中，直接渲染，不發送 API 請求
+        renderInternalSummary(_intSummaryCache.data);
+    } else {
+        // 快取未命中或已失效，發送 API 請求
+        const reqId = ++_currentIntSummaryReqId;
+        try {
+            const params = {};
+            if (_internalGroupBy && _internalGroupBy !== 'none') params.group_by = _internalGroupBy;
+            const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
+            if (jobId !== _currentJobId || reqId !== _currentIntSummaryReqId) return;
+            _intSummaryCache = { key: summaryKey, data: summary };
+            renderInternalSummary(summary);
+        } catch (_) { /* 忽略 */ }
+    }
 
     // 統計資料載入後，再載入結果列表
     await loadInternalResultsPage(jobId);
@@ -2100,12 +2143,16 @@ function bindResultsControls() {
                 const res = await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: linkType, urls: Array.from(_extSelectedUrls) });
                 if (isSourceGroup) {
                     toast.success('已將關聯的自家網頁加入重新探測佇列');
-                    loadInternalResults(_currentJobId); // Internal changed, refresh it too
+                    // 內部資料異動，使快取失效後重新載入
+                    _intSummaryCache = { key: null, data: null };
+                    loadInternalResults(_currentJobId);
                 } else {
                     toast.success('已將選取的外部連結設為待探測');
                 }
                 _extSelectedUrls.clear();
                 updateExtToolbarButtons();
+                // 外部資料異動，使快取失效後重新載入
+                _extSummaryCache = { key: null, data: null };
                 loadExternalResults(_currentJobId);
                 refreshJobDetail(_currentJobId);
             } catch (err) {
@@ -2142,6 +2189,8 @@ function bindResultsControls() {
                 toast.success(res.message || '重置成功');
                 _intSelectedUrls.clear();
                 updateIntToolbarButtons();
+                // 內部資料異動，使快取失效後重新載入
+                _intSummaryCache = { key: null, data: null };
                 loadInternalResults(_currentJobId);
                 refreshJobDetail(_currentJobId);
             } catch (err) {
