@@ -11,6 +11,7 @@
 
 * **SQLite 優化 (適用於開發與輕量環境)**：
   建立連線時自動套用 `PRAGMA journal_mode=WAL` (預寫日誌模式)、`synchronous=NORMAL` 與擴大 `cache_size`，極大化降低磁碟 I/O 阻塞；並明確開啟 `foreign_keys=ON` 保障資料關聯完整性。
+
 * **PostgreSQL 優化 (適用於生產環境)**：
   動態偵測 DSN 後，自動啟用 SQLAlchemy 進階連線池 (Connection Pool) 參數。
   * **`pool_size` & `max_overflow`**：提升基礎連線數與突發溢發量，完美支撐 `ThreadPoolExecutor` 的高併發爬取與前端高頻 API 請求。
@@ -50,6 +51,16 @@
    * **問題情境**：為了加速過濾出非安全協定的連結，我們在 `models.py` 建立了 Partial Index：`postgresql_where=text("... OR is_secure = false")` 以及 `sqlite_where=text("... OR is_secure = 0")`。但在 SQLAlchemy 撰寫查詢時，若使用 `.is_(False)`，它會產生出 `IS false` 的 SQL 語法。
    * **優化策略**：在 PostgreSQL 中，`IS false` 與 `= false` 在抽象語法樹 (AST) 裡是完全不同的結構，會導致優化器判定索引條件不符而放棄使用 Partial Index。開發時**絕對禁止使用 `.is_(False)`**，請一律使用 `== False`。
    * **相容性**：SQLAlchemy 極度聰明，當遇到 `== False` 時，在 PostgreSQL 會完美轉譯為 `= false`，而在 SQLite 則會轉譯為 `= 0`，完美對接兩種資料庫的 Partial Index 宣告。
+
+### 1.4 實體外鍵 (Physical FK) vs. 邏輯外鍵 (Logical FK) 策略
+
+本專案分為 Auth DB 與 Crawler DB 兩個獨立的資料庫，在關聯設計上有截然不同的策略，開發或刪除資料時需特別留意：
+
+1. **Crawler DB（實體外鍵保護）**：
+   在 Crawler DB 中（如 `crawl_queue` 與 `external_links` 對應到 `jobs` 表），均設有明確的實體外鍵 (Physical Foreign Key)，並且啟用了 `ON DELETE CASCADE`。這表示當您刪除任務時，底下的關聯資料會由資料庫自動級聯刪除，保障資料一致性。
+
+2. **Auth DB（應用層邏輯外鍵）**：
+   在 Auth DB 內（如 `users` 與 `sessions`、`invitations`、`auth_logs` 之間），採用的是**邏輯外鍵 (Logical FK)**。資料表結構上並沒有建立實體的外鍵約束。這代表當您刪除一位使用者時，相關的 Session、日誌或邀請碼**不會被資料庫自動刪除**，必須依賴後端程式碼（應用層）來進行清理，或是保留為孤兒紀錄（例如安全稽核日誌通常即使刪除帳號也需要永久保留）。
 
 ---
 
