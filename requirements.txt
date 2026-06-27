@@ -7,6 +7,7 @@ SQLAlchemy==2.0.50
 types-PyYAML==6.0.12.20260518
 fake-useragent==1.5.1
 psycopg2-binary==2.9.12
+curl-cffi==0.15.0
 
 # ── Web 後端依賴 ───────────────────────
 fastapi==0.115.12

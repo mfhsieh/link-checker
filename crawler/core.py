@@ -305,7 +305,7 @@ class CrawlerCore:
         return None, (text, response.status_code, status, current_url, True, err_msg)
 
     def _fetch_single(
-        self, current_url: str, request_sent: bool, target_domains: list[str] | None
+        self, current_url: str, request_sent: bool, target_domains: list[str] | None, strip_sec_headers: bool = False
     ) -> tuple[bool, str, tuple[str | None, int | None, str, str, bool, str | None] | None]:
         """執行單次 fetch 流程，回傳 (request_sent, next_url, result_tuple)。
 
@@ -313,6 +313,7 @@ class CrawlerCore:
             current_url (str): 當前網址。
             request_sent (bool): 標記此循環是否已實際發送過 HTTP 請求。
             target_domains (list[str] | None): 允許進入的目標網域清單。
+            strip_sec_headers (bool): 是否拔除現代瀏覽器的 Sec-* 特徵標頭，用於繞過 WAF。
 
         Returns:
             tuple[bool, str, tuple | None]: (是否發送請求, 下一步網址, 提前回傳的結果)。
@@ -327,12 +328,28 @@ class CrawlerCore:
 
         with dns_override(domain, ip) if domain and ip else nullcontext():
             headers = get_random_profile(current_url) if self.enable_dynamic_headers else None
+
+            if headers and strip_sec_headers:
+                keys_to_remove = {
+                    "sec-ch-ua",
+                    "sec-ch-ua-mobile",
+                    "sec-ch-ua-platform",
+                    "sec-fetch-dest",
+                    "sec-fetch-mode",
+                    "sec-fetch-site",
+                    "sec-fetch-user",
+                }
+                for hk in list(headers.keys()):
+                    if hk.lower() in keys_to_remove:
+                        headers.pop(hk)
+
             with self._get_client(current_url).stream("GET", current_url, headers=headers) as response:
                 next_url, result = self._process_response(response, current_url, target_domains)
                 if result:
                     return True, current_url, result
                 return True, next_url or current_url, None
 
+    # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches
     def fetch(
         self, url: str, target_domains: list[str] | None = None
     ) -> tuple[str | None, int | None, str, str, bool, str | None]:
@@ -344,13 +361,12 @@ class CrawlerCore:
 
         Returns:
             tuple[str | None, int | None, str, str, bool, str | None]: (HTML字串, HTTP狀態碼, 狀態, 最終網址,
-                是否發送請求, 錯誤或警告訊息)。狀態字串為 'completed', 'warning' 或 'skip'。
-
-        Raises:
-          httpx.HTTPStatusError: 若 HTTP 回應狀態碼非 2xx 時拋出（預設由外層捕捉）。
-          httpx.RequestError: 發生網路連線層級錯誤時拋出（預設由外層捕捉）。
+                是否發送請求, 錯誤或警告訊息)。狀態字串為 'completed', 'warning', 'skip' 或 'failed'。
 
         """
+        # 注意：本方法已經封裝所有 httpx 相關的 RequestError 與 HTTPStatusError，
+        # 並會轉化為 status='failed' 的 Tuple 回傳，不會再向外拋出例外。
+
         current_url = url
         request_sent = False
 
@@ -359,24 +375,70 @@ class CrawlerCore:
                 request_sent, current_url, result = self._fetch_single(current_url, request_sent, target_domains)
                 if result:
                     return result
-            except (httpx.RequestError, socket.gaierror) as e:
+            except (httpx.RequestError, socket.gaierror, httpx.HTTPStatusError) as e:
+                status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
                 parsed = urlparse(current_url)
-                if parsed.scheme == "http":
+
+                # 1. 內部連結 HTTP 連線或狀態異常 (>=400)，自動升級至 HTTPS 重試
+                if parsed.scheme == "http" and (status_code is None or status_code >= 400):
                     new_url = parsed._replace(scheme="https").geturl()
                     logger.info(
-                        "內部連結 HTTP 連線失敗 (%s)，嘗試自動升級至 HTTPS 並重試: %s",
-                        e,
+                        "內部連結 HTTP 連線或狀態異常 (%s)，嘗試自動升級至 HTTPS 並重試: %s",
+                        status_code or type(e).__name__,
                         new_url,
                     )
                     try:
                         request_sent, current_url, result = self._fetch_single(new_url, request_sent, target_domains)
                         if result:
                             return result
-                    except (httpx.RequestError, socket.gaierror) as retry_err:
-                        logger.warning("HTTPS 重試亦失敗: %s，回傳最初的錯誤", retry_err)
-                        raise e from retry_err
-                else:
-                    raise
+                    except (httpx.RequestError, socket.gaierror, httpx.HTTPStatusError) as retry_e:
+                        e = retry_e
+                        status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+                        current_url = new_url
+                        logger.warning("HTTPS 重試亦失敗: %s", e)
+
+                # 2. 如果遇到 WAF 經常阻擋的特定狀態碼，嘗試拔除 Sec-* 標頭再次重試
+                if status_code in (400, 403, 405, 406, 501, 520):
+                    logger.info("網址 %s 遇到 %s 阻擋，嘗試拔除特徵標頭再次重試...", current_url, status_code)
+                    try:
+                        request_sent, current_url, result = self._fetch_single(
+                            current_url, request_sent, target_domains, strip_sec_headers=True
+                        )
+                        if result:
+                            return result
+                    except (httpx.RequestError, socket.gaierror, httpx.HTTPStatusError) as fallback_e:
+                        e = fallback_e
+                        status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+
+                # 3. 終極 TLS 偽裝降級 (curl_cffi)
+                if status_code in (400, 403, 405, 406, 520):
+                    logger.info("網址 %s 拔除特徵仍受阻 (%s)，啟動終極 TLS 偽裝引擎...", current_url, status_code)
+                    try:
+                        from curl_cffi import requests as cffi_requests  # pylint: disable=import-outside-toplevel
+
+                        proxies = (
+                            {"http": self.config.proxy_url, "https": self.config.proxy_url}
+                            if self.config.proxy_url
+                            else None
+                        )
+                        resp = cffi_requests.get(
+                            current_url,
+                            impersonate="chrome120",
+                            timeout=self.config.external_check_timeout,
+                            proxies=proxies,
+                        )
+                        resp.raise_for_status()
+                        return resp.text, resp.status_code, "completed", current_url, True, None
+                    except ImportError:
+                        logger.warning("未安裝 curl_cffi，無法啟動終極 TLS 偽裝")
+                    except Exception as cffi_err:  # pylint: disable=broad-exception-caught
+                        cffi_resp = getattr(cffi_err, "response", None)
+                        status_code = getattr(cffi_resp, "status_code", None) if cffi_resp is not None else None
+                        e = cffi_err
+
+                # 4. 封裝所有例外，不向外拋出，統一回傳狀態
+                return None, status_code, "failed", current_url, request_sent, str(e)
+
             except (ValueError, TypeError, UnicodeError) as e:
                 logger.warning("網址 %s 格式錯誤或無法解析: %s", current_url, e)
                 return None, None, "failed", current_url, request_sent, f"網址格式無效: {e}"
@@ -530,14 +592,53 @@ class CrawlerCore:
             if is_in_domain_list(domain, target_domains):
                 internal_links.append(link)
 
-            # 規則 2: 找出連向信任網域 (trusted_domains) 以外的外部網址
-            if not is_in_domain_list(domain, trusted_domains):
+            # 規則 2: 找出連向 (信任網域 + 目標網域) 以外的外部網址 (凡是目標網域，自動視為信任網域)
+            if not is_in_domain_list(domain, trusted_domains) and not is_in_domain_list(domain, target_domains):
                 external_target_links.append(link)
 
         return internal_links, external_target_links, status_code, status, request_sent, err_msg
 
+    def _tls_spoofed_fallback(self, url: str) -> tuple[int | None, str | None]:
+        """終極備援：使用 curl_cffi 進行 TLS 指紋偽裝，繞過嚴格的 WAF 阻擋。"""
+        try:
+            from curl_cffi import requests as cffi_requests  # pylint: disable=import-outside-toplevel
+
+            logger.info("啟動 TLS 偽裝備援引擎 (curl_cffi) 探測: %s", url)
+            proxies = None
+            if self.config.proxy_url:
+                proxies = {"http": self.config.proxy_url, "https": self.config.proxy_url}
+
+            # 使用 impersonate="chrome120" 來模擬最真實的 Chrome 行為
+            # 設定 stream=True 並直接關閉，避免下載大檔案
+            resp = cffi_requests.get(
+                url,
+                impersonate="chrome120",
+                timeout=self.config.external_check_timeout,
+                allow_redirects=True,
+                proxies=proxies,
+                stream=True,
+            )
+            status_code = resp.status_code
+            resp.close()
+            return status_code, None
+
+        except ImportError:
+            logger.warning("未安裝 curl_cffi，無法執行 TLS 偽裝降級")
+            return None, "未安裝 curl_cffi"
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.warning("TLS 偽裝備援探測失敗: %s", e)
+            cffi_resp = getattr(e, "response", None)
+            status_code = getattr(cffi_resp, "status_code", None) if cffi_resp is not None else None
+            return status_code, f"TLS 偽裝探測失敗: {e}"
+
+    # pylint: disable=too-many-arguments
     def _fallback_get(
-        self, current_url: str, tgt_dom: str | None, ip: str | None, client: httpx.Client
+        self,
+        current_url: str,
+        tgt_dom: str | None,
+        ip: str | None,
+        client: httpx.Client,
+        accumulated_cookies: dict[str, dict[str, str]] | None = None,
     ) -> tuple[str | None, tuple[int | None, str | None] | None]:
         """降級為 GET 請求以進行外部連結探測。
 
@@ -546,6 +647,8 @@ class CrawlerCore:
             tgt_dom (str | None): 目標網域。
             ip (str | None): 解析出的 IP 位址。
             client (httpx.Client): HTTPX 客戶端物件。
+            accumulated_cookies (dict[str, dict[str, str]] | None):
+                依網域分桶的跨跳共用 Cookie 字典 (domain -> {name: value})，傳入方式為引用。
 
         Returns:
             tuple[str | None, tuple | None]: (重導向的下一步網址, 回傳狀態結果的 tuple)。
@@ -557,25 +660,41 @@ class CrawlerCore:
         if self.enable_dynamic_headers:
             headers.update(get_random_profile(current_url))
 
-            # 外部探測不需下載網頁內容，大膽宣告支援現代壓縮格式，可繞過部分嚴格 WAF
-            headers["Accept-Encoding"] = "gzip, deflate, br, zstd"
-
             # WAF 常會因為 HTTP/1.1 卻帶有現代瀏覽器的 Sec-Fetch 標頭而判定為異常 (403 阻擋)。
             # 在降級探測時，拔除這些標頭以降低異常特徵，提升繞過成功率。
-            for key in [
-                "Sec-Ch-Ua",
-                "Sec-Ch-Ua-Mobile",
-                "Sec-Ch-Ua-Platform",
-                "Sec-Fetch-Dest",
-                "Sec-Fetch-Mode",
-                "Sec-Fetch-Site",
-                "Sec-Fetch-User",
-            ]:
-                headers.pop(key, None)
+            keys_to_remove = {
+                "sec-ch-ua",
+                "sec-ch-ua-mobile",
+                "sec-ch-ua-platform",
+                "sec-fetch-dest",
+                "sec-fetch-mode",
+                "sec-fetch-site",
+                "sec-fetch-user",
+            }
+            for hk in list(headers.keys()):
+                if hk.lower() in keys_to_remove:
+                    headers.pop(hk)
+
+        # 外部探測不需下載網頁內容，大膽宣告支援現代壓縮格式，可繞過部分嚴格 WAF
+        # 此行放在 get_random_profile() 套用之後，確保不會被 profile 自帶的 Accept-Encoding 值覆蓋掉
+        headers["Accept-Encoding"] = "gzip, deflate, br, zstd"
+
+        # 直接將 Cookie 寫入請求標頭，避免使用 httpx 已棄用的 per-request cookies 參數
+        # (該參數具有不確定行為且可能不實際傳送 Cookie 到伺服器)
+        domain_cookies = self._get_applicable_cookies(tgt_dom, accumulated_cookies)
+        if domain_cookies:
+            headers["Cookie"] = "; ".join(f"{k}={v}" for k, v in domain_cookies.items())
 
         stream_timeout = httpx.Timeout(self.config.external_check_timeout, connect=self.config.connect_timeout)
         with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
             with client.stream("GET", current_url, headers=headers, timeout=stream_timeout) as resp:
+                # 從回應標頭收集 Set-Cookie，依據其定義的 domain 寫入共用的 accumulated_cookies
+                if accumulated_cookies is not None:
+                    for c in resp.cookies.jar:
+                        if c.value is not None and c.domain:
+                            c_dom = c.domain.lstrip(".")
+                            accumulated_cookies.setdefault(c_dom, {})[c.name] = c.value
+
                 if resp.status_code in (301, 302, 303, 307, 308):
                     location = resp.headers.get("Location")
                     if location:
@@ -583,26 +702,59 @@ class CrawlerCore:
                     return None, (resp.status_code, None)
                 return None, (resp.status_code, None)
 
+    def _get_applicable_cookies(
+        self, tgt_dom: str, accumulated_cookies: dict[str, dict[str, str]] | None
+    ) -> dict[str, str]:
+        """從分桶 Cookie 字典中獲取適用於特定網域的 Cookie。
+
+        支援子網域繼承父網域的萬用字元 Cookie (例如 .elearn.hrd.gov.tw 適用於 acs.elearn.hrd.gov.tw)。
+        """
+        if not accumulated_cookies or not tgt_dom:
+            return {}
+        applicable = {}
+        # 按照網域長度排序（從短到長），讓子網域的 Cookie 可以覆寫父網域的同名 Cookie
+        sorted_keys = sorted(accumulated_cookies.keys(), key=len)
+        for k in sorted_keys:
+            k_clean = k.lstrip(".")
+            if tgt_dom == k_clean or tgt_dom.endswith("." + k_clean):
+                applicable.update(accumulated_cookies[k])
+        return applicable
+
     def _execute_external_request(
-        self, current_url: str, tgt_dom: str | None, ip: str | None
+        self,
+        current_url: str,
+        tgt_dom: str | None,
+        ip: str | None,
+        accumulated_cookies: dict[str, dict[str, str]] | None = None,
     ) -> tuple[str | None, tuple[int | None, str | None] | None]:
         """執行 HEAD 或 GET 請求探測。
+
+        注意：本方法刻意不呼叫 response.raise_for_status()，所有狀態碼 (包含 4xx/5xx)
+        皆視為正常回應並回傳，由呼叫端決定如何處理。若未來新增 raise_for_status() 呼叫，
+        需同步在 _check_external_single 補上 httpx.HTTPStatusError 的例外處理。
 
         Args:
             current_url (str): 當前外部網址。
             tgt_dom (str | None): 目標網域。
             ip (str | None): 解析出的 IP 位址。
+            accumulated_cookies (dict[str, dict[str, str]] | None):
+                依網域分桶的跨跳共用 Cookie 字典 (domain -> {name: value})，傳入方式為引用。
 
         Returns:
             tuple[str | None, tuple | None]: (重導向的下一步網址, 回傳狀態結果的 tuple)。
         """
         client = self._get_client(current_url)
+        domain_cookies = self._get_applicable_cookies(tgt_dom, accumulated_cookies)
+
         with dns_override(tgt_dom, ip) if tgt_dom and ip else nullcontext():
             head_timeout = httpx.Timeout(self.config.external_check_timeout, connect=self.config.connect_timeout)
-            headers = get_random_profile(current_url) if self.enable_dynamic_headers else None
-            if headers is not None:
-                # 外部探測不需下載網頁內容，大膽宣告支援現代壓縮格式
-                headers["Accept-Encoding"] = "gzip, deflate, br, zstd"
+            headers = get_random_profile(current_url) if self.enable_dynamic_headers else {}
+            # 外部探測不需下載網頁內容，大膽宣告支援現代壓縮格式
+            headers["Accept-Encoding"] = "gzip, deflate, br, zstd"
+
+            # 直接將 Cookie 寫入請求標頭，避免使用 httpx 已棄用的 per-request cookies 參數
+            if domain_cookies:
+                headers["Cookie"] = "; ".join(f"{k}={v}" for k, v in domain_cookies.items())
 
             try:
                 response = client.request("HEAD", current_url, timeout=head_timeout, headers=headers)
@@ -610,26 +762,52 @@ class CrawlerCore:
                 # WAF 經常以 Tarpit (刻意不回應導致超時) 或直接切斷連線來阻擋帶有現代瀏覽器特徵的 HEAD 請求。
                 # 當 HEAD 請求發生網路層異常時，主動降級使用剝離衝突特徵的 GET 請求進行二次確認。
                 logger.debug("HEAD 請求發生網路層異常 (%s)，嘗試降級使用 GET...", e)
-                return self._fallback_get(current_url, tgt_dom, ip, client)
+                return self._fallback_get(current_url, tgt_dom, ip, client, accumulated_cookies)
+
+        # 將 HEAD 回應的 Set-Cookie 合併回正確的網域桶中
+        if accumulated_cookies is not None:
+            for c in response.cookies.jar:
+                if c.value is not None and c.domain:
+                    c_dom = c.domain.lstrip(".")
+                    accumulated_cookies.setdefault(c_dom, {})[c.name] = c.value
+            # domain_has_cookies = bool(bucket)
 
         if response.status_code in (301, 302, 303, 307, 308):
-            location = response.headers.get("Location")
-            if location:
-                return urljoin(current_url, location), None
-            return None, (response.status_code, None)
+            # # 若這一跳剛取得新的 Set-Cookie 卻仍回傳重導向，表示伺服器（如 Citrix NetScaler /
+            # # Cookie-gate）對 HEAD 一律重導向但接受 GET + Cookie。改以 fallback GET 對相同
+            # # URL 發出請求，避免無效跟隨重導向造成無限迴圈（如 HEAD /TC → 302 / → HEAD /TC → ...）。
+            # if domain_has_cookies:
+            #     return self._fallback_get(current_url, tgt_dom, ip, client, accumulated_cookies)
+            # location = response.headers.get("Location")
+            # if location:
+            #     return urljoin(current_url, location), None
+            # return None, (response.status_code, None)
+
+            # HEAD 的重導向結果在許多伺服器上並不可靠：可能是 Cookie-gate 要求重新帶
+            # Cookie 確認 (如 Citrix NetScaler)，也可能是伺服器單純不支援 HEAD 重導向、
+            # 固定回傳錯誤的 Location 造成彈跳 (即使完全沒有 Cookie 涉入)。兩種情況的
+            # 共同解法相同：不論是否持有 Cookie，一律改用 GET 對同一網址重新確認，
+            # 取得可信的結果或正確的下一步網址，而不是冒險信任 HEAD 給出的 Location。
+            return self._fallback_get(current_url, tgt_dom, ip, client, accumulated_cookies)
 
         is_social_media = tgt_dom and is_in_domain_list(tgt_dom.lower(), self.config.social_domains)
         # 許多伺服器 (如 IIS) 對 HEAD 請求的轉址設定不完整，可能直接回傳 404 或 405。
         # 將 404 等常見誤判狀態碼納入降級條件，若 HEAD 遇到 404 將以 GET (Stream) 二次確認。
         if response.status_code in (400, 403, 404, 405, 406, 501) or (response.status_code >= 400 and is_social_media):
-            return self._fallback_get(current_url, tgt_dom, ip, client)
+            return self._fallback_get(current_url, tgt_dom, ip, client, accumulated_cookies)
         return None, (response.status_code, None)
 
-    def _check_external_single(self, current_url: str) -> tuple[str | None, tuple[int | None, str | None] | None]:
+    def _check_external_single(
+        self,
+        current_url: str,
+        accumulated_cookies: dict[str, dict[str, str]] | None = None,
+    ) -> tuple[str | None, tuple[int | None, str | None] | None]:
         """單次外部連結檢查邏輯，攔截異常並回傳。
 
         Args:
             current_url (str): 準備進行探測的當前外部網址。
+            accumulated_cookies (dict[str, dict[str, str]] | None):
+                依網域分桶的跨跳共用 Cookie 字典 (domain -> {name: value})，傳入方式為引用。
 
         Returns:
             tuple[str | None, tuple | None]: (重導向的下一步網址, 回傳狀態結果的 tuple)。
@@ -639,9 +817,7 @@ class CrawlerCore:
             ip = resolve_ip(tgt_dom) if tgt_dom else None
             if ip and not is_safe_ip(ip):
                 return None, (None, f"SSRF 防禦攔截：目標 IP ({ip}) 不安全")
-            return self._execute_external_request(current_url, tgt_dom, ip)
-        except httpx.HTTPStatusError as e:
-            return None, (e.response.status_code, str(e))
+            return self._execute_external_request(current_url, tgt_dom, ip, accumulated_cookies)
         except httpx.RequestError as e:
             return None, (None, str(e))
         except (ValueError, socket.gaierror, TypeError, AttributeError, UnicodeError) as e:
@@ -650,39 +826,38 @@ class CrawlerCore:
     def _handle_http_failure_retry(
         self,
         current_url: str,
-        status_code: int | None,
-        err_msg: str | None,
         original_result: tuple[int | None, str | None],
+        accumulated_cookies: dict[str, dict[str, str]] | None = None,
     ) -> tuple[str | None, tuple[int | None, str | None] | None]:
         """當 HTTP 外部連結探測失敗時，嘗試升級至 HTTPS 並重新探測。
 
         Args:
             current_url (str): 當前探測的網址。
-            status_code (int | None): 原始 HTTP 探測的狀態碼。
-            err_msg (str | None): 原始 HTTP 探測的錯誤訊息。
             original_result (tuple[int | None, str | None]): 原始探測結果。
+            accumulated_cookies (dict[str, dict[str, str]] | None):
+                依網域分桶的跨跳共用 Cookie 字典 (domain -> {name: value})，傳入方式為引用。
 
         Returns:
             tuple[str | None, tuple[int | None, str | None] | None]: (重導向新網址, 最終探測結果)。
         """
         parsed = urlparse(current_url)
-        if parsed.scheme != "http":
+        if parsed.scheme != "http":  # 防衛性檢查：額外保護，避免誤用。
             return None, None
 
         new_url = parsed._replace(scheme="https").geturl()
-        logger.info(
-            "外部連結 HTTP 檢測失敗 (狀態: %s)，嘗試自動升級至 HTTPS 並重試: %s",
-            status_code if status_code is not None else err_msg,
-            new_url,
-        )
-        next_url_retry, result_retry = self._check_external_single(new_url)
+        logger.info("HTTP 檢測失敗，嘗試自動升級至 HTTPS: %s", new_url)
+
+        next_url_retry, result_retry = self._check_external_single(new_url, accumulated_cookies)
+
         if result_retry is not None:
             status_code_retry, err_msg_retry = result_retry
             # 若 HTTPS 連線徹底失敗 (無狀態碼)，保留原始 HTTP 檢測結果
             if status_code_retry is None:
-                logger.info("HTTPS 重試連線失敗 (%s)，保留原始 HTTP 檢測結果", err_msg_retry)
+                logger.info("HTTPS 重試失敗: %s", err_msg_retry)
                 return None, original_result
+            # 若 HTTPS 有取得狀態碼（即使是 4xx/5xx），就取代原本 HTTP 結果
             return None, result_retry
+
         if next_url_retry:
             return next_url_retry, None
 
@@ -691,8 +866,19 @@ class CrawlerCore:
     def check_external_link(self, url: str) -> tuple[int | None, str | None]:
         """對外部連結進行存活檢查。
 
-        優先使用 HEAD 請求以節省流量。若遇到特定阻擋狀態碼或目標為社群平台，
-        則自動降級為帶有 Range 標頭的 GET 請求，嘗試繞過反爬蟲機制。
+        優先使用 HEAD 請求以節省流量。若 HEAD 回傳任何重導向 (3xx)、特定阻擋狀態碼，
+        或目標為社群平台，則一律自動降級為 GET 請求重新確認——因為 HEAD 在許多伺服器
+        上對這些情況的回應並不可靠 (無論是否涉及 Cookie-gate 防護)，直接信任 HEAD 給出
+        的 Location 可能造成重導向迴圈或誤判。
+
+        部分網站（如採用 Citrix NetScaler / Cookie-gate 防護的站台）會在重導向時設定
+        驗證 Cookie，並要求後續請求必須攜帶該 Cookie 才能取得正式回應。本方法在重導向
+        迴圈中會自動收集並傳遞跨跳的 Set-Cookie，並依目標網域分桶儲存，確保每一跳只會
+        帶上與當前目標網域相符的 Cookie，避免重導向跨網域時夾帶不相關 Cookie 送出。
+
+        如果經過 HEAD/GET 探測與 HTTP 升級重試後，依然遭遇常見的企業級 WAF 或 Cloudflare
+        阻擋碼 (如 403, 520)，系統將作為最後防線啟動 TLS 指紋偽裝降級 (curl_cffi)，使用
+        100% 擬真的瀏覽器 TLS/HTTP2 特徵來完成探測，徹底消弭高階機器人防護盾導致的誤判。
 
         Args:
             url (str): 準備進行探測的外部網址。
@@ -701,31 +887,58 @@ class CrawlerCore:
             tuple[int | None, str | None]: 回傳 (HTTP 狀態碼, 錯誤訊息)。
         """
         current_url = url
+        # 跨跳共用的 Cookie 字典，用於繞過 Cookie-gate 防爬蟲機制。
+        # 使用普通 dict 並以引用方式傳遞，避免 httpx 已棄用的 per-request cookies 參數。
+        # 內部各方法直接寫入 accumulated_cookies，不需要回傳值。
+        accumulated_cookies: dict[str, dict[str, str]] = {}
 
         for _ in range(self.config.max_redirects):
-            next_url, result = self._check_external_single(current_url)
-            if result is not None:
-                status_code, err_msg = result
+            # next_url: 重導向的下一步網址 (None 表示沒有重導向), result: 回傳狀態結果 (None 表示有重導向，尚未取得最終結果)
+            next_url, result = self._check_external_single(current_url, accumulated_cookies)
 
-                # 若遇到連線錯誤 (status_code is None) 或是 WAF / 伺服器回傳異常 (>= 400)
+            if result is not None:
                 # 許多現代網站與防火牆 (Cloudflare, HSTS) 對明文 HTTP 請求會直接中斷或回傳 403/520
+                # 若遇到連線錯誤 (status_code is None) 或是 WAF / 伺服器回傳異常 (>= 400)
+                # 可對明文 HTTP 連結嘗試升級至 HTTPS 重試；HTTPS 有結果則回傳，重導向則繼續
+                status_code, err_msg = result
                 is_failed = (status_code is None and err_msg) or (status_code is not None and status_code >= 400)
 
-                if is_failed:
-                    next_url_retry, final_res = self._handle_http_failure_retry(
-                        current_url, status_code, err_msg, result
+                if is_failed and urlparse(current_url).scheme == "http":
+                    next_url_retry, result_retry = self._handle_http_failure_retry(
+                        current_url, result, accumulated_cookies
                     )
-                    if final_res is not None:
-                        return final_res
+                    if result_retry is not None:
+                        # 若 HTTPS 重試因連線失敗而退回到原始 HTTP 結果，說明該站不支援 HTTPS，不應嘗試 TLS 偽裝降級
+                        if result_retry == result:
+                            return result
+
+                        status_code_retry, err_msg_retry = result_retry
+                        is_retry_failed = (status_code_retry is None and err_msg_retry) or (
+                            status_code_retry is not None and status_code_retry >= 400
+                        )
+
+                        # 終極 TLS 偽裝降級 (curl_cffi)
+                        if is_retry_failed and status_code_retry in (400, 403, 405, 406, 520):
+                            new_url = urlparse(current_url)._replace(scheme="https").geturl()
+                            return self._tls_spoofed_fallback(new_url)
+
+                        return result_retry
+
                     if next_url_retry:
                         current_url = next_url_retry
                         continue
+
+                # 如果一開始就是 HTTPS 且遭遇 WAF 阻擋，啟動終極 TLS 偽裝降級
+                if is_failed and status_code in (400, 403, 405, 406, 520):
+                    return self._tls_spoofed_fallback(current_url)
+
                 return result
+
             if next_url:
                 current_url = next_url
                 continue
 
-        return None, "超過最大重導向次數限制"
+        return None, "超過最大重導向次數"
 
     def close(self) -> None:
         """關閉底層的 HTTPX 客戶端連線。

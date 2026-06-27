@@ -438,7 +438,7 @@ def get_results_summary(  # pylint: disable=too-many-locals
         key_col = ExternalLink.id
 
     count_expr = count(key_col.distinct()) if is_grouped else count(key_col)
-    insecure_expr = case((ExternalLink.is_secure == False, key_col), else_=None)
+    insecure_expr = case((ExternalLink.is_secure == False, key_col), else_=None)  # pylint: disable=singleton-comparison  # noqa: E712
     insecure_count_expr = count(insecure_expr.distinct()) if is_grouped else count(insecure_expr)
 
     query = db.query(

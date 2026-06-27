@@ -171,6 +171,10 @@ python cli.py --help
 
 作者：[mfhsieh at github](https://github.com/mfhsieh)
 
+## 版本更新日誌 (Release Notes)
+
+- **v1.9.2 (2026-06-27)**: [爬蟲核心](crawler/core.py) 升級
+
 ---
 
 ## 訊息揭露

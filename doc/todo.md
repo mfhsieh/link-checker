@@ -78,3 +78,7 @@
 * **功能描述**：目前僅有登入鎖定和忘記密碼的個別限速保護，沒有全局 API Rate Limiting Middleware，若面臨大量異常請求可能會佔用過多伺服器資源。
 * **規劃方案**：在反向代理層 (如 Nginx) 或是應用層 (如引入 SlowApi 或客製化 FastAPI Middleware) 補充全局 API 速率限制機制，保護伺服器免於遭受 DoS 或高頻惡意請求。
 * **狀態**：**待後續優化（Pending Review）**。
+
+--
+
+card 更新不同步
