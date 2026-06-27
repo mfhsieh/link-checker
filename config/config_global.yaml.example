@@ -169,7 +169,7 @@ crawler:
     - ".wav"
     - ".m4a"
     - ".aac"
-    = ".swf"
+    - ".swf"
     # 壓縮檔與映像檔
     - ".zip"
     - ".rar"
