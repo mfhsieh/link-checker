@@ -27,9 +27,9 @@ flowchart TD
     CheckWAF -->|"是"| StripSecHeaders["拔除 Sec-* 標頭重試"]
     StripSecHeaders --> SecResult{"重試結果"}
     SecResult -->|"成功"| CheckMime
-    SecResult -->|"失敗"| TLSSpoofInt["curl_cffi TLS 指紋偽裝"]
-    TLSSpoofInt --> TLSSpoofResult{"偽裝結果"}
-    TLSSpoofResult -->|"成功"| CheckMime
+    SecResult -->|"失敗"| TLSSpoofInt["curl_cffi 統一引擎 (內建 SSRF/MIME/OOM 防護)"]
+    TLSSpoofInt --> TLSSpoofResult{"偽裝與下載結果"}
+    TLSSpoofResult -->|"成功"| Extract
     TLSSpoofResult -->|"失敗"| FetchFail(["紀錄抓取失敗"])
     CheckWAF -->|"否"| FetchFail
     
@@ -62,7 +62,7 @@ flowchart TD
     HeadReq --> HeadState{"狀態判斷"}
     
     HeadState -->|"成功 (200/3xx)"| FinalSuccess(["紀錄成功"])
-    HeadState -->|"WAF阻擋 / 異常"| FallbackGet["降級 GET 探測"]
+    HeadState -->|"WAF阻擋 / 伺服器異常 (4xx/5xx)"| FallbackGet["降級 GET 探測"]
     
     FallbackGet --> CookieGate["載入/收集子網域 Cookie"]
     CookieGate --> SendGet["攜帶 Cookie 發送 GET"]
@@ -104,8 +104,8 @@ flowchart TD
 - **`fetch`**：實作了包含「隨機抖動 (Jitter)」的指數退避重試機制，並封裝了強大的多階層異常容錯與防護穿透邏輯，攔截所有例外（不向外拋出）：
   1. **HTTP 自動升級**：若以 `http://` 請求時遭遇連線錯誤或 HTTP >= 400，會自動替換為 `https://` 進行重試。
   2. **特徵標頭拔除**：若遭遇常見 WAF 阻擋碼（如 403, 520 等），將嘗試拔除 `Sec-CH-UA` 等現代瀏覽器特徵標頭後重試。
-  3. **終極 TLS 偽裝**：若拔除標頭仍受阻，自動降級呼叫 `curl_cffi` 引擎，模擬 Chrome 120 的真實 TLS/JA3 指紋發送請求。
-  4. **統一例外處理**：封裝所有網路層錯誤（如 `RequestError`, `gaierror`），統一回傳 `failed` 狀態。
+  3. **終極 TLS 偽裝 (`_execute_curl_cffi_fallback`)**：若拔除標頭仍受阻，自動降級呼叫 `curl_cffi` 引擎。此引擎為內部與外部共用的統一入口，內建 SSRF 攔截、MIME Type 檢查，以及 `iter_content` 的記憶體分塊下載與容量上限保護防 OOM。
+  4. **統一例外處理**：除了網路層錯誤，也以全域 `Exception` 攔截如 `ValueError` 等底層異常，統一回傳 `failed` 狀態。
 - **`_fetch_single`**：單次執行的網路請求入口，包含實際呼叫 HTTPX。
 
 ### 2.2 連線與資安檢測
@@ -149,16 +149,16 @@ flowchart TD
 - **`_check_external_single`**：包裹著單次探測的例外處理，專門攔截因網頁撰寫失誤導致的畸形網址（例如 `UnicodeError` 造成的 DNS 解析崩潰），並轉化為安全的 `failed` 標記。
 
 ### 4.2 探測策略與 Cookie 穿透
-- **`_execute_external_request`**：預設採用 `HEAD` 請求。若發送 `HEAD` 遭到伺服器退回（例如收到特定 WAF 阻擋代碼：400, 403, 405, 406），或收到重導向（3xx），系統會主動呼叫 `_fallback_get` 進行二次確認。
+- **`_execute_external_request`**：預設採用 `HEAD` 請求。若發送 `HEAD` 遭到伺服器退回（收到常見 WAF 阻擋代碼 400, 403, 405, 406，或是伺服器無法正確處理 HEAD 而拋出 500, 502, 503, 504），或是收到重導向（3xx），系統會主動呼叫 `_fallback_get` 進行二次確認。
 - **`_fallback_get`**（GET 降級探測）：
   - 捨棄現代瀏覽器的高階資安特徵（如 `Sec-Fetch-Site` 等標頭），改以最單純的 `GET` 發送。
-  - **Cookie-gate 穿透**：在此降級與重導向跟隨的過程中，會將伺服器透過 `Set-Cookie` 指定的 Cookie 依據 `domain` 參數收集至 `accumulated_cookies` 中。
+  - **Cookie-gate 穿透**：在此降級與重導向跟隨的過程中，會將伺服器透過 `Set-Cookie` 指定的 Cookie 收集至 `accumulated_cookies` 中。若伺服器回傳 Cookie 時未顯式帶有 `Domain` 屬性，系統將會自動使其繼承當前的目標網域 (`tgt_dom`)，避免合法 Session 遭到誤棄。
 - **`_get_applicable_cookies`**：發送請求前，依據目標子網域動態計算應該挾帶哪些 Cookie。支援「萬用字元子網域繼承」（如 `acs.domain.com` 繼承 `.domain.com`），確保能夠完美穿透 Citrix NetScaler 等前端 Cookie-gate 驗證。
 
 ### 4.3 終極降級與容錯重試 (Fallbacks)
 若單純的 `_fallback_get` 仍無法順利取得存活證明，系統將啟動最後防線：
-- **自動 HTTPS 升級 (`_handle_http_failure_retry`)**：若原始網址為明文 `http://` 且連線失敗（或遭回傳大於等於 400 的異常碼），系統將強制將協定升級為 `https://` 進行二次重試，以突破現代網站強制實施的 HSTS 政策或嚴格 WAF 規則。
-- **雙引擎 TLS 指紋偽裝 (`_tls_spoofed_fallback`)**：若標頭剝離與 HTTPS 升級皆無法穿透 Cloudflare 或其他企業級高階防火牆（如持續收到 403 / 520 / JS Challenge 攔截），系統會動用基於 `curl_cffi` 的後備引擎。該引擎可產生 100% 吻合 Chrome 等現代瀏覽器的 TLS 指紋（包含 JA3 特徵與 HTTP/2 握手行為），藉此消弭絕大多數的假死連結誤報。
+- **自動 HTTPS 升級 (`_handle_http_failure_retry`)**：若原始網址為明文 `http://` 且連線失敗（或遭回傳大於等於 400 的異常碼），系統將強制將協定升級為 `https://` 進行二次重試。此方法會精準比對重試結果，透過 `fell_back` 旗標區分「真的連不上」與「受到 WAF 阻擋」，避免錯失後續 TLS 偽裝的機會。
+- **統一 TLS 指紋偽裝引擎 (`_execute_curl_cffi_fallback`)**：若標頭剝離與 HTTPS 升級皆無法穿透 Cloudflare 或其他企業級高階防火牆（如持續收到 403 / 520 攔截），系統會動用基於 `curl_cffi` 的統一備援引擎。外部探測模式 (`is_internal=False`) 下只會驗證狀態碼，不下載內容，藉此消弭絕大多數的假死連結誤報。
 
 ---
 

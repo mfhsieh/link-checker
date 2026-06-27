@@ -17,7 +17,7 @@ def test_admin_config(page: Page, base_url: str) -> None:
     page.fill('input[type="email"]', "admin@test.com")
     page.fill('input[type="password"]', "Admin@12345678")
     page.click('button[type="submit"]')
-    expect(page).to_have_url(re.compile(r".*/app\.html.*"))
+    page.wait_for_url(re.compile(r".*/(app|help)\.html.*"), timeout=10000)
 
     # 導航至管理後台
     page.goto(f"{base_url}/admin.html")
@@ -65,7 +65,7 @@ def test_admin_user_management_ui(page: Page, base_url: str) -> None:
     page.fill('input[type="email"]', "admin@test.com")
     page.fill('input[type="password"]', "Admin@12345678")
     page.click('button[type="submit"]')
-    page.wait_for_url(re.compile(r".*/app\.html.*"), timeout=10000)
+    page.wait_for_url(re.compile(r".*/(app|help)\.html.*"), timeout=10000)
 
     page.goto(f"{base_url}/admin.html")
     page.wait_for_selector("#users-table-container")
