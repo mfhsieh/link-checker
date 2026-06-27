@@ -68,9 +68,9 @@ def get_job_manager() -> JobManager:
 
                 _JOB_MANAGER = JobManager(
                     db_url=settings.CRAWLER_DB_URL,
-                    status_callback=lambda j_id, stat: send_job_status_notification(
-                        _JOB_MANAGER.session_factory, j_id, stat
-                    ) if _JOB_MANAGER else None,
+                    status_callback=lambda j_id, stat: (
+                        send_job_status_notification(_JOB_MANAGER.session_factory, j_id, stat) if _JOB_MANAGER else None
+                    ),
                 )
     return _JOB_MANAGER
 

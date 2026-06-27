@@ -16,9 +16,35 @@ flowchart TD
     CheckSSRF -->|"私有 IP"| Drop["中止並封鎖"]
     CheckSSRF -->|"合法 IP"| ClientReq["發送請求"]
     
-    ClientReq --> CheckRedirect{"HTTP 3xx ?"}
-    CheckRedirect -->|"是"| HandleRedirect["處理跨域與重導向"]
+    ClientReq --> ReqResult{"請求狀態"}
+    
+    %% 異常容錯與重試機制
+    ReqResult -->|"網路異常或 HTTP >= 400"| CheckHttp{"原為 http:// ?"}
+    CheckHttp -->|"是"| RetryHttps["升級 HTTPS 並重試"]
+    RetryHttps --> ReqResult
+    
+    CheckHttp -->|"否"| CheckWAF{"WAF 阻擋碼 ? (403, 520等)"}
+    CheckWAF -->|"是"| StripSecHeaders["拔除 Sec-* 標頭重試"]
+    StripSecHeaders --> SecResult{"重試結果"}
+    SecResult -->|"成功"| CheckMime
+    SecResult -->|"失敗"| TLSSpoofInt["curl_cffi TLS 指紋偽裝"]
+    TLSSpoofInt --> TLSSpoofResult{"偽裝結果"}
+    TLSSpoofResult -->|"成功"| CheckMime
+    TLSSpoofResult -->|"失敗"| FetchFail(["紀錄抓取失敗"])
+    CheckWAF -->|"否"| FetchFail
+    
+    %% 正常處理
+    ReqResult -->|"成功 (2xx/3xx)"| CheckRedirect{"HTTP 3xx ?"}
     CheckRedirect -->|"否"| CheckMime{"MIME 是 HTML ?"}
+    
+    %% 重導向與跨域處理
+    CheckRedirect -->|"是"| HasLocation{"有 Location 標頭 ?"}
+    HasLocation -->|"無"| SkipRedirect["略過 (異常重導向)"]
+    HasLocation -->|"有"| CheckCrossDomain{"跨域重導向 ?"}
+    CheckCrossDomain -->|"是"| FakeHTML["停止跟隨並轉為假 HTML 標籤"]
+    CheckCrossDomain -->|"否"| FollowRedirect["追蹤重導向 (次數-1)"]
+    FollowRedirect --> ProcessUrl
+    FakeHTML --> Extract
     
     CheckMime -->|"否"| SkipContent["略過下載 (節省頻寬)"]
     CheckMime -->|"是"| Download["串流下載 HTML"]
@@ -75,16 +101,25 @@ flowchart TD
 
 ### 2.1 請求與重試 (Fetch & Retry)
 - **`process_url`**：對外的主要介面，依序呼叫 `fetch` 取得網頁內容，再呼叫 `extract_links` 萃取連結。
-- **`fetch`**：實作了包含「隨機抖動 (Jitter)」的指數退避重試機制 (Exponential Backoff)。若遭遇暫時性網路錯誤（如 502, 503, 504），會自動休眠後重試。
-- **`_fetch_single`**：單次執行的網路請求入口。
+- **`fetch`**：實作了包含「隨機抖動 (Jitter)」的指數退避重試機制，並封裝了強大的多階層異常容錯與防護穿透邏輯，攔截所有例外（不向外拋出）：
+  1. **HTTP 自動升級**：若以 `http://` 請求時遭遇連線錯誤或 HTTP >= 400，會自動替換為 `https://` 進行重試。
+  2. **特徵標頭拔除**：若遭遇常見 WAF 阻擋碼（如 403, 520 等），將嘗試拔除 `Sec-CH-UA` 等現代瀏覽器特徵標頭後重試。
+  3. **終極 TLS 偽裝**：若拔除標頭仍受阻，自動降級呼叫 `curl_cffi` 引擎，模擬 Chrome 120 的真實 TLS/JA3 指紋發送請求。
+  4. **統一例外處理**：封裝所有網路層錯誤（如 `RequestError`, `gaierror`），統一回傳 `failed` 狀態。
+- **`_fetch_single`**：單次執行的網路請求入口，包含實際呼叫 HTTPX。
 
 ### 2.2 連線與資安檢測
 - **`_get_client`**：依據目標網址是否符合 `ssl_exempt_domains` 子網域繼承規則，決定使用 `self.client` 或 `self.exempt_client` 發起請求。
 - **`_resolve_and_check_ssrf`**：在正式發出請求前或收到重導向時，解析目標主機 IP。若 IP 屬於私有網段（如 `127.0.0.1`、`192.168.x.x`）則直接封鎖，防止 SSRF (Server-Side Request Forgery) 攻擊。
 
-### 2.3 回應處理與串流下載
+### 2.3 手動重導向與跨域攔截 (Manual Redirect Handling)
+為了嚴格控制爬取範圍與防範安全性問題，爬蟲核心關閉了 HTTP 客戶端的自動重導向機制 (`follow_redirects=False`)，並在 `_handle_redirect` 中實作手動的 3xx 攔截處理流程：
+- **檢查 Location 標頭**：若回應為 3xx 但缺少 Location，則標記為異常並略過。
+- **內部重導向追蹤**：若新的目標網址仍屬於 `target_domains`，則扣減剩餘重導向次數並繼續跟隨追蹤。
+- **跨域外流攔截**：若新的目標網址跨出了指定的目標網域（例如被轉址到了外部廣告或社群網站），爬蟲會**立即停止深入抓取**以節省運算資源，並在記憶體中動態生成一段包含該外部網址的**「假 HTML 標籤」** (`<a href="{next_url}"></a>`)，交由後續的解析模組當作一般的外部連結來接手處理與探測。
+
+### 2.4 回應處理與串流下載
 - **`_process_response`**：統整 HTTP 回應的各項檢查。
-- **`_handle_redirect`**：攔截 `3xx` 狀態碼，判斷 `Location` 的目標是否跨出了目標網域。若發生跨域重導向，會回傳特殊狀態碼告知上層中止抓取，將其轉為外部探測邏輯。
 - **`_check_mime_type`**：基於 `Content-Type` 標頭判斷檔案類型。若非 HTML 文件（如 PDF、ZIP），則直接略過內容下載以節省頻寬。
 - **`_download_content`**：使用 HTTP 串流 (`stream`) 分段下載內容，若發現下載的檔案超出設定的 `max_file_size` 時，即刻中斷連線避免 OOM (Out of Memory)。
 

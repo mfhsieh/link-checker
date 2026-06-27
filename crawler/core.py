@@ -415,6 +415,10 @@ class CrawlerCore:
                     logger.info("網址 %s 拔除特徵仍受阻 (%s)，啟動終極 TLS 偽裝引擎...", current_url, status_code)
                     try:
                         from curl_cffi import requests as cffi_requests  # pylint: disable=import-outside-toplevel
+                        from curl_cffi.requests.errors import (  # pylint: disable=import-outside-toplevel
+                            CurlError as CFFICurlError,
+                        )
+                        from curl_cffi.requests.errors import RequestsError as CFFIRequestsError
 
                         proxies = (
                             {"http": self.config.proxy_url, "https": self.config.proxy_url}
@@ -431,7 +435,7 @@ class CrawlerCore:
                         return resp.text, resp.status_code, "completed", current_url, True, None
                     except ImportError:
                         logger.warning("未安裝 curl_cffi，無法啟動終極 TLS 偽裝")
-                    except Exception as cffi_err:  # pylint: disable=broad-exception-caught
+                    except (CFFICurlError, CFFIRequestsError) as cffi_err:
                         cffi_resp = getattr(cffi_err, "response", None)
                         status_code = getattr(cffi_resp, "status_code", None) if cffi_resp is not None else None
                         e = cffi_err
@@ -601,7 +605,10 @@ class CrawlerCore:
     def _tls_spoofed_fallback(self, url: str) -> tuple[int | None, str | None]:
         """終極備援：使用 curl_cffi 進行 TLS 指紋偽裝，繞過嚴格的 WAF 阻擋。"""
         try:
-            from curl_cffi import requests as cffi_requests  # pylint: disable=import-outside-toplevel
+            # pylint: disable=import-outside-toplevel
+            from curl_cffi import requests as cffi_requests
+            from curl_cffi.requests.errors import CurlError as CFFICurlError
+            from curl_cffi.requests.errors import RequestsError as CFFIRequestsError
 
             logger.info("啟動 TLS 偽裝備援引擎 (curl_cffi) 探測: %s", url)
             proxies = None
@@ -625,7 +632,7 @@ class CrawlerCore:
         except ImportError:
             logger.warning("未安裝 curl_cffi，無法執行 TLS 偽裝降級")
             return None, "未安裝 curl_cffi"
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (CFFICurlError, CFFIRequestsError) as e:
             logger.warning("TLS 偽裝備援探測失敗: %s", e)
             cffi_resp = getattr(e, "response", None)
             status_code = getattr(cffi_resp, "status_code", None) if cffi_resp is not None else None

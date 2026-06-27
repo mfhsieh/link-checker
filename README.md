@@ -34,6 +34,7 @@
 * **[SQLAlchemy](https://www.sqlalchemy.org/)** (`2.0.50`)：標準的 Python ORM 框架，負責封裝 SQL 語法，實作 SQLite 與 PostgreSQL 的無縫切換。
 * **[psycopg2-binary](https://www.psycopg.org/)** (`2.9.12`)：PostgreSQL 的 Python 驅動程式。
 * **[httpx](https://www.python-httpx.org/)** (`0.28.1`)：處理非同步 HTTP 請求，負責執行併發的網頁抓取與狀態碼檢測（搭配 **[h2](https://github.com/python-hyper/h2)** `4.3.0` 模組支援 HTTP/2 通訊協定）。
+* **[curl_cffi](https://github.com/yifeikong/curl_cffi)** (`0.15.0`)：基於 curl-impersonate 的進階 HTTP 客戶端，用於模擬真實瀏覽器 TLS/JA3 指紋，協助繞過 Cloudflare 等高階防爬蟲機制 (WAF)。
 * **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** (`4.14.3`)：負責 HTML 解析，從網頁原始碼中萃取連結。
 * **[PyYAML](https://pyyaml.org/)** (`6.0.3`)：用於解析、校驗與讀寫 `.yaml` 設定檔。
 * **[bcrypt](https://github.com/pyca/bcrypt/)** (`4.3.0`)：雜湊演算法，處理並保護使用者的登入密碼。
