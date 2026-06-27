@@ -1420,6 +1420,21 @@
             const getFilteredValue = (key, val) => {
               if (!_globalDefaultConfig) return val;
               const defaultVal = _globalDefaultConfig[key];
+
+              // 針對聯集/合併類型的參數 (陣列與字典)，進行差集過濾，只留下使用者自訂的部分
+              if (Array.isArray(val) && Array.isArray(defaultVal)) {
+                const filtered = val.filter(item => !defaultVal.includes(item));
+                return filtered.length > 0 ? filtered : '';
+              } else if (val !== null && typeof val === 'object' && defaultVal !== null && typeof defaultVal === 'object' && !Array.isArray(val)) {
+                const filtered = {};
+                for (const [k, v] of Object.entries(val)) {
+                  if (defaultVal[k] !== v) {
+                    filtered[k] = v;
+                  }
+                }
+                return Object.keys(filtered).length > 0 ? filtered : '';
+              }
+
               if (isEquivalent(val, defaultVal)) {
                 return ''; // 與預設值相同，濾除，維持空值讓 placeholder 顯示預設值
               }

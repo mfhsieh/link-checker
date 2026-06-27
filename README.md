@@ -132,6 +132,7 @@ python cli.py --help
 * **[命令列 (CLI) 操作指南](doc/cli_usage.md)**：完整的 CLI 參數、功能介紹與全域設定檔說明。
 * **[API 路由清單](doc/api_routes.md)** 與 **[API 完整規格書](doc/api_spec.md)**：後端 RESTful API 規格與傳輸 Schema。
 * **[系統需求規格書](doc/requirements.md)**：詳細的功能需求、資安防護與業務邏輯邊界。
+* **[網站爬蟲核心流程說明](doc/crawler_workflow.md)**：詳細說明爬蟲抓取、解析、與錯誤重試的完整生命週期與驗證機制。
 * **[爬蟲引擎參數設定指南](doc/crawler_parameters.md)**：爬蟲核心進階參數、白名單與資源限制說明。
 * **[資料庫 Schema 說明](doc/db_schema.md)**：Crawler DB 與 Auth DB 實體關聯圖與詳細結構。
 * **[GCP VM 部署指南](doc/deploy_gcp_vm.md)** 與 **[PostgreSQL 升級指南](doc/migrate_to_postgresql.md)**：雲端建置、Nginx 反向代理與資料庫平滑移轉。
@@ -173,7 +174,7 @@ python cli.py --help
 
 ## 版本更新日誌 (Release Notes)
 
-- **v1.9.2 (2026-06-27)**: [爬蟲核心](crawler/core.py) 升級
+- **v1.9.2 (2026-06-27)**: [爬蟲核心](crawler/core.py) 升級，詳 [網站爬蟲核心流程說明](doc/crawler_workflow.md)
 
 ---
 

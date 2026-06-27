@@ -69,6 +69,7 @@ link-checker/
 │   ├── architecture.md       # 系統架構說明 (本文件)
 │   ├── cli_usage.md          # 命令列 (CLI) 操作指南
 │   ├── crawler_parameters.md # 爬蟲參數詳細說明
+│   ├── crawler_workflow.md   # 網站爬蟲核心流程說明
 │   ├── db_schema.md          # 資料庫 Schema 說明
 │   ├── deploy_gcp_vm.md      # GCP 雲端部署指南
 │   ├── js_coding_style.md    # JavaScript 程式風格與開發規範
@@ -161,6 +162,7 @@ graph TD
 
 為了保持文件聚焦，各模組之詳細設計已拆分至以下獨立文件：
 * [系統需求規格書](requirements.md)：所有業務邏輯、資安防護與容錯機制之最高指導原則。
+* [網站爬蟲核心流程說明](crawler_workflow.md)
 * [模組間詳細依賴說明文件](module_dependencies.md)
 * [命令列 (CLI) 操作指南](cli_usage.md)
 * [API 規格與路由清單](api_routes.md) 及 [API 詳細規格](api_spec.md)

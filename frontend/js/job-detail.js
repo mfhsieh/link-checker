@@ -298,6 +298,11 @@ export async function initJobDetailPage(jobId) {
     _currentJobId = jobId;
     stopSseStream();
 
+    if (window._summaryPollingInterval) {
+        clearInterval(window._summaryPollingInterval);
+        window._summaryPollingInterval = null;
+    }
+
     _currentFilter = null;
 
     _currentTab = 'external';
@@ -996,6 +1001,19 @@ function renderJobInfo(job) {
         setTimeout(() => loadResults(_currentJobId), 100);
     }
 
+    if (isActuallyRunning) {
+        if (!window._summaryPollingInterval) {
+            window._summaryPollingInterval = setInterval(() => {
+                refreshCurrentSummary(_currentJobId);
+            }, 30000);
+        }
+    } else {
+        if (window._summaryPollingInterval) {
+            clearInterval(window._summaryPollingInterval);
+            window._summaryPollingInterval = null;
+        }
+    }
+
     const statusEl = el('job-status');
     if (statusEl) {
         let displayStatus = job.status;
@@ -1324,6 +1342,38 @@ async function loadInternalResults(jobId) {
 
     // 統計資料載入後，再載入結果列表
     await loadInternalResultsPage(jobId);
+}
+
+/**
+ * 重新整理當前 Tab 的 Summary 快取與畫面 (不重新載入列表)
+ * @param {string} jobId - 任務 ID
+ */
+async function refreshCurrentSummary(jobId) {
+    if (_currentTab === 'external') {
+        const excludeVal = (_currentExcludeEnabled && _currentExclude) ? _currentExclude : '';
+        const summaryKey = `${excludeVal}|${_currentGroupBy}`;
+        const reqId = ++_currentExtSummaryReqId;
+        try {
+            const params = {};
+            if (excludeVal) params.exclude = excludeVal;
+            if (_currentGroupBy && _currentGroupBy !== 'none') params.group_by = _currentGroupBy;
+            const summary = await api.get(`/api/jobs/${jobId}/results/summary`, Object.keys(params).length > 0 ? params : undefined);
+            if (jobId !== _currentJobId || reqId !== _currentExtSummaryReqId) return;
+            _extSummaryCache = { key: summaryKey, data: summary };
+            renderResultsSummary(summary);
+        } catch (_) { /* 忽略 */ }
+    } else {
+        const summaryKey = _internalGroupBy;
+        const reqId = ++_currentIntSummaryReqId;
+        try {
+            const params = {};
+            if (_internalGroupBy && _internalGroupBy !== 'none') params.group_by = _internalGroupBy;
+            const summary = await api.get(`/api/jobs/${jobId}/internal-results/summary`, Object.keys(params).length > 0 ? params : undefined);
+            if (jobId !== _currentJobId || reqId !== _currentIntSummaryReqId) return;
+            _intSummaryCache = { key: summaryKey, data: summary };
+            renderInternalSummary(summary);
+        } catch (_) { /* 忽略 */ }
+    }
 }
 
 /**
