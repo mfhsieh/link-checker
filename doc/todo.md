@@ -96,4 +96,4 @@
   4. **Cookie 遺漏**：外部探測在收集 Cookie 時 `if c.value is not None and c.domain:` 的判斷式，可能會悄悄丟棄伺服器回傳但未顯式帶有 Domain 屬性的合法 Session Cookie。
   5. **邏輯重複**：內部抓取與外部探測使用了兩套雷同的 TLS 偽裝降級邏輯，導致維護成本較高。
 * **規劃方案**：全面評估上述破口，合併並重構 `curl_cffi` 降級邏輯模組，確保其亦能受到 SSRF、記憶體攔截與 MIME 檢查的保護。同時修正 Cookie 收集的判斷邏輯並補強 Exception 攔截，打造無懈可擊的核心。
-* **狀態**：**待後續評估與重構（Pending Review）**。
+* **狀態**：**已解決（Resolved）**。
