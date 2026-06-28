@@ -31,6 +31,11 @@ except ImportError:
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+REDIRECT_STATUS_CODES = (301, 302, 303, 307, 308)
+WAF_STATUS_CODES = (400, 403, 405, 406, 501, 520)
+TLS_SPOOF_STATUS_CODES = (None, 400, 403, 405, 406, 520)
+HEAD_FALLBACK_STATUS_CODES = (400, 403, 404, 405, 406, 500, 501, 502, 503, 504)
+
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
 _original_getaddrinfo: Callable = socket.getaddrinfo
@@ -55,8 +60,9 @@ def _patched_getaddrinfo(
         list[tuple[int, int, int, str, object]]: 原始或被替換的位址資訊列表。
     """
     overrides = getattr(_dns_override, "overrides", {})
-    if host in overrides:
-        return _original_getaddrinfo(overrides[host], port, *args, **kwargs)
+    host_str = host.decode("utf-8") if isinstance(host, bytes) else host
+    if host_str in overrides:
+        return _original_getaddrinfo(overrides[host_str], port, *args, **kwargs)
     return _original_getaddrinfo(host, port, *args, **kwargs)
 
 
@@ -299,7 +305,7 @@ class CrawlerCore:
         Returns:
             tuple[str | None, tuple | None]: (下一步網址, 提前回傳的結果)。
         """
-        if response.status_code in (301, 302, 303, 307, 308):
+        if response.status_code in REDIRECT_STATUS_CODES:
             return self._handle_redirect(response, current_url, target_domains)
 
         response.raise_for_status()
@@ -422,7 +428,7 @@ class CrawlerCore:
                         logger.warning("HTTPS 重試亦失敗: %s", e)
 
                 # 2. 如果遇到 WAF 經常阻擋的特定狀態碼，嘗試拔除 Sec-* 標頭再次重試
-                if status_code in (400, 403, 405, 406, 501, 520):
+                if status_code in WAF_STATUS_CODES:
                     logger.info("網址 %s 遇到 %s 阻擋，嘗試拔除特徵標頭再次重試...", current_url, status_code)
                     try:
                         request_sent, current_url, result = self._fetch_single(
@@ -437,10 +443,10 @@ class CrawlerCore:
 
                 # 3. 終極 TLS 偽裝降級 (curl_cffi)
                 # 當拔除標頭仍受阻，或是遭遇連線超時/TCP中斷 (狀態碼 None) 等無回應 Tarpit 時，啟動終極防護繞過
-                if status_code in (None, 400, 403, 405, 406, 520):
+                if status_code in TLS_SPOOF_STATUS_CODES:
                     logger.info("網址 %s 拔除特徵仍受阻 (%s)，啟動終極 TLS 偽裝引擎...", current_url, status_code)
                     cffi_status, cffi_err, cffi_text, cffi_final_url = self._execute_curl_cffi_fallback(
-                        current_url, is_internal=True
+                        current_url, is_internal=True, target_domains=target_domains
                     )
                     # 若 curl_cffi 成功取得內容 (狀態碼 < 400)
                     if cffi_status is not None and cffi_status < 400 and cffi_text is not None:
@@ -612,21 +618,22 @@ class CrawlerCore:
 
         return internal_links, external_target_links, status_code, status, request_sent, err_msg
 
-    def _execute_curl_cffi_fallback(  # pylint: disable=too-many-statements
-        self, url: str, is_internal: bool = False
+    def _execute_curl_cffi_fallback(  # pylint: disable=too-many-statements,too-many-nested-blocks
+        self, url: str, is_internal: bool = False, target_domains: list[str] | None = None
     ) -> tuple[int | None, str | None, str | None, str | None]:
         """終極備援核心邏輯：使用 curl_cffi 進行 TLS 指紋偽裝。
+
+        手動處理重導向，每一跳均進行 SSRF 防護驗證，
+        並透過 curl_cffi 的 resolve 參數實作安全的 DNS 覆寫。
 
         Args:
             url (str): 目標網址。
             is_internal (bool): 是否為內部抓取（需要防 OOM 與 MIME 驗證並回傳內容）。
+            target_domains (list[str] | None): 允許進入的目標網域清單。
 
         Returns:
             tuple[int | None, str | None, str | None, str | None]:
                 (status_code, error_msg, content_text, final_url)。
-                final_url 反映 curl_cffi 內部 allow_redirects=True 自動跟隨完整重導向鏈後
-                的實際落點，供呼叫端 (fetch()) 作為解析 HTML 內相對路徑連結的正確基準網址；
-                若請求從未實際送出 (例如未安裝 curl_cffi)，則退回傳入的原始 url。
         """
         try:
             # pylint: disable=import-outside-toplevel
@@ -634,70 +641,106 @@ class CrawlerCore:
             from curl_cffi.requests.errors import CurlError as CFFICurlError
             from curl_cffi.requests.errors import RequestsError as CFFIRequestsError
 
-            # 1. SSRF 驗證防護
-            domain = get_domain(url)
-            ip, ssrf_err = self._resolve_and_check_ssrf(domain, url)
-            if ssrf_err:
-                logger.warning("TLS 偽裝降級遭到 SSRF 防護攔截: %s", ssrf_err)
-                return None, ssrf_err, None, url
-
             logger.info("啟動 TLS 偽裝備援引擎 (curl_cffi) 探測: %s", url)
             proxies = None
             if self.config.proxy_url:
                 proxies = {"http": self.config.proxy_url, "https": self.config.proxy_url}
 
             stream = is_internal
+            current_url = url
 
-            # 決定是否需驗證 SSL 憑證 (依據 ssl_exempt_domains 白名單)
-            verify_ssl = not (domain and is_in_domain_list(domain, self.config.ssl_exempt_domains))
+            for redirect_idx in range(self.config.max_redirects + 1):
+                domain = get_domain(current_url)
+                ip, ssrf_err = self._resolve_and_check_ssrf(domain, current_url)
+                if ssrf_err:
+                    logger.warning("TLS 偽裝降級遭到 SSRF 防護攔截: %s", ssrf_err)
+                    return None, ssrf_err, None, current_url
 
-            with dns_override(domain, ip) if domain and ip else nullcontext():
-                resp = cffi_requests.get(
-                    url,
-                    impersonate="chrome120",
-                    timeout=self.config.external_check_timeout,
-                    allow_redirects=True,  # 內部直接跟隨所有重導向
-                    proxies=proxies,
-                    stream=stream,  # 若為內部抓取，啟用 stream 以防範大檔案 OOM
-                    verify=verify_ssl,  # 根據網域設定套用憑證驗證豁免
-                )
+                # 設定 curl_cffi 的 DNS resolve
+                cffi_resolve = None
+                if domain and ip:
+                    parsed_url = urlparse(current_url)
+                    port = parsed_url.port
+                    if not port:
+                        port = 443 if parsed_url.scheme == "https" else 80
+                    cffi_resolve = {f"{domain}:{port}": ip}
 
-            status_code = resp.status_code
-            # resp.url 反映 allow_redirects=True 自動跟隨完整重導向鏈後的最終落點
-            final_url = resp.url or url
+                # 決定是否需驗證 SSL 憑證 (依據 ssl_exempt_domains 白名單)
+                verify_ssl = not (domain and is_in_domain_list(domain, self.config.ssl_exempt_domains))
 
-            if not is_internal:
-                resp.close()
-                return status_code, None, None, final_url
+                resp = None
+                try:
+                    resp = cffi_requests.get(
+                        current_url,
+                        impersonate="chrome120",
+                        timeout=self.config.external_check_timeout,
+                        allow_redirects=False,  # 手動處理以確保 SSRF 安全與 target_domains 檢查
+                        proxies=proxies,
+                        stream=stream,
+                        verify=verify_ssl,
+                        resolve=cffi_resolve,
+                    )
 
-            if status_code >= 400:
-                resp.close()
-                return status_code, f"HTTP 狀態異常: {status_code}", None, final_url
+                    status_code = resp.status_code
 
-            content_type = resp.headers.get("Content-Type", "")
-            if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
-                resp.close()
-                return status_code, f"MIME 類型不符 (非 HTML): {content_type}", None, final_url
+                    # 處理重導向
+                    if status_code in REDIRECT_STATUS_CODES:
+                        if redirect_idx >= self.config.max_redirects:
+                            return None, "超過最大重導向次數", None, current_url
 
-            content_bytes = bytearray()
-            for chunk in resp.iter_content(chunk_size=8192):
-                if chunk:
-                    content_bytes.extend(chunk)
-                    if len(content_bytes) > self.config.max_content_length:
-                        logger.warning(
-                            "網頁容量超過上限 (%s bytes)，內容已被提早截斷: %s",
-                            self.config.max_content_length,
-                            url,
-                        )
-                        break
-            resp.close()
+                        location = resp.headers.get("Location")
+                        if not location:
+                            logger.warning("網址 %s 回傳 %d 但缺少 Location 標頭", current_url, status_code)
+                            return status_code, "重導向但無 Location 標頭", None, current_url
 
-            try:
-                text = content_bytes.decode(resp.encoding or "utf-8", errors="replace")
-            except LookupError:
-                text = content_bytes.decode("utf-8", errors="replace")
+                        next_url = urljoin(current_url, location)
+                        if is_internal and target_domains:
+                            next_domain = get_domain(next_url)
+                            if next_domain and not is_in_domain_list(next_domain, target_domains):
+                                logger.info("網址 %s 重導向至外部網域 %s，停止深入抓取", current_url, next_url)
+                                fake_html = f'<a href="{next_url}"></a>'
+                                return status_code, None, fake_html, current_url
 
-            return status_code, None, text, final_url
+                        current_url = next_url
+                        continue
+
+                    # 正常非重導向回應
+                    if not is_internal:
+                        return status_code, None, None, current_url
+
+                    if status_code >= 400:
+                        return status_code, f"HTTP 狀態異常: {status_code}", None, current_url
+
+                    content_type = resp.headers.get("Content-Type", "").lower()
+                    if self.config.mime_type_filter.get("enabled", True):
+                        allowed_types = self.config.mime_type_filter.get("allowed_types", ["text/html"])
+                        if not any(allowed.lower() in content_type for allowed in allowed_types):
+                            return status_code, f"略過非目標 MIME 類型 ({content_type})", None, current_url
+
+                    content_bytes = bytearray()
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk:
+                            content_bytes.extend(chunk)
+                            if len(content_bytes) > self.config.max_content_length:
+                                logger.warning(
+                                    "網頁容量超過上限 (%s bytes)，內容已被提早截斷: %s",
+                                    self.config.max_content_length,
+                                    current_url,
+                                )
+                                break
+
+                    try:
+                        text = content_bytes.decode(resp.encoding or "utf-8", errors="replace")
+                    except LookupError:
+                        text = content_bytes.decode("utf-8", errors="replace")
+
+                    return status_code, None, text, current_url
+
+                finally:
+                    if resp is not None:
+                        resp.close()
+
+            return None, "超過最大重導向次數", None, current_url
 
         except ImportError:
             logger.warning("未安裝 curl_cffi，無法執行 TLS 偽裝降級")
@@ -724,8 +767,7 @@ class CrawlerCore:
         status_code, err_msg, _, _ = self._execute_curl_cffi_fallback(url, is_internal=False)
         return status_code, err_msg
 
-    # pylint: disable=too-many-arguments
-    def _fallback_get(
+    def _fallback_get(  # pylint: disable=too-many-arguments
         self,
         current_url: str,
         tgt_dom: str | None,
@@ -790,7 +832,7 @@ class CrawlerCore:
                             if c_dom:
                                 accumulated_cookies.setdefault(c_dom, {})[c.name] = c.value
 
-                if resp.status_code in (301, 302, 303, 307, 308):
+                if resp.status_code in REDIRECT_STATUS_CODES:
                     location = resp.headers.get("Location")
                     if location:
                         return urljoin(current_url, location), None
@@ -867,7 +909,7 @@ class CrawlerCore:
                     if c_dom:
                         accumulated_cookies.setdefault(c_dom, {})[c.name] = c.value
 
-        if response.status_code in (301, 302, 303, 307, 308):
+        if response.status_code in REDIRECT_STATUS_CODES:
             # HEAD 的重導向結果在許多伺服器上並不可靠：可能是 Cookie-gate 要求重新帶
             # Cookie 確認 (如 Citrix NetScaler)，也可能是伺服器單純不支援 HEAD 重導向、
             # 固定回傳錯誤的 Location 造成彈跳 (即使完全沒有 Cookie 涉入)。兩種情況的
@@ -878,9 +920,7 @@ class CrawlerCore:
         is_social_media = tgt_dom and is_in_domain_list(tgt_dom.lower(), self.config.social_domains)
         # 許多伺服器 (如 IIS) 對 HEAD 請求的轉址設定不完整，可能直接回傳 404 或 405。
         # 將 404 等常見誤判狀態碼納入降級條件，若 HEAD 遇到 404 將以 GET (Stream) 二次確認。
-        if response.status_code in (400, 403, 404, 405, 406, 500, 501, 502, 503, 504) or (
-            response.status_code >= 400 and is_social_media
-        ):
+        if response.status_code in HEAD_FALLBACK_STATUS_CODES or (response.status_code >= 400 and is_social_media):
             return self._fallback_get(current_url, tgt_dom, ip, client, accumulated_cookies)
         return None, (response.status_code, None)
 
@@ -1028,7 +1068,7 @@ class CrawlerCore:
                         )
 
                         # 終極 TLS 偽裝降級 (curl_cffi)
-                        if is_retry_failed and status_code_retry in (None, 400, 403, 405, 406, 520):
+                        if is_retry_failed and status_code_retry in TLS_SPOOF_STATUS_CODES:
                             new_url = urlparse(current_url)._replace(scheme="https").geturl()
                             return self._tls_spoofed_fallback(new_url)
 
@@ -1040,7 +1080,7 @@ class CrawlerCore:
 
                 # 如果一開始就是 HTTPS 且遭遇 WAF 阻擋（包含 Tarpit 連線超時），啟動終極 TLS 偽裝降級
                 if is_failed and urlparse(current_url).scheme == "https":
-                    if status_code in (None, 400, 403, 405, 406, 520):
+                    if status_code in TLS_SPOOF_STATUS_CODES:
                         return self._tls_spoofed_fallback(current_url)
 
                 return result
