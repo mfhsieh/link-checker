@@ -11,27 +11,14 @@ flowchart TD
     Start(["爬行任務起點"]) --> ProcessUrl["process_url: 處理單一網址"]
     
     %% 內部爬取與資源下載
-    ProcessUrl --> Fetch["fetch: 發起網路請求"]
-    Fetch --> CheckSSRF{"防 SSRF IP 檢查"}
+    ProcessUrl --> Fetch["fetch: 啟動重導向迴圈 (max_redirects)"]
+    Fetch --> FetchSingle["_fetch_single: 執行單次探測"]
+    
+    FetchSingle --> CheckSSRF{"防 SSRF IP 檢查"}
     CheckSSRF -->|"私有 IP"| Drop["中止並封鎖"]
-    CheckSSRF -->|"合法 IP"| ClientReq["發送請求"]
+    CheckSSRF -->|"合法 IP"| ClientReq["發送 HTTPX 請求"]
     
     ClientReq --> ReqResult{"請求狀態"}
-    
-    %% 異常容錯與重試機制
-    ReqResult -->|"網路異常或 HTTP >= 400"| CheckHttp{"原為 http:// ?"}
-    CheckHttp -->|"是"| RetryHttps["升級 HTTPS 並重試"]
-    RetryHttps --> ReqResult
-    
-    CheckHttp -->|"否"| CheckWAF{"WAF 阻擋碼 ? (403, 520等)"}
-    CheckWAF -->|"是"| StripSecHeaders["拔除 Sec-* 標頭重試"]
-    StripSecHeaders --> SecResult{"重試結果"}
-    SecResult -->|"成功"| CheckMime
-    SecResult -->|"失敗"| TLSSpoofInt["curl_cffi 統一引擎 (內建 SSRF/MIME/OOM 防護)"]
-    TLSSpoofInt --> TLSSpoofResult{"偽裝與下載結果"}
-    TLSSpoofResult -->|"成功"| Extract
-    TLSSpoofResult -->|"失敗"| FetchFail(["紀錄抓取失敗"])
-    CheckWAF -->|"否"| FetchFail
     
     %% 正常處理
     ReqResult -->|"成功 (2xx/3xx)"| CheckRedirect{"HTTP 3xx ?"}
@@ -42,20 +29,40 @@ flowchart TD
     HasLocation -->|"無"| SkipRedirect["略過 (異常重導向)"]
     HasLocation -->|"有"| CheckCrossDomain{"跨域重導向 ?"}
     CheckCrossDomain -->|"是"| FakeHTML["停止跟隨並轉為假 HTML 標籤"]
-    CheckCrossDomain -->|"否"| FollowRedirect["追蹤重導向 (次數-1)"]
-    FollowRedirect --> ProcessUrl
-    FakeHTML --> Extract
+    CheckCrossDomain -->|"否"| FollowRedirect["更新網址 (continue)"]
+    FollowRedirect --> Fetch
+    FakeHTML --> Extract["extract_links: 萃取連結"]
     
     CheckMime -->|"否"| SkipContent["略過下載 (節省頻寬)"]
     CheckMime -->|"是"| Download["串流下載 HTML"]
     
     %% 連結萃取
-    Download --> Extract["extract_links: 萃取連結"]
+    Download --> Extract
     Extract --> NormFilter["網址標準化與規則過濾"]
     NormFilter --> Distribute{"連結類型 ?"}
     
     Distribute -->|"內部連結"| QueueInternal["加入內部佇列待爬取"]
     Distribute -->|"外部連結"| ExtStart["check_external_link"]
+    
+    %% 異常容錯與重試機制 (在 fetch 內部)
+    ReqResult -->|"網路異常或 HTTP >= 400"| CheckHttp{"原為 http:// ?"}
+    CheckHttp -->|"是"| RetryHttps["升級 HTTPS 並呼叫 _fetch_single"]
+    
+    RetryHttps -->|"成功取得內容"| Extract
+    RetryHttps -->|"成功取得跳轉"| FollowRedirect
+    RetryHttps -->|"HTTPS 重試也失敗"| CheckWAF{"WAF 阻擋碼 ? (403, 520等)"}
+    CheckHttp -->|"否 (原本就是 https)"| CheckWAF
+    
+    CheckWAF -->|"是"| StripSecHeaders["拔除 Sec-* 標頭並呼叫 _fetch_single"]
+    StripSecHeaders -->|"成功取得內容"| Extract
+    StripSecHeaders -->|"成功取得跳轉"| FollowRedirect
+    StripSecHeaders -->|"重試仍失敗"| TLSSpoofInt["curl_cffi 統一引擎 (內建 SSRF/MIME/OOM 防護)"]
+    
+    CheckWAF -->|"否"| FetchFail(["紀錄抓取失敗"])
+    
+    TLSSpoofInt --> TLSSpoofResult{"偽裝與下載結果"}
+    TLSSpoofResult -->|"成功"| Extract
+    TLSSpoofResult -->|"失敗"| FetchFail
     
     %% 外部連結容錯探測
     ExtStart --> HeadReq["發送 HEAD 請求"]
@@ -69,11 +76,11 @@ flowchart TD
     
     SendGet --> GetState{"GET 狀態判斷"}
     GetState -->|"成功"| FinalSuccess
-    GetState -->|"失敗 (http://)"| HttpsRetry["自動升級 HTTPS 重試"]
+    GetState -->|"失敗 (http://)"| ExtHttpsRetry["自動升級 HTTPS 重試"]
     
-    HttpsRetry --> HttpsState{"HTTPS 狀態"}
-    HttpsState -->|"成功"| FinalSuccess
-    HttpsState -->|"失敗 (403/520/JS Challenge)"| TLSSpoof["curl_cffi TLS 指紋偽裝"]
+    ExtHttpsRetry --> ExtHttpsState{"HTTPS 狀態"}
+    ExtHttpsState -->|"成功"| FinalSuccess
+    ExtHttpsState -->|"失敗 (403/520/JS Challenge)"| TLSSpoof["curl_cffi TLS 指紋偽裝"]
     
     GetState -->|"失敗 (https://)"| TLSSpoof
     
