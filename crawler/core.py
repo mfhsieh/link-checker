@@ -415,7 +415,7 @@ class CrawlerCore:
                         status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
 
                 # 3. 終極 TLS 偽裝降級 (curl_cffi)
-                if status_code in (400, 403, 405, 406, 520):
+                if status_code in (None, 400, 403, 405, 406, 520):
                     logger.info("網址 %s 拔除特徵仍受阻 (%s)，啟動終極 TLS 偽裝引擎...", current_url, status_code)
                     cffi_status, cffi_err, cffi_text, cffi_final_url = self._execute_curl_cffi_fallback(
                         current_url, is_internal=True
@@ -678,6 +678,8 @@ class CrawlerCore:
             logger.warning("TLS 偽裝備援探測失敗: %s", e)
             cffi_resp = getattr(e, "response", None)
             status_code = getattr(cffi_resp, "status_code", None) if cffi_resp is not None else None
+            if status_code == 0:
+                status_code = None
             return status_code, f"TLS 偽裝探測失敗: {e}", None, url
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("TLS 偽裝備援遭遇未預期底層例外: %s", type(e).__name__)
@@ -977,7 +979,7 @@ class CrawlerCore:
                         )
 
                         # 終極 TLS 偽裝降級 (curl_cffi)
-                        if is_retry_failed and status_code_retry in (400, 403, 405, 406, 520):
+                        if is_retry_failed and status_code_retry in (None, 400, 403, 405, 406, 520):
                             new_url = urlparse(current_url)._replace(scheme="https").geturl()
                             return self._tls_spoofed_fallback(new_url)
 
@@ -987,9 +989,10 @@ class CrawlerCore:
                         current_url = next_url_retry
                         continue
 
-                # 如果一開始就是 HTTPS 且遭遇 WAF 阻擋，啟動終極 TLS 偽裝降級
-                if is_failed and status_code in (400, 403, 405, 406, 520):
-                    return self._tls_spoofed_fallback(current_url)
+                # 如果一開始就是 HTTPS 且遭遇 WAF 阻擋（包含 Tarpit 連線超時），啟動終極 TLS 偽裝降級
+                if is_failed and urlparse(current_url).scheme == "https":
+                    if status_code in (None, 400, 403, 405, 406, 520):
+                        return self._tls_spoofed_fallback(current_url)
 
                 return result
 

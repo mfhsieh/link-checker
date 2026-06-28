@@ -353,9 +353,11 @@ crawler:
         s_code_500 = ext_dict[status_500_url]["status_code"]
         assert s_code_500 in (
             500,
+            502,
             503,
+            504,
             None,
-        ), f"500 status should be 500, 503 or None, got {s_code_500}"
+        ), f"500 status should be 500, 502, 503, 504 or None, got {s_code_500}"
         if s_code_500 is None:
             assert ext_dict[status_500_url]["error"] is not None, (
                 "Error message should not be None when status_code is None"

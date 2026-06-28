@@ -50,13 +50,15 @@ flowchart TD
     
     RetryHttps -->|"成功取得內容"| Extract
     RetryHttps -->|"成功取得跳轉"| FollowRedirect
-    RetryHttps -->|"HTTPS 重試也失敗"| CheckWAF{"WAF 阻擋碼 ? (403, 520等)"}
+    RetryHttps -->|"HTTPS 重試也失敗"| CheckWAF{"WAF 阻擋碼 或 連線超時 ?"}
     CheckHttp -->|"否 (原本就是 https)"| CheckWAF
     
-    CheckWAF -->|"是"| StripSecHeaders["拔除 Sec-* 標頭並呼叫 _fetch_single"]
+    CheckWAF -->|"是 (403, 520等)"| StripSecHeaders["拔除 Sec-* 標頭並呼叫 _fetch_single"]
+    CheckWAF -->|"連線超時 (None)"| TLSSpoofInt["curl_cffi 統一引擎 (內建 SSRF/MIME/OOM 防護)"]
+    
     StripSecHeaders -->|"成功取得內容"| Extract
     StripSecHeaders -->|"成功取得跳轉"| FollowRedirect
-    StripSecHeaders -->|"重試仍失敗"| TLSSpoofInt["curl_cffi 統一引擎 (內建 SSRF/MIME/OOM 防護)"]
+    StripSecHeaders -->|"重試仍失敗"| TLSSpoofInt
     
     CheckWAF -->|"否"| FetchFail(["紀錄抓取失敗"])
     
@@ -80,7 +82,7 @@ flowchart TD
     
     ExtHttpsRetry --> ExtHttpsState{"HTTPS 狀態"}
     ExtHttpsState -->|"成功"| FinalSuccess
-    ExtHttpsState -->|"失敗 (403/520/JS Challenge)"| TLSSpoof["curl_cffi TLS 指紋偽裝"]
+    ExtHttpsState -->|"失敗 (連線超時/403/520/JS Challenge)"| TLSSpoof["curl_cffi TLS 指紋偽裝"]
     
     GetState -->|"失敗 (https://)"| TLSSpoof
     
@@ -111,7 +113,7 @@ flowchart TD
 - **`fetch`**：實作了包含「隨機抖動 (Jitter)」的指數退避重試機制，並封裝了強大的多階層異常容錯與防護穿透邏輯，攔截所有例外（不向外拋出）：
   1. **HTTP 自動升級**：若以 `http://` 請求時遭遇連線錯誤或 HTTP >= 400，會自動替換為 `https://` 進行重試。
   2. **特徵標頭拔除**：若遭遇常見 WAF 阻擋碼（如 403, 520 等），將嘗試拔除 `Sec-CH-UA` 等現代瀏覽器特徵標頭後重試。
-  3. **終極 TLS 偽裝 (`_execute_curl_cffi_fallback`)**：若拔除標頭仍受阻，自動降級呼叫 `curl_cffi` 引擎。此引擎為內部與外部共用的統一入口，內建 SSRF 攔截、MIME Type 檢查，以及 `iter_content` 的記憶體分塊下載與容量上限保護防 OOM。
+  3. **終極 TLS 偽裝 (`_execute_curl_cffi_fallback`)**：若拔除標頭仍受阻，或一開始就遭遇連線超時/丟棄 (狀態碼為 None) 等 stealthy Tarpit 阻擋，自動降級呼叫 `curl_cffi` 引擎。此引擎為內部與外部共用的統一入口，內建 SSRF 攔截、MIME Type 檢查，以及 `iter_content` 的記憶體分塊下載與容量上限保護防 OOM。
   4. **統一例外處理**：除了網路層錯誤，也以全域 `Exception` 攔截如 `ValueError` 等底層異常，統一回傳 `failed` 狀態。
 - **`_fetch_single`**：單次執行的網路請求入口，包含實際呼叫 HTTPX。
 
@@ -165,7 +167,7 @@ flowchart TD
 ### 4.3 終極降級與容錯重試 (Fallbacks)
 若單純的 `_fallback_get` 仍無法順利取得存活證明，系統將啟動最後防線：
 - **自動 HTTPS 升級 (`_handle_http_failure_retry`)**：若原始網址為明文 `http://` 且連線失敗（或遭回傳大於等於 400 的異常碼），系統將強制將協定升級為 `https://` 進行二次重試。此方法會精準比對重試結果，透過 `fell_back` 旗標區分「真的連不上」與「受到 WAF 阻擋」，避免錯失後續 TLS 偽裝的機會。
-- **統一 TLS 指紋偽裝引擎 (`_execute_curl_cffi_fallback`)**：若標頭剝離與 HTTPS 升級皆無法穿透 Cloudflare 或其他企業級高階防火牆（如持續收到 403 / 520 攔截），系統會動用基於 `curl_cffi` 的統一備援引擎。外部探測模式 (`is_internal=False`) 下只會驗證狀態碼，不下載內容，藉此消弭絕大多數的假死連結誤報。
+- **統一 TLS 指紋偽裝引擎 (`_execute_curl_cffi_fallback`)**：若標頭剝離與 HTTPS 升級皆無法穿透 Cloudflare 或其他企業級高階防火牆（如持續收到 403 / 520 攔截，或遭遇 stealthy Tarpit 導致連線超時/狀態碼為 None 時），系統會動用基於 `curl_cffi` 的統一備援引擎。外部探測模式 (`is_internal=False`) 下只會驗證狀態碼，不下載內容，藉此消弭絕大多數的假死連結誤報。
 
 ---
 

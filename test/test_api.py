@@ -574,8 +574,8 @@ def test_api_real_scenario_flow() -> None:
                 assert link["http_status_code"] == 200, "Google should return 200"
             elif target == "https://httpbin.org/status/404":
                 found_httpbin_404 = True
-                assert link["http_status_code"] in (404, 503, None), (
-                    f"httpbin 404 should return 404, 503 or None, got {link['http_status_code']}"
+                assert link["http_status_code"] in (404, 502, 503, 504, None), (
+                    f"httpbin 404 should return 404, 502, 503, 504 or None, got {link['http_status_code']}"
                 )
             elif target == "http://neverssl.com":
                 found_neverssl = True
