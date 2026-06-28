@@ -309,16 +309,23 @@ class CrawlerCore:
     def _fetch_single(
         self, current_url: str, request_sent: bool, target_domains: list[str] | None, strip_sec_headers: bool = False
     ) -> tuple[bool, str, tuple[str | None, int | None, str, str, bool, str | None] | None]:
-        """執行單次 fetch 流程，回傳 (request_sent, next_url, result_tuple)。
+        """執行單次 HTTP 探測流程 (不含降級重試)，回傳狀態與下一步網址。
+
+        涵蓋 SSRF 防護、MIME 類型驗證、跨域攔截與串流分塊下載機制。
+        若遭遇 HTTP 重導向，會驗證是否跨越 `target_domains` 邊界；
+        若內容為 HTML，則進行串流下載並防範大檔案 OOM 記憶體溢出。
 
         Args:
-            current_url (str): 當前網址。
+            current_url (str): 當前準備請求的網址。
             request_sent (bool): 標記此循環是否已實際發送過 HTTP 請求。
             target_domains (list[str] | None): 允許進入的目標網域清單。
             strip_sec_headers (bool): 是否拔除現代瀏覽器的 Sec-* 特徵標頭，用於繞過 WAF。
 
         Returns:
-            tuple[bool, str, tuple | None]: (是否發送請求, 下一步網址, 提前回傳的結果)。
+            tuple[bool, str, tuple | None]:
+                - request_sent (bool): 是否已實際發送請求
+                - next_url (str): 重導向後的下一步網址 (若無則為原網址)
+                - result_tuple (tuple | None): 若探測已完成 (如成功取得內容、或確定失敗/略過)，則回傳提早終止的結果。
         """
         if ignore_reason := self._check_ignore_rules(current_url):
             return request_sent, current_url, (None, None, "skip", current_url, request_sent, ignore_reason)
@@ -355,16 +362,25 @@ class CrawlerCore:
     def fetch(
         self, url: str, target_domains: list[str] | None = None
     ) -> tuple[str | None, int | None, str, str, bool, str | None]:
-        """抓取給定網址的 HTML 內容。
+        """主動抓取網頁內容，處理重導向與多階層異常容錯。
+
+        這是內部網頁爬取的主要進入點。包含了：
+        1. 最大重導向追蹤 (max_redirects)
+        2. 指數退避 (Exponential Backoff) 的隨機抖動重試
+        3. 網路異常與 WAF 阻擋防護 (HTTP 自動升級、標頭拔除、curl_cffi 終極 TLS 偽裝)
 
         Args:
-            url (str): 欲抓取的網址字串。
-            target_domains (list[str] | None): 目標網域清單，用於防止重導向跨出邊界。
+            url (str): 欲抓取的起點網址。
+            target_domains (list[str] | None): 目標網域清單，用於防止重導向跨出邊界。若為 None 則不限制。
 
         Returns:
-            tuple[str | None, int | None, str, str, bool, str | None]: (HTML字串, HTTP狀態碼, 狀態, 最終網址,
-                是否發送請求, 錯誤或警告訊息)。狀態字串為 'completed', 'warning', 'skip' 或 'failed'。
-
+            tuple[str | None, int | None, str, str, bool, str | None]:
+                - HTML 字串 (若跨域則為假標籤字串，失敗則為 None)
+                - HTTP 狀態碼
+                - 狀態字串 ('completed', 'failed', 'skip', 'warning')
+                - 最終落點網址
+                - 是否有發出真實請求 (bool)
+                - 錯誤或警告訊息
         """
         # 注意：本方法已經封裝所有 httpx 相關的 RequestError 與 HTTPStatusError，
         # 並會轉化為 status='failed' 的 Tuple 回傳，不會再向外拋出例外。
@@ -415,11 +431,13 @@ class CrawlerCore:
                         status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
 
                 # 3. 終極 TLS 偽裝降級 (curl_cffi)
+                # 當拔除標頭仍受阻，或是遭遇連線超時/TCP中斷 (狀態碼 None) 等無回應 Tarpit 時，啟動終極防護繞過
                 if status_code in (None, 400, 403, 405, 406, 520):
                     logger.info("網址 %s 拔除特徵仍受阻 (%s)，啟動終極 TLS 偽裝引擎...", current_url, status_code)
                     cffi_status, cffi_err, cffi_text, cffi_final_url = self._execute_curl_cffi_fallback(
                         current_url, is_internal=True
                     )
+                    # 若 curl_cffi 成功取得內容 (狀態碼 < 400)
                     if cffi_status is not None and cffi_status < 400 and cffi_text is not None:
                         return cffi_text, cffi_status, "completed", cffi_final_url or current_url, True, None
 
@@ -427,6 +445,7 @@ class CrawlerCore:
                     e = Exception(cffi_err) if cffi_err else Exception(f"TLS 偽裝失敗，狀態碼 {cffi_status}")
 
                 # 4. 封裝所有例外，不向外拋出，統一回傳狀態
+                # 即使遭遇各種未預期例外 (如 ValueError, UnicodeError 等)，也轉化為 failed 狀態回報
                 return None, status_code, "failed", current_url, request_sent, str(e)
 
             except (ValueError, TypeError, UnicodeError) as e:
@@ -624,14 +643,18 @@ class CrawlerCore:
 
             stream = is_internal
 
+            # 決定是否需驗證 SSL 憑證 (依據 ssl_exempt_domains 白名單)
+            verify_ssl = not (domain and is_in_domain_list(domain, self.config.ssl_exempt_domains))
+
             with dns_override(domain, ip) if domain and ip else nullcontext():
                 resp = cffi_requests.get(
                     url,
                     impersonate="chrome120",
                     timeout=self.config.external_check_timeout,
-                    allow_redirects=True,
+                    allow_redirects=True,  # 內部直接跟隨所有重導向
                     proxies=proxies,
-                    stream=stream,
+                    stream=stream,         # 若為內部抓取，啟用 stream 以防範大檔案 OOM
+                    verify=verify_ssl,     # 根據網域設定套用憑證驗證豁免
                 )
 
             status_code = resp.status_code
@@ -910,9 +933,15 @@ class CrawlerCore:
 
         if result_retry is not None:
             status_code_retry, err_msg_retry = result_retry
-            # 若 HTTPS 連線徹底失敗 (無狀態碼)，保留原始 HTTP 檢測結果，並明確標記為
-            # 「因連線失敗而退回」，避免呼叫端誤判而繼續嘗試已知連不上的 TLS 偽裝降級
+            # 若 HTTPS 連線徹底失敗 (無狀態碼)，原本會退回 HTTP 結果。
+            # 但若錯誤原因是 SSL 憑證問題，代表伺服器有回應只是憑證異常，
+            # 此時不應退回 HTTP 的 timeout 掩蓋真相，而是回傳 HTTPS 的 SSL 錯誤，
+            # 並設 fell_back=False 讓後續能進入 TLS 偽裝 (若網域在白名單內即可通過)。
             if status_code_retry is None:
+                if err_msg_retry and ("SSL" in err_msg_retry.upper() or "CERT" in err_msg_retry.upper()):
+                    logger.info("HTTPS 重試發現憑證錯誤: %s", err_msg_retry)
+                    return None, result_retry, False
+
                 logger.info("HTTPS 重試失敗: %s", err_msg_retry)
                 return None, original_result, True
             # 若 HTTPS 有取得狀態碼（即使是 4xx/5xx），就取代原本 HTTP 結果
