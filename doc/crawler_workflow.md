@@ -14,8 +14,8 @@ flowchart TD
     ProcessUrl --> Fetch["fetch: 啟動重導向迴圈 (max_redirects)"]
     Fetch --> FetchSingle["_fetch_single: 執行單次探測"]
     
-    FetchSingle --> CheckSSRF{"防 SSRF IP 檢查"}
-    CheckSSRF -->|"私有 IP"| Drop["中止並封鎖"]
+    FetchSingle --> CheckSSRF{"DNS 解析與 SSRF 防護"}
+    CheckSSRF -->|"解析失敗 或 私有 IP"| FetchFail(["紀錄抓取失敗"])
     CheckSSRF -->|"合法 IP"| ClientReq["發送 HTTPX 請求"]
     
     ClientReq --> ReqResult{"請求狀態"}
@@ -121,7 +121,9 @@ flowchart TD
 
 ### 2.2 連線與資安檢測
 - **`_get_client`**：依據目標網址是否符合 `ssl_exempt_domains` 子網域繼承規則，決定使用 `self.client` 或 `self.exempt_client` 發起請求。
-- **`_resolve_and_check_ssrf`**：在正式發出請求前或收到重導向時，解析目標主機 IP。若 IP 屬於私有網段（如 `127.0.0.1`、`192.168.x.x`）則直接封鎖，防止 SSRF (Server-Side Request Forgery) 攻擊。
+- **`_resolve_and_check_ssrf`**：在正式發出請求前，統一進行底層網路檢測：
+  1. **提早攔截死連結**：若目標網域無法解析 IP (`resolve_ip` 回傳 None)，直接中斷內部抓取與外部探測，並標記為 `failed` (DNS 解析失敗)，徹底省去後續無謂的 HTTP 連線超時與偽裝重試。
+  2. **防範 SSRF 攻擊**：解析出的 IP 若屬於私有網段（如 `127.0.0.1`、`192.168.x.x`）則直接封鎖，防止惡意轉址探索內部網路。
 
 ### 2.3 手動重導向與跨域攔截 (Manual Redirect Handling)
 為了嚴格控制爬取範圍與防範安全性問題，爬蟲核心關閉了 HTTP 客戶端的自動重導向機制 (`follow_redirects=False`)，並在 `_handle_redirect` 中實作手動的 3xx 攔截處理流程：

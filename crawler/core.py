@@ -198,7 +198,11 @@ class CrawlerCore:
         if not domain:
             return None, None
         ip = resolve_ip(domain)
-        if ip and not is_safe_ip(ip):
+        if ip is None:
+            logger.warning("網址 %s 的網域無法解析 IP (Dead Link)", url)
+            return None, "DNS 解析失敗 (Dead Link)"
+
+        if not is_safe_ip(ip):
             logger.warning("網址 %s 的 IP (%s) 被判定為不安全，已攔截潛在的 SSRF 攻擊！", url, ip)
             return ip, f"SSRF 防禦攔截：目標 IP ({ip}) 不安全"
         return ip, None
@@ -890,14 +894,11 @@ class CrawlerCore:
         """
         try:
             tgt_dom = get_domain(current_url)
-            ip = resolve_ip(tgt_dom) if tgt_dom else None
+            ip, ssrf_err = self._resolve_and_check_ssrf(tgt_dom, current_url)
 
-            # 如果成功提取網域，但解析 IP 失敗 (DNS Dead Link)，直接中斷後續的 HTTP 探測，節省超時等待
-            if tgt_dom and ip is None:
-                return None, (None, "DNS 解析失敗 (Dead Link)")
+            if ssrf_err:
+                return None, (None, ssrf_err)
 
-            if ip and not is_safe_ip(ip):
-                return None, (None, f"SSRF 防禦攔截：目標 IP ({ip}) 不安全")
             return self._execute_external_request(current_url, tgt_dom, ip, accumulated_cookies)
         except httpx.RequestError as e:
             return None, (None, str(e))
@@ -997,6 +998,11 @@ class CrawlerCore:
                 # 若遇到連線錯誤 (status_code is None) 或是 WAF / 伺服器回傳異常 (>= 400)
                 # 可對明文 HTTP 連結嘗試升級至 HTTPS 重試；HTTPS 有結果則回傳，重導向則繼續
                 status_code, err_msg = result
+
+                # 若為 DNS 解析失敗或 SSRF 攔截，為物理層級斷線或安全封鎖，直接回傳，無須進行後續協定升級與偽裝嘗試
+                if status_code is None and err_msg and ("DNS 解析失敗" in err_msg or "SSRF 防禦攔截" in err_msg):
+                    return result
+
                 is_failed = (status_code is None and err_msg) or (status_code is not None and status_code >= 400)
 
                 if is_failed and urlparse(current_url).scheme == "http":
