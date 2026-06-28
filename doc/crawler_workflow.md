@@ -82,7 +82,7 @@ flowchart TD
     
     ExtHttpsRetry --> ExtHttpsState{"HTTPS 狀態"}
     ExtHttpsState -->|"成功"| FinalSuccess
-    ExtHttpsState -->|"失敗 (連線超時/403/520/JS Challenge)"| TLSSpoof["curl_cffi TLS 指紋偽裝"]
+    ExtHttpsState -->|"失敗 (連線超時/SSL/403/520等)"| TLSSpoof["curl_cffi TLS 指紋偽裝"]
     
     GetState -->|"失敗 (https://)"| TLSSpoof
     
@@ -166,7 +166,7 @@ flowchart TD
 
 ### 4.3 終極降級與容錯重試 (Fallbacks)
 若單純的 `_fallback_get` 仍無法順利取得存活證明，系統將啟動最後防線：
-- **自動 HTTPS 升級 (`_handle_http_failure_retry`)**：若原始網址為明文 `http://` 且連線失敗（或遭回傳大於等於 400 的異常碼），系統將強制將協定升級為 `https://` 進行二次重試。此方法會精準比對重試結果，透過 `fell_back` 旗標區分「真的連不上」與「受到 WAF 阻擋」。特別是當 HTTPS 重試遭遇 SSL 憑證錯誤時，系統不會退回原本 HTTP 的超時錯誤來掩蓋真相，而是會回報該 SSL 錯誤，並允許進入後續的 TLS 偽裝階段 (若配置於白名單即可順利繞過)。
+- **自動 HTTPS 升級 (`_handle_http_failure_retry`)**：若原始網址為明文 `http://` 且連線失敗（或遭回傳大於等於 400 的異常碼），系統將強制將協定升級為 `https://` 進行二次重試。此方法會精準比對重試結果，透過 `fell_back` 旗標區分「真的連不上」與「受到 WAF 阻擋」。特別是當 HTTPS 重試遭遇 SSL/TLS 層級錯誤時，系統不會退回原本 HTTP 的錯誤來掩蓋真相，因這類異常極可能是 WAF 針對 TLS Handshake 指紋的封鎖（而非單純憑證不信任），系統會回報該 SSL 錯誤並允許進入後續的 TLS 偽裝階段，利用高擬真 Chrome 指紋嘗試穿透。
 - **統一 TLS 指紋偽裝引擎 (`_execute_curl_cffi_fallback`)**：若標頭剝離與 HTTPS 升級皆無法穿透 Cloudflare 或其他企業級高階防火牆（如持續收到 403 / 520 攔截，或遭遇 stealthy Tarpit 導致連線超時/狀態碼為 None 時），系統會動用基於 `curl_cffi` 的統一備援引擎。外部探測模式 (`is_internal=False`) 下只會驗證狀態碼，不下載內容，藉此消弭絕大多數的假死連結誤報。
 
 ---

@@ -391,12 +391,17 @@ crawler:
             f"Mock social media status_code should be 200, got {ext_dict[social_url]['status_code']}"
         )
 
-        # 斷言 7: mock-non-social (127.0.0.2 非社群網域，HEAD 520 不會降級，狀態碼維持 520)
+        # 斷言 7: mock-non-social (127.0.0.2 非社群網域，HEAD 520 不會降級至 GET，
+        # 隨後因原為 HTTP 觸發 HTTPS 升級。因測試伺服器不支援 HTTPS 產生 SSL 錯誤，狀態碼變為 None)
         non_social_url = f"http://127.0.0.2:{PORT}/mock-non-social"
         assert non_social_url in ext_dict, "Mock non-social link not found in DB"
-        assert ext_dict[non_social_url]["status_code"] == 520, (
-            f"Mock non-social status_code should be 520, got {ext_dict[non_social_url]['status_code']}"
+        assert ext_dict[non_social_url]["status_code"] is None, (
+            "Mock non-social status_code should be None due to SSL error, "
+            f"got {ext_dict[non_social_url]['status_code']}"
         )
+        assert ext_dict[non_social_url]["error"] is not None and (
+            "TLS" in ext_dict[non_social_url]["error"] or "SSL" in ext_dict[non_social_url]["error"]
+        ), f"Error should mention TLS or SSL, got {ext_dict[non_social_url]['error']}"
 
         # 新增外部資源類型斷言 (CSS Link)
         fonts_url = "https://fonts.googleapis.com/css?family=Roboto"
@@ -869,8 +874,11 @@ crawler:
         assert tarpit_res is not None, "Tarpit link should be recorded"
         assert tarpit_res[0] is None, "Tarpit link should have no status code due to timeout"
         assert tarpit_res[1] is not None and (
-            "timeout" in tarpit_res[1].lower() or "timed out" in tarpit_res[1].lower()
-        ), f"Tarpit link should timeout, got error: {tarpit_res[1]}"
+            "timeout" in tarpit_res[1].lower()
+            or "timed out" in tarpit_res[1].lower()
+            or "tls" in tarpit_res[1].lower()
+            or "ssl" in tarpit_res[1].lower()
+        ), f"Tarpit link should timeout or report SSL/TLS error after HTTPS upgrade, got error: {tarpit_res[1]}"
 
         # 斷言 B: flaky_internal 爬取失敗 (因為 retries=0)
         cur_adv.execute("SELECT status FROM crawl_queue WHERE url LIKE '%/flaky_internal'")

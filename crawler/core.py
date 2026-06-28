@@ -653,8 +653,8 @@ class CrawlerCore:
                     timeout=self.config.external_check_timeout,
                     allow_redirects=True,  # 內部直接跟隨所有重導向
                     proxies=proxies,
-                    stream=stream,         # 若為內部抓取，啟用 stream 以防範大檔案 OOM
-                    verify=verify_ssl,     # 根據網域設定套用憑證驗證豁免
+                    stream=stream,  # 若為內部抓取，啟用 stream 以防範大檔案 OOM
+                    verify=verify_ssl,  # 根據網域設定套用憑證驗證豁免
                 )
 
             status_code = resp.status_code
@@ -934,12 +934,14 @@ class CrawlerCore:
         if result_retry is not None:
             status_code_retry, err_msg_retry = result_retry
             # 若 HTTPS 連線徹底失敗 (無狀態碼)，原本會退回 HTTP 結果。
-            # 但若錯誤原因是 SSL 憑證問題，代表伺服器有回應只是憑證異常，
-            # 此時不應退回 HTTP 的 timeout 掩蓋真相，而是回傳 HTTPS 的 SSL 錯誤，
-            # 並設 fell_back=False 讓後續能進入 TLS 偽裝 (若網域在白名單內即可通過)。
+            # 但若錯誤原因是 SSL/TLS 層級異常，很可能是 WAF 透過 TLS handshake 指紋識別而
+            # 拒絕連線 (而非真正的憑證信任鏈問題——若是信任鏈問題且網域在白名單內，httpx
+            # 早就改用 verify=False，根本不會走到這裡)。這類協定層級的拒絕，curl_cffi 的
+            # TLS 指紋偽裝有機會繞過，因此回傳 HTTPS 的 SSL 錯誤，設 fell_back=False
+            # 讓後續能進入 TLS 偽裝降級嘗試。
             if status_code_retry is None:
                 if err_msg_retry and ("SSL" in err_msg_retry.upper() or "CERT" in err_msg_retry.upper()):
-                    logger.info("HTTPS 重試發現憑證錯誤: %s", err_msg_retry)
+                    logger.info("HTTPS 重試發現憑證/連線錯誤: %s", err_msg_retry)
                     return None, result_retry, False
 
                 logger.info("HTTPS 重試失敗: %s", err_msg_retry)
