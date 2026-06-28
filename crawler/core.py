@@ -612,7 +612,7 @@ class CrawlerCore:
 
         return internal_links, external_target_links, status_code, status, request_sent, err_msg
 
-    def _execute_curl_cffi_fallback(
+    def _execute_curl_cffi_fallback(  # pylint: disable=too-many-statements
         self, url: str, is_internal: bool = False
     ) -> tuple[int | None, str | None, str | None, str | None]:
         """終極備援核心邏輯：使用 curl_cffi 進行 TLS 指紋偽裝。

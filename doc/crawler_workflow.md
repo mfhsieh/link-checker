@@ -175,6 +175,11 @@ flowchart TD
 - **自動 HTTPS 升級 (`_handle_http_failure_retry`)**：若原始網址為明文 `http://` 且連線失敗（或遭回傳大於等於 400 的異常碼），系統將強制將協定升級為 `https://` 進行二次重試。此方法會精準比對重試結果，透過 `fell_back` 旗標區分「真的連不上」與「受到 WAF 阻擋」。特別是當 HTTPS 重試遭遇 SSL/TLS 層級錯誤時，系統不會退回原本 HTTP 的錯誤來掩蓋真相，因這類異常極可能是 WAF 針對 TLS Handshake 指紋的封鎖（而非單純憑證不信任），系統會回報該 SSL 錯誤並允許進入後續的 TLS 偽裝階段，利用高擬真 Chrome 指紋嘗試穿透。
 - **統一 TLS 指紋偽裝引擎 (`_execute_curl_cffi_fallback`)**：若標頭剝離與 HTTPS 升級皆無法穿透 Cloudflare 或其他企業級高階防火牆（如持續收到 403 / 520 攔截，或遭遇 stealthy Tarpit 導致連線超時/狀態碼為 None 時），系統會動用基於 `curl_cffi` 的統一備援引擎。外部探測模式 (`is_internal=False`) 下只會驗證狀態碼，不下載內容，藉此消弭絕大多數的假死連結誤報。
 
+### 4.4 高階 WAF 與防護盾攔截解析 (WAF Mitigation & Interpretation)
+在執行完所有的降級探測與 TLS 指紋偽裝後，部分極度嚴格的跨國平台 (如 Tripadvisor 採用的 DataDome 或 Akamai) 仍可能回傳 `403 Forbidden` 或 `429 Too Many Requests`，並要求執行 JavaScript 進行行為驗證 (Proof of Work)。
+- **實務意義**：對於靜態死連結檢測 (Static Link Checking) 而言，收到 `403` 等 WAF 挑戰碼，實質上證明了**「伺服器存活且網頁路由存在」**（若為死連結，多數 WAF 會直接放行給後端回傳 404）。
+- **狀態判定**：受限於無頭爬蟲不執行 JS 的天限，系統雖然會在網路層級將其標記為 `failed` 或 `Broken/Dead`，但在人工檢視與後端報表解讀時，這類 `403/401/429` 錯誤通常被視為 **Warning (防護阻擋，真人可正常存取)**，而非真正的死連結。
+
 ---
 
 ## 5. 資源清理
