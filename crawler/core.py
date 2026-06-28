@@ -637,6 +637,7 @@ class CrawlerCore:
         """
         try:
             # pylint: disable=import-outside-toplevel
+            from curl_cffi import CurlOpt
             from curl_cffi import requests as cffi_requests
             from curl_cffi.requests.errors import CurlError as CFFICurlError
             from curl_cffi.requests.errors import RequestsError as CFFIRequestsError
@@ -657,13 +658,13 @@ class CrawlerCore:
                     return None, ssrf_err, None, current_url
 
                 # 設定 curl_cffi 的 DNS resolve
-                cffi_resolve = None
+                cffi_curl_options = None
                 if domain and ip:
                     parsed_url = urlparse(current_url)
                     port = parsed_url.port
                     if not port:
                         port = 443 if parsed_url.scheme == "https" else 80
-                    cffi_resolve = {f"{domain}:{port}": ip}
+                    cffi_curl_options = {CurlOpt.RESOLVE: [f"{domain}:{port}:{ip}"]}
 
                 # 決定是否需驗證 SSL 憑證 (依據 ssl_exempt_domains 白名單)
                 verify_ssl = not (domain and is_in_domain_list(domain, self.config.ssl_exempt_domains))
@@ -678,7 +679,7 @@ class CrawlerCore:
                         proxies=proxies,
                         stream=stream,
                         verify=verify_ssl,
-                        resolve=cffi_resolve,
+                        curl_options=cffi_curl_options,
                     )
 
                     status_code = resp.status_code
