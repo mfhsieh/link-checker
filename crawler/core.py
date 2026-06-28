@@ -222,7 +222,8 @@ class CrawlerCore:
         """
         location = response.headers.get("Location")
         if not location:
-            return None, (None, response.status_code, "skip", current_url, True, "重導向但無 Location 標頭")
+            logger.warning("網址 %s 回傳 3xx 但缺少 Location 標頭", current_url)
+            return None, (None, response.status_code, "failed", current_url, True, "重導向但無 Location 標頭")
 
         next_url = urljoin(current_url, location)
         if target_domains:
@@ -337,7 +338,7 @@ class CrawlerCore:
         domain = get_domain(current_url)
         ip, ssrf_err = self._resolve_and_check_ssrf(domain, current_url)
         if ssrf_err:
-            return request_sent, current_url, (None, None, "skip", current_url, request_sent, ssrf_err)
+            return request_sent, current_url, (None, None, "failed", current_url, request_sent, ssrf_err)
 
         with dns_override(domain, ip) if domain and ip else nullcontext():
             headers = get_random_profile(current_url) if self.enable_dynamic_headers else None
@@ -457,7 +458,7 @@ class CrawlerCore:
                 return None, None, "failed", current_url, request_sent, f"網址格式無效: {e}"
 
         logger.warning("網址 %s 超過最大重導向次數", url)
-        return None, None, "skip", current_url, request_sent, "超過最大重導向次數"
+        return None, None, "failed", current_url, request_sent, "超過最大重導向次數"
 
     def _extract_base_url(self, soup: BeautifulSoup, base_url: str) -> str:
         """解析 <base> 標籤以更新相對路徑的基準網址。
@@ -707,7 +708,13 @@ class CrawlerCore:
             status_code = getattr(cffi_resp, "status_code", None) if cffi_resp is not None else None
             if status_code == 0:
                 status_code = None
-            return status_code, f"TLS 偽裝探測失敗: {e}", None, url
+            err_str = str(e)
+            if "curl:" in err_str:
+                short_err = err_str.split("curl:", 1)[-1].split(". See https://", 1)[0].strip()
+                err_msg = f"TLS 偽裝探測失敗: {short_err}"
+            else:
+                err_msg = f"TLS 偽裝探測失敗: {err_str}"
+            return status_code, err_msg, None, url
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("TLS 偽裝備援遭遇未預期底層例外: %s", type(e).__name__)
             return None, f"TLS 偽裝發生底層異常: {e}", None, url
