@@ -393,6 +393,7 @@ class CrawlerCore:
                         request_sent, current_url, result = self._fetch_single(new_url, request_sent, target_domains)
                         if result:
                             return result
+                        continue  # 成功升級 HTTPS 並取得跳轉，繼續下一輪跳轉跟隨
                     except (httpx.RequestError, socket.gaierror, httpx.HTTPStatusError) as retry_e:
                         e = retry_e
                         status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
@@ -408,6 +409,7 @@ class CrawlerCore:
                         )
                         if result:
                             return result
+                        continue  # 拔除標頭後成功取得跳轉，繼續下一輪跳轉跟隨，避免用過時的 status_code/e 誤判為失敗
                     except (httpx.RequestError, socket.gaierror, httpx.HTTPStatusError) as fallback_e:
                         e = fallback_e
                         status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
@@ -415,9 +417,11 @@ class CrawlerCore:
                 # 3. 終極 TLS 偽裝降級 (curl_cffi)
                 if status_code in (400, 403, 405, 406, 520):
                     logger.info("網址 %s 拔除特徵仍受阻 (%s)，啟動終極 TLS 偽裝引擎...", current_url, status_code)
-                    cffi_status, cffi_err, cffi_text = self._execute_curl_cffi_fallback(current_url, is_internal=True)
+                    cffi_status, cffi_err, cffi_text, cffi_final_url = self._execute_curl_cffi_fallback(
+                        current_url, is_internal=True
+                    )
                     if cffi_status is not None and cffi_status < 400 and cffi_text is not None:
-                        return cffi_text, cffi_status, "completed", current_url, True, None
+                        return cffi_text, cffi_status, "completed", cffi_final_url or current_url, True, None
 
                     status_code = cffi_status
                     e = Exception(cffi_err) if cffi_err else Exception(f"TLS 偽裝失敗，狀態碼 {cffi_status}")
@@ -476,7 +480,7 @@ class CrawlerCore:
             # 這些標籤通常只指向網域根目錄（如 https://fonts.gstatic.com/）作為提早連線提示，並非實際可下載的資源，探測其根目錄通常會得到 404。
             if tag.name == "link":
                 rel_attr = tag.get("rel", [])
-                rel_list = [rel_attr] if isinstance(rel_attr, str) else rel_attr
+                rel_list = [rel_attr] if isinstance(rel_attr, str) else (rel_attr or [])
                 if any(r.lower() in ("preconnect", "dns-prefetch") for r in rel_list):
                     continue
 
@@ -586,7 +590,7 @@ class CrawlerCore:
 
     def _execute_curl_cffi_fallback(
         self, url: str, is_internal: bool = False
-    ) -> tuple[int | None, str | None, str | None]:
+    ) -> tuple[int | None, str | None, str | None, str | None]:
         """終極備援核心邏輯：使用 curl_cffi 進行 TLS 指紋偽裝。
 
         Args:
@@ -594,7 +598,11 @@ class CrawlerCore:
             is_internal (bool): 是否為內部抓取（需要防 OOM 與 MIME 驗證並回傳內容）。
 
         Returns:
-            tuple[int | None, str | None, str | None]: (status_code, error_msg, content_text)
+            tuple[int | None, str | None, str | None, str | None]:
+                (status_code, error_msg, content_text, final_url)。
+                final_url 反映 curl_cffi 內部 allow_redirects=True 自動跟隨完整重導向鏈後
+                的實際落點，供呼叫端 (fetch()) 作為解析 HTML 內相對路徑連結的正確基準網址；
+                若請求從未實際送出 (例如未安裝 curl_cffi)，則退回傳入的原始 url。
         """
         try:
             # pylint: disable=import-outside-toplevel
@@ -607,23 +615,15 @@ class CrawlerCore:
             ip, ssrf_err = self._resolve_and_check_ssrf(domain, url)
             if ssrf_err:
                 logger.warning("TLS 偽裝降級遭到 SSRF 防護攔截: %s", ssrf_err)
-                return None, ssrf_err, None
+                return None, ssrf_err, None, url
 
             logger.info("啟動 TLS 偽裝備援引擎 (curl_cffi) 探測: %s", url)
             proxies = None
             if self.config.proxy_url:
                 proxies = {"http": self.config.proxy_url, "https": self.config.proxy_url}
 
-            # 針對內部抓取，需分塊下載以計算容量
             stream = is_internal
 
-            # 注意：curl_cffi 底層為 libcurl (C 函式庫)，不經過 Python 的 socket 層，
-            # 因此下方的 dns_override (monkey-patch socket.getaddrinfo) 對其原生 DNS
-            # 解析機制不一定有實際鎖定效果，僅作為前述 SSRF 檢查的輔助防禦，並非完整
-            # 等同於 httpx 路徑上「驗證 IP 後強制鎖定連線目標」的保證。若 curl_cffi
-            # 支援 resolve 參數 (對應 libcurl CURLOPT_RESOLVE)，未來可考慮改用該機制
-            # 做到真正鎖定；allow_redirects=True 也代表後續每一跳重導向皆未重新驗證
-            # SSRF，僅最初網址經過檢查，此為已知的殘留風險範圍。
             with dns_override(domain, ip) if domain and ip else nullcontext():
                 resp = cffi_requests.get(
                     url,
@@ -635,27 +635,22 @@ class CrawlerCore:
                 )
 
             status_code = resp.status_code
+            # resp.url 反映 allow_redirects=True 自動跟隨完整重導向鏈後的最終落點
+            final_url = resp.url or url
 
             if not is_internal:
-                # 外部探測只需確認狀態碼，不下載內容
                 resp.close()
-                return status_code, None, None
+                return status_code, None, None, final_url
 
-            # 2. 內部抓取 (is_internal) 邏輯：先檢查狀態碼，狀態異常時直接放棄，
-            # 不需要下載內容也不需要檢查 MIME，避免白白耗費頻寬與解碼成本下載一個
-            # 注定要被丟棄的 WAF 阻擋頁面 (這類頁面常見仍是 text/html，會通過下方的
-            # MIME 檢查，若放在 MIME 檢查與下載之後才判斷，會做不必要的工。)
             if status_code >= 400:
                 resp.close()
-                return status_code, f"HTTP 狀態異常: {status_code}", None
+                return status_code, f"HTTP 狀態異常: {status_code}", None, final_url
 
-            # 3. MIME 類型防護
             content_type = resp.headers.get("Content-Type", "")
             if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
                 resp.close()
-                return status_code, f"MIME 類型不符 (非 HTML): {content_type}", None
+                return status_code, f"MIME 類型不符 (非 HTML): {content_type}", None, final_url
 
-            # 4. 記憶體容量防護 (防 OOM)
             content_bytes = bytearray()
             for chunk in resp.iter_content(chunk_size=8192):
                 if chunk:
@@ -674,24 +669,23 @@ class CrawlerCore:
             except LookupError:
                 text = content_bytes.decode("utf-8", errors="replace")
 
-            return status_code, None, text
+            return status_code, None, text, final_url
 
         except ImportError:
             logger.warning("未安裝 curl_cffi，無法執行 TLS 偽裝降級")
-            return None, "未安裝 curl_cffi", None
+            return None, "未安裝 curl_cffi", None, url
         except (CFFICurlError, CFFIRequestsError) as e:
             logger.warning("TLS 偽裝備援探測失敗: %s", e)
             cffi_resp = getattr(e, "response", None)
             status_code = getattr(cffi_resp, "status_code", None) if cffi_resp is not None else None
-            return status_code, f"TLS 偽裝探測失敗: {e}", None
+            return status_code, f"TLS 偽裝探測失敗: {e}", None, url
         except Exception as e:  # pylint: disable=broad-exception-caught
-            # 5. 全域 Exception 防護，攔截 ValueError 或 OSError 等非預期例外
             logger.warning("TLS 偽裝備援遭遇未預期底層例外: %s", type(e).__name__)
-            return None, f"TLS 偽裝發生底層異常: {e}", None
+            return None, f"TLS 偽裝發生底層異常: {e}", None, url
 
     def _tls_spoofed_fallback(self, url: str) -> tuple[int | None, str | None]:
         """外部探測專用的 TLS 指紋偽裝降級包裹方法。"""
-        status_code, err_msg, _ = self._execute_curl_cffi_fallback(url, is_internal=False)
+        status_code, err_msg, _, _ = self._execute_curl_cffi_fallback(url, is_internal=False)
         return status_code, err_msg
 
     # pylint: disable=too-many-arguments
@@ -768,7 +762,7 @@ class CrawlerCore:
                 return None, (resp.status_code, None)
 
     def _get_applicable_cookies(
-        self, tgt_dom: str, accumulated_cookies: dict[str, dict[str, str]] | None
+        self, tgt_dom: str | None, accumulated_cookies: dict[str, dict[str, str]] | None
     ) -> dict[str, str]:
         """從分桶 Cookie 字典中獲取適用於特定網域的 Cookie。
 
