@@ -67,7 +67,9 @@ flowchart TD
     TLSSpoofResult -->|"失敗"| FetchFail
     
     %% 外部連結容錯探測
-    ExtStart --> HeadReq["發送 HEAD 請求"]
+    ExtStart --> ExtDNS{"DNS IP 解析與快取"}
+    ExtDNS -->|"失敗或SSRF攔截"| FinalFail(["紀錄失效"])
+    ExtDNS -->|"成功"| HeadReq["發送 HEAD 請求"]
     HeadReq --> HeadState{"狀態判斷"}
     
     HeadState -->|"成功 (200/3xx)"| FinalSuccess(["紀錄成功"])
@@ -155,7 +157,9 @@ flowchart TD
 
 ### 4.1 核心探測進入點
 - **`check_external_link`**：為探測流程的進入點，此處會建立一個專屬的 `accumulated_cookies` 容器，以隔離記錄單次探測中跨跳的 Cookie。
-- **`_check_external_single`**：包裹著單次探測的例外處理，專門攔截因網頁撰寫失誤導致的畸形網址（例如 `UnicodeError` 造成的 DNS 解析崩潰），並轉化為安全的 `failed` 標記。
+- **`_check_external_single`**：包裹著單次探測的例外處理與前置檢查：
+  - 專門攔截因網頁撰寫失誤導致的畸形網址（例如 `UnicodeError` 造成的 DNS 解析崩潰），並轉化為安全的 `failed` 標記。
+  - **提早攔截死連結與 SSRF 防護**：在發送 HTTP 請求前先進行 DNS 解析 (`resolve_ip`)。如果解析失敗（無此網域），會直接中斷探測並標記為 "DNS 解析失敗 (Dead Link)"，徹底省去 HTTP 內部連線超時的等待時間。若 IP 屬於內部私有網段也會直接阻擋。配合 `lru_cache` 快取機制，大量死連結不致拖垮系統效能。
 
 ### 4.2 探測策略與 Cookie 穿透
 - **`_execute_external_request`**：預設採用 `HEAD` 請求。若發送 `HEAD` 遭到伺服器退回（收到常見 WAF 阻擋代碼 400, 403, 405, 406，或是伺服器無法正確處理 HEAD 而拋出 500, 502, 503, 504），或是收到重導向（3xx），系統會主動呼叫 `_fallback_get` 進行二次確認。

@@ -891,6 +891,11 @@ class CrawlerCore:
         try:
             tgt_dom = get_domain(current_url)
             ip = resolve_ip(tgt_dom) if tgt_dom else None
+
+            # 如果成功提取網域，但解析 IP 失敗 (DNS Dead Link)，直接中斷後續的 HTTP 探測，節省超時等待
+            if tgt_dom and ip is None:
+                return None, (None, "DNS 解析失敗 (Dead Link)")
+
             if ip and not is_safe_ip(ip):
                 return None, (None, f"SSRF 防禦攔截：目標 IP ({ip}) 不安全")
             return self._execute_external_request(current_url, tgt_dom, ip, accumulated_cookies)

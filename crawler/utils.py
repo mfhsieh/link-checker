@@ -4,6 +4,7 @@
 此模組提供網域擷取、網域驗證、IP 位址解析以及網址正規化等輔助函式。
 """
 
+import functools
 import ipaddress
 import logging
 import os
@@ -59,6 +60,7 @@ def is_in_domain_list(domain: str, domain_list: list[str]) -> bool:
     return False
 
 
+@functools.lru_cache(maxsize=1024)
 def resolve_ip(domain: str) -> str | None:
     """
     針對給定的網域解析其 IP 位址。
