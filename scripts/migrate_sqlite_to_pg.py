@@ -20,7 +20,7 @@ PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 # pylint: disable=wrong-import-position, import-error
-from backend.auth.models import AuthBase, AuthLog, Invitation, User  # noqa: E402
+from backend.auth.models import AuthBase, AuthLog, Invitation, PasswordResetToken, User  # noqa: E402
 from backend.auth.models import Session as AuthSession  # noqa: E402
 from backend.config import get_settings  # noqa: E402
 from crawler.models import Base, CrawlQueue, ExternalLink, Job  # noqa: E402
@@ -97,6 +97,14 @@ def migrate_auth_db(sqlite_url: str, pg_url: str) -> None:
                 dest.merge(log)
             dest.commit()
             logger.info("Auth Logs 遷移完成。")
+
+            # E. 遷移 password_reset_tokens
+            tokens = src.scalars(select(PasswordResetToken)).all()
+            logger.info("讀取到 %d 筆密碼重設憑證...", len(tokens))
+            for t in tokens:
+                dest.merge(t)
+            dest.commit()
+            logger.info("Password Reset Tokens 遷移完成。")
 
             # 2. 更新 PostgreSQL 的 Serial 序列值
             logger.info("更新 PostgreSQL 主鍵序列值 (Sequence)...")

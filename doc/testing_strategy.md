@@ -44,7 +44,7 @@
     *   **狀態管理**：在檔案內部透過 `setup_databases()` 與 `teardown_databases()` 管理其專屬的 `db/test_auth_cli.db` 與 `db/test_crawler_cli.db` 資料庫檔案。
     *   **主要測試範疇**：
         1. **單元測試**：驗證核心模組中的「雙 Client 憑證驗證豁免與子網域繼承機制 (`CrawlerCore._get_client`)」、「網域專屬延遲 (`domain_delays`) 的優先順序匹配算法」，以及「多層級配置合併與環境變數優先覆寫規則」。
-        2. **整合與指令測試**：以 Mock Server 作為爬行目標，測試全域/局部配置套用；驗證 `--max-depth` 與 `--max-pages` 的精確限制；測試任務生命週期指令（暫停 `--pause` 與恢復 `--resume`、重置 `--reset`、刪除 `--delete` 與局部重試 `--retry-failed`）；驗證 WAF 520 對社群平台 (`social_domains`) 自動 GET 降級重試；驗證惡意拖延 (Tarpit) 之逾時防禦；測試 CLI 匯出與多維度篩選器 (`--export`, `--filter dead|broken|insecure`, `--exclude`, `--group-by`) 暨 ZIP 完整報告打包匯出 (`--export-full`)。
+        2. **整合與指令測試**：以 Mock Server 作為爬行目標，測試全域/局部配置套用；驗證 `--max-depth` 與 `--max-pages` 的精確限制；測試任務生命週期指令（暫停 `--pause` 與恢復 `--resume`、重置 `--reset`、刪除 `--delete` 與局部重試 `--retry-failed`）；驗證 WAF 520 對社群平台 (`social_domains`) 自動 GET 降級重試；驗證惡意拖延 (Tarpit) 之逾時防禦與 WAF 之 TLS Handshake 阻擋識別（不退回 HTTP 失敗）；測試 CLI 匯出與多維度篩選器 (`--export`, `--filter dead|broken|insecure`, `--exclude`, `--group-by`) 暨 ZIP 完整報告打包匯出 (`--export-full`)。
 
 *   **`test/test_admin_logs.py`**：
     *   **職責**：驗證後台管理員之敏感管理與安全稽核日誌功能。
