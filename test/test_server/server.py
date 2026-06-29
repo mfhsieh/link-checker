@@ -109,7 +109,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 request_counter["/flaky_internal"] = request_counter.get("/flaky_internal", 0) + 1
                 current_count: int = request_counter["/flaky_internal"]
 
-            if current_count <= 1:
+            if current_count <= 2:
                 self.send_response(500)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()

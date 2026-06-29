@@ -25,20 +25,33 @@ from crawler.utils import get_domain, is_in_domain_list, is_safe_ip, normalize_u
 try:
     import h2  # noqa: F401 # pylint: disable=unused-import
 
-    _HTTP2_SUPPORTED = True
+    _HTTP2_SUPPORTED: bool = True
 except ImportError:
-    _HTTP2_SUPPORTED = False
+    _HTTP2_SUPPORTED: bool = False
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-REDIRECT_STATUS_CODES = (301, 302, 303, 307, 308)
-WAF_STATUS_CODES = (400, 403, 405, 406, 501, 520, 555)
-TLS_SPOOF_STATUS_CODES = (None, 400, 403, 405, 406, 520, 555)
-HEAD_FALLBACK_STATUS_CODES = (400, 403, 404, 405, 406, 500, 501, 502, 503, 504, 555)
-
+#: REDIRECT_STATUS_CODES: HTTP 重導向狀態碼清單。
+REDIRECT_STATUS_CODES: tuple[int, ...] = (301, 302, 303, 307, 308)
+#: WAF_STATUS_CODES: 偵測到 WAF 攔截的狀態碼清單。
+WAF_STATUS_CODES: tuple[int, ...] = (400, 403, 405, 406, 501, 520, 555)
+#: TLS_SPOOF_STATUS_CODES: 需要觸發 TLS 偽裝的狀態碼清單。
+TLS_SPOOF_STATUS_CODES: tuple[int | None, ...] = (None, 400, 403, 405, 406, 520, 555)
+#: HEAD_FALLBACK_STATUS_CODES: 在 GET 請求失敗後，嘗試使用 HEAD 請求恢復的狀態碼清單。
+HEAD_FALLBACK_STATUS_CODES: tuple[int, ...] = (400, 403, 404, 405, 406, 500, 501, 502, 503, 504, 555)
+#: _FETCH_SAFE_EXCEPTIONS: 抓取網頁時可安全攔截並忽略的例外型別。
+_FETCH_SAFE_EXCEPTIONS: tuple[type[BaseException], ...] = (
+    httpx.RequestError,
+    httpx.HTTPStatusError,
+    socket.gaierror,
+    ValueError,
+    TypeError,
+    UnicodeError,
+    LookupError,
+)
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
-_original_getaddrinfo: Callable = socket.getaddrinfo
+_original_getaddrinfo: Callable[..., list[tuple[int, int, int, str, object]]] = socket.getaddrinfo
 _dns_override: threading.local = threading.local()
 
 
@@ -103,21 +116,25 @@ class CrawlerCore:
         user_agent (str): 使用的 User-Agent 標頭。
         client (httpx.Client): 預設的 HTTPX 客戶端。
         exempt_client (httpx.Client): 豁免 SSL 驗證的 HTTPX 客戶端。
+        _dynamic_impersonate_profiles (list[str] | None): 暫存的動態瀏覽器指紋輪替清單。
     """
 
     _dynamic_impersonate_profiles: list[str] | None = None
 
     @classmethod
     def get_dynamic_impersonate_profiles(cls) -> list[str]:
-        """動態讀取 curl_cffi 支援的最新版瀏覽器指紋輪替清單。"""
+        """動態讀取 curl_cffi 支援的最新版瀏覽器指紋輪替清單。
+
+        Returns:
+            list[str]: 包含最新 Chrome, Safari 與 Edge 指紋字串的列表。
+        """
         if cls._dynamic_impersonate_profiles is not None:
             return cls._dynamic_impersonate_profiles
 
         try:
-            from curl_cffi import requests
-            import re
+            from curl_cffi import requests  # pylint: disable=import-outside-toplevel
 
-            browsers = requests.BrowserType._member_names_
+            browsers = [b.name for b in requests.BrowserType]
             chrome_versions = []
             safari_versions = []
             edge_versions = []
@@ -128,26 +145,26 @@ class CrawlerCore:
                     continue
 
                 if b.startswith("chrome"):
-                    match = re.search(r'chrome(\d+)', b)
+                    match = re.search(r"chrome(\d+)", b)
                     if match:
                         chrome_versions.append((int(match.group(1)), b))
                 elif b.startswith("safari"):
-                    match = re.search(r'safari(\d+(_\d+)*)', b)
+                    match = re.search(r"safari(\d+(_\d+)*)", b)
                     if match:
-                        ver_str = match.group(1).replace("_", "")
-                        safari_versions.append((int(ver_str), b))
+                        ver_tuple = tuple(map(int, match.group(1).split("_")))
+                        safari_versions.append((ver_tuple, b))
                 elif b.startswith("edge"):
-                    match = re.search(r'edge(\d+)', b)
+                    match = re.search(r"edge(\d+)", b)
                     if match:
                         edge_versions.append((int(match.group(1)), b))
 
             chrome_latest = max(chrome_versions, key=lambda x: x[0])[1] if chrome_versions else "chrome120"
-            # 確保取得最常見且穩定的 Safari 指紋
+            # 取得最新版本的 Safari 指紋
             safari_latest = max(safari_versions, key=lambda x: x[0])[1] if safari_versions else "safari15_3"
             edge_latest = max(edge_versions, key=lambda x: x[0])[1] if edge_versions else "edge101"
 
             cls._dynamic_impersonate_profiles = [chrome_latest, safari_latest, edge_latest]
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("動態解析 curl_cffi 瀏覽器指紋失敗，退回預設名單: %s", e)
             cls._dynamic_impersonate_profiles = ["chrome120", "safari15_3", "edge101"]
 
@@ -203,6 +220,45 @@ class CrawlerCore:
             verify=False,  # 自簽憑證豁免
             proxy=self.config.proxy_url,
         )
+
+    def close(self) -> None:
+        """關閉 HTTP 客戶端，釋放連線池資源。"""
+        self.client.close()
+        self.exempt_client.close()
+
+    def __enter__(self) -> "CrawlerCore":
+        """進入 context manager，支援 with 語句。
+
+        Returns:
+            CrawlerCore: 回傳自身實例。
+        """
+        return self
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        """離開 context manager，自動關閉連線池。
+
+        Args:
+            exc_type (object): 例外型別。
+            exc_val (object): 例外物件。
+            exc_tb (object): 例外追蹤資訊。
+        """
+        self.close()
+
+    @staticmethod
+    def _safe_decode(content_bytes: bytes, charset: str) -> str:
+        """安全地解碼位元組，避免未知的編碼名稱引發 LookupError。
+
+        Args:
+            content_bytes (bytes): 欲解碼的位元組資料。
+            charset (str): 預期的字元編碼名稱。
+
+        Returns:
+            str: 解碼後的字串。
+        """
+        try:
+            return content_bytes.decode(charset, errors="replace")
+        except LookupError:
+            return content_bytes.decode("utf-8", errors="replace")
 
     def _get_client(self, url: str) -> httpx.Client:
         """根據網址的網域選擇適合的 HTTPX 客戶端。
@@ -337,7 +393,7 @@ class CrawlerCore:
                 break
 
         charset = response.charset_encoding or "utf-8"
-        text = content_bytes.decode(charset, errors="replace")
+        text = self._safe_decode(content_bytes, charset)
         return text, err_msg
 
     def _process_response(
@@ -365,8 +421,13 @@ class CrawlerCore:
         status = "warning" if err_msg else "completed"
         return None, (text, response.status_code, status, current_url, True, err_msg)
 
-    def _fetch_single(
-        self, current_url: str, request_sent: bool, target_domains: list[str] | None, strip_sec_headers: bool = False
+    def _fetch_single(  # pylint: disable=too-many-arguments,too-many-locals
+        self,
+        current_url: str,
+        request_sent: bool,
+        target_domains: list[str] | None,
+        accumulated_cookies: dict[str, dict[str, str]] | None = None,
+        strip_sec_headers: bool = False,
     ) -> tuple[bool, str, tuple[str | None, int | None, str, str, bool, str | None] | None]:
         """執行單次 HTTP 探測流程 (不含降級重試)，回傳狀態與下一步網址。
 
@@ -378,6 +439,7 @@ class CrawlerCore:
             current_url (str): 當前準備請求的網址。
             request_sent (bool): 標記此循環是否已實際發送過 HTTP 請求。
             target_domains (list[str] | None): 允許進入的目標網域清單。
+            accumulated_cookies (dict[str, dict[str, str]] | None): 累積的分桶 cookies。
             strip_sec_headers (bool): 是否拔除現代瀏覽器的 Sec-* 特徵標頭，用於繞過 WAF。
 
         Returns:
@@ -411,7 +473,21 @@ class CrawlerCore:
                     if hk.lower() in keys_to_remove:
                         headers.pop(hk)
 
+            # 跨跳轉累積 Cookie
+            applicable_cookies = self._get_applicable_cookies(domain, accumulated_cookies)
+            if applicable_cookies:
+                if headers is None:
+                    headers = {}
+                headers["Cookie"] = "; ".join(f"{k}={v}" for k, v in applicable_cookies.items())
+
             with self._get_client(current_url).stream("GET", current_url, headers=headers) as response:
+                if accumulated_cookies is not None:
+                    for c in response.cookies.jar:
+                        if c.value is not None:
+                            c_dom = c.domain.lstrip(".") if c.domain else domain
+                            if c_dom:
+                                accumulated_cookies.setdefault(c_dom, {})[c.name] = c.value
+
                 next_url, result = self._process_response(response, current_url, target_domains)
                 if result:
                     return True, current_url, result
@@ -446,15 +522,23 @@ class CrawlerCore:
 
         current_url = url
         request_sent = False
+        accumulated_cookies: dict[str, dict[str, str]] = {}
 
-        for _ in range(self.config.max_redirects):
+        for _ in range(self.config.max_redirects + 1):
             try:
-                request_sent, current_url, result = self._fetch_single(current_url, request_sent, target_domains)
+                request_sent, current_url, result = self._fetch_single(
+                    current_url, request_sent, target_domains, accumulated_cookies
+                )
                 if result:
                     return result
-            except (httpx.RequestError, socket.gaierror, httpx.HTTPStatusError) as e:
-                status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+            except _FETCH_SAFE_EXCEPTIONS as e:
+                status_code = getattr(getattr(e, "response", None), "status_code", None)
                 parsed = urlparse(current_url)
+
+                if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError)):
+                    # 這些是資料解析或格式錯誤，降級重試無效
+                    logger.warning("網址 %s 格式錯誤或無法解析: %s", current_url, e)
+                    return None, None, "failed", current_url, request_sent, f"無效或無法解析的內容: {e}"
 
                 # 1. 內部連結 HTTP 連線或狀態異常 (>=400)，自動升級至 HTTPS 重試
                 if parsed.scheme == "http" and (status_code is None or status_code >= 400):
@@ -465,14 +549,18 @@ class CrawlerCore:
                         new_url,
                     )
                     try:
-                        request_sent, current_url, result = self._fetch_single(new_url, request_sent, target_domains)
+                        request_sent, current_url, result = self._fetch_single(
+                            new_url, request_sent, target_domains, accumulated_cookies
+                        )
                         if result:
                             return result
                         continue  # 成功升級 HTTPS 並取得跳轉，繼續下一輪跳轉跟隨
-                    except (httpx.RequestError, socket.gaierror, httpx.HTTPStatusError) as retry_e:
+                    except _FETCH_SAFE_EXCEPTIONS as retry_e:
                         e = retry_e
-                        status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+                        status_code = getattr(getattr(e, "response", None), "status_code", None)
                         current_url = new_url
+                        if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError)):
+                            return None, None, "failed", current_url, request_sent, f"無效或無法解析的內容: {e}"
                         logger.warning("HTTPS 重試亦失敗: %s", e)
 
                 # 2. 如果遇到 WAF 經常阻擋的特定狀態碼，嘗試拔除 Sec-* 標頭再次重試
@@ -480,21 +568,25 @@ class CrawlerCore:
                     logger.info("網址 %s 遇到 %s 阻擋，嘗試拔除特徵標頭再次重試...", current_url, status_code)
                     try:
                         request_sent, current_url, result = self._fetch_single(
-                            current_url, request_sent, target_domains, strip_sec_headers=True
+                            current_url, request_sent, target_domains, accumulated_cookies, strip_sec_headers=True
                         )
                         if result:
                             return result
                         continue  # 拔除標頭後成功取得跳轉，繼續下一輪跳轉跟隨，避免用過時的 status_code/e 誤判為失敗
-                    except (httpx.RequestError, socket.gaierror, httpx.HTTPStatusError) as fallback_e:
+                    except _FETCH_SAFE_EXCEPTIONS as fallback_e:
                         e = fallback_e
-                        status_code = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+                        status_code = getattr(getattr(e, "response", None), "status_code", None)
+                        if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError)):
+                            return None, None, "failed", current_url, request_sent, f"無效或無法解析的內容: {e}"
 
                 # 3. 終極 TLS 偽裝降級 (curl_cffi)
                 # 當拔除標頭仍受阻，或是遭遇連線超時/TCP中斷 (狀態碼 None) 等無回應 Tarpit 時，啟動終極防護繞過
                 if status_code in TLS_SPOOF_STATUS_CODES:
-                    logger.info("網址 %s 拔除特徵仍受阻 (%s)，啟動終極 TLS 偽裝引擎...", current_url, status_code)
+                    logger.info(
+                        "網址 %s 拔除特徵仍受阻 (%s)，啟動終極 TLS 偽裝引擎 (從頭開始)...", current_url, status_code
+                    )
                     cffi_status, cffi_err, cffi_text, cffi_final_url = self._execute_curl_cffi_fallback(
-                        current_url, is_internal=True, target_domains=target_domains
+                        url, is_internal=True, target_domains=target_domains
                     )
                     # 若 curl_cffi 成功取得內容 (狀態碼 < 400)
                     if cffi_status is not None and cffi_status < 400 and cffi_text is not None:
@@ -504,12 +596,13 @@ class CrawlerCore:
                     e = Exception(cffi_err) if cffi_err else Exception(f"TLS 偽裝失敗，狀態碼 {cffi_status}")
 
                 # 4. 封裝所有例外，不向外拋出，統一回傳狀態
-                # 即使遭遇各種未預期例外 (如 ValueError, UnicodeError 等)，也轉化為 failed 狀態回報
+                # 即使遭遇各種未預期例外，也轉化為 failed 狀態回報
                 return None, status_code, "failed", current_url, request_sent, str(e)
 
-            except (ValueError, TypeError, UnicodeError) as e:
-                logger.warning("網址 %s 格式錯誤或無法解析: %s", current_url, e)
-                return None, None, "failed", current_url, request_sent, f"網址格式無效: {e}"
+            except Exception as unhandled_e:  # pylint: disable=broad-exception-caught
+                # 若發生 _FETCH_SAFE_EXCEPTIONS 之外的例外，做最後一道防護，絕不讓它洩漏
+                logger.warning("網址 %s 遭遇非預期的例外: %s", current_url, unhandled_e)
+                return None, None, "failed", current_url, request_sent, f"內部引擎發生例外: {unhandled_e}"
 
         logger.warning("網址 %s 超過最大重導向次數", url)
         return None, None, "failed", current_url, request_sent, "超過最大重導向次數"
@@ -622,7 +715,7 @@ class CrawlerCore:
                 if normalized:
                     links.append(normalized)
 
-            return list(set(links))  # 移除陣列中的重複網址
+            return list(dict.fromkeys(links))  # 移除陣列中的重複網址，同時保留原始順序
         except (ValueError, TypeError, AttributeError, RecursionError) as e:
             logger.error("從 %s 擷取連結時發生錯誤: %s", base_url, e)
             return []
@@ -698,7 +791,7 @@ class CrawlerCore:
             stream = is_internal
             current_url = url
 
-            cffi_cookies = {}
+            accumulated_cookies: dict[str, dict[str, str]] = {}
             for redirect_idx in range(self.config.max_redirects + 1):
                 domain = get_domain(current_url)
                 ip, ssrf_err = self._resolve_and_check_ssrf(domain, current_url)
@@ -713,7 +806,10 @@ class CrawlerCore:
                     port = parsed_url.port
                     if not port:
                         port = 443 if parsed_url.scheme == "https" else 80
-                    cffi_curl_options = {CurlOpt.RESOLVE: [f"{domain}:{port}:{ip}"]}
+                    # 若為 IPv6，必須用方括號包起來才能被 libcurl 正確解析
+                    clean_ip = ip.strip("[]")
+                    addr_for_resolve = f"[{clean_ip}]" if ":" in clean_ip else clean_ip
+                    cffi_curl_options = {CurlOpt.RESOLVE: [f"{domain}:{port}:{addr_for_resolve}"]}
 
                 # 決定是否需驗證 SSL 憑證 (依據 ssl_exempt_domains 白名單)
                 verify_ssl = not (domain and is_in_domain_list(domain, self.config.ssl_exempt_domains))
@@ -724,10 +820,12 @@ class CrawlerCore:
                 impersonate_profiles = self.get_dynamic_impersonate_profiles()
 
                 try:
+                    applicable_cookies = self._get_applicable_cookies(domain, accumulated_cookies)
                     for impersonate in impersonate_profiles:
                         try:
                             if resp is not None:
                                 resp.close()
+
                             resp = cffi_requests.get(
                                 current_url,
                                 impersonate=impersonate,
@@ -737,7 +835,7 @@ class CrawlerCore:
                                 stream=stream,
                                 verify=verify_ssl,
                                 curl_options=cffi_curl_options,
-                                cookies=cffi_cookies,
+                                cookies=applicable_cookies,
                             )
                             status_code = resp.status_code
                             if status_code not in WAF_STATUS_CODES:
@@ -752,7 +850,10 @@ class CrawlerCore:
                             raise last_error
                         return None, "TLS 偽裝探測全部失敗", None, current_url
 
-                    cffi_cookies.update(resp.cookies)
+                    for c_name, c_val in resp.cookies.items():
+                        c_dom = domain  # curl_cffi 回傳的 cookies 為簡單 dict，在此統一綁定到當前網域
+                        if c_dom:
+                            accumulated_cookies.setdefault(c_dom, {})[c_name] = c_val
 
                     # 處理重導向
                     if status_code in REDIRECT_STATUS_CODES:
@@ -805,9 +906,10 @@ class CrawlerCore:
                                 break
 
                     try:
-                        text = content_bytes.decode(resp.encoding or "utf-8", errors="replace")
-                    except LookupError:
-                        text = content_bytes.decode("utf-8", errors="replace")
+                        text = self._safe_decode(content_bytes, resp.encoding or "utf-8")
+                    except Exception as decode_e:  # pylint: disable=broad-exception-caught
+                        logger.warning("TLS 偽裝降級解析內容編碼失敗: %s", decode_e)
+                        text = ""
 
                     return status_code, None, text, current_url
 
@@ -838,7 +940,14 @@ class CrawlerCore:
             return None, f"TLS 偽裝發生底層異常: {e}", None, url
 
     def _tls_spoofed_fallback(self, url: str) -> tuple[int | None, str | None]:
-        """外部探測專用的 TLS 指紋偽裝降級包裹方法。"""
+        """外部探測專用的 TLS 指紋偽裝降級包裹方法。
+
+        Args:
+            url (str): 目標外部網址。
+
+        Returns:
+            tuple[int | None, str | None]: (HTTP 狀態碼, 錯誤或警告訊息)。
+        """
         status_code, err_msg, _, _ = self._execute_curl_cffi_fallback(url, is_internal=False)
         return status_code, err_msg
 
@@ -920,6 +1029,13 @@ class CrawlerCore:
         """從分桶 Cookie 字典中獲取適用於特定網域的 Cookie。
 
         支援子網域繼承父網域的萬用字元 Cookie (例如 .elearn.hrd.gov.tw 適用於 acs.elearn.hrd.gov.tw)。
+
+        Args:
+            tgt_dom (str | None): 目標網域。
+            accumulated_cookies (dict[str, dict[str, str]] | None): 依網域分桶的 Cookie 字典。
+
+        Returns:
+            dict[str, str]: 適用於該網域的 Cookie 鍵值對。
         """
         if not accumulated_cookies or not tgt_dom:
             return {}
@@ -1111,7 +1227,7 @@ class CrawlerCore:
         # 內部各方法直接寫入 accumulated_cookies，不需要回傳值。
         accumulated_cookies: dict[str, dict[str, str]] = {}
 
-        for _ in range(self.config.max_redirects):
+        for _ in range(self.config.max_redirects + 1):
             # next_url: 重導向的下一步網址 (None 表示沒有重導向), result: 回傳狀態結果 (None 表示有重導向，尚未取得最終結果)
             next_url, result = self._check_external_single(current_url, accumulated_cookies)
 
@@ -1144,8 +1260,8 @@ class CrawlerCore:
 
                         # 終極 TLS 偽裝降級 (curl_cffi)
                         if is_retry_failed and status_code_retry in TLS_SPOOF_STATUS_CODES:
-                            new_url = urlparse(current_url)._replace(scheme="https").geturl()
-                            return self._tls_spoofed_fallback(new_url)
+                            https_fallback_url = urlparse(url)._replace(scheme="https").geturl()
+                            return self._tls_spoofed_fallback(https_fallback_url)
 
                         return result_retry
 
@@ -1153,10 +1269,10 @@ class CrawlerCore:
                         current_url = next_url_retry
                         continue
 
-                # 如果一開始就是 HTTPS 且遭遇 WAF 阻擋（包含 Tarpit 連線超時），啟動終極 TLS 偽裝降級
+                # 遭遇 WAF 阻擋（包含 Tarpit 連線超時），啟動終極 TLS 偽裝降級
                 if is_failed and urlparse(current_url).scheme == "https":
                     if status_code in TLS_SPOOF_STATUS_CODES:
-                        return self._tls_spoofed_fallback(current_url)
+                        return self._tls_spoofed_fallback(url)
 
                 return result
 
@@ -1169,11 +1285,3 @@ class CrawlerCore:
             logger.info("外部探測網址 %s 發生無限重導向，嘗試升級為 HTTPS 進行最後驗證: %s", url, https_url)
             return self.check_external_link(https_url)
         return None, "超過最大重導向次數"
-
-    def close(self) -> None:
-        """關閉底層的 HTTPX 客戶端連線。
-
-        釋放底層連線池資源。建議在爬蟲任務結束時呼叫。
-        """
-        self.client.close()
-        self.exempt_client.close()
