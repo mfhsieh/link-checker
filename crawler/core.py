@@ -32,9 +32,9 @@ except ImportError:
 logger: logging.Logger = logging.getLogger(__name__)
 
 REDIRECT_STATUS_CODES = (301, 302, 303, 307, 308)
-WAF_STATUS_CODES = (400, 403, 405, 406, 501, 520)
-TLS_SPOOF_STATUS_CODES = (None, 400, 403, 405, 406, 520)
-HEAD_FALLBACK_STATUS_CODES = (400, 403, 404, 405, 406, 500, 501, 502, 503, 504)
+WAF_STATUS_CODES = (400, 403, 405, 406, 501, 520, 555)
+TLS_SPOOF_STATUS_CODES = (None, 400, 403, 405, 406, 520, 555)
+HEAD_FALLBACK_STATUS_CODES = (400, 403, 404, 405, 406, 500, 501, 502, 503, 504, 555)
 
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
@@ -104,6 +104,54 @@ class CrawlerCore:
         client (httpx.Client): 預設的 HTTPX 客戶端。
         exempt_client (httpx.Client): 豁免 SSL 驗證的 HTTPX 客戶端。
     """
+
+    _dynamic_impersonate_profiles: list[str] | None = None
+
+    @classmethod
+    def get_dynamic_impersonate_profiles(cls) -> list[str]:
+        """動態讀取 curl_cffi 支援的最新版瀏覽器指紋輪替清單。"""
+        if cls._dynamic_impersonate_profiles is not None:
+            return cls._dynamic_impersonate_profiles
+
+        try:
+            from curl_cffi import requests
+            import re
+
+            browsers = requests.BrowserType._member_names_
+            chrome_versions = []
+            safari_versions = []
+            edge_versions = []
+
+            for b in browsers:
+                # 排除行動裝置特徵以符合一般電腦版的偽裝情境
+                if "android" in b.lower() or "ios" in b.lower():
+                    continue
+
+                if b.startswith("chrome"):
+                    match = re.search(r'chrome(\d+)', b)
+                    if match:
+                        chrome_versions.append((int(match.group(1)), b))
+                elif b.startswith("safari"):
+                    match = re.search(r'safari(\d+(_\d+)*)', b)
+                    if match:
+                        ver_str = match.group(1).replace("_", "")
+                        safari_versions.append((int(ver_str), b))
+                elif b.startswith("edge"):
+                    match = re.search(r'edge(\d+)', b)
+                    if match:
+                        edge_versions.append((int(match.group(1)), b))
+
+            chrome_latest = max(chrome_versions, key=lambda x: x[0])[1] if chrome_versions else "chrome120"
+            # 確保取得最常見且穩定的 Safari 指紋
+            safari_latest = max(safari_versions, key=lambda x: x[0])[1] if safari_versions else "safari15_3"
+            edge_latest = max(edge_versions, key=lambda x: x[0])[1] if edge_versions else "edge101"
+
+            cls._dynamic_impersonate_profiles = [chrome_latest, safari_latest, edge_latest]
+        except Exception as e:
+            logger.warning("動態解析 curl_cffi 瀏覽器指紋失敗，退回預設名單: %s", e)
+            cls._dynamic_impersonate_profiles = ["chrome120", "safari15_3", "edge101"]
+
+        return cls._dynamic_impersonate_profiles
 
     @staticmethod
     def _compile_regexes(regexes: list[str]) -> list[re.Pattern]:
@@ -650,6 +698,7 @@ class CrawlerCore:
             stream = is_internal
             current_url = url
 
+            cffi_cookies = {}
             for redirect_idx in range(self.config.max_redirects + 1):
                 domain = get_domain(current_url)
                 ip, ssrf_err = self._resolve_and_check_ssrf(domain, current_url)
@@ -670,23 +719,48 @@ class CrawlerCore:
                 verify_ssl = not (domain and is_in_domain_list(domain, self.config.ssl_exempt_domains))
 
                 resp = None
-                try:
-                    resp = cffi_requests.get(
-                        current_url,
-                        impersonate="chrome120",
-                        timeout=self.config.external_check_timeout,
-                        allow_redirects=False,  # 手動處理以確保 SSRF 安全與 target_domains 檢查
-                        proxies=proxies,
-                        stream=stream,
-                        verify=verify_ssl,
-                        curl_options=cffi_curl_options,
-                    )
+                status_code = None
+                last_error = None
+                impersonate_profiles = self.get_dynamic_impersonate_profiles()
 
-                    status_code = resp.status_code
+                try:
+                    for impersonate in impersonate_profiles:
+                        try:
+                            if resp is not None:
+                                resp.close()
+                            resp = cffi_requests.get(
+                                current_url,
+                                impersonate=impersonate,
+                                timeout=self.config.external_check_timeout,
+                                allow_redirects=False,  # 手動處理以確保 SSRF 安全與 target_domains 檢查
+                                proxies=proxies,
+                                stream=stream,
+                                verify=verify_ssl,
+                                curl_options=cffi_curl_options,
+                                cookies=cffi_cookies,
+                            )
+                            status_code = resp.status_code
+                            if status_code not in WAF_STATUS_CODES:
+                                break  # 成功取得非 WAF 阻擋的回應，跳出輪替
+                        except (CFFICurlError, CFFIRequestsError) as e:
+                            logger.debug("TLS 偽裝探測使用 %s 遭遇錯誤: %s", impersonate, e)
+                            last_error = e
+                            continue
+
+                    if resp is None:
+                        if last_error:
+                            raise last_error
+                        return None, "TLS 偽裝探測全部失敗", None, current_url
+
+                    cffi_cookies.update(resp.cookies)
 
                     # 處理重導向
                     if status_code in REDIRECT_STATUS_CODES:
                         if redirect_idx >= self.config.max_redirects:
+                            if url.startswith("http://"):
+                                https_url = url.replace("http://", "https://", 1)
+                                logger.info("網址 %s 發生無限重導向，嘗試升級為 HTTPS 進行最後驗證: %s", url, https_url)
+                                return self._execute_curl_cffi_fallback(https_url, is_internal, target_domains)
                             return None, "超過最大重導向次數", None, current_url
 
                         location = resp.headers.get("Location")
@@ -1089,7 +1163,11 @@ class CrawlerCore:
             if next_url:
                 current_url = next_url
                 continue
-
+        # 正常跑完迴圈但仍未取得終端狀態
+        if url.startswith("http://"):
+            https_url = url.replace("http://", "https://", 1)
+            logger.info("外部探測網址 %s 發生無限重導向，嘗試升級為 HTTPS 進行最後驗證: %s", url, https_url)
+            return self.check_external_link(https_url)
         return None, "超過最大重導向次數"
 
     def close(self) -> None:
