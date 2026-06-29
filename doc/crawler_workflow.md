@@ -147,7 +147,7 @@ flowchart TD
 
 - **`extract_links`**：透過 BeautifulSoup4 解析 DOM 樹，並以 `dict.fromkeys()` 的方式過濾重複的連結。此做法確保能夠精準保留連結在 HTML 中出現的原始順序，有利於除錯與測試的一致性。
 - **`_extract_base_url`**：優先尋找網頁中是否有 `<base href="...">` 宣告，若有則覆寫相對路徑的基準 URL。
-- **`_collect_raw_links`**：走訪並蒐集所有常見的資源屬性 (`<a>`, `<img>`, `<script>` 等)。
+- **`_collect_raw_links`**：走訪並蒐集所有常見的資源屬性 (`<a>`, `<img>`, `<script>` 等)，同時支援從 `<meta http-equiv="refresh">` 標籤中解析前端自動跳轉 (Client-side Redirect) 網址。
 - **`_normalize_and_filter_link`**：
   - 剔除無效的偽協定 (`javascript:`, `mailto:` 等)。
   - 將 URL 尾端的錨點（Fragment `#`）剝除。

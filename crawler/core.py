@@ -646,7 +646,17 @@ class CrawlerCore:
         }
 
         # 透過單次遍歷 HTML 樹來擷取所有標籤，大幅提升大型網頁的解析效能
-        for tag in soup.find_all(list(tag_attr_map.keys())):
+        for tag in soup.find_all(list(tag_attr_map.keys()) + ["meta"]):
+            if tag.name == "meta":
+                http_equiv = tag.get("http-equiv")
+                if isinstance(http_equiv, str) and http_equiv.lower() == "refresh":
+                    content = tag.get("content")
+                    if isinstance(content, str):
+                        match = re.search(r"url\s*=\s*['\"]?([^'\"]+)", content, re.IGNORECASE)
+                        if match:
+                            raw_links.append(match.group(1).strip())
+                continue
+
             # 針對 <link> 標籤，忽略 dns-prefetch 與 preconnect。
             # 這些標籤通常只指向網域根目錄（如 https://fonts.gstatic.com/）作為提早連線提示，並非實際可下載的資源，探測其根目錄通常會得到 404。
             if tag.name == "link":

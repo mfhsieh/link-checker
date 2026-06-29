@@ -8,6 +8,7 @@
 import argparse
 import os
 import sys
+from urllib.parse import urlparse
 
 import yaml
 
@@ -98,9 +99,12 @@ def main() -> None:
     core = CrawlerCore(config)
     print(f"[*] 開始爬取單一頁面: {args.url}")
 
+    parsed_url = urlparse(args.url)
+    target_domains = [parsed_url.netloc] if parsed_url.netloc else []
+
     # process_url 回傳: (internal_links, external_target_links, status_code, status, request_sent, err_msg)
     internal_links, external_links, status_code, status, _request_sent, error_msg = core.process_url(
-        args.url, target_domains=[], trusted_domains=[]
+        args.url, target_domains=target_domains, trusted_domains=[]
     )
 
     if status_code == 200:
