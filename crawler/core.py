@@ -1270,6 +1270,9 @@ class CrawlerCore:
 
                         # 終極 TLS 偽裝降級 (curl_cffi)
                         if is_retry_failed and status_code_retry in TLS_SPOOF_STATUS_CODES:
+                            # 原始 HTTP 請求已直接失敗，且人工升級的 HTTPS 也遭 WAF 阻擋。
+                            # 此時沒有任何重導向過程，必須手動替換成 HTTPS 網址給 curl_cffi，
+                            # 否則 curl_cffi 使用原 HTTP 網址也會直接失敗，無法發揮 TLS 偽裝能力。
                             https_fallback_url = urlparse(url)._replace(scheme="https").geturl()
                             return self._tls_spoofed_fallback(https_fallback_url)
 
@@ -1282,6 +1285,10 @@ class CrawlerCore:
                 # 遭遇 WAF 阻擋（包含 Tarpit 連線超時），啟動終極 TLS 偽裝降級
                 if is_failed and urlparse(current_url).scheme == "https":
                     if status_code in TLS_SPOOF_STATUS_CODES:
+                        # 這裡傳入原始 url，即使原 url 為 HTTP 也「不手動替換 scheme」。
+                        # 若原始為 HTTP 但 current 走到 HTTPS，代表中間有正常的 301/302 重導向。
+                        # 讓 curl_cffi 完整重跑這段 HTTP -> HTTPS 的重導向過程，
+                        # 可以確保蒐集到途中伺服器可能發放的驗證 Cookie（例如 Cookie-gate 防護）。
                         return self._tls_spoofed_fallback(url)
 
                 return result
