@@ -219,7 +219,8 @@
               </li>
               <li style="margin-bottom:0.5rem;"><strong>權限阻擋</strong>：網站的防護機制把我們的爬蟲擋在門外了（例如
                 403 錯誤）。這不代表連結壞掉，您可以自己點開確認看看。</li>
-              <li><strong>非 HTTPS</strong>：這個連結還在使用沒有加密的 <code>http://</code>。建議改成加密的 <code>https://</code>，保護讀者的連線隱私。</li>
+              <li><strong>非 HTTPS</strong>：這個連結還在使用沒有加密的 <code>http://</code>。建議改成加密的 <code>https://</code>，保護讀者的連線隱私。
+              </li>
             </ul>
             <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 為什麼任務執行了很久都沒結束？</h4>
             <p style="margin-top:0; margin-bottom:1.25rem;">
@@ -231,23 +232,28 @@
               許多大型網站（如 Facebook 等社群平台）設有嚴格的防爬蟲機制。當系統自動檢查這些連結時，可能會被對方阻擋並回傳 HTTP 錯誤（例如 403
               禁止存取）。雖然系統會嘗試繞過防護，但仍可能會出現大量的錯誤回報，這屬於正常現象。
             </p>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 為什麼我用瀏覽器點開沒問題，但爬蟲卻顯示失敗或超時？</h4>
+            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 為什麼我用瀏覽器點開沒問題，但爬蟲卻顯示失敗或超時？
+            </h4>
             <p style="margin-top:0; margin-bottom:0.5rem;">
               因為「自動化爬蟲程式」與「真實人類使用瀏覽器」在底層行為有極大的差異，導致某些連結爬蟲無法順利取得：
             </p>
             <ul style="margin-top:0; margin-bottom:1.25rem; padding-left:1.5rem; line-height:1.6">
               <li style="margin-bottom:0.25rem;"><strong>IP 被封鎖</strong>：爬蟲通常運行在雲端主機上，部分網站的防火牆會直接封鎖來自雲端資料中心的連線。</li>
-              <li style="margin-bottom:0.25rem;"><strong>防護機制 (WAF) 阻擋</strong>：爬蟲的行為特徵容易觸發對方的網站防禦系統，導致被「直接拒絕 (403)」或是「刻意掛起不回應 (Timeout)」。</li>
-              <li style="margin-bottom:0.25rem;"><strong>無法執行 JavaScript</strong>：現代的資安防護（如 Cloudflare 真人驗證）會要求執行一段 JS 程式碼來證明是人類，這是一般爬蟲做不到的。</li>
-              <li style="margin-bottom:0.25rem;"><strong>嚴格的安全驗證</strong>：若對方網站的 SSL 憑證安裝不完整（缺少中繼憑證），現代瀏覽器會自動上網下載補齊，但爬蟲基於嚴格的安全規範會直接報錯中斷。</li>
+              <li style="margin-bottom:0.25rem;"><strong>防護機制 (WAF) 阻擋</strong>：爬蟲的行為特徵容易觸發對方的網站防禦系統，導致被「直接拒絕
+                (403)」或是「刻意掛起不回應 (Timeout)」。</li>
+              <li style="margin-bottom:0.25rem;"><strong>無法執行 JavaScript</strong>：現代的資安防護（如 Cloudflare 真人驗證）會要求執行一段 JS
+                程式碼來證明是人類，這是一般爬蟲做不到的。</li>
+              <li style="margin-bottom:0.25rem;"><strong>嚴格的安全驗證</strong>：若對方網站的 SSL
+                憑證安裝不完整（缺少中繼憑證），現代瀏覽器會自動上網下載補齊，但爬蟲基於嚴格的安全規範會直接報錯中斷。</li>
             </ul>
-            <div style="background:var(--bg-secondary); padding:1rem; border-radius:0.5rem; border-left:4px solid var(--color-warning-400); margin-bottom:1.25rem;">
+            <div
+              style="background:var(--bg-secondary); padding:1rem; border-radius:0.5rem; border-left:4px solid var(--color-warning-400); margin-bottom:1.25rem;">
               <strong>💡 重要建議：</strong>
               系統的報錯是作為「初步異常警報」。當遇到這類狀況時，<strong>強烈建議您務必「親自點擊連結」進行確認！</strong><br>
               如果您發現瀏覽器可以順利打開，您後續可以安心地將該網域加入任務的「自簽憑證豁免網域」或「社群與反爬蟲網域」清單中，以減少未來的誤報。
             </div>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 報表裡出現 [SSL:
-              CERTIFICATE_VERIFY_FAILED] 錯誤是什麼意思？</h4>
+            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 報表裡出現「TLS 偽裝探測失敗: (60) SSL
+              certificate problem」錯誤是什麼意思？</h4>
             <p style="margin-top:0; margin-bottom:1.25rem;">
               這代表小幫手在連線該網站時，發現對方的「安全憑證 (SSL)」有問題，因此基於安全考量主動中斷了連線。最常見的原因是該網站發生了「憑證斷鍊 (Certificate Chain
               Incomplete)」，也就是網站工程師在設定憑證時少裝了中繼憑證。<br>
