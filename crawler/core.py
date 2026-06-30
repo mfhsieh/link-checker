@@ -43,6 +43,7 @@ HEAD_FALLBACK_STATUS_CODES: tuple[int, ...] = (400, 403, 404, 405, 406, 500, 501
 _FETCH_SAFE_EXCEPTIONS: tuple[type[BaseException], ...] = (
     httpx.RequestError,
     httpx.HTTPStatusError,
+    httpx.InvalidURL,
     socket.gaierror,
     ValueError,
     TypeError,
