@@ -72,6 +72,9 @@ def _patched_getaddrinfo(
     Returns:
         list[tuple[int, int, int, str, object]]: 原始或被替換的位址資訊列表。
     """
+    if host is None:
+        return _original_getaddrinfo(host, port, *args, **kwargs)
+
     overrides = getattr(_dns_override, "overrides", {})
     host_str = host.decode("utf-8") if isinstance(host, bytes) else host
     if host_str in overrides:
@@ -1271,8 +1274,8 @@ class CrawlerCore:
                         # 終極 TLS 偽裝降級 (curl_cffi)
                         if is_retry_failed and status_code_retry in TLS_SPOOF_STATUS_CODES:
                             # 原始 HTTP 請求已直接失敗，且人工升級的 HTTPS 也遭 WAF 阻擋。
-                            # 此時沒有任何重導向過程，必須手動替換成 HTTPS 網址給 curl_cffi，
-                            # 否則 curl_cffi 使用原 HTTP 網址也會直接失敗，無法發揮 TLS 偽裝能力。
+                            # 以下將原始 url 替換成 HTTPS，從頭發起請求，以發揮 TLS 偽裝能力。
+                            # 重新走一遍以取回完整可用的 Cookie。
                             https_fallback_url = urlparse(url)._replace(scheme="https").geturl()
                             return self._tls_spoofed_fallback(https_fallback_url)
 

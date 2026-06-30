@@ -183,7 +183,7 @@ if os.path.isdir(_frontend_dir):
                     return match.group(0)
                 return f'<{tag} nonce="{nonce}"{attrs}>'
 
-            content = re.sub(r"<(script|style)\b([^>]*)>", _inject_nonce, content, flags=re.IGNORECASE)
+            content = re.sub(r"<(script|style)(?=[\s>])([^>]*)>", _inject_nonce, content, flags=re.IGNORECASE)
 
         return HTMLResponse(content=content)
 
