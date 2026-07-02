@@ -137,15 +137,15 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
         dict[str, object]: 包含佇列項目詳細資訊的字典。
     """
     return {
-        "Source URL": q.source_url if q.source_url else "",
-        "URL": q.url,
+        "source_url": q.source_url if q.source_url else "",
+        "target_url": q.url,
         "Status": q.status,
         "Status Category": q.status_category,
         "Depth": q.depth,
         "Retry Count": q.retry_count,
         "is_secure": q.is_secure,
-        "HTTP Status Code": q.status_code if q.status_code is not None else "",
-        "Error Message": q.error_message if q.error_message else "",
+        "http_status_code": q.status_code if q.status_code is not None else "",
+        "error_message": q.error_message if q.error_message else "",
         "Created At": q.created_at.strftime("%Y-%m-%d %H:%M:%S"),
     }
 

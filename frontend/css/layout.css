@@ -409,11 +409,6 @@
     padding: 0.4rem;
   }
 
-  /* 在窄螢幕上隱藏統計卡片的說明文字，節省垂直空間 */
-  .stat-card .text-xs.text-muted,
-  .stat-card .stat-sub {
-    display: none;
-  }
 
   /* 窄螢幕時將工具列強制分行 */
   .link-toolbar {

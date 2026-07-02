@@ -1105,6 +1105,11 @@ class CrawlerCore:
                 # 當 HEAD 請求發生網路層異常時，主動降級使用剝離衝突特徵的 GET 請求進行二次確認。
                 logger.debug("HEAD 請求發生網路層異常 (%s)，嘗試降級使用 GET...", e)
                 return self._fallback_get(current_url, tgt_dom, ip, client, accumulated_cookies)
+            except Exception as e:  # pylint: disable=broad-except
+                # 攔截 h2.exceptions.InvalidBodyLengthError 等非繼承自 httpx.RequestError 的底層協定錯誤。
+                # 當遇到行為不符 HTTP/2 規範的伺服器 (如對 HEAD 請求回傳 Body) 時，同樣降級使用 GET。
+                logger.debug("HEAD 請求發生底層或協定異常 (%s)，嘗試降級使用 GET...", e)
+                return self._fallback_get(current_url, tgt_dom, ip, client, accumulated_cookies)
 
         # 將 HEAD 回應的 Set-Cookie 合併回正確的網域桶中
         if accumulated_cookies is not None:

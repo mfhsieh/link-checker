@@ -339,16 +339,18 @@ def _get_internal_errors_no_grouping(
         object: 包含 items, total, page, page_size 等分頁資訊與資料的字典物件。
     """
     filter_map = {
-        "URL": lambda v: CrawlQueue.url.ilike(f"%{v}%"),
-        "Source URL": lambda v: CrawlQueue.source_url.ilike(f"%{v}%"),
-        "HTTP Status Code": lambda v: cast(CrawlQueue.status_code, String).ilike(f"%{v}%"),
-        "Error Message": lambda v: CrawlQueue.error_message.ilike(f"%{v}%"),
+        "target_url": lambda v: CrawlQueue.url.ilike(f"%{v}%"),
+        "source_url": lambda v: CrawlQueue.source_url.ilike(f"%{v}%"),
+        "http_status_code": lambda v: cast(CrawlQueue.status_code, String).ilike(f"%{v}%"),
+        "error_message": lambda v: CrawlQueue.error_message.ilike(f"%{v}%"),
+        "is_secure": lambda v: CrawlQueue.is_secure.is_(v in ("true", "1", "yes", "✓", "v", "t")),
     }
     sort_map = {
-        "URL": CrawlQueue.url,
-        "Source URL": CrawlQueue.source_url,
-        "HTTP Status Code": CrawlQueue.status_code,
-        "Error Message": CrawlQueue.error_message,
+        "target_url": CrawlQueue.url,
+        "source_url": CrawlQueue.source_url,
+        "http_status_code": CrawlQueue.status_code,
+        "error_message": CrawlQueue.error_message,
+        "is_secure": CrawlQueue.is_secure,
     }
 
     # pylint: disable=duplicate-code

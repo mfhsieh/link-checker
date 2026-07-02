@@ -249,10 +249,7 @@ function renderJobRow(job) {
   const btnDup = document.createElement('button');
   btnDup.className = 'btn btn-sm btn-secondary';
   btnDup.textContent = '複製';
-  btnDup.addEventListener('click', (e) => {
-    e.stopPropagation();
-    window.location.hash = `#/new?clone=${job.id}`;
-  });
+  btnDup.onclick = (e) => { e.stopPropagation(); window.location.hash = `#/new?clone=${job.id}`; };
   divActions.appendChild(btnDup);
 
   td5.appendChild(divActions);

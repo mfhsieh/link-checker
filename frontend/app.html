@@ -190,150 +190,12 @@
               <span class="text-xs font-mono text-muted" id="job-id-display"></span>
             </div>
           </div>
-          <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-            <button class="btn btn-secondary btn-sm" id="btn-duplicate-job" style="display:none" title="複製此任務的設定並建立新任務">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-              </svg>
-              複製
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-goto-compare" style="display:none"
-              title="跳轉至比對視圖，並將此任務設為基準">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
-              </svg>
-              比對
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-transfer-job" style="display:none" title="將此任務移交給其他帳號">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-              </svg>
-              移交
-            </button>
-            <button class="btn btn-primary btn-sm" id="btn-start-job" style="display:none" title="開始或繼續執行爬蟲任務">
-              <svg viewBox="0 0 20 20" fill="currentColor"
-                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                <path
-                  d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-              </svg>
-              啟動
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-pause-job" style="display:none"
-              title="暫停執行中的任務（將在完成當下頁面後停止）">
-              <svg viewBox="0 0 20 20" fill="currentColor"
-                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                <path
-                  d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
-              </svg>
-              暫停
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-reset-job" style="display:none"
-              title="清除所有紀錄與外連結果，將任務退回初始狀態">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-              </svg>
-              重置
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-retry-failed-job" style="display:none" title="重試爬取失敗連結">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-              </svg>
-              重試
-            </button>
-            <button class="btn btn-danger btn-sm" id="btn-delete-job" title="永久刪除此任務及其所有關聯資料">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-              </svg>
-              刪除
-            </button>
-          </div>
+          <job-controls id="job-controls"></job-controls>
         </div>
-
         <!-- 任務資訊卡片 -->
         <div style="display:flex; flex-wrap:wrap; gap:1.5rem; margin-bottom:2rem; align-items:stretch;">
-          <div class="card" style="flex: 1 1 300px;">
-            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="card-title">任務資訊</span>
-              <button class="btn btn-ghost btn-sm" id="btn-view-job-config" style="padding:0.25rem 0.5rem">檢視設定</button>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:0.75rem">
-              <div>
-                <div class="text-xs text-muted">起始 URL</div>
-                <a class="font-mono text-sm truncate" id="job-start-url"
-                  style="max-width:100%; display:block; color:inherit;" target="_blank" rel="noopener noreferrer"></a>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
-                <div>
-                  <div class="text-xs text-muted">建立時間</div>
-                  <div class="text-sm" id="job-created-at"></div>
-                </div>
-                <div>
-                  <div class="text-xs text-muted">最後更新</div>
-                  <div class="text-sm" id="job-updated-at"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 爬取進度 -->
-          <div class="card" style="flex: 2 1 500px;">
-            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="card-title">爬取進度</span>
-              <div style="display:flex; gap:0.75rem; align-items:center;">
-                <span class="text-sm font-mono text-muted" id="job-progress-text">0%</span>
-                <button class="btn btn-secondary btn-sm" id="btn-export-full" title="匯出完整報表 (ZIP 壓縮檔)">
-                  <svg viewBox="0 0 20 20" fill="currentColor"
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                    <path fill-rule="evenodd"
-                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                      clip-rule="evenodd" />
-                  </svg>
-                  完整報表
-                </button>
-              </div>
-            </div>
-            <div class="progress-bar" style="margin-bottom:1.25rem">
-              <div class="progress-fill" id="job-progress-fill" style="width:0%"></div>
-            </div>
-            <div class="grid-stats"
-              style="grid-template-columns:repeat(auto-fit, minmax(90px, 1fr));gap:0.75rem;margin-bottom:0">
-              <div class="stat-card" style="padding:0.75rem">
-                <div class="stat-label">總計</div>
-                <div class="stat-value text-xl" id="stat-total">0</div>
-              </div>
-              <div class="stat-card" style="padding:0.75rem">
-                <div class="stat-label text-success">完成</div>
-                <div class="stat-value text-xl text-success" id="stat-completed">0</div>
-              </div>
-              <div class="stat-card" style="padding:0.75rem" title="網頁容量過大而被提早截斷，可能遺漏部分連結">
-                <div class="stat-label text-warning">截斷</div>
-                <div class="stat-value text-xl text-warning" id="stat-warning">0</div>
-              </div>
-              <div class="stat-card" style="padding:0.75rem">
-                <div class="stat-label text-muted">略過</div>
-                <div class="stat-value text-xl text-muted" id="stat-skipped">0</div>
-              </div>
-              <div class="stat-card" style="padding:0.75rem">
-                <div class="stat-label text-danger">失敗</div>
-                <div class="stat-value text-xl text-danger" id="stat-failed">0</div>
-              </div>
-              <div class="stat-card" style="padding:0.75rem">
-                <div class="stat-label">等待</div>
-                <div class="stat-value text-xl" id="stat-pending">0</div>
-              </div>
-            </div>
-          </div>
+          <job-status id="job-status-card"></job-status>
+          <job-progress id="job-progress"></job-progress>
         </div>
 
         <!-- 頁籤導覽 -->
@@ -344,81 +206,7 @@
 
         <div id="tab-content-external">
           <!-- 外連結果摘要 -->
-          <div class="grid-stats"
-            style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:0.75rem">
-            <div class="stat-card filter-card active" data-filter="all" data-desc="此任務探索到的所有不重複外部連結總數，包含正常與失效的連結。"
-              data-color="var(--color-brand-400)" style="padding:0.75rem">
-              <div class="stat-label">診斷總數</div>
-              <div class="stat-value" id="summary-total">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">不重複的外部連結總數量</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="healthy"
-              data-desc="外部目標主機可正常解析，且回傳 2XX 或 3XX 狀態碼，代表連結可正常存取。" data-color="var(--color-success-400)"
-              style="padding:0.75rem">
-              <div class="stat-label text-success">正常連結</div>
-              <div class="stat-value text-success" id="summary-healthy">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">成功連線且回應正常</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="dead"
-              data-desc="找不到主機網域的 IP。可能是網址誤植或網域廢棄；也有可能是高風險的無主網域，會遭他人惡意註冊。建議儘速修正或移除該失效連結。"
-              data-color="var(--color-danger-400)" style="padding:0.75rem">
-              <div class="stat-label text-danger">DNS 錯誤</div>
-              <div class="stat-value text-danger" id="summary-dns-failed">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">DNS 解析失敗</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="not_found"
-              data-desc="目標伺服器運作正常，但找不到對應的資源 (404) 或該資源已刪除 (410)。建議確認非因網站防禦機制後，修正或移除該失效連結。"
-              data-color="var(--color-warning-400)" style="padding:0.75rem">
-              <div class="stat-label text-warning">資源遺失</div>
-              <div class="stat-value text-warning" id="summary-not-found">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">資源請求失敗或已刪除</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="server_error"
-              data-desc="伺服器錯誤 (回傳 5XX 狀態碼)。這通常是暫時性異常，或對方設定了嚴格的防禦機制。可過幾日後再次檢驗。" data-color="var(--color-danger-400)"
-              style="padding:0.75rem">
-              <div class="stat-label text-danger">伺服器異常</div>
-              <div class="stat-value text-danger" id="summary-server-error">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法完成請求</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="connection_error"
-              data-desc="連線逾時、SSL 憑證異常或連線被目標主機拒絕。這通常代表底層網路異常，或對方設定了嚴格的防禦機制。" data-color="var(--color-brand-400)"
-              style="padding:0.75rem">
-              <div class="stat-label text-brand">底層異常</div>
-              <div class="stat-value text-brand" id="summary-connection-error">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">憑證或連線有問題</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="other_error" data-desc="其他未歸類的 HTTP 異常狀況 (例如：請求錯誤 400)。"
-              data-color="var(--color-neutral-400)" style="padding:0.75rem">
-              <div class="stat-label text-secondary">其他異常</div>
-              <div class="stat-value text-secondary" id="summary-other-error">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未預期的例外錯誤</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="blocked"
-              data-desc="未獲授權、拒絕存取、不允許的請求、不接受的請求、請求過多等狀態碼 (401, 403, 405, 406, 429)。這多數是正常的防禦行為，而非連結失效。"
-              data-color="var(--color-neutral-400)" style="padding:0.75rem">
-              <div class="stat-label text-secondary">權限阻擋</div>
-              <div class="stat-value text-secondary" id="summary-blocked">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未獲授權或遭封鎖</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="insecure"
-              data-desc="連結仍使用未加密的 HTTP 協定進行傳輸，容易遭到中間人監聽或劫持，建議將其升級為 HTTPS。" data-color="var(--color-warning-400)"
-              style="padding:0.75rem">
-              <div class="stat-label text-warning">非 HTTPS</div>
-              <div class="stat-value text-warning" id="summary-insecure">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">使用明文 HTTP 傳輸</div>
-            </div>
-          </div>
-          <!-- 卡片說明區塊 -->
-          <div id="ext-filter-desc" class="text-sm text-muted"
-            style="margin-bottom: 1.5rem; padding: 0.625rem 0.875rem; background: var(--surface-raised); border-radius: var(--radius-md); border-left: 3px solid var(--color-brand-400); display: flex; align-items: center; gap: 0.5rem; transition: border-color var(--transition-base);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              style="width:16px;height:16px;flex-shrink:0">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
-            </svg>
-            <span>此任務探索到的所有不重複外部連結總數，包含正常與失效的連結。</span>
-          </div>
+          <job-stats id="job-ext-stats" type="external"></job-stats>
 
           <!-- 外連結果 -->
           <div class="card" style="padding:0;overflow:hidden">
@@ -450,104 +238,25 @@
                   style="display:none;">重新探測</button>
                 <button class="btn btn-secondary btn-sm" id="btn-ext-export-selected"
                   style="display:none;">匯出選取</button>
-                <button class="btn btn-secondary btn-sm" id="btn-export-csv"><svg viewBox="0 0 20 20"
-                    fill="currentColor" style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                    <path fill-rule="evenodd"
-                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                      clip-rule="evenodd" />
-                  </svg>CSV</button>
-                <button class="btn btn-secondary btn-sm" id="btn-export-json"><svg viewBox="0 0 20 20"
-                    fill="currentColor" style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                    <path fill-rule="evenodd"
-                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                      clip-rule="evenodd" />
-                  </svg>JSON</button>
+                <button class="btn btn-secondary btn-sm" id="btn-export-csv">
+                  <div
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                  </div>CSV
+                </button>
+                <button class="btn btn-secondary btn-sm" id="btn-export-json">
+                  <div
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                  </div>JSON
+                </button>
               </div>
             </div>
-            <div id="results-container" style="padding:0 0 1rem">
-              <div class="empty-state">
-                <div class="empty-state-desc">載入中...</div>
-              </div>
-            </div>
+            <link-table id="ext-data-table"></link-table>
           </div>
         </div>
 
         <div id="tab-content-internal" style="display:none">
           <!-- 內部連結診斷摘要 -->
-          <div class="grid-stats"
-            style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;margin-bottom:0.75rem">
-            <div class="stat-card filter-card active" data-filter="all" data-desc="此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件。"
-              data-color="var(--color-brand-400)" style="padding:0.75rem">
-              <div class="stat-label">診斷總數</div>
-              <div class="stat-value text-brand" id="int-summary-total">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">包含失敗與截斷的總數量</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="server_error"
-              data-desc="目標伺服器發生崩潰或過載 (回傳 5XX 狀態碼)，若非防禦機制或停機維護，則為嚴重的系統異常，需請工程師立刻處理。"
-              data-color="var(--color-danger-400)" style="padding:0.75rem">
-              <div class="stat-label text-danger">伺服器異常</div>
-              <div class="stat-value text-danger" id="int-summary-server-error">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法完成請求</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="connection_error"
-              data-desc="DNS 解析失敗、SSL 憑證異常或連線被目標主機拒絕。這通常代表基礎網路設施或防火牆設定有誤。" data-color="var(--color-brand-400)"
-              style="padding:0.75rem">
-              <div class="stat-label text-brand">底層異常</div>
-              <div class="stat-value text-brand" id="int-summary-connection-error">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">DNS、憑證或連線有問題</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="timeout" data-desc="伺服器未能在指定的時間內回應。這通常代表伺服器效能瓶頸或網路嚴重壅塞。"
-              data-color="var(--color-info-400)" style="padding:0.75rem">
-              <div class="stat-label text-info">連線逾時</div>
-              <div class="stat-value text-info" id="int-summary-timeout">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">伺服器無法於時限內回復</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="not_found"
-              data-desc="目標伺服器運作正常，但找不到對應的資源 (404) 或該資源已刪除 (410)。通常是因為網址打錯或資源已被刪除，需編輯修正。"
-              data-color="var(--color-warning-400)" style="padding:0.75rem">
-              <div class="stat-label text-warning">資源遺失</div>
-              <div class="stat-value text-warning" id="int-summary-not-found">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">資源請求失敗或已刪除</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="other_error" data-desc="其他未歸類的 HTTP 異常狀況 (例如：請求錯誤 400)。"
-              data-color="var(--color-neutral-400)" style="padding:0.75rem">
-              <div class="stat-label text-secondary">其他異常</div>
-              <div class="stat-value text-secondary" id="int-summary-other-error">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未預期的例外錯誤</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="warning"
-              data-desc="網頁超過系統設定的最大下載上限，已被提早截斷。該網頁可能遺漏部分未被解析的外部連結。" data-color="var(--color-warning-400)"
-              style="padding:0.75rem">
-              <div class="stat-label text-warning">網頁截斷</div>
-              <div class="stat-value text-warning" id="int-summary-warning">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">網頁容量過大被提早截斷</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="blocked"
-              data-desc="未獲授權、拒絕存取、不允許的請求、不接受的請求、請求過多等狀態碼 (401, 403, 405, 406, 429)。這多數是正常的防禦行為，而非連結失效。"
-              data-color="var(--color-neutral-400)" style="padding:0.75rem">
-              <div class="stat-label text-muted">權限阻擋</div>
-              <div class="stat-value text-muted" id="int-summary-blocked">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">未獲授權或遭封鎖</div>
-            </div>
-            <div class="stat-card filter-card" data-filter="insecure"
-              data-desc="連結仍使用未加密的 HTTP 協定進行傳輸，容易遭到中間人監聽或劫持，建議將其升級為 HTTPS。" data-color="var(--color-warning-400)"
-              style="padding:0.75rem">
-              <div class="stat-label text-warning">非 HTTPS</div>
-              <div class="stat-value text-warning" id="int-summary-insecure">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">使用明文 HTTP 傳輸</div>
-            </div>
-          </div>
-          <!-- 卡片說明區塊 -->
-          <div id="int-filter-desc" class="text-sm text-muted"
-            style="margin-bottom: 1.5rem; padding: 0.625rem 0.875rem; background: var(--surface-raised); border-radius: var(--radius-md); border-left: 3px solid var(--color-brand-400); display: flex; align-items: center; gap: 0.5rem; transition: border-color var(--transition-base);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              style="width:16px;height:16px;flex-shrink:0">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
-            </svg>
-            <span>此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件。</span>
-          </div>
+          <job-stats id="job-int-stats" type="internal"></job-stats>
 
           <div class="card" style="padding:0;overflow:hidden">
             <div class="card-header"
@@ -567,25 +276,19 @@
                   style="display:none;">重新探測</button>
                 <button class="btn btn-secondary btn-sm" id="btn-int-export-selected"
                   style="display:none;">匯出選取</button>
-                <button class="btn btn-secondary btn-sm" id="btn-int-export-csv"><svg viewBox="0 0 20 20"
-                    fill="currentColor" style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                    <path fill-rule="evenodd"
-                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                      clip-rule="evenodd" />
-                  </svg>CSV</button>
-                <button class="btn btn-secondary btn-sm" id="btn-int-export-json"><svg viewBox="0 0 20 20"
-                    fill="currentColor" style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                    <path fill-rule="evenodd"
-                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                      clip-rule="evenodd" />
-                  </svg>JSON</button>
+                <button class="btn btn-secondary btn-sm" id="btn-int-export-csv">
+                  <div
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                  </div>CSV
+                </button>
+                <button class="btn btn-secondary btn-sm" id="btn-int-export-json">
+                  <div
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                  </div>JSON
+                </button>
               </div>
             </div>
-            <div id="internal-results-container" style="padding:0 0 1rem">
-              <div class="empty-state">
-                <div class="empty-state-desc">載入中...</div>
-              </div>
-            </div>
+            <link-table id="int-data-table"></link-table>
           </div>
         </div>
 
@@ -906,21 +609,15 @@
               </div>
               <div style="display:flex;gap:0.75rem">
                 <button class="btn btn-secondary btn-sm" id="btn-compare-export-csv">
-                  <svg viewBox="0 0 20 20" fill="currentColor"
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                    <path fill-rule="evenodd"
-                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                      clip-rule="evenodd" />
-                  </svg>
+                  <div
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                  </div>
                   CSV
                 </button>
                 <button class="btn btn-secondary btn-sm" id="btn-compare-export-json">
-                  <svg viewBox="0 0 20 20" fill="currentColor"
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;">
-                    <path fill-rule="evenodd"
-                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                      clip-rule="evenodd" />
-                  </svg>
+                  <div
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                  </div>
                   JSON
                 </button>
               </div>
@@ -1058,6 +755,8 @@
       </form>
     </div>
   </div>
+
+  </div> <!-- End of view-job-detail -->
 
   <!-- ── 共用確認 Modal ────────────────────────────────────── -->
   <div class="modal-overlay" id="confirm-modal"
@@ -1713,6 +1412,11 @@
     }
   </script>
 
+  <script type="module" src="/static/js/components/job-status.js"></script>
+  <script type="module" src="/static/js/components/job-progress.js"></script>
+  <script type="module" src="/static/js/components/job-controls.js"></script>
+  <script type="module" src="/static/js/components/job-stats.js"></script>
+  <script type="module" src="/static/js/components/link-table.js"></script>
 </body>
 
 </html>
