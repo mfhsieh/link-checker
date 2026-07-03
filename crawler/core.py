@@ -945,9 +945,11 @@ class CrawlerCore:
             err_str = str(e)
             if "curl:" in err_str:
                 short_err = err_str.split("curl:", 1)[-1].split(". See https://", 1)[0].strip()
-                err_msg = f"TLS 偽裝探測失敗: {short_err}"
+                # err_msg = f"TLS 偽裝探測失敗: {short_err}"
+                err_msg = f"探測失敗: {short_err}"
             else:
-                err_msg = f"TLS 偽裝探測失敗: {err_str}"
+                # err_msg = f"TLS 偽裝探測失敗: {err_str}"
+                err_msg = f"探測失敗: {err_str}"
             return status_code, err_msg, None, url
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("TLS 偽裝備援遭遇未預期底層例外: %s", type(e).__name__)

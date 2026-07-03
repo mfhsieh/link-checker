@@ -240,12 +240,12 @@
                   style="display:none;">匯出選取</button>
                 <button class="btn btn-secondary btn-sm" id="btn-export-csv">
                   <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
                   </div>CSV
                 </button>
                 <button class="btn btn-secondary btn-sm" id="btn-export-json">
                   <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
                   </div>JSON
                 </button>
               </div>
@@ -278,12 +278,12 @@
                   style="display:none;">匯出選取</button>
                 <button class="btn btn-secondary btn-sm" id="btn-int-export-csv">
                   <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
                   </div>CSV
                 </button>
                 <button class="btn btn-secondary btn-sm" id="btn-int-export-json">
                   <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
                   </div>JSON
                 </button>
               </div>
@@ -610,13 +610,13 @@
               <div style="display:flex;gap:0.75rem">
                 <button class="btn btn-secondary btn-sm" id="btn-compare-export-csv">
                   <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
                   </div>
                   CSV
                 </button>
                 <button class="btn btn-secondary btn-sm" id="btn-compare-export-json">
                   <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/download.svg) no-repeat center / contain;">
+                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
                   </div>
                   JSON
                 </button>
@@ -1055,8 +1055,9 @@
 
         const params = new URLSearchParams(hash.split('?')[1] || '');
         const baseId = params.get('base');
+        const targetId = params.get('target');
 
-        await initComparePage(baseId);
+        await initComparePage(baseId, targetId);
       } else if (hash.startsWith('#/transfer')) {
         if (viewTransfer) viewTransfer.style.display = '';
         if (navTransfer) navTransfer.classList.add('active');

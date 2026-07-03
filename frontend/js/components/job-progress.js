@@ -8,20 +8,56 @@
  * 負責渲染任務的整體進度條以及各項處理狀態（如：完成、失敗、略過等）的統計數量。
  *
  * @extends HTMLElement
+ *
+ * @fires export-full - 點擊「完整報表」按鈕時觸發，detail: `{ job: Object }`
+ *
+ * @example
+ * <job-progress></job-progress>
+ * // 透過 JS 注入資料：
+ * document.querySelector('job-progress').job = jobData;
  */
 export class JobProgressCard extends HTMLElement {
     /**
-     * 建立 JobProgressCard 元件實例
+     * 建立 JobProgressCard 元件實例，初始化私有狀態與快取參考。
      */
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
 
         /**
-         * @type {Object|null} 當前綁定的任務資料物件
+         * 當前綁定的任務資料物件；為 null 時元件顯示初始佔位符狀態
+         * @type {Object|null}
          * @private
          */
         this._job = null;
+
+        /**
+         * 顯示進度百分比文字的 `<span>` 元素（在 render() 後快取）
+         * @type {HTMLElement|null}
+         * @private
+         */
+        this._progressTextEl = null;
+
+        /**
+         * 進度條填充的 `<div>` 元素（在 render() 後快取）
+         * @type {HTMLElement|null}
+         * @private
+         */
+        this._progressFillEl = null;
+
+        /**
+         * 「匯出完整報表」按鈕元素（在 render() 後快取）
+         * @type {HTMLButtonElement|null}
+         * @private
+         */
+        this._btnExportEl = null;
+
+        /** @type {HTMLElement|null} @private */ this._statTotalEl = null;
+        /** @type {HTMLElement|null} @private */ this._statCompletedEl = null;
+        /** @type {HTMLElement|null} @private */ this._statFailedEl = null;
+        /** @type {HTMLElement|null} @private */ this._statWarningEl = null;
+        /** @type {HTMLElement|null} @private */ this._statSkippedEl = null;
+        /** @type {HTMLElement|null} @private */ this._statPendingEl = null;
     }
 
     /**
@@ -42,8 +78,17 @@ export class JobProgressCard extends HTMLElement {
     }
 
     /**
-     * 接收並更新任務資料，同時觸發畫面更新
-     * @param {Object} data - 從 API 取得的任務詳細資料物件
+     * 接收並更新任務資料，同時觸發畫面更新。
+     * 傳入 null 或 undefined 時，畫面維持初始佔位符狀態不變。
+     * @param {Object|null} data - 從 API 取得的任務詳細資料物件
+     * @param {string}         [data.status]   - 任務狀態字串（如 'completed', 'error'）
+     * @param {Object}         [data.progress] - 進度統計物件
+     * @param {number}         [data.progress.total]     - 總頁數
+     * @param {number}         [data.progress.completed] - 已完成頁數
+     * @param {number}         [data.progress.failed]    - 失敗頁數
+     * @param {number}         [data.progress.warning]   - 截斷頁數
+     * @param {number}         [data.progress.skipped]   - 略過頁數
+     * @param {number}         [data.progress.pending]   - 等待中頁數
      */
     set job(data) {
         this._job = data;
@@ -59,198 +104,195 @@ export class JobProgressCard extends HTMLElement {
     }
 
     /**
-     * 渲染元件整體的 HTML 結構與樣式 (CSS)
-     * 包含進度條、狀態統計網格以及匯出報表按鈕
+     * 建立獨立的數據卡片 DOM 結構。
+     * @param {string} labelText  - 卡片標題文字
+     * @param {string} theme      - 卡片主題顏色 ('brand'|'success'|'warning'|'danger'|'info'|'muted')
+     * @param {string} descString - 卡片底部說明文字
+     * @returns {{ cardEl: HTMLDivElement, valueEl: HTMLDivElement }} 包含卡片容器與數字節點的物件
+     * @private
      */
-    render() {
-        const linkBase = document.createElement('link');
-        linkBase.rel = 'stylesheet';
-        linkBase.href = '/static/css/base.css';
-        this.shadowRoot.appendChild(linkBase);
+    _createStatCard(labelText, theme, descString) {
+        const themeClass = theme ? `text-${theme}` : '';
 
-        const style = document.createElement('style');
-        style.textContent = `
-            :host { display: block; flex: 2 1 500px; }
-        `;
-        this.shadowRoot.appendChild(style);
+        const cardEl = document.createElement('div');
+        cardEl.className = 'stat-card';
+        if (theme) {
+            cardEl.classList.add(`border-${theme}`);
+        }
 
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.style.height = '100%';
-        card.style.boxSizing = 'border-box';
+        const labelEl = document.createElement('div');
+        labelEl.className = `stat-label ${themeClass}`.trim();
+        labelEl.textContent = labelText;
 
-        // Header
-        const header = document.createElement('div');
-        header.className = 'card-header';
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.alignItems = 'center';
+        const valueEl = document.createElement('div');
+        valueEl.className = `stat-value ${themeClass}`.trim();
+        valueEl.textContent = '-';
 
-        const title = document.createElement('span');
-        title.className = 'card-title';
-        title.textContent = '爬取進度';
+        const descEl = document.createElement('div');
+        descEl.className = 'stat-desc';
+        descEl.textContent = descString;
 
-        const headerRight = document.createElement('div');
-        headerRight.style.display = 'flex';
-        headerRight.style.gap = '0.75rem';
-        headerRight.style.alignItems = 'center';
+        cardEl.appendChild(labelEl);
+        cardEl.appendChild(valueEl);
+        cardEl.appendChild(descEl);
 
-        this.progressTextEl = document.createElement('span');
-        this.progressTextEl.className = 'text-sm font-mono text-muted';
-        this.progressTextEl.id = 'job-progress-text';
-        this.progressTextEl.textContent = '0%';
-
-        const btnExport = document.createElement('button');
-        btnExport.className = 'btn btn-secondary btn-sm';
-        btnExport.id = 'btn-export-full';
-        btnExport.title = '匯出完整報表 (ZIP 壓縮檔)';
-
-        // Icon for export button (created safely without innerHTML)
-        const svgIcon = document.createElement('div');
-        svgIcon.style.width = "14px";
-        svgIcon.style.height = "14px";
-        svgIcon.style.marginRight = "0.25rem";
-        svgIcon.style.verticalAlign = "text-bottom";
-        svgIcon.style.display = "inline-block";
-        svgIcon.style.backgroundColor = "currentColor";
-        svgIcon.style.mask = "url(/static/image/download.svg) no-repeat center / contain";
-        svgIcon.style.webkitMask = "url(/static/image/download.svg) no-repeat center / contain";
-
-        btnExport.appendChild(svgIcon);
-        const exportText = document.createTextNode(' 完整報表');
-        btnExport.appendChild(exportText);
-
-        headerRight.appendChild(this.progressTextEl);
-        headerRight.appendChild(btnExport);
-        header.appendChild(title);
-        header.appendChild(headerRight);
-        card.appendChild(header);
-
-        // Progress Bar
-        const progressContainer = document.createElement('div');
-        progressContainer.className = 'progress-bar';
-        progressContainer.style.marginBottom = '1.25rem';
-
-        this.progressFillEl = document.createElement('div');
-        this.progressFillEl.className = 'progress-fill';
-        this.progressFillEl.id = 'job-progress-fill';
-        this.progressFillEl.style.width = '0%';
-
-        progressContainer.appendChild(this.progressFillEl);
-        card.appendChild(progressContainer);
-
-        // Stats Grid
-        const statsGrid = document.createElement('div');
-        statsGrid.className = 'grid-stats';
-
-        /**
-         * 建立獨立的數據卡片 DOM
-         * @param {string} labelText - 卡片標題
-         * @param {string} labelClass - 標題 CSS 類別 (包含主題顏色)
-         * @param {string} valueClass - 數字 CSS 類別 (包含主題顏色)
-         * @param {string} descString - 卡片底部說明文字
-         * @returns {Object} 包含 card (卡片 DOM) 與 valueEl (數字 DOM) 的物件
-         */
-        const createStatNode = (labelText, labelClass, valueClass, descString) => {
-            const statCard = document.createElement('div');
-            statCard.className = 'stat-card';
-
-            const themeMatch = labelClass.match(/text-(.*)/);
-            if (themeMatch) {
-                statCard.classList.add(`border-${themeMatch[1]}`);
-            }
-
-            const label = document.createElement('div');
-            label.className = 'stat-label ' + labelClass;
-            label.textContent = labelText;
-
-            const value = document.createElement('div');
-            value.className = 'stat-value text-xl ' + valueClass;
-            value.textContent = '0';
-
-            const desc = document.createElement('div');
-            desc.className = 'stat-desc';
-            desc.textContent = descString;
-
-            statCard.appendChild(label);
-            statCard.appendChild(value);
-            statCard.appendChild(desc);
-            return { card: statCard, valueEl: value };
-        };
-
-        const totalStat = createStatNode('總計', 'text-brand', 'text-brand', '累計總數');
-        this.statTotalEl = totalStat.valueEl;
-
-        const compStat = createStatNode('完成', 'text-success', 'text-success', '成功解析');
-        this.statCompletedEl = compStat.valueEl;
-
-        const failStat = createStatNode('失敗', 'text-danger', 'text-danger', '異常網頁');
-        this.statFailedEl = failStat.valueEl;
-
-        const warnStat = createStatNode('截斷', 'text-warning', 'text-warning', '過長網頁');
-        this.statWarningEl = warnStat.valueEl;
-
-        const skipStat = createStatNode('略過', 'text-muted', 'text-muted', '忽略不解析');
-        this.statSkippedEl = skipStat.valueEl;
-
-        const pendStat = createStatNode('等待', 'text-info', 'text-info', '等待處理');
-        this.statPendingEl = pendStat.valueEl;
-
-        statsGrid.appendChild(totalStat.card);
-        statsGrid.appendChild(compStat.card);
-        statsGrid.appendChild(failStat.card);
-        statsGrid.appendChild(warnStat.card);
-        statsGrid.appendChild(skipStat.card);
-        statsGrid.appendChild(pendStat.card);
-
-        card.appendChild(statsGrid);
-        this.shadowRoot.appendChild(card);
+        return { cardEl, valueEl };
     }
 
     /**
-     * 依據當前的任務資料 (_job)，計算並更新畫面上的進度百分比與各項數據
+     * 渲染元件整體的 HTML 結構與 Shadow DOM 樣式。
+     * 包含進度條、狀態統計網格以及匯出報表按鈕。
+     * 同時將需要動態更新的 DOM 節點快取為 instance 私有變數，
+     * 避免 updateView() 與 setupEventListeners() 呼叫時重複查詢 Shadow DOM。
+     */
+    render() {
+        const linkBaseEl = document.createElement('link');
+        linkBaseEl.rel = 'stylesheet';
+        linkBaseEl.href = '/static/css/base.css';
+        this.shadowRoot.appendChild(linkBaseEl);
+
+        const styleEl = document.createElement('style');
+        styleEl.textContent = `
+            :host { display: block; flex: 3 1 600px; }
+            .card { height: 100%; }
+            .header-right { display: flex; gap: 0.75rem; align-items: center; }
+            .icon-download {
+                mask: url(/static/image/icon-download.svg) no-repeat center / contain;
+                -webkit-mask: url(/static/image/icon-download.svg) no-repeat center / contain;
+            }
+            .progress-bar { margin-bottom: 1.25rem; }
+        `;
+        this.shadowRoot.appendChild(styleEl);
+
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card';
+
+        // ── Header ────────────────────────────────────────────────────────
+        const headerEl = document.createElement('div');
+        headerEl.className = 'card-header';
+
+        const titleEl = document.createElement('span');
+        titleEl.className = 'card-title';
+        titleEl.textContent = '爬取進度';
+
+        const headerRightEl = document.createElement('div');
+        headerRightEl.className = 'header-right';
+
+        this._progressTextEl = document.createElement('span');
+        this._progressTextEl.className = 'text-sm font-mono text-muted';
+        this._progressTextEl.id = 'job-progress-text';
+        this._progressTextEl.textContent = '0%';
+
+        this._btnExportEl = document.createElement('button');
+        this._btnExportEl.className = 'btn btn-secondary btn-sm';
+        this._btnExportEl.id = 'btn-export-full';
+        this._btnExportEl.title = '匯出完整報表 (ZIP 壓縮檔)';
+
+        const exportIconEl = document.createElement('div');
+        exportIconEl.className = 'mask-icon mask-icon-btn icon-download';
+
+        this._btnExportEl.appendChild(exportIconEl);
+        this._btnExportEl.appendChild(document.createTextNode(' 完整報表'));
+
+        headerRightEl.appendChild(this._progressTextEl);
+        headerRightEl.appendChild(this._btnExportEl);
+        headerEl.appendChild(titleEl);
+        headerEl.appendChild(headerRightEl);
+        cardEl.appendChild(headerEl);
+
+        // ── Progress Bar ──────────────────────────────────────────────────
+        const progressContainerEl = document.createElement('div');
+        progressContainerEl.className = 'progress-bar';
+
+        this._progressFillEl = document.createElement('div');
+        this._progressFillEl.className = 'progress-fill';
+        this._progressFillEl.id = 'job-progress-fill';
+        this._progressFillEl.style.width = '0%';
+
+        progressContainerEl.appendChild(this._progressFillEl);
+        cardEl.appendChild(progressContainerEl);
+
+        // ── Stats Grid ────────────────────────────────────────────────────
+        const statsGridEl = document.createElement('div');
+        statsGridEl.className = 'grid-stats';
+
+        const totalStat = this._createStatCard('總計', 'brand', '累計總數');
+        const compStat = this._createStatCard('完成', 'success', '成功解析');
+        const failStat = this._createStatCard('失敗', 'danger', '異常網頁');
+        const warnStat = this._createStatCard('截斷', 'warning', '過長網頁');
+        const skipStat = this._createStatCard('略過', 'muted', '忽略不解析');
+        const pendStat = this._createStatCard('等待', 'info', '等待處理');
+
+        this._statTotalEl = totalStat.valueEl;
+        this._statCompletedEl = compStat.valueEl;
+        this._statFailedEl = failStat.valueEl;
+        this._statWarningEl = warnStat.valueEl;
+        this._statSkippedEl = skipStat.valueEl;
+        this._statPendingEl = pendStat.valueEl;
+
+        statsGridEl.appendChild(totalStat.cardEl);
+        statsGridEl.appendChild(compStat.cardEl);
+        statsGridEl.appendChild(failStat.cardEl);
+        statsGridEl.appendChild(warnStat.cardEl);
+        statsGridEl.appendChild(skipStat.cardEl);
+        statsGridEl.appendChild(pendStat.cardEl);
+
+        cardEl.appendChild(statsGridEl);
+        this.shadowRoot.appendChild(cardEl);
+    }
+
+    /**
+     * 依據當前的任務資料 (`this._job`) 計算並更新畫面上的進度百分比與各項數據。
+     * 進度百分比的計算方式為：已處理數（total - pending）佔 total 的比例；
+     * 若任務已進入終止狀態（completed / error）且無進度資料，則固定顯示 100%。
+     * 若任務資料或 DOM 尚未就緒則直接返回，不做任何操作。
      */
     updateView() {
-        if (!this._job) return;
+        if (!this._job || !this._progressFillEl) return;
 
         const progress = this._job.progress || {};
         const total = progress.total || 0;
-        const processed = progress.completed || 0;
+        const pending = progress.pending || 0;
 
         let percentage = 0;
         if (total > 0) {
-            percentage = Math.floor(((total - (progress.pending || 0)) / total) * 100);
+            percentage = Math.floor(((total - pending) / total) * 100);
         } else if (['completed', 'error'].includes(this._job.status)) {
             percentage = 100;
         }
 
-        this.progressFillEl.style.width = percentage + '%';
-        this.progressTextEl.textContent = percentage + '%';
+        this._progressFillEl.style.width = `${percentage}%`;
+        this._progressTextEl.textContent = `${percentage}%`;
 
-        this.statTotalEl.textContent = total;
-        this.statCompletedEl.textContent = progress.completed || 0;
-        this.statWarningEl.textContent = progress.warning || 0;
-        this.statSkippedEl.textContent = progress.skipped || 0;
-        this.statFailedEl.textContent = progress.failed || 0;
-        this.statPendingEl.textContent = progress.pending || 0;
+        this._statTotalEl.textContent = total;
+        this._statCompletedEl.textContent = progress.completed || 0;
+        this._statWarningEl.textContent = progress.warning || 0;
+        this._statSkippedEl.textContent = progress.skipped || 0;
+        this._statFailedEl.textContent = progress.failed || 0;
+        this._statPendingEl.textContent = pending;
     }
 
     /**
-     * 綁定元件內的按鈕點擊事件，如「匯出完整報表」
+     * 綁定元件內的按鈕點擊事件。
+     * 點擊「完整報表」時，對外派送 `export-full` 自訂事件，
+     * 由外部（job-detail.js）負責處理報表的匯出邏輯。
+     *
+     * @fires export-full
      */
     setupEventListeners() {
-        const btnExport = this.shadowRoot.getElementById('btn-export-full');
-        btnExport.addEventListener('click', () => {
+        this._btnExportEl.addEventListener('click', () => {
             this.dispatchEvent(new CustomEvent('export-full', {
                 detail: { job: this._job },
                 bubbles: true,
-                composed: true
+                composed: true,
             }));
         });
     }
 
     /**
-     * 移除事件監聽器（目前為空實作）
+     * 移除事件監聽器。
+     * 由於事件均掛載於 Shadow DOM 的子節點上，當元件從 DOM 移除時
+     * 瀏覽器會自動回收，此處無需手動解除。
      */
     teardownEventListeners() { }
 }

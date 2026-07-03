@@ -693,7 +693,7 @@ function exportCompareCsv() {
  * @param {string|null} baseJobId - (可選) 欲預設選取的基準任務 ID
  * @returns {Promise<void>} 無回傳值
  */
-export async function initComparePage(baseJobId = null) {
+export async function initComparePage(baseJobId = null, targetJobId = null) {
     if (!_eventsBound) {
         bindCompareEvents();
         _eventsBound = true;
@@ -772,6 +772,10 @@ export async function initComparePage(baseJobId = null) {
 
         if (baseJobId) {
             baseSelectEl.value = baseJobId;
+        }
+
+        if (targetJobId) {
+            targetSelectEl.value = targetJobId;
         }
 
         const openExcludeBtn = document.getElementById('btn-compare-exclude-modal');

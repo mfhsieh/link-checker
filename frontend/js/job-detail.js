@@ -14,136 +14,8 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// 完整報表匯出 (Web Component)
-document.addEventListener('export-full', async (e) => {
-    if (!e.detail || !e.detail.job) return;
-    const jobId = e.detail.job.id;
-    try {
-        await api.download(`/api/jobs/${jobId}/export/full`);
-    } catch (err) {
-        toast.error('匯出報表失敗：' + err.message);
-    }
-});
-
-// 檢視任務設定 (Web Component)
-document.addEventListener('view-config', (e) => {
-    if (!e.detail || !e.detail.job) return;
-    const job = e.detail.job;
-    const c = job.config;
-    const configModalEl = document.getElementById('job-config-modal');
-    const container = document.getElementById('job-config-display-container');
-    if (container && configModalEl) {
-        container.replaceChildren();
-        if (!c) {
-            const empty = document.createElement('div');
-            empty.className = 'text-muted';
-            empty.style.textAlign = 'center';
-            empty.style.padding = '2rem';
-            empty.textContent = '無設定資料';
-            container.appendChild(empty);
-        } else {
-            const formatList = (list, parentNode) => {
-                if (!Array.isArray(list) || list.length === 0) {
-                    const span = document.createElement('span');
-                    span.className = 'text-muted';
-                    span.textContent = '-';
-                    parentNode.appendChild(span);
-                    return;
-                }
-                list.forEach(item => {
-                    const span = document.createElement('span');
-                    span.style.display = 'inline-block';
-                    span.style.background = 'var(--surface-overlay)';
-                    span.style.border = '1px solid var(--surface-border)';
-                    span.style.borderRadius = '4px';
-                    span.style.padding = '2px 6px';
-                    span.style.margin = '2px 2px 2px 0';
-                    span.style.fontSize = '0.75rem';
-                    span.textContent = item;
-                    parentNode.appendChild(span);
-                });
-            };
-
-            const createSection = (title, items) => {
-                const section = document.createElement('div');
-                const titleEl = document.createElement('div');
-                titleEl.style.fontWeight = '600';
-                titleEl.style.borderBottom = '1px solid var(--surface-border)';
-                titleEl.style.paddingBottom = '0.5rem';
-                titleEl.style.marginBottom = '0.75rem';
-                titleEl.textContent = title;
-                section.appendChild(titleEl);
-
-                const grid = document.createElement('div');
-                grid.style.display = 'grid';
-                grid.style.gridTemplateColumns = '110px 1fr';
-                grid.style.gap = '0.75rem 0.5rem';
-                grid.style.fontSize = '0.875rem';
-
-                items.forEach(item => {
-                    if (!item) return;
-                    const lbl = document.createElement('div');
-                    lbl.className = 'text-muted';
-                    lbl.textContent = item.label;
-                    grid.appendChild(lbl);
-
-                    const val = document.createElement('div');
-                    if (typeof item.value === 'function') {
-                        item.value(val);
-                    } else {
-                        val.textContent = item.value;
-                    }
-                    if (item.valStyle) Object.assign(val.style, item.valStyle);
-                    if (item.valClass) val.className = item.valClass;
-                    grid.appendChild(val);
-                });
-
-                section.appendChild(grid);
-                return section;
-            };
-
-            const wrapper = document.createElement('div');
-            wrapper.style.display = 'flex';
-            wrapper.style.flexDirection = 'column';
-            wrapper.style.gap = '1.5rem';
-
-            wrapper.appendChild(createSection('🌐 基本設定', [
-                { label: '目標網域', value: el => formatList(c.target_domains, el) },
-                { label: '信任網域', value: el => formatList(c.trusted_domains, el) }
-            ]));
-
-            wrapper.appendChild(createSection('🛡️ 進階過濾與網路', [
-                { label: '忽略路徑規則', value: el => formatList(c.ignore_regexes, el) },
-                { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } },
-                { label: '社群與反爬蟲', value: el => formatList(c.social_domains, el) },
-                { label: '自簽憑證豁免', value: el => formatList(c.ssl_exempt_domains, el) },
-                {
-                    label: '特定網域延遲', value: el => formatList(
-                        c.domain_delays ? Object.entries(c.domain_delays).map(([k, v]) => `${k}: ${v}s`) : [], el
-                    )
-                },
-                { label: '自訂 User-Agent', value: c.user_agent || '系統預設 (自動輪替)', valClass: 'text-xs text-muted' },
-                c.proxy_url !== undefined ? { label: '代理伺服器', value: c.proxy_url || '-', valClass: 'font-mono text-xs', valStyle: { wordBreak: 'break-all' } } : null
-            ]));
-
-            wrapper.appendChild(createSection('⚙️ 資源與限制', [
-                { label: '總連線逾時', value: `${c.timeout ?? '-'} 秒` },
-                { label: 'TCP 連線逾時', value: `${c.connect_timeout ?? '-'} 秒` },
-                { label: '外連探測逾時', value: `${c.external_check_timeout ?? '-'} 秒` },
-                { label: '請求延遲', value: `${c.delay ?? '-'} 秒` },
-                { label: '失敗重試次數', value: `${c.retries ?? '-'} 次` },
-                { label: '最大爬取深度', value: c.max_depth === null ? '不限制' : c.max_depth },
-                { label: '最大抓取頁數', value: c.max_pages === null ? '不限制' : c.max_pages }
-            ]));
-
-            container.appendChild(wrapper);
-        }
-    }
-    if (configModalEl) configModalEl.style.display = 'flex';
-});
 
 import * as api from './api.js';
-import { download } from './api.js';
 import { toast } from './toast.js';
 
 let _eventSource = null;
@@ -172,6 +44,9 @@ let _currentExtReqId = 0;
 let _currentIntReqId = 0;
 let _currentExtSummaryReqId = 0;
 let _currentIntSummaryReqId = 0;
+
+let _extFilterTimeout = null;
+let _intFilterTimeout = null;
 
 let _extSummaryCache = { key: null, data: null };
 let _intSummaryCache = { key: null, data: null };
@@ -401,13 +276,13 @@ const createCell = (text, cls = '') => {
     return span;
 };
 
-const renderUrlNode = (url, maxWidth = '350px', cls = '', displayText = null) => {
+const renderUrlNode = (url, maxWidth = '300px', displayText = null) => {
     if (!url) return createCell('-', 'text-muted');
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
-    a.className = 'truncate ' + cls;
+    a.className = 'truncate font-mono text-link';
     a.style.maxWidth = maxWidth;
     a.style.display = 'inline-block';
     a.style.verticalAlign = 'middle';
@@ -416,7 +291,7 @@ const renderUrlNode = (url, maxWidth = '350px', cls = '', displayText = null) =>
     return a;
 };
 
-const renderUrlArrayNode = (val, maxWidth = '200px', extractUrl = (x) => x) => {
+const renderUrlArrayNode = (val, maxWidth = '300px', extractUrl = (x) => x) => {
     if (!val || !val.length) return createCell('-', 'text-muted');
     const wrapper = document.createElement('div');
     wrapper.style.display = 'flex';
@@ -432,7 +307,7 @@ const renderUrlArrayNode = (val, maxWidth = '200px', extractUrl = (x) => x) => {
         a.href = url;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        a.className = 'truncate text-link';
+        a.className = 'truncate font-mono text-link';
         a.style.maxWidth = maxWidth;
         a.title = url;
         a.textContent = url;
@@ -449,74 +324,64 @@ const renderUrlArrayNode = (val, maxWidth = '200px', extractUrl = (x) => x) => {
     return wrapper;
 };
 
+const renderErrorMessage = (msg, maxWidth = '300px') => {
+    if (!msg) return createCell('-', 'text-muted');
+    const span = document.createElement('span');
+    span.className = 'truncate text-danger';
+    span.style.maxWidth = maxWidth;
+    span.style.display = 'inline-block';
+    span.title = msg;
+    span.textContent = msg;
+    return span;
+};
+
+const renderHttpStatusCode = (code) => {
+    if (code === null || code === undefined) return createCell('-', 'text-muted');
+    const span = document.createElement('span');
+    span.style.display = 'inline-block';
+    span.textContent = code;
+    if (code >= 200 && code < 300) span.className = 'text-success';
+    else if (code >= 300 && code < 400) span.className = 'text-warning';
+    else if (code >= 400) span.className = 'text-danger';
+    return span;
+};
+
 function renderExtResultsTable(res) {
     const isJobActive = _currentJobStatus === 'running' || _currentJobStatus === 'starting';
     let headers = [];
 
     if (_currentGroupBy === 'none') {
         headers = [
-            { label: '來源頁面', key: 'source_url', sortable: true, render: (val) => renderUrlNode(val, '350px', 'text-muted') },
-            { label: '目標頁面', key: 'target_url', sortable: true, render: (val) => renderUrlNode(val, '350px') },
+            { label: '來源頁面', key: 'source_url', sortable: true, render: (val) => renderUrlNode(val) },
+            { label: '目標頁面', key: 'target_url', sortable: true, render: (val) => renderUrlNode(val) },
             { label: 'IP 位址', key: 'ip_address', sortable: true, truncate: '150px', className: 'font-mono text-sm' },
-            { label: 'HTTPS', key: 'is_secure', sortable: true, align: 'center', render: val => val ? createCell('是', 'text-success') : createCell('否', 'text-danger') },
-            {
-                label: 'HTTP 狀態', key: 'http_status_code', sortable: true, render: val => {
-                    if (val === -1) return createCell('連線錯誤', 'text-danger');
-                    if (val === -2) return createCell('DNS 錯誤', 'text-danger');
-                    if (val === -3) return createCell('逾時', 'text-warning');
-                    if (val === -4) return createCell('SSL 憑證錯誤', 'text-brand');
-                    if (val === -5) return createCell('未知錯誤', 'text-secondary');
-                    if (val >= 200 && val < 300) return createCell(val, 'text-success');
-                    if (val >= 300 && val < 400) return createCell(val, 'text-brand');
-                    if (val >= 400 && val < 500) return createCell(val, 'text-warning');
-                    return createCell(val, 'text-danger');
-                }
-            },
-            { label: '錯誤訊息', key: 'error_message', sortable: true, truncate: '250px', className: 'text-muted text-xs' }
+            { label: 'HTTPS', key: 'is_secure', sortable: true, align: 'center', render: val => val ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
+            { label: 'HTTP 狀態', key: 'http_status_code', sortable: true, align: 'center', render: val => renderHttpStatusCode(val) },
+            { label: '錯誤訊息', key: 'error_message', sortable: true, render: (val) => renderErrorMessage(val) }
         ];
     } else if (_currentGroupBy === 'target') {
         headers = [
-            { label: '目標頁面', key: 'target_url', sortable: true, render: (val) => renderUrlNode(val, '350px') },
+            { label: '目標頁面', key: 'target_url', sortable: true, render: (val) => renderUrlNode(val) },
             { label: 'IP 位址', key: 'ip_address', sortable: true, truncate: '150px', className: 'font-mono text-sm' },
-            {
-                label: 'HTTPS', key: 'is_secure', sortable: true, align: 'center',
-                render: (val) => val
-                    ? createCell('Yes', 'badge badge-success')
-                    : createCell('No', 'badge badge-danger')
-            },
-            { label: 'HTTP 狀態', key: 'http_status_code', sortable: true, align: 'center' },
-            { label: '錯誤訊息', key: 'error_message', sortable: true, truncate: '200px', className: 'text-muted text-xs' },
+            { label: 'HTTPS', key: 'is_secure', sortable: true, align: 'center', render: val => val ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
+            { label: 'HTTP 狀態', key: 'http_status_code', sortable: true, align: 'center', render: val => renderHttpStatusCode(val) },
+            { label: '錯誤訊息', key: 'error_message', sortable: true, render: (val) => renderErrorMessage(val) },
             { label: '來源數量', key: 'occurrence_count', sortable: true, align: 'center' },
-            {
-                label: '來源頁面', key: 'source_urls',
-                render: (val) => renderUrlArrayNode(val, '200px')
-            }
+            { label: '來源頁面', key: 'source_urls', render: (val) => renderUrlArrayNode(val) }
         ];
     } else if (_currentGroupBy === 'source') {
         headers = [
-            { label: '來源頁面', key: 'source_url', sortable: true, render: (val) => renderUrlNode(val, '400px', 'text-muted') },
+            { label: '來源頁面', key: 'source_url', sortable: true, render: (val) => renderUrlNode(val) },
             { label: '目標數量', key: 'occurrence_count', sortable: true, align: 'center' },
-            {
-                label: '目標頁面', key: 'targets',
-                render: (val) => renderUrlArrayNode(val, '300px', t => t.url)
-            }
+            { label: '目標頁面', key: 'targets', render: (val) => renderUrlArrayNode(val, '300px', t => t.url) }
         ];
     } else if (_currentGroupBy === 'domain') {
         headers = [
-            {
-                label: '外部網域', key: 'domain', sortable: true,
-                render: (val) => renderUrlNode(val.startsWith('http') ? val : 'https://' + val, '300px', 'font-mono text-link', val)
-            },
+            { label: '外部網域', key: 'domain', sortable: true, render: (val) => renderUrlNode('https://' + val, '300px', val) },
             { label: '目標數量', key: 'unique_urls_count', sortable: true, align: 'center' },
             { label: '來源數量', key: 'occurrence_count', sortable: true, align: 'center' },
-            {
-                label: '目標頁面', key: 'unique_urls',
-                render: (val) => renderUrlArrayNode(val, '250px')
-            },
-            {
-                label: '來源頁面', key: 'source_urls',
-                render: (val) => renderUrlArrayNode(val, '250px')
-            }
+            { label: '目標頁面', key: 'unique_urls', render: (val) => renderUrlArrayNode(val) },
+            { label: '來源頁面', key: 'source_urls', render: (val) => renderUrlArrayNode(val) }
         ];
     }
 
@@ -526,7 +391,7 @@ function renderExtResultsTable(res) {
             data: res.items || [],
             sort: _detailSort,
             colFilters: _detailColFilters,
-            pagination: { current: res.page, total: res.pages },
+            pagination: { current: res.page, total: res.total_pages },
             loading: false
         };
     }
@@ -579,32 +444,17 @@ function renderInternalResultsTable(res) {
 
     if (_internalGroupBy === 'source') {
         headers = [
-            { label: '來源頁面', key: 'source_url', sortable: true, render: (val) => renderUrlNode(val, '400px', 'text-muted') },
+            { label: '來源頁面', key: 'source_url', sortable: true, render: (val) => renderUrlNode(val) },
             { label: '目標數量', key: 'occurrence_count', sortable: true, align: 'center' },
-            {
-                label: '目標頁面', key: 'targets',
-                render: (val) => renderUrlArrayNode(val, '300px', t => t.url)
-            }
+            { label: '目標頁面', key: 'targets', render: (val) => renderUrlArrayNode(val, '300px', t => t.url) }
         ];
     } else {
         headers = [
-            { label: '來源頁面', key: 'source_url', sortable: true, render: (val) => renderUrlNode(val, '350px', 'text-muted') },
-            { label: '目標頁面', key: 'target_url', sortable: true, render: (val) => renderUrlNode(val, '350px') },
-            { label: 'HTTPS', key: 'is_secure', sortable: true, align: 'center', render: val => val ? createCell('是', 'text-success') : createCell('否', 'text-danger') },
-            {
-                label: 'HTTP 狀態', key: 'http_status_code', sortable: true, render: val => {
-                    if (val === -1) return createCell('連線錯誤', 'text-danger');
-                    if (val === -2) return createCell('DNS 錯誤', 'text-danger');
-                    if (val === -3) return createCell('逾時', 'text-warning');
-                    if (val === -4) return createCell('SSL 憑證錯誤', 'text-brand');
-                    if (val === -5) return createCell('未知錯誤', 'text-secondary');
-                    if (val >= 200 && val < 300) return createCell(val, 'text-success');
-                    if (val >= 300 && val < 400) return createCell(val, 'text-brand');
-                    if (val >= 400 && val < 500) return createCell(val, 'text-warning');
-                    return createCell(val, 'text-danger');
-                }
-            },
-            { label: '錯誤訊息', key: 'error_message', sortable: true, truncate: '250px', className: 'text-muted text-xs' }
+            { label: '來源頁面', key: 'source_url', sortable: true, render: (val) => renderUrlNode(val) },
+            { label: '目標頁面', key: 'target_url', sortable: true, render: (val) => renderUrlNode(val) },
+            { label: 'HTTPS', key: 'is_secure', sortable: true, align: 'center', render: val => val ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
+            { label: 'HTTP 狀態', key: 'http_status_code', sortable: true, align: 'center', render: val => renderHttpStatusCode(val) },
+            { label: '錯誤訊息', key: 'error_message', sortable: true, render: (val) => renderErrorMessage(val) }
         ];
     }
 
@@ -614,7 +464,7 @@ function renderInternalResultsTable(res) {
             data: res.items || [],
             sort: _internalSort,
             colFilters: _internalColFilters,
-            pagination: { current: res.page, total: res.pages },
+            pagination: { current: res.page, total: res.total_pages },
             loading: false
         };
     }
@@ -659,14 +509,6 @@ function bindWebComponentEvents() {
             _internalSort = { key: null, asc: true };
             _internalColFilters = {};
             loadResults(_currentJobId);
-        });
-    }
-
-    // ── 任務詳情返回列表按鈕 ──────────────────────────────────────────
-    const btnBackJobs = document.getElementById('btn-back-jobs');
-    if (btnBackJobs) {
-        btnBackJobs.addEventListener('click', () => {
-            window.location.hash = '#/jobs';
         });
     }
 
@@ -846,12 +688,6 @@ function bindWebComponentEvents() {
         if (configModalEl) configModalEl.style.display = 'flex';
     });
 
-    document.getElementById('job-config-close')?.addEventListener('click', () => {
-        if (configModalEl) configModalEl.style.display = 'none';
-    });
-    document.getElementById('job-config-ok')?.addEventListener('click', () => {
-        if (configModalEl) configModalEl.style.display = 'none';
-    });
 
     // Components Events
     if (jobControls) {
@@ -898,7 +734,7 @@ function bindWebComponentEvents() {
             }
         });
         jobControls.addEventListener('job-duplicate', () => { window.location.hash = `#/new?clone=${_currentJobId}`; });
-        jobControls.addEventListener('job-compare', () => { window.location.hash = `#/compare?base=${_currentJobId}`; });
+        jobControls.addEventListener('job-compare', () => { window.location.hash = `#/compare?target=${_currentJobId}`; });
         jobControls.addEventListener('job-transfer', () => { window.location.hash = `#/transfer?job=${_currentJobId}`; });
         jobControls.addEventListener('job-retry', async () => {
             if (await showConfirm('重試失敗連結？', '這會將狀態碼不是 2xx/3xx 的外部連結重新標記為等待中並繼續爬取。', '確定重試')) {
@@ -944,8 +780,8 @@ function bindWebComponentEvents() {
         extDataTable.addEventListener('filter-change', (e) => {
             _detailColFilters[e.detail.key] = e.detail.value;
             _currentPage = 1;
-            if (window._extFilterTimeout) clearTimeout(window._extFilterTimeout);
-            window._extFilterTimeout = setTimeout(() => {
+            clearTimeout(_extFilterTimeout);
+            _extFilterTimeout = setTimeout(() => {
                 loadExternalResultsPage(_currentJobId);
             }, 300);
         });
@@ -963,8 +799,8 @@ function bindWebComponentEvents() {
         intDataTable.addEventListener('filter-change', (e) => {
             _internalColFilters[e.detail.key] = e.detail.value;
             _internalCurrentPage = 1;
-            if (window._intFilterTimeout) clearTimeout(window._intFilterTimeout);
-            window._intFilterTimeout = setTimeout(() => {
+            clearTimeout(_intFilterTimeout);
+            _intFilterTimeout = setTimeout(() => {
                 loadInternalResultsPage(_currentJobId);
             }, 300);
         });
