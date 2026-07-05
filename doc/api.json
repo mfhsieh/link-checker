@@ -2221,6 +2221,22 @@
             }
           },
           {
+            "name": "ip_address",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ip Address"
+            }
+          },
+          {
             "name": "start_date",
             "in": "query",
             "required": false,
