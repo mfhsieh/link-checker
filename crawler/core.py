@@ -1161,7 +1161,8 @@ class CrawlerCore:
             return self._execute_external_request(current_url, tgt_dom, ip, accumulated_cookies)
         except httpx.RequestError as e:
             return None, (None, str(e))
-        except (ValueError, socket.gaierror, TypeError, AttributeError, UnicodeError) as e:
+        # 外部連結探測的「統一防線」
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return None, (None, str(e))
 
     def _handle_http_failure_retry(
