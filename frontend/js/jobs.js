@@ -151,6 +151,7 @@ export function renderJobList(jobs = null, containerEl = null) {
         {
             label: '狀態',
             key: 'status',
+            filterable: false,
             render: (val) => {
                 const span = document.createElement('span');
                 span.className = `badge badge-${val}`;

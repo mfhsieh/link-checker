@@ -144,6 +144,10 @@ export async function testSmtp(email) {
  * @param {number} [pageSize=50] - 每頁筆數
  * @returns {Promise<Object>} 回傳包含日誌陣列與分頁資訊的物件
  */
-export async function getLogs(page = 1, pageSize = 50) {
-  return api.get("/api/admin/logs", { page, page_size: pageSize });
+export async function getLogs(page = 1, pageSize = 50, filters = {}) {
+  const params = { page, page_size: pageSize };
+  if (filters.user_id) params.user_id = filters.user_id;
+  if (filters.event_type) params.event_type = filters.event_type;
+  if (filters.ip_address) params.ip_address = filters.ip_address;
+  return api.get("/api/admin/logs", params);
 }

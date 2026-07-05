@@ -795,6 +795,7 @@ class LogQueryArgs:  # pylint: disable=too-few-public-methods
         self,
         event_type: str | None = Query(None),
         user_id: str | None = Query(None),
+        ip_address: str | None = Query(None),
         dates: DateQueryArgs = Depends(),
         pagination: PaginationArgs = Depends(),
     ) -> None:
@@ -804,11 +805,13 @@ class LogQueryArgs:  # pylint: disable=too-few-public-methods
         Args:
             event_type (str | None): 事件類型過濾。
             user_id (str | None): 使用者 ID 過濾。
+            ip_address (str | None): IP 位址過濾。
             dates (DateQueryArgs): 日期範圍過濾。
             pagination (PaginationArgs): 分頁參數。
         """
         self.event_type = event_type
         self.user_id = user_id
+        self.ip_address = ip_address
         self.start_date = dates.start_date
         self.end_date = dates.end_date
         self.page = pagination.page
@@ -834,9 +837,11 @@ def get_logs(
     query = auth_db.query(AuthLog).order_by(AuthLog.created_at.desc())
 
     if query_args.event_type:
-        query = query.filter(AuthLog.event_type == query_args.event_type)
+        query = query.filter(AuthLog.event_type.ilike(f"%{query_args.event_type}%"))
     if query_args.user_id:
-        query = query.filter(AuthLog.user_id == query_args.user_id)
+        query = query.filter(AuthLog.user_id.ilike(f"%{query_args.user_id}%"))
+    if query_args.ip_address:
+        query = query.filter(AuthLog.ip_address.ilike(f"%{query_args.ip_address}%"))
 
     if query_args.start_date:
         try:

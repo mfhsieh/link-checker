@@ -52,13 +52,14 @@ function renderUsersTable(container) {
         if (!v) continue;
         data = data.filter((item) => {
             let val = item[k];
+            const lowerV = String(v).toLowerCase();
             if (k === "role") val = val === "admin" ? "管理員" : "使用者";
             else if (k === "status") val = statusMap[val] || val;
             else if (k === "created_at" || k === "last_login_at")
                 val = api.formatLocalTime(val);
             return String(val || "")
                 .toLowerCase()
-                .includes(v);
+                .includes(lowerV);
         });
     }
 
@@ -708,7 +709,7 @@ function renderLogsTable(container, res) {
 
         linkTable.addEventListener("filter-change", (e) => {
             _logColFilters[e.detail.key] = e.detail.value;
-            renderLogsTable(container, res);
+            loadLogs(1);
         });
 
         linkTable.addEventListener("page-change", (e) => {
@@ -719,16 +720,6 @@ function renderLogsTable(container, res) {
     }
 
     let data = [..._currentLogs];
-    for (const [k, v] of Object.entries(_logColFilters)) {
-        if (!v) continue;
-        data = data.filter((item) => {
-            let val = item[k];
-            if (k === "created_at") val = api.formatLocalTime(val);
-            return String(val || "")
-                .toLowerCase()
-                .includes(v.toLowerCase());
-        });
-    }
     data.sort((a, b) => {
         let valA = a[_logSort.key];
         let valB = b[_logSort.key];
@@ -752,6 +743,7 @@ function renderLogsTable(container, res) {
         {
             label: "時間",
             key: "created_at",
+            filterable: false,
             className: "text-xs font-mono text-muted",
             render: (v) => {
                 const span = document.createElement("span");
@@ -793,6 +785,7 @@ function renderLogsTable(container, res) {
         {
             label: "詳情",
             key: "detail",
+            filterable: false,
             className: "text-xs text-muted",
             render: (v) => {
                 const span = document.createElement("span");
@@ -821,7 +814,7 @@ async function loadLogs(page = 1) {
     _logPage = page;
     const container = document.getElementById("logs-container");
     try {
-        const res = await adminService.getLogs(page, 50);
+        const res = await adminService.getLogs(page, 50, _logColFilters);
         const items = res.items || [];
         if (!items.length) {
             container.replaceChildren();
@@ -886,11 +879,12 @@ function renderAllJobsTable(container) {
         if (!v) continue;
         data = data.filter((item) => {
             let val = item[k];
+            const lowerV = String(v).toLowerCase();
             if (k === "id") {
                 const ownerId = item.user_id || "匿名";
                 if (
-                    String(val).toLowerCase().includes(v) ||
-                    ownerId.toLowerCase().includes(v)
+                    String(val).toLowerCase().includes(lowerV) ||
+                    ownerId.toLowerCase().includes(lowerV)
                 )
                     return true;
                 return false;
@@ -898,7 +892,7 @@ function renderAllJobsTable(container) {
             else if (k === "created_at") val = api.formatLocalTime(val);
             return String(val || "")
                 .toLowerCase()
-                .includes(v);
+                .includes(lowerV);
         });
     }
 
