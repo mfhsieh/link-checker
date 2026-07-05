@@ -28,6 +28,7 @@ let _currentExcludeEnabled = true;
 let _currentGroupBy = 'none';
 let _currentPage = 1;
 let _eventsBound = false;
+let _pollingInterval = null;
 let _currentTab = 'external';
 
 let _internalCurrentPage = 1;
@@ -70,6 +71,14 @@ const intDataTable = document.getElementById('int-data-table');
 function startSseStream(jobId) {
     if (_eventSource) _eventSource.close();
     _eventSource = new EventSource(`/api/jobs/${jobId}/stream`);
+    
+    // 每 30 秒定期拉取一次統計卡片與報表（如果還在跑的話）
+    if (!_pollingInterval) {
+        _pollingInterval = setInterval(() => {
+            loadResults(jobId);
+        }, 30000);
+    }
+
     _eventSource.onmessage = (event) => {
         try {
             const job = JSON.parse(event.data);
@@ -90,6 +99,10 @@ function stopSseStream() {
     if (_eventSource) {
         _eventSource.close();
         _eventSource = null;
+    }
+    if (_pollingInterval) {
+        clearInterval(_pollingInterval);
+        _pollingInterval = null;
     }
 }
 
@@ -114,6 +127,12 @@ function clearJobDetailUI() {
     if (jobStatusCard) jobStatusCard.job = null;
     if (jobProgressCard) jobProgressCard.job = null;
     if (jobControls) jobControls.job = null;
+    
+    // 清空統計卡片與報表，防止殘留上一個任務的舊資料
+    if (jobExtStats) jobExtStats.stats = null;
+    if (jobIntStats) jobIntStats.stats = null;
+    if (extDataTable) extDataTable.config = { data: [], loading: true };
+    if (intDataTable) intDataTable.config = { data: [], loading: true };
 }
 
 /**
@@ -227,11 +246,17 @@ function renderJobInfo(job) {
  * @returns {Promise<void>}
  */
 async function loadResults(jobId) {
+    // API 串行加載減壓 (Sequential Loading)
+    // 優先加載並渲染分頁表格資料
+    await Promise.all([
+        loadExternalResultsPage(jobId),
+        loadInternalResultsPage(jobId)
+    ]);
+    
+    // 待表格加載完成後，才發送請求去拉取統計卡片摘要
     await Promise.all([
         loadExternalSummary(jobId),
-        loadExternalResultsPage(jobId),
-        loadInternalSummary(jobId),
-        loadInternalResultsPage(jobId)
+        loadInternalSummary(jobId)
     ]);
 }
 

@@ -165,11 +165,17 @@ export class LinkDataTable extends HTMLElement {
                 position: relative;
                 min-height: 200px;
             }
-            table {
-                width: 100%;
-                border-collapse: collapse;
+            table { 
+                width: 100%; 
+                border-collapse: separate; 
+                border-spacing: 0;
                 font-size: 0.875rem;
                 text-align: left;
+                transition: opacity 0.2s ease;
+            }
+            .table-container.is-loading table {
+                opacity: 0.5;
+                pointer-events: none;
             }
             th {
                 background: var(--surface-raised);
@@ -249,7 +255,7 @@ export class LinkDataTable extends HTMLElement {
             .loading-overlay {
                 position: absolute;
                 top: 0; left: 0; right: 0; bottom: 0;
-                background: hsla(222, 47%, 5%, 0.85);
+                background: transparent;
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -313,6 +319,10 @@ export class LinkDataTable extends HTMLElement {
                 ? activeEl.dataset.key
                 : null;
 
+        const container = this.shadowRoot.querySelector('.table-container');
+        if (container) {
+            container.classList.toggle("is-loading", this._loading);
+        }
         this._loadingOverlayEl.classList.toggle("active", this._loading);
         this._renderHeaders();
         this._renderBody();
