@@ -328,30 +328,10 @@
 
   .app-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: 60px auto 1fr;
+    grid-template-rows: 60px 1fr;
     grid-template-areas:
       "topbar"
-      "sidebar"
       "main";
-  }
-
-  .sidebar {
-    position: static;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--surface-border-subtle);
-    padding: var(--space-2) var(--space-2);
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-
-  .sidebar-nav {
-    flex-direction: row;
-    gap: var(--space-1);
-  }
-
-  .sidebar-section-title {
-    display: none;
   }
 
   .main-content {

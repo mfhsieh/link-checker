@@ -61,6 +61,12 @@ class TopbarBrand extends HTMLElement {
                 border-radius: 1rem;
                 padding: .125rem .5rem;
             }
+
+            @media (max-width: 768px) {
+                .topbar-logo {
+                    display: none;
+                }
+            }
         `;
 
         const brandLinkEl = document.createElement('a');

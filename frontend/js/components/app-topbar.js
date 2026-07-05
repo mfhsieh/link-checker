@@ -46,6 +46,32 @@ class AppTopbar extends HTMLElement {
                 position: sticky;
                 top: 0;
                 z-index: 100;
+                padding-left: var(--space-4);
+            }
+            .menu-toggle {
+                display: none;
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                padding: 0;
+                margin-left: 0.5rem;
+                margin-right: 0.5rem;
+                color: var(--text-primary);
+                align-items: center;
+                justify-content: center;
+            }
+            .menu-toggle-icon {
+                display: inline-block;
+                width: 24px;
+                height: 24px;
+                -webkit-mask: url(/static/image/icon-menu.svg) no-repeat center / contain;
+                mask: url(/static/image/icon-menu.svg) no-repeat center / contain;
+                background-color: currentColor;
+            }
+            @media (max-width: 768px) {
+                .menu-toggle {
+                    display: flex;
+                }
             }
         `;
 
@@ -58,8 +84,35 @@ class AppTopbar extends HTMLElement {
 
         const menuEl = document.createElement('topbar-menu');
 
+        const menuToggleBtn = document.createElement('button');
+        menuToggleBtn.className = 'menu-toggle';
+        menuToggleBtn.setAttribute('aria-label', '開啟側邊欄');
+        const menuIcon = document.createElement('span');
+        menuIcon.className = 'menu-toggle-icon';
+        menuToggleBtn.appendChild(menuIcon);
+
+        menuToggleBtn.addEventListener('click', () => {
+            window.dispatchEvent(new CustomEvent('sidebar-toggle'));
+        });
+
+        window.addEventListener('sidebar-state', (e) => {
+            if (e.detail.open) {
+                menuIcon.style.mask = 'url(/static/image/icon-close.svg) no-repeat center / contain';
+                menuIcon.style.webkitMask = 'url(/static/image/icon-close.svg) no-repeat center / contain';
+            } else {
+                menuIcon.style.mask = 'url(/static/image/icon-menu.svg) no-repeat center / contain';
+                menuIcon.style.webkitMask = 'url(/static/image/icon-menu.svg) no-repeat center / contain';
+            }
+        });
+
+        const leftGroup = document.createElement('div');
+        leftGroup.style.display = 'flex';
+        leftGroup.style.alignItems = 'center';
+        leftGroup.appendChild(menuToggleBtn);
+        leftGroup.appendChild(brandEl);
+
         this.shadowRoot.appendChild(styleEl);
-        this.shadowRoot.appendChild(brandEl);
+        this.shadowRoot.appendChild(leftGroup);
         this.shadowRoot.appendChild(menuEl);
     }
 }

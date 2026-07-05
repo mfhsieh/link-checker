@@ -16,7 +16,7 @@ class AppSidebar extends HTMLElement {
      * @returns {string[]} 需要被觀察的屬性名稱陣列
      */
     static get observedAttributes() {
-        return ['mode', 'active-id', 'is-admin'];
+        return ['mode', 'active-id', 'is-admin', 'open'];
     }
 
     /**
@@ -26,6 +26,12 @@ class AppSidebar extends HTMLElement {
      * @param {string|null} newValue - 新的屬性值
      */
     attributeChangedCallback(name, oldValue, newValue) {
+        if (name === 'open') {
+            window.dispatchEvent(new CustomEvent('sidebar-state', { 
+                detail: { open: newValue !== null } 
+            }));
+            return; // 不需要觸發 render()
+        }
         if (oldValue !== newValue) {
             this.render();
         }
@@ -38,6 +44,19 @@ class AppSidebar extends HTMLElement {
         if (!this.hasRendered) {
             this.render();
             this.hasRendered = true;
+        }
+        
+        // 監聽全域的 sidebar-toggle 事件
+        this._toggleHandler = () => this.toggleAttribute('open');
+        window.addEventListener('sidebar-toggle', this._toggleHandler);
+    }
+
+    /**
+     * 當元素從 DOM 中被移除時被呼叫
+     */
+    disconnectedCallback() {
+        if (this._toggleHandler) {
+            window.removeEventListener('sidebar-toggle', this._toggleHandler);
         }
     }
 
@@ -89,7 +108,51 @@ class AppSidebar extends HTMLElement {
             .sidebar.ready {
                 opacity: 1;
             }
+            .sidebar-overlay {
+                display: none;
+            }
+            @media (max-width: 768px) {
+                .sidebar-overlay {
+                    position: fixed;
+                    top: 61px;
+                    left: 0;
+                    width: 100vw;
+                    height: calc(100vh - 61px);
+                    background: rgba(0, 0, 0, 0.4);
+                    z-index: 1000;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                    pointer-events: none;
+                }
+                .sidebar {
+                    position: fixed;
+                    top: 61px;
+                    left: 0;
+                    bottom: 0;
+                    width: 150px;
+                    background: var(--surface-base);
+                    z-index: 1001;
+                    transform: translateX(-100%);
+                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    border-right: 1px solid var(--surface-border-subtle);
+                    overflow-y: auto;
+                }
+                :host([open]) .sidebar-overlay {
+                    display: block;
+                    opacity: 1;
+                    pointer-events: auto;
+                }
+                :host([open]) .sidebar {
+                    transform: translateX(0);
+                }
+            }
         `;
+
+        const overlayEl = document.createElement('div');
+        overlayEl.className = 'sidebar-overlay';
+        overlayEl.addEventListener('click', () => {
+            this.removeAttribute('open');
+        });
 
         const navEl = document.createElement('nav');
         navEl.className = 'sidebar';
@@ -151,6 +214,13 @@ class AppSidebar extends HTMLElement {
                     aEl.appendChild(document.createTextNode(item.text));
                 }
 
+                // 在窄螢幕點擊連結時，自動關閉側邊欄
+                aEl.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        this.removeAttribute('open');
+                    }
+                });
+
                 liEl.appendChild(aEl);
                 ulEl.appendChild(liEl);
             });
@@ -176,6 +246,7 @@ class AppSidebar extends HTMLElement {
         this.shadowRoot.appendChild(linkBaseEl);
         this.shadowRoot.appendChild(linkLayoutEl);
         this.shadowRoot.appendChild(styleEl);
+        this.shadowRoot.appendChild(overlayEl);
         this.shadowRoot.appendChild(navEl);
     }
 

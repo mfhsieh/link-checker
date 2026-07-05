@@ -1007,13 +1007,24 @@ ol {
 .modal-close-btn {
   background: none;
   border: none;
-  font-size: 1.5rem;
   cursor: pointer;
   color: var(--text-muted);
   line-height: 1;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-md);
   transition: color 0.2s;
+}
+
+.modal-close-icon {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  -webkit-mask: url(/static/image/icon-close.svg) no-repeat center / contain;
+  mask: url(/static/image/icon-close.svg) no-repeat center / contain;
+  background-color: currentColor;
 }
 
 .modal-close-btn:hover {

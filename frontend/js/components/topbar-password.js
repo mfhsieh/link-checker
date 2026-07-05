@@ -90,7 +90,7 @@ class TopbarPassword extends HTMLElement {
         const closeBtn = document.createElement('button');
         closeBtn.className = 'modal-close-btn';
         closeBtn.id = 'password-close';
-        closeBtn.innerHTML = '&times;';
+        closeBtn.innerHTML = '<span class="modal-close-icon"></span>';
 
         modalHeader.appendChild(modalTitle);
         modalHeader.appendChild(closeBtn);
