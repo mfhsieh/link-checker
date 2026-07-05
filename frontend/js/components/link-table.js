@@ -20,11 +20,17 @@
  */
 export class LinkDataTable extends HTMLElement {
     /**
+     * 篩選框輸入防抖延遲時間 (毫秒)
+     * @type {number}
+     */
+    static FILTER_DEBOUNCE_MS = 400;
+
+    /**
      * 建立 LinkDataTable 元件實例，初始化私有狀態與 DOM 快取參考。
      */
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
+        this.attachShadow({ mode: "open" });
 
         /** @type {Array<Object>} @private */
         this._headers = [];
@@ -71,11 +77,15 @@ export class LinkDataTable extends HTMLElement {
          */
         this._rowClickable = false;
 
-        // DOM 快取（在 render() 後初始化）
-        /** @type {HTMLTableSectionElement|null} @private */ this._tableHeadEl = null;
-        /** @type {HTMLTableSectionElement|null} @private */ this._tableBodyEl = null;
-        /** @type {HTMLElement|null}             @private */ this._paginationEl = null;
-        /** @type {HTMLElement|null}             @private */ this._loadingOverlayEl = null;
+    // DOM 快取（在 render() 後初始化）
+    /** @type {HTMLTableSectionElement|null} @private */ this._tableHeadEl =
+            null;
+    /** @type {HTMLTableSectionElement|null} @private */ this._tableBodyEl =
+            null;
+    /** @type {HTMLElement|null}             @private */ this._paginationEl =
+            null;
+    /** @type {HTMLElement|null}             @private */ this._loadingOverlayEl =
+            null;
     }
 
     /**
@@ -116,7 +126,7 @@ export class LinkDataTable extends HTMLElement {
         this._colFilters = config.colFilters || {};
         this._pagination = config.pagination || { current: 1, total: 1 };
         this._loading = config.loading || false;
-        
+
         if (config.selectable !== undefined) {
             this._selectable = config.selectable;
         }
@@ -128,7 +138,7 @@ export class LinkDataTable extends HTMLElement {
         }
         // 如果資料更新（例如換頁），我們選擇保留勾選狀態，讓使用者可跨頁勾選
         // 若外部需清空，可傳遞選取的 keys 或由外部重新實例化
-        
+
         this.updateView();
     }
 
@@ -138,12 +148,12 @@ export class LinkDataTable extends HTMLElement {
      * 避免 updateView() 及子渲染方法重複查詢 Shadow DOM。
      */
     render() {
-        const linkBaseEl = document.createElement('link');
-        linkBaseEl.rel = 'stylesheet';
-        linkBaseEl.href = '/static/css/base.css';
+        const linkBaseEl = document.createElement("link");
+        linkBaseEl.rel = "stylesheet";
+        linkBaseEl.href = "/static/css/base.css";
         this.shadowRoot.appendChild(linkBaseEl);
 
-        const styleEl = document.createElement('style');
+        const styleEl = document.createElement("style");
         styleEl.textContent = `
             :host { display: block; position: relative; }
             .table-container {
@@ -264,28 +274,28 @@ export class LinkDataTable extends HTMLElement {
         `;
         this.shadowRoot.appendChild(styleEl);
 
-        const containerEl = document.createElement('div');
-        containerEl.className = 'table-container';
+        const containerEl = document.createElement("div");
+        containerEl.className = "table-container";
 
-        const tableEl = document.createElement('table');
-        this._tableHeadEl = document.createElement('thead');
-        this._tableBodyEl = document.createElement('tbody');
+        const tableEl = document.createElement("table");
+        this._tableHeadEl = document.createElement("thead");
+        this._tableBodyEl = document.createElement("tbody");
 
         tableEl.appendChild(this._tableHeadEl);
         tableEl.appendChild(this._tableBodyEl);
         containerEl.appendChild(tableEl);
 
-        this._loadingOverlayEl = document.createElement('div');
-        this._loadingOverlayEl.className = 'loading-overlay';
-        const spinnerEl = document.createElement('div');
-        spinnerEl.className = 'spinner';
+        this._loadingOverlayEl = document.createElement("div");
+        this._loadingOverlayEl.className = "loading-overlay";
+        const spinnerEl = document.createElement("div");
+        spinnerEl.className = "spinner";
         this._loadingOverlayEl.appendChild(spinnerEl);
         containerEl.appendChild(this._loadingOverlayEl);
 
         this.shadowRoot.appendChild(containerEl);
 
-        this._paginationEl = document.createElement('div');
-        this._paginationEl.className = 'pagination';
+        this._paginationEl = document.createElement("div");
+        this._paginationEl.className = "pagination";
         this.shadowRoot.appendChild(this._paginationEl);
     }
 
@@ -293,10 +303,27 @@ export class LinkDataTable extends HTMLElement {
      * 依據當前狀態更新畫面：載入遮罩、表頭、表格內容、分頁列。
      */
     updateView() {
-        this._loadingOverlayEl.classList.toggle('active', this._loading);
+        const activeEl = this.shadowRoot.activeElement;
+        const activeFilterKey =
+            activeEl && activeEl.classList.contains("col-filter")
+                ? activeEl.dataset.key
+                : null;
+
+        this._loadingOverlayEl.classList.toggle("active", this._loading);
         this._renderHeaders();
         this._renderBody();
         this._renderPagination();
+
+        if (activeFilterKey) {
+            const inputToFocus = this.shadowRoot.querySelector(
+                `.col-filter[data-key="${activeFilterKey}"]`,
+            );
+            if (inputToFocus) {
+                inputToFocus.focus();
+                const valLen = inputToFocus.value.length;
+                inputToFocus.setSelectionRange(valLen, valLen);
+            }
+        }
     }
 
     /**
@@ -306,93 +333,108 @@ export class LinkDataTable extends HTMLElement {
     _renderHeaders() {
         this._tableHeadEl.replaceChildren();
 
-        const trEl = document.createElement('tr');
+        const trEl = document.createElement("tr");
 
         // 如果開啟選取功能，加入表頭 Checkbox
         if (this._selectable) {
-            const thCb = document.createElement('th');
-            thCb.style.width = '40px';
-            thCb.style.textAlign = 'center';
-            
-            const cbAll = document.createElement('input');
-            cbAll.type = 'checkbox';
-            cbAll.style.cursor = 'pointer';
-            
+            const thCb = document.createElement("th");
+            thCb.style.width = "40px";
+            thCb.style.textAlign = "center";
+
+            const cbAll = document.createElement("input");
+            cbAll.type = "checkbox";
+            cbAll.style.cursor = "pointer";
+
             // 計算目前頁面所有有效的 key
-            const pageKeys = this._data.map(row => this._getRowKey(row)).filter(k => k !== undefined);
-            
+            const pageKeys = this._data
+                .map((row) => this._getRowKey(row))
+                .filter((k) => k !== undefined);
+
             if (pageKeys.length > 0) {
-                const allSelected = pageKeys.every(k => this._selectedKeys.has(k));
-                const someSelected = pageKeys.some(k => this._selectedKeys.has(k));
+                const allSelected = pageKeys.every((k) => this._selectedKeys.has(k));
+                const someSelected = pageKeys.some((k) => this._selectedKeys.has(k));
                 cbAll.checked = allSelected;
                 cbAll.indeterminate = someSelected && !allSelected;
             }
-            
-            cbAll.addEventListener('change', (e) => {
+
+            cbAll.addEventListener("change", (e) => {
                 const isChecked = e.target.checked;
-                pageKeys.forEach(k => {
+                pageKeys.forEach((k) => {
                     if (isChecked) this._selectedKeys.add(k);
                     else this._selectedKeys.delete(k);
                 });
                 this._dispatchSelectionChange();
                 this.updateView(); // 重新渲染更新勾選狀態
             });
-            
+
             thCb.appendChild(cbAll);
             trEl.appendChild(thCb);
         }
 
-        this._headers.forEach(col => {
-            const thEl = document.createElement('th');
+        this._headers.forEach((col) => {
+            const thEl = document.createElement("th");
 
-            const headerTopEl = document.createElement('div');
-            headerTopEl.className = 'th-header';
+            const headerTopEl = document.createElement("div");
+            headerTopEl.className = "th-header";
             headerTopEl.textContent = col.label;
 
             if (col.sortable && col.key) {
-                thEl.classList.add('sortable');
+                thEl.classList.add("sortable");
                 thEl.dataset.key = col.key;
 
-                const sortIconEl = document.createElement('span');
-                sortIconEl.className = 'sort-icon';
+                const sortIconEl = document.createElement("span");
+                sortIconEl.className = "sort-icon";
 
                 if (this._sort.key === col.key) {
-                    sortIconEl.textContent = this._sort.asc ? '▲' : '▼';
-                    sortIconEl.style.color = 'var(--text-primary)';
+                    sortIconEl.textContent = this._sort.asc ? "▲" : "▼";
+                    sortIconEl.style.color = "var(--text-primary)";
                 } else {
-                    sortIconEl.textContent = '⇅';
+                    sortIconEl.textContent = "⇅";
                 }
                 headerTopEl.appendChild(sortIconEl);
 
-                thEl.addEventListener('click', (e) => {
+                thEl.addEventListener("click", (e) => {
                     // 點擊篩選輸入框時不觸發排序
-                    if (e.target.tagName === 'INPUT') return;
+                    if (e.target.tagName === "INPUT") return;
                     const newAsc = this._sort.key === col.key ? !this._sort.asc : true;
-                    this.dispatchEvent(new CustomEvent('sort-change', {
-                        detail: { key: col.key, asc: newAsc },
-                        bubbles: true,
-                        composed: true,
-                    }));
+                    this.dispatchEvent(
+                        new CustomEvent("sort-change", {
+                            detail: { key: col.key, asc: newAsc },
+                            bubbles: true,
+                            composed: true,
+                        }),
+                    );
                 });
             }
 
             thEl.appendChild(headerTopEl);
 
-            if (col.filterable !== false && col.key && !['_select', 'targets', 'source_urls', 'unique_urls'].includes(col.key)) {
-                const filterInputEl = document.createElement('input');
-                filterInputEl.type = 'text';
-                filterInputEl.className = 'col-filter';
-                filterInputEl.placeholder = '篩選...';
-                filterInputEl.value = this._colFilters[col.key] || '';
+            if (
+                col.filterable !== false &&
+                col.key &&
+                !["_select", "targets", "source_urls", "unique_urls"].includes(col.key)
+            ) {
+                const filterInputEl = document.createElement("input");
+                filterInputEl.type = "text";
+                filterInputEl.className = "col-filter";
+                filterInputEl.dataset.key = col.key;
+                filterInputEl.placeholder = "篩選...";
+                filterInputEl.value = this._colFilters[col.key] || "";
 
-                filterInputEl.addEventListener('input', (e) => {
-                    this.dispatchEvent(new CustomEvent('filter-change', {
-                        detail: { key: col.key, value: e.target.value.toLowerCase() },
-                        bubbles: true,
-                        composed: true,
-                    }));
+                filterInputEl.addEventListener("input", (e) => {
+                    const val = e.target.value.toLowerCase();
+                    if (this._filterTimeout) clearTimeout(this._filterTimeout);
+                    this._filterTimeout = setTimeout(() => {
+                        this.dispatchEvent(
+                            new CustomEvent("filter-change", {
+                                detail: { key: col.key, value: val },
+                                bubbles: true,
+                                composed: true,
+                            }),
+                        );
+                    }, LinkDataTable.FILTER_DEBOUNCE_MS);
                 });
-                filterInputEl.addEventListener('click', e => e.stopPropagation());
+                filterInputEl.addEventListener("click", (e) => e.stopPropagation());
                 thEl.appendChild(filterInputEl);
             }
 
@@ -415,29 +457,34 @@ export class LinkDataTable extends HTMLElement {
         this._tableBodyEl.replaceChildren();
 
         if (this._data.length === 0) {
-            const trEl = document.createElement('tr');
-            const tdEl = document.createElement('td');
+            const trEl = document.createElement("tr");
+            const tdEl = document.createElement("td");
             tdEl.colSpan = this._headers.length || 1;
-            tdEl.className = 'empty-state';
-            tdEl.textContent = '暫無資料';
+            tdEl.className = "empty-state";
+            tdEl.textContent = "暫無資料";
             trEl.appendChild(tdEl);
             this._tableBodyEl.appendChild(trEl);
             return;
         }
 
-        this._data.forEach(row => {
-            const trEl = document.createElement('tr');
-            
+        this._data.forEach((row) => {
+            const trEl = document.createElement("tr");
+
             if (this._rowClickable) {
-                trEl.style.cursor = 'pointer';
-                trEl.addEventListener('click', (e) => {
+                trEl.style.cursor = "pointer";
+                trEl.addEventListener("click", (e) => {
                     // 如果點擊的是按鈕或其子元素，或者輸入框等，不觸發 row-click
-                    if (e.target.closest('button, a, input, select, textarea, .job-actions')) return;
-                    this.dispatchEvent(new CustomEvent('row-click', {
-                        detail: row,
-                        bubbles: true,
-                        composed: true
-                    }));
+                    if (
+                        e.target.closest("button, a, input, select, textarea, .job-actions")
+                    )
+                        return;
+                    this.dispatchEvent(
+                        new CustomEvent("row-click", {
+                            detail: row,
+                            bubbles: true,
+                            composed: true,
+                        }),
+                    );
                 });
             }
 
@@ -445,14 +492,14 @@ export class LinkDataTable extends HTMLElement {
 
             // 如果開啟選取功能，加入該列的 Checkbox
             if (this._selectable) {
-                const tdCb = document.createElement('td');
-                tdCb.style.textAlign = 'center';
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.style.cursor = 'pointer';
+                const tdCb = document.createElement("td");
+                tdCb.style.textAlign = "center";
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.style.cursor = "pointer";
                 if (rKey !== undefined) {
                     cb.checked = this._selectedKeys.has(rKey);
-                    cb.addEventListener('change', (e) => {
+                    cb.addEventListener("change", (e) => {
                         if (e.target.checked) this._selectedKeys.add(rKey);
                         else this._selectedKeys.delete(rKey);
                         this._dispatchSelectionChange();
@@ -465,15 +512,18 @@ export class LinkDataTable extends HTMLElement {
                 trEl.appendChild(tdCb);
             }
 
-            this._headers.forEach(col => {
-                const tdEl = document.createElement('td');
+            this._headers.forEach((col) => {
+                const tdEl = document.createElement("td");
                 if (col.align) tdEl.style.textAlign = col.align;
                 if (col.truncate) {
-                    tdEl.classList.add('truncate');
-                    tdEl.style.maxWidth = typeof col.truncate === 'string' ? col.truncate : '300px';
+                    tdEl.classList.add("truncate");
+                    tdEl.style.maxWidth =
+                        typeof col.truncate === "string" ? col.truncate : "300px";
                 }
                 if (col.className) {
-                    tdEl.className = tdEl.className ? `${tdEl.className} ${col.className}` : col.className;
+                    tdEl.className = tdEl.className
+                        ? `${tdEl.className} ${col.className}`
+                        : col.className;
                 }
 
                 if (col.render) {
@@ -485,7 +535,7 @@ export class LinkDataTable extends HTMLElement {
                         tdEl.textContent = String(node); // 防呆 fallback
                     }
                 } else {
-                    tdEl.textContent = row[col.key] !== undefined ? row[col.key] : '-';
+                    tdEl.textContent = row[col.key] !== undefined ? row[col.key] : "-";
                 }
 
                 trEl.appendChild(tdEl);
@@ -505,28 +555,28 @@ export class LinkDataTable extends HTMLElement {
 
         const { current, total } = this._pagination;
         if (total <= 1) {
-            this._paginationEl.style.display = 'none';
+            this._paginationEl.style.display = "none";
             return;
         }
-        this._paginationEl.style.display = 'flex';
+        this._paginationEl.style.display = "flex";
 
-        const btnPrevEl = document.createElement('button');
-        btnPrevEl.className = 'btn btn-secondary';
-        btnPrevEl.textContent = '上一頁';
+        const btnPrevEl = document.createElement("button");
+        btnPrevEl.className = "btn btn-secondary";
+        btnPrevEl.textContent = "上一頁";
         btnPrevEl.disabled = current <= 1;
-        btnPrevEl.addEventListener('click', () => {
+        btnPrevEl.addEventListener("click", () => {
             if (current > 1) this._dispatchPageChange(current - 1);
         });
 
-        const infoEl = document.createElement('div');
-        infoEl.className = 'page-info';
+        const infoEl = document.createElement("div");
+        infoEl.className = "page-info";
         infoEl.textContent = `第 ${current} 頁 / 共 ${total} 頁`;
 
-        const btnNextEl = document.createElement('button');
-        btnNextEl.className = 'btn btn-secondary';
-        btnNextEl.textContent = '下一頁';
+        const btnNextEl = document.createElement("button");
+        btnNextEl.className = "btn btn-secondary";
+        btnNextEl.textContent = "下一頁";
         btnNextEl.disabled = current >= total;
-        btnNextEl.addEventListener('click', () => {
+        btnNextEl.addEventListener("click", () => {
             if (current < total) this._dispatchPageChange(current + 1);
         });
 
@@ -542,22 +592,24 @@ export class LinkDataTable extends HTMLElement {
      * @private
      */
     _dispatchPageChange(page) {
-        this.dispatchEvent(new CustomEvent('page-change', {
-            detail: { page },
-            bubbles: true,
-            composed: true,
-        }));
+        this.dispatchEvent(
+            new CustomEvent("page-change", {
+                detail: { page },
+                bubbles: true,
+                composed: true,
+            }),
+        );
     }
 
     /**
      * 從 row 取出對應的唯一鍵值 (用於 selection)
-     * @param {Object} row 
+     * @param {Object} row
      * @returns {string|undefined}
      * @private
      */
     _getRowKey(row) {
         if (this._rowKey) return row[this._rowKey];
-        return row['url'] || row['URL'] || row['domain'] || row['target_url'];
+        return row["url"] || row["URL"] || row["domain"] || row["target_url"];
     }
 
     /**
@@ -566,11 +618,13 @@ export class LinkDataTable extends HTMLElement {
      * @private
      */
     _dispatchSelectionChange() {
-        this.dispatchEvent(new CustomEvent('selection-change', {
-            detail: { selectedKeys: Array.from(this._selectedKeys) },
-            bubbles: true,
-            composed: true,
-        }));
+        this.dispatchEvent(
+            new CustomEvent("selection-change", {
+                detail: { selectedKeys: Array.from(this._selectedKeys) },
+                bubbles: true,
+                composed: true,
+            }),
+        );
     }
 
     /**
@@ -587,4 +641,4 @@ export class LinkDataTable extends HTMLElement {
     teardownEventListeners() { }
 }
 
-customElements.define('link-table', LinkDataTable);
+customElements.define("link-table", LinkDataTable);

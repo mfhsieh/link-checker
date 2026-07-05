@@ -27,8 +27,8 @@ class AppSidebar extends HTMLElement {
      */
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === 'open') {
-            window.dispatchEvent(new CustomEvent('sidebar-state', { 
-                detail: { open: newValue !== null } 
+            window.dispatchEvent(new CustomEvent('sidebar-state', {
+                detail: { open: newValue !== null }
             }));
             return; // 不需要觸發 render()
         }
@@ -45,7 +45,7 @@ class AppSidebar extends HTMLElement {
             this.render();
             this.hasRendered = true;
         }
-        
+
         // 監聽全域的 sidebar-toggle 事件
         this._toggleHandler = () => this.toggleAttribute('open');
         window.addEventListener('sidebar-toggle', this._toggleHandler);
@@ -111,7 +111,7 @@ class AppSidebar extends HTMLElement {
             .sidebar-overlay {
                 display: none;
             }
-            @media (max-width: 768px) {
+            @media (max-width: 640px) {
                 .sidebar-overlay {
                     position: fixed;
                     top: 61px;
@@ -216,7 +216,7 @@ class AppSidebar extends HTMLElement {
 
                 // 在窄螢幕點擊連結時，自動關閉側邊欄
                 aEl.addEventListener('click', () => {
-                    if (window.innerWidth <= 768) {
+                    if (window.innerWidth <= 640) {
                         this.removeAttribute('open');
                     }
                 });

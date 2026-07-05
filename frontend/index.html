@@ -2,90 +2,96 @@
 <html lang="zh-TW">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>網站連結檢查系統 — 登入</title>
-  <meta name="description" content="網站連結檢查系統登入頁面。本系統採邀請制，請使用邀請郵件中的連結登入。" />
-  <link rel="stylesheet" href="/static/css/base.css" />
-  <link rel="stylesheet" href="/static/css/components.css" />
-  <link rel="stylesheet" href="/static/css/layout.css" />
-  <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>網站連結檢查系統 — 登入</title>
+    <meta name="description" content="網站連結檢查系統登入頁面。本系統採邀請制，請使用邀請郵件中的連結登入。" />
+    <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/components.css" />
+    <link rel="stylesheet" href="/static/css/layout.css" />
 </head>
 
 <body>
 
-  <main class="login-page" id="login-page">
-    <div class="login-card" role="main">
+    <main class="login-page" id="login-page">
+        <div class="login-card" role="main">
 
-      <!-- Logo -->
-      <div class="login-logo">
-        <div class="login-logo-icon" aria-hidden="true" title="Link Checker">
-          <img src="/static/image/logo.svg" alt="Link Checker" style="width: 28px; height: 28px;" />
+            <!-- Logo -->
+            <div class="login-logo">
+                <div class="login-logo-icon" aria-hidden="true" title="Link Checker">
+                    <img src="/static/image/logo.svg" alt="Link Checker" style="width: 28px; height: 28px;" />
+                </div>
+                <div>
+                    <div
+                        style="font-size:0.75rem;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase">
+                        Link
+                    </div>
+                    <div style="font-size:1.125rem;font-weight:700;color:var(--text-primary)">Checker</div>
+                </div>
+            </div>
+
+            <!-- Heading -->
+            <h1 class="login-heading">歡迎回來</h1>
+            <p class="login-subheading" id="login-mode-label">請輸入您的帳號與密碼登入</p>
+
+            <!-- Login Form -->
+            <form class="login-form" id="login-form" novalidate>
+
+                <!-- Email -->
+                <div class="form-group">
+                    <label class="form-label" for="login-email">電子郵件 <span class="required">*</span></label>
+                    <input class="form-input" type="email" id="login-email" name="email" placeholder="you@example.com"
+                        autocomplete="email" required />
+                </div>
+
+                <!-- Password（一般登入用）-->
+                <div class="form-group" id="password-group">
+                    <label class="form-label" for="login-password">密碼 <span class="required">*</span></label>
+                    <input class="form-input" type="password" id="login-password" name="password"
+                        placeholder="••••••••••••" autocomplete="current-password" />
+                    <div style="text-align: right;">
+                        <a href="/forgot-password.html" class="text-link text-sm">忘記密碼？</a>
+                    </div>
+                </div>
+
+                <!-- Invite Token（首次登入，hidden by default）-->
+                <div class="form-group" id="token-group" style="display:none">
+                    <label class="form-label" for="login-token">邀請碼 <span class="required">*</span></label>
+                    <input class="form-input font-mono" type="text" id="login-token" name="token"
+                        placeholder="請輸入 36 碼專屬邀請碼" />
+                </div>
+
+                <!-- Error -->
+                <div id="login-error" role="alert"
+                    style="color:var(--color-danger-400);font-size:0.875rem;min-height:1.25rem">
+                </div>
+
+                <!-- Submit -->
+                <button class="btn btn-primary btn-lg" type="submit" id="login-btn"
+                    style="width:100%;margin-top:0.5rem">
+                    登入
+                </button>
+
+                <!-- Mode Toggle -->
+                <div style="margin-top:1rem;text-align:center;">
+                    <button type="button" class="btn btn-ghost btn-sm" id="toggle-mode-btn">首次使用？改以邀請碼登入</button>
+                </div>
+
+            </form>
+
+            <!-- Footer -->
+            <div style="margin-top:2rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">
+                本系統採邀請制。如需帳號，請聯繫系統管理員。
+            </div>
+
         </div>
-        <div>
-          <div style="font-size:0.75rem;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase">Link</div>
-          <div style="font-size:1.125rem;font-weight:700;color:var(--text-primary)">Checker</div>
-        </div>
-      </div>
+    </main>
 
-      <!-- Heading -->
-      <h1 class="login-heading">歡迎回來</h1>
-      <p class="login-subheading" id="login-mode-label">請輸入您的帳號與密碼登入</p>
-
-      <!-- Login Form -->
-      <form class="login-form" id="login-form" novalidate>
-
-        <!-- Email -->
-        <div class="form-group">
-          <label class="form-label" for="login-email">電子郵件 <span class="required">*</span></label>
-          <input class="form-input" type="email" id="login-email" name="email" placeholder="you@example.com"
-            autocomplete="email" required />
-        </div>
-
-        <!-- Password（一般登入用）-->
-        <div class="form-group" id="password-group">
-          <label class="form-label" for="login-password">密碼 <span class="required">*</span></label>
-          <input class="form-input" type="password" id="login-password" name="password" placeholder="••••••••••••"
-            autocomplete="current-password" />
-          <div style="text-align: right;">
-            <a href="/forgot-password.html" class="text-link text-sm">忘記密碼？</a>
-          </div>
-        </div>
-
-        <!-- Invite Token（首次登入，hidden by default）-->
-        <div class="form-group" id="token-group" style="display:none">
-          <label class="form-label" for="login-token">邀請碼 <span class="required">*</span></label>
-          <input class="form-input font-mono" type="text" id="login-token" name="token" placeholder="請輸入 36 碼專屬邀請碼" />
-        </div>
-
-        <!-- Error -->
-        <div id="login-error" role="alert" style="color:var(--color-danger-400);font-size:0.875rem;min-height:1.25rem">
-        </div>
-
-        <!-- Submit -->
-        <button class="btn btn-primary btn-lg" type="submit" id="login-btn" style="width:100%;margin-top:0.5rem">
-          登入
-        </button>
-
-        <!-- Mode Toggle -->
-        <div style="margin-top:1rem;text-align:center;">
-          <button type="button" class="btn btn-ghost btn-sm" id="toggle-mode-btn">首次使用？改以邀請碼登入</button>
-        </div>
-
-      </form>
-
-      <!-- Footer -->
-      <div style="margin-top:2rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">
-        本系統採邀請制。如需帳號，請聯繫系統管理員。
-      </div>
-
-    </div>
-  </main>
-
-  <script type="module">
-    import { initLoginPage } from '/static/js/auth.js';
-    initLoginPage();
-  </script>
+    <script type="module">
+        import { initLoginPage } from '/static/js/auth.js';
+        initLoginPage();
+    </script>
 
 </body>
 

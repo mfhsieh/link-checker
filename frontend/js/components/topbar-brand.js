@@ -62,7 +62,7 @@ class TopbarBrand extends HTMLElement {
                 padding: .125rem .5rem;
             }
 
-            @media (max-width: 768px) {
+            @media (max-width: 640px) {
                 .topbar-logo {
                     display: none;
                 }

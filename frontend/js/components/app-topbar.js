@@ -68,7 +68,7 @@ class AppTopbar extends HTMLElement {
                 mask: url(/static/image/icon-menu.svg) no-repeat center / contain;
                 background-color: currentColor;
             }
-            @media (max-width: 768px) {
+            @media (max-width: 640px) {
                 .menu-toggle {
                     display: flex;
                 }
