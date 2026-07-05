@@ -2,1422 +2,1246 @@
 <html lang="zh-TW">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>任務管理 — 網站連結檢查系統</title>
-  <meta name="description" content="管理外部連結掃描任務，查閱進度與結果。" />
-  <link rel="stylesheet" href="/static/css/base.css" />
-  <link rel="stylesheet" href="/static/css/components.css" />
-  <link rel="stylesheet" href="/static/css/layout.css" />
-  <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>任務管理 — 網站連結檢查系統</title>
+    <meta name="description" content="管理外部連結掃描任務，查閱進度與結果。" />
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/components.css" />
+    <link rel="stylesheet" href="/static/css/layout.css" />
+    <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
 </head>
 
 <body>
 
-  <div class="app-shell" id="app-shell">
+    <div class="app-shell" id="app-shell">
 
-    <!-- ── Top Bar ──────────────────────────────────────────── -->
-    <header class="topbar">
-      <a class="topbar-brand" href="/app.html" id="topbar-brand">
-        <div class="topbar-logo" aria-hidden="true" title="Link Checker">
-          <img src="/static/image/logo.svg" alt="Link Checker" style="width: 18px; height: 18px;" />
-        </div>
-        <span class="topbar-title">網站連結檢查系統</span>
-      </a>
-      <div class="topbar-actions">
-        <div class="topbar-user" id="topbar-user" role="button" tabindex="0" title="帳號選單">
-          <div class="topbar-avatar" id="topbar-avatar">-</div>
-          <div class="topbar-user-info">
-            <span class="topbar-user-name" id="topbar-email">載入中...</span>
-            <span class="topbar-user-role" id="topbar-role"></span>
-          </div>
-        </div>
-        <button class="btn btn-ghost btn-sm" id="change-pwd-btn" title="修改密碼">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round" style="width:16px;height:16px">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-          <span class="btn-text">修改密碼</span>
-        </button>
-        <button class="btn btn-ghost btn-sm" id="logout-btn" title="登出">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round" style="width:16px;height:16px">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span class="btn-text">登出</span>
-        </button>
-      </div>
-    </header>
+        <!-- ── Top Bar ──────────────────────────────────────────── -->
+        <app-topbar></app-topbar>
 
-    <!-- ── Sidebar ────────────────────────────────────────── -->
-    <nav class="sidebar" aria-label="主導覽">
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">任務管理</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" id="nav-jobs" href="#/jobs" data-view="jobs">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-              </svg>
-              我的任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-duplicate" href="#/duplicate" data-view="duplicate">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-              </svg>
-              複製任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-compare" href="#/compare" data-view="compare">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
-              </svg>
-              比對任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-transfer" href="#/transfer" data-view="transfer">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-              </svg>
-              移交任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-new-job" href="#/new" data-view="new">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              新增任務
-            </a>
-          </li>
-        </ul>
-      </div>
-
-      <div class="sidebar-divider"></div>
-
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">支援</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" id="nav-help" href="/help.html">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
-              </svg>
-              說明與教學
-            </a>
-          </li>
-
-          <li>
-            <a class="sidebar-item" id="nav-faq" href="/faq.html">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-              </svg>
-              常見問答
-            </a>
-          </li>
-
-        </ul>
-      </div>
-
-      <div class="sidebar-divider"></div>
-
-      <!-- 後台管理（僅 admin 可見）-->
-      <div class="sidebar-section" id="admin-nav-section" style="display:none">
-        <div class="sidebar-section-title">後台管理</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" href="/admin.html">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              進入後台
-            </a>
-          </li>
-        </ul>
-      </div>
-    </nav>
-
-    <!-- ── Main Content ────────────────────────────────────── -->
-    <main class="main-content" id="main-content">
-
-      <!-- ── 任務列表視圖 ────────────────────────────────────── -->
-      <div id="view-jobs">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">我的任務</h1>
-            <p class="page-subtitle">管理外部連結掃描任務</p>
-          </div>
-          <a href="#/new" class="btn btn-primary">
-            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;margin-right:0.25rem;">
-              <path
-                d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-            </svg>
-            新增任務
-          </a>
-        </div>
-        <div id="jobs-list-container"></div>
-      </div>
-
-      <!-- ── 任務詳情視圖 ────────────────────────────────────── -->
-      <div id="view-job-detail" style="display:none">
-
-        <!-- 麵包屑 + 操作 -->
-        <div class="page-header">
-          <div>
-            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
-              <button class="btn btn-ghost btn-sm" id="btn-back-jobs" style="padding:0.25rem 0.5rem">
-                ← 返回列表
-              </button>
+        <!-- ── Sidebar ────────────────────────────────────────── -->
+        <nav class="sidebar" aria-label="主導覽">
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">任務管理</div>
+                <ul class="sidebar-nav">
+                    <li>
+                        <a class="sidebar-item" id="nav-jobs" href="#/jobs" data-view="jobs">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                            </svg>
+                            我的任務
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-item" id="nav-duplicate" href="#/duplicate" data-view="duplicate">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                            </svg>
+                            複製任務
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-item" id="nav-compare" href="#/compare" data-view="compare">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
+                            </svg>
+                            比對任務
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-item" id="nav-transfer" href="#/transfer" data-view="transfer">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                            </svg>
+                            移交任務
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-item" id="nav-new-job" href="#/new" data-view="new">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            新增任務
+                        </a>
+                    </li>
+                </ul>
             </div>
-            <h1 class="page-title" id="job-title">任務詳情</h1>
-            <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.5rem">
-              <span id="job-status" class="badge badge-pending">等待中</span>
-              <span class="text-xs font-mono text-muted" id="job-id-display"></span>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">支援</div>
+                <ul class="sidebar-nav">
+                    <li>
+                        <a class="sidebar-item" id="nav-help" href="/help.html">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                            </svg>
+                            說明與教學
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="sidebar-item" id="nav-faq" href="/faq.html">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                            </svg>
+                            常見問答
+                        </a>
+                    </li>
+
+                </ul>
             </div>
-          </div>
-          <job-controls id="job-controls"></job-controls>
-        </div>
-        <!-- 任務資訊卡片 -->
-        <div style="display:flex; flex-wrap:wrap; gap:1.5rem; margin-bottom:2rem; align-items:stretch;">
-          <job-status id="job-status-card"></job-status>
-          <job-progress id="job-progress"></job-progress>
-        </div>
 
-        <!-- 頁籤導覽 -->
-        <div class="tabs-container" id="job-detail-tabs">
-          <button class="tab-btn active" data-tab="external">外部連結診斷</button>
-          <button class="tab-btn" data-tab="internal">內部連結診斷</button>
-        </div>
+            <div class="sidebar-divider"></div>
 
-        <div id="tab-content-external">
-          <!-- 外連結果摘要 -->
-          <job-stats id="job-ext-stats" type="external"></job-stats>
-
-          <!-- 外連結果 -->
-          <div class="card" style="padding:0;overflow:hidden">
-            <div class="card-header"
-              style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-              <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
-                <span class="card-title link-title" style="margin-right:0.5rem">外部連結</span>
-                <div style="display:flex; align-items:center; gap:0.75rem">
-                  <select id="results-group-select" class="form-input"
-                    style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
-                    <option value="none">平鋪列表 (預設)</option>
-                    <option value="target">依外連目標聚合 (重複合併)</option>
-                    <option value="source">依自家網頁聚合 (修補視角)</option>
-                    <option value="domain">依外部網域統計 (資安盤點)</option>
-                  </select>
-                  <button class="btn btn-secondary btn-icon" id="btn-open-exclude-modal" title="設定排除網域"
-                    style="flex-shrink:0;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
-                      <path d="m22 3-5 5" />
-                      <path d="m17 3 5 5" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div style="display:flex;gap:0.75rem">
-                <button class="btn btn-secondary btn-sm" id="btn-ext-reprobe-selected"
-                  style="display:none;">重新探測</button>
-                <button class="btn btn-secondary btn-sm" id="btn-ext-export-selected"
-                  style="display:none;">匯出選取</button>
-                <button class="btn btn-secondary btn-sm" id="btn-export-csv">
-                  <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
-                  </div>CSV
-                </button>
-                <button class="btn btn-secondary btn-sm" id="btn-export-json">
-                  <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
-                  </div>JSON
-                </button>
-              </div>
+            <!-- 後台管理（僅 admin 可見）-->
+            <div class="sidebar-section" id="admin-nav-section" style="display:none">
+                <div class="sidebar-section-title">後台管理</div>
+                <ul class="sidebar-nav">
+                    <li>
+                        <a class="sidebar-item" href="/admin.html">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            進入後台
+                        </a>
+                    </li>
+                </ul>
             </div>
-            <link-table id="ext-data-table"></link-table>
-          </div>
-        </div>
+        </nav>
 
-        <div id="tab-content-internal" style="display:none">
-          <!-- 內部連結診斷摘要 -->
-          <job-stats id="job-int-stats" type="internal"></job-stats>
+        <!-- ── Main Content ────────────────────────────────────── -->
+        <main class="main-content" id="main-content">
 
-          <div class="card" style="padding:0;overflow:hidden">
-            <div class="card-header"
-              style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-              <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
-                <span class="card-title link-title" style="margin-right:0.5rem">內部連結診斷</span>
-                <div style="display:flex; align-items:center; gap:0.75rem">
-                  <select id="internal-results-group-select" class="form-input"
-                    style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
-                    <option value="none">平鋪列表 (預設)</option>
-                    <option value="source">依自家網頁聚合 (修補視角)</option>
-                  </select>
-                </div>
-              </div>
-              <div style="display:flex;gap:0.75rem">
-                <button class="btn btn-secondary btn-sm" id="btn-int-reprobe-selected"
-                  style="display:none;">重新探測</button>
-                <button class="btn btn-secondary btn-sm" id="btn-int-export-selected"
-                  style="display:none;">匯出選取</button>
-                <button class="btn btn-secondary btn-sm" id="btn-int-export-csv">
-                  <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
-                  </div>CSV
-                </button>
-                <button class="btn btn-secondary btn-sm" id="btn-int-export-json">
-                  <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
-                  </div>JSON
-                </button>
-              </div>
-            </div>
-            <link-table id="int-data-table"></link-table>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- ── 新增任務視圖 ────────────────────────────────────── -->
-      <div id="view-create-job" style="display:none">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">新增任務</h1>
-            <p class="page-subtitle">建立並設定新的外部連結掃描任務，您可以展開完整設定或使用系統預設值。</p>
-          </div>
-        </div>
-        <form id="create-job-form">
-          <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; align-items: start;">
-
-            <!-- 左側主要設定區塊 -->
-            <div style="flex: 1 1 450px; display:flex; flex-direction:column; gap: 1.5rem;">
-
-              <!-- 1. 基本設定 -->
-              <div class="card">
-                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
-                    class="card-title">基本設定</span></div>
-                <div class="form-group" style="margin-bottom:1.5rem">
-                  <label class="form-label" for="job-url">起始網址 (Start URL) <span class="required">*</span></label>
-                  <input class="form-input" type="url" id="job-url" required placeholder="https://example.com" />
-                  <div class="form-hint">爬蟲開始巡覽的第一個網頁網址，請包含 http:// 或 https:// 前綴。</div>
-                </div>
-                <div class="form-group" style="margin-bottom:1.5rem">
-                  <label class="form-label" for="job-target-domains">目標網域 (Target Domains) <span
-                      class="required">*</span></label>
-                  <textarea class="form-textarea" id="job-target-domains" rows="2" required
-                    placeholder="example.com&#10;www.example.com"></textarea>
-                  <div class="form-hint">每行一個。限制爬蟲僅深入探索這些網域的內部連結。</div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="job-trusted-domains">信任網域 (Trusted Domains)</label>
-                  <textarea class="form-textarea" id="job-trusted-domains" rows="2"
-                    placeholder="sub.example.com"></textarea>
-                  <div class="form-hint">每行一個。屬於這些網域的連結將被視為內部連結，不會作為「外部連結」結果輸出。</div>
-                </div>
-              </div>
-
-              <!-- 2. 進階過濾與網路 -->
-              <div class="card">
-                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
-                    class="card-title">進階過濾與網路</span></div>
-                <div class="form-group" style="margin-bottom:1.5rem">
-                  <label class="form-label" for="job-ignore-regexes">忽略的路徑規則 (Regex)</label>
-                  <textarea class="form-textarea" id="job-ignore-regexes" rows="3" placeholder="載入中..."></textarea>
-                  <div class="form-hint" id="hint-ignore-regexes">每行一個。將與系統全域設定 <button type="button"
-                      id="btn-view-regexes" title="檢視預設路徑規則"
-                      style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg></button> 合併疊加生效 <strong>【聯集】</strong>。</div>
-                </div>
-                <div class="grid-2" style="margin-bottom:1.5rem">
-                  <div class="form-group">
-                    <label class="form-label" for="job-ignore-exts">忽略的副檔名</label>
-                    <textarea class="form-textarea" id="job-ignore-exts" rows="2" placeholder="載入中..."></textarea>
-                    <div class="form-hint" id="hint-ignore-exts">每行一個。將與系統全域設定 <button type="button" id="btn-view-exts"
-                        title="檢視預設副檔名"
-                        style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
-                          viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg></button> 合併疊加生效 <strong>【聯集】</strong>。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="job-social-domains">社群與反爬蟲網域</label>
-                    <textarea class="form-textarea" id="job-social-domains" rows="2"
-                      placeholder="facebook.com"></textarea>
-                    <div class="form-hint" id="hint-social-domains">每行一個。將與系統全域設定 <button type="button"
-                        id="btn-view-social" title="檢視預設社群與反爬蟲網域"
-                        style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
-                          viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg></button> 合併疊加生效
-                      <strong>【聯集】</strong>。
+            <!-- ── 任務列表視圖 ────────────────────────────────────── -->
+            <div id="view-jobs">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">我的任務</h1>
+                        <p class="page-subtitle">管理外部連結掃描任務</p>
                     </div>
-                  </div>
+                    <a href="#/new" class="btn btn-primary">
+                        <svg viewBox="0 0 20 20" fill="currentColor"
+                            style="width:16px;height:16px;margin-right:0.25rem;">
+                            <path
+                                d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                        </svg>
+                        新增任務
+                    </a>
                 </div>
-                <div class="grid-2" style="margin-bottom:1.5rem">
-                  <div class="form-group">
-                    <label class="form-label" for="job-ssl-exempt">自簽憑證豁免網域</label>
-                    <textarea class="form-textarea" id="job-ssl-exempt" rows="2" placeholder="example.com"></textarea>
-                    <div class="form-hint" id="hint-ssl-exempt">每行一個。忽略這些網域的 SSL 驗證，將與系統全域設定 <button type="button"
-                        id="btn-view-ssl" title="檢視預設豁免網域"
-                        style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
-                          viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg></button> 合併疊加生效
-                      <strong>【聯集】</strong>。
+                <div id="jobs-list-container"></div>
+            </div>
+
+            <!-- ── 任務詳情視圖 ────────────────────────────────────── -->
+            <div id="view-job-detail" style="display:none">
+
+                <!-- 麵包屑 + 操作 -->
+                <div class="page-header">
+                    <div>
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+                            <button class="btn btn-ghost btn-sm" id="btn-back-jobs" style="padding:0.25rem 0.5rem">
+                                ← 返回列表
+                            </button>
+                        </div>
+                        <h1 class="page-title" id="job-title">任務詳情</h1>
+                        <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.5rem">
+                            <span id="job-status" class="badge badge-pending">等待中</span>
+                            <span class="text-xs font-mono text-muted" id="job-id-display"></span>
+                        </div>
                     </div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="job-domain-delays">特定網域延遲 (秒)</label>
-                    <textarea class="form-textarea" id="job-domain-delays" rows="2"
-                      placeholder="example.com: 5.0"></textarea>
-                    <div class="form-hint" id="hint-domain-delays">每行一個。格式為 <code>網域: 秒數</code>。將與系統全域設定 <button
-                        type="button" id="btn-view-dd" title="檢視預設特定網域延遲"
-                        style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
-                          viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg></button> 衝突時以任務設定為準
-                      <strong>【字典合併與優先覆寫】</strong>。
+                    <job-controls id="job-controls"></job-controls>
+                </div>
+                <!-- 任務資訊卡片 -->
+                <div style="display:flex; flex-wrap:wrap; gap:1.5rem; margin-bottom:2rem; align-items:stretch;">
+                    <job-status id="job-status-card"></job-status>
+                    <job-progress id="job-progress"></job-progress>
+                </div>
+
+                <!-- 頁籤導覽 -->
+                <div class="tabs-container" id="job-detail-tabs">
+                    <button class="tab-btn active" data-tab="external">外部連結診斷</button>
+                    <button class="tab-btn" data-tab="internal">內部連結診斷</button>
+                </div>
+
+                <div id="tab-content-external">
+                    <!-- 外連結果摘要 -->
+                    <job-stats id="job-ext-stats" type="external"></job-stats>
+
+                    <!-- 外連結果 -->
+                    <div class="card" style="padding:0;overflow:hidden">
+                        <div class="card-header"
+                            style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                            <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
+                                <span class="card-title link-title" style="margin-right:0.5rem">外部連結</span>
+                                <div style="display:flex; align-items:center; gap:0.75rem">
+                                    <select id="results-group-select" class="form-input"
+                                        style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
+                                        <option value="none">平鋪列表 (預設)</option>
+                                        <option value="target">依外連目標聚合 (重複合併)</option>
+                                        <option value="source">依自家網頁聚合 (修補視角)</option>
+                                        <option value="domain">依外部網域統計 (資安盤點)</option>
+                                    </select>
+                                    <button class="btn btn-secondary btn-icon" id="btn-open-exclude-modal"
+                                        title="設定排除網域" style="flex-shrink:0;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
+                                            <path d="m22 3-5 5" />
+                                            <path d="m17 3 5 5" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:0.75rem">
+                                <button class="btn btn-secondary btn-sm" id="btn-ext-reprobe-selected"
+                                    style="display:none;">重新探測</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-ext-export-selected"
+                                    style="display:none;">匯出選取</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-export-csv">
+                                    <div
+                                        style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
+                                    </div>CSV
+                                </button>
+                                <button class="btn btn-secondary btn-sm" id="btn-export-json">
+                                    <div
+                                        style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
+                                    </div>JSON
+                                </button>
+                            </div>
+                        </div>
+                        <link-table id="ext-data-table"></link-table>
                     </div>
-                  </div>
-                </div>
-                <div class="form-group" style="margin-bottom:1.5rem">
-                  <label class="form-label" for="job-user-agent">自訂 User-Agent</label>
-                  <input class="form-input" type="text" id="job-user-agent" placeholder="預設：啟動 fake-useragent 隨機輪替" />
-                  <div class="form-hint">留空將自動套用全域預設值（預設為啟動隨機輪替）；若有填寫將完全取代全域設定，並<strong>強制鎖定單一特徵</strong>
-                    <strong>【完全覆寫】</strong>。
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="job-proxy-url">代理伺服器 (Proxy URL)</label>
-                  <input class="form-input" type="url" id="job-proxy-url" placeholder="http://user:pass@proxy:8080" />
-                  <div class="form-hint">若有填寫將取代全域設定 <strong>【條件覆寫】</strong>。注意：伺服器環境變數具有最高強制覆寫優先權。</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 右側次要設定與送出區塊 -->
-            <div style="flex: 1 1 450px; display:flex; flex-direction:column; gap: 1.5rem;">
-
-              <!-- 3. 資源與限制 -->
-              <div class="card">
-                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
-                    class="card-title">資源與限制</span></div>
-
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom:1.25rem">
-                  <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label" for="job-timeout">總連線逾時 (秒)</label>
-                    <input class="form-input" type="number" id="job-timeout" placeholder="載入中..." />
-                    <div class="form-hint">單頁抓取總等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
-                  </div>
-                  <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label" for="job-connect-timeout">TCP 連線逾時</label>
-                    <input class="form-input" type="number" id="job-connect-timeout" step="0.1" placeholder="載入中..." />
-                    <div class="form-hint">TCP 建立連線等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
-                  </div>
-                  <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label" for="job-ext-check-timeout">外連探測逾時</label>
-                    <input class="form-input" type="number" id="job-ext-check-timeout" step="0.1"
-                      placeholder="載入中..." />
-                    <div class="form-hint">外連存活檢查等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
-                  </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom:1.25rem">
-                  <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label" for="job-delay">請求延遲 (秒)</label>
-                    <input class="form-input" type="number" id="job-delay" step="0.1" placeholder="載入中..." />
-                    <div class="form-hint">每次發送請求前的等待。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
-                  </div>
-                  <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label" for="job-retries">失敗重試次數</label>
-                    <input class="form-input" type="number" id="job-retries" placeholder="載入中..." />
-                    <div class="form-hint">暫時性錯誤的重試次數。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
-                  </div>
+                <div id="tab-content-internal" style="display:none">
+                    <!-- 內部連結診斷摘要 -->
+                    <job-stats id="job-int-stats" type="internal"></job-stats>
+
+                    <div class="card" style="padding:0;overflow:hidden">
+                        <div class="card-header"
+                            style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                            <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
+                                <span class="card-title link-title" style="margin-right:0.5rem">內部連結診斷</span>
+                                <div style="display:flex; align-items:center; gap:0.75rem">
+                                    <select id="internal-results-group-select" class="form-input"
+                                        style="padding:0.25rem 2rem 0.25rem 0.75rem; font-size:0.875rem; height:auto; min-height:32px; width:auto; border-radius:1rem;">
+                                        <option value="none">平鋪列表 (預設)</option>
+                                        <option value="source">依自家網頁聚合 (修補視角)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:0.75rem">
+                                <button class="btn btn-secondary btn-sm" id="btn-int-reprobe-selected"
+                                    style="display:none;">重新探測</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-int-export-selected"
+                                    style="display:none;">匯出選取</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-int-export-csv">
+                                    <div
+                                        style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
+                                    </div>CSV
+                                </button>
+                                <button class="btn btn-secondary btn-sm" id="btn-int-export-json">
+                                    <div
+                                        style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
+                                    </div>JSON
+                                </button>
+                            </div>
+                        </div>
+                        <link-table id="int-data-table"></link-table>
+                    </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                  <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label" for="job-max-depth">最大爬取深度</label>
-                    <input class="form-input" type="number" id="job-max-depth" min="1" />
-                    <div class="form-hint">從起點開始的點擊層數。留空無限制，受最大極限約束 <strong>【強制收斂】</strong>。</div>
-                  </div>
-                  <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label" for="job-max-pages">最大抓取頁數</label>
-                    <input class="form-input" type="number" id="job-max-pages" min="1" />
-                    <div class="form-hint">總抓取頁數上限。留空無限制，受最大極限約束 <strong>【強制收斂】</strong>。</div>
-                  </div>
+            </div>
+
+            <!-- ── 新增任務視圖 ────────────────────────────────────── -->
+            <div id="view-create-job" style="display:none">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">新增任務</h1>
+                        <p class="page-subtitle">建立並設定新的外部連結掃描任務，您可以展開完整設定或使用系統預設值。</p>
+                    </div>
                 </div>
-              </div>
+                <form id="create-job-form">
+                    <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; align-items: start;">
 
-              <!-- 4. 提交區塊 -->
-              <div class="card" style="background:var(--surface-raised)">
-                <div id="create-job-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
+                        <!-- 左側主要設定區塊 -->
+                        <div style="flex: 1 1 450px; display:flex; flex-direction:column; gap: 1.5rem;">
+
+                            <!-- 1. 基本設定 -->
+                            <div class="card">
+                                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                                        class="card-title">基本設定</span></div>
+                                <div class="form-group" style="margin-bottom:1.5rem">
+                                    <label class="form-label" for="job-url">起始網址 (Start URL) <span
+                                            class="required">*</span></label>
+                                    <input class="form-input" type="url" id="job-url" required
+                                        placeholder="https://example.com" />
+                                    <div class="form-hint">爬蟲開始巡覽的第一個網頁網址，請包含 http:// 或 https:// 前綴。</div>
+                                </div>
+                                <div class="form-group" style="margin-bottom:1.5rem">
+                                    <label class="form-label" for="job-target-domains">目標網域 (Target Domains) <span
+                                            class="required">*</span></label>
+                                    <textarea class="form-textarea" id="job-target-domains" rows="2" required
+                                        placeholder="example.com&#10;www.example.com"></textarea>
+                                    <div class="form-hint">每行一個。限制爬蟲僅深入探索這些網域的內部連結。</div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="job-trusted-domains">信任網域 (Trusted Domains)</label>
+                                    <textarea class="form-textarea" id="job-trusted-domains" rows="2"
+                                        placeholder="sub.example.com"></textarea>
+                                    <div class="form-hint">每行一個。屬於這些網域的連結將被視為內部連結，不會作為「外部連結」結果輸出。</div>
+                                </div>
+                            </div>
+
+                            <!-- 2. 進階過濾與網路 -->
+                            <div class="card">
+                                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                                        class="card-title">進階過濾與網路</span></div>
+                                <div class="form-group" style="margin-bottom:1.5rem">
+                                    <label class="form-label" for="job-ignore-regexes">忽略的路徑規則 (Regex)</label>
+                                    <textarea class="form-textarea" id="job-ignore-regexes" rows="3"
+                                        placeholder="載入中..."></textarea>
+                                    <div class="form-hint" id="hint-ignore-regexes">每行一個。將與系統全域設定 <button type="button"
+                                            id="btn-view-regexes" title="檢視預設路徑規則"
+                                            style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                style="width:16px;height:16px">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                </path>
+                                            </svg></button> 合併疊加生效 <strong>【聯集】</strong>。</div>
+                                </div>
+                                <div class="grid-2" style="margin-bottom:1.5rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="job-ignore-exts">忽略的副檔名</label>
+                                        <textarea class="form-textarea" id="job-ignore-exts" rows="2"
+                                            placeholder="載入中..."></textarea>
+                                        <div class="form-hint" id="hint-ignore-exts">每行一個。將與系統全域設定 <button type="button"
+                                                id="btn-view-exts" title="檢視預設副檔名"
+                                                style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    style="width:16px;height:16px">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                    </path>
+                                                </svg></button> 合併疊加生效 <strong>【聯集】</strong>。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="job-social-domains">社群與反爬蟲網域</label>
+                                        <textarea class="form-textarea" id="job-social-domains" rows="2"
+                                            placeholder="facebook.com"></textarea>
+                                        <div class="form-hint" id="hint-social-domains">每行一個。將與系統全域設定 <button
+                                                type="button" id="btn-view-social" title="檢視預設社群與反爬蟲網域"
+                                                style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    style="width:16px;height:16px">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                    </path>
+                                                </svg></button> 合併疊加生效
+                                            <strong>【聯集】</strong>。
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="grid-2" style="margin-bottom:1.5rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="job-ssl-exempt">自簽憑證豁免網域</label>
+                                        <textarea class="form-textarea" id="job-ssl-exempt" rows="2"
+                                            placeholder="example.com"></textarea>
+                                        <div class="form-hint" id="hint-ssl-exempt">每行一個。忽略這些網域的 SSL 驗證，將與系統全域設定 <button
+                                                type="button" id="btn-view-ssl" title="檢視預設豁免網域"
+                                                style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    style="width:16px;height:16px">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                    </path>
+                                                </svg></button> 合併疊加生效
+                                            <strong>【聯集】</strong>。
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="job-domain-delays">特定網域延遲 (秒)</label>
+                                        <textarea class="form-textarea" id="job-domain-delays" rows="2"
+                                            placeholder="example.com: 5.0"></textarea>
+                                        <div class="form-hint" id="hint-domain-delays">每行一個。格式為
+                                            <code>網域: 秒數</code>。將與系統全域設定 <button type="button" id="btn-view-dd"
+                                                title="檢視預設特定網域延遲"
+                                                style="display:none; background:none; border:none; cursor:pointer; color:inherit; padding:0; vertical-align:text-bottom; opacity:0.8"><svg
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    style="width:16px;height:16px">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                                                    </path>
+                                                </svg></button> 衝突時以任務設定為準
+                                            <strong>【字典合併與優先覆寫】</strong>。
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom:1.5rem">
+                                    <label class="form-label" for="job-user-agent">自訂 User-Agent</label>
+                                    <input class="form-input" type="text" id="job-user-agent"
+                                        placeholder="預設：啟動 fake-useragent 隨機輪替" />
+                                    <div class="form-hint">
+                                        留空將自動套用全域預設值（預設為啟動隨機輪替）；若有填寫將完全取代全域設定，並<strong>強制鎖定單一特徵</strong>
+                                        <strong>【完全覆寫】</strong>。
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="job-proxy-url">代理伺服器 (Proxy URL)</label>
+                                    <input class="form-input" type="url" id="job-proxy-url"
+                                        placeholder="http://user:pass@proxy:8080" />
+                                    <div class="form-hint">若有填寫將取代全域設定 <strong>【條件覆寫】</strong>。注意：伺服器環境變數具有最高強制覆寫優先權。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 右側次要設定與送出區塊 -->
+                        <div style="flex: 1 1 450px; display:flex; flex-direction:column; gap: 1.5rem;">
+
+                            <!-- 3. 資源與限制 -->
+                            <div class="card">
+                                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                                        class="card-title">資源與限制</span></div>
+
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom:1.25rem">
+                                    <div class="form-group" style="margin-bottom:0">
+                                        <label class="form-label" for="job-timeout">總連線逾時 (秒)</label>
+                                        <input class="form-input" type="number" id="job-timeout" placeholder="載入中..." />
+                                        <div class="form-hint">單頁抓取總等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0">
+                                        <label class="form-label" for="job-connect-timeout">TCP 連線逾時</label>
+                                        <input class="form-input" type="number" id="job-connect-timeout" step="0.1"
+                                            placeholder="載入中..." />
+                                        <div class="form-hint">TCP 建立連線等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。
+                                        </div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0">
+                                        <label class="form-label" for="job-ext-check-timeout">外連探測逾時</label>
+                                        <input class="form-input" type="number" id="job-ext-check-timeout" step="0.1"
+                                            placeholder="載入中..." />
+                                        <div class="form-hint">外連存活檢查等待時間。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom:1.25rem">
+                                    <div class="form-group" style="margin-bottom:0">
+                                        <label class="form-label" for="job-delay">請求延遲 (秒)</label>
+                                        <input class="form-input" type="number" id="job-delay" step="0.1"
+                                            placeholder="載入中..." />
+                                        <div class="form-hint">每次發送請求前的等待。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0">
+                                        <label class="form-label" for="job-retries">失敗重試次數</label>
+                                        <input class="form-input" type="number" id="job-retries" placeholder="載入中..." />
+                                        <div class="form-hint">暫時性錯誤的重試次數。留空套用預設，受安全極限約束 <strong>【強制收斂】</strong>。</div>
+                                    </div>
+                                </div>
+
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div class="form-group" style="margin-bottom:0">
+                                        <label class="form-label" for="job-max-depth">最大爬取深度</label>
+                                        <input class="form-input" type="number" id="job-max-depth" min="1" />
+                                        <div class="form-hint">從起點開始的點擊層數。留空無限制，受最大極限約束 <strong>【強制收斂】</strong>。</div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0">
+                                        <label class="form-label" for="job-max-pages">最大抓取頁數</label>
+                                        <input class="form-input" type="number" id="job-max-pages" min="1" />
+                                        <div class="form-hint">總抓取頁數上限。留空無限制，受最大極限約束 <strong>【強制收斂】</strong>。</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4. 提交區塊 -->
+                            <div class="card" style="background:var(--surface-raised)">
+                                <div id="create-job-error"
+                                    style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
+                                </div>
+                                <div style="display:flex; gap:0.75rem; flex-direction: column;">
+                                    <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-job"
+                                        style="width:100%">建立任務</button>
+                                    <a class="btn btn-ghost" href="#/jobs"
+                                        style="width:100%;text-align:center;justify-content:center;">取消並返回列表</a>
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+
+            <!-- ── 複製任務視圖 ────────────────────────────────────── -->
+            <div id="view-duplicate" style="display:none">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">複製任務</h1>
+                        <p class="page-subtitle">選擇歷史任務，複製其設定參數並快速建立新任務。</p>
+                    </div>
                 </div>
-                <div style="display:flex; gap:0.75rem; flex-direction: column;">
-                  <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-job"
-                    style="width:100%">建立任務</button>
-                  <a class="btn btn-ghost" href="#/jobs"
-                    style="width:100%;text-align:center;justify-content:center;">取消並返回列表</a>
+
+                <div class="card" style="max-width: 600px; margin: 0 auto;">
+                    <form id="duplicate-view-form">
+                        <div class="form-group" style="margin-bottom:1.5rem">
+                            <label class="form-label" for="duplicate-job-select">選擇欲複製的任務 <span
+                                    class="required">*</span></label>
+                            <select id="duplicate-job-select" class="form-input" required></select>
+                        </div>
+                        <div style="display:flex; justify-content:flex-end;">
+                            <button type="submit" class="btn btn-primary" id="btn-run-duplicate">載入設定並前往新增</button>
+                        </div>
+                    </form>
                 </div>
-              </div>
-
             </div>
 
-          </div>
-        </form>
-      </div>
-
-      <!-- ── 複製任務視圖 ────────────────────────────────────── -->
-      <div id="view-duplicate" style="display:none">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">複製任務</h1>
-            <p class="page-subtitle">選擇歷史任務，複製其設定參數並快速建立新任務。</p>
-          </div>
-        </div>
-
-        <div class="card" style="max-width: 600px; margin: 0 auto;">
-          <form id="duplicate-view-form">
-            <div class="form-group" style="margin-bottom:1.5rem">
-              <label class="form-label" for="duplicate-job-select">選擇欲複製的任務 <span class="required">*</span></label>
-              <select id="duplicate-job-select" class="form-input" required></select>
-            </div>
-            <div style="display:flex; justify-content:flex-end;">
-              <button type="submit" class="btn btn-primary" id="btn-run-duplicate">載入設定並前往新增</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- ── 比對任務視圖 ────────────────────────────────────── -->
-      <div id="view-compare" style="display:none">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">比對任務</h1>
-            <p class="page-subtitle">比對兩個不同時期的歷史任務，找出外連健康度與資安狀態變化。</p>
-          </div>
-        </div>
-
-        <div class="card" style="margin-bottom: 1.5rem;">
-          <div style="display:flex; flex-wrap:wrap; gap:1.5rem; align-items:flex-end;">
-            <div class="form-group" style="flex:1; margin-bottom:0;">
-              <label class="form-label" for="compare-base-select">基準任務 (舊) <span class="required">*</span></label>
-              <select id="compare-base-select" class="form-input"></select>
-            </div>
-            <div class="form-group" style="flex:1; margin-bottom:0;">
-              <label class="form-label" for="compare-target-select">對照任務 (新) <span class="required">*</span></label>
-              <select id="compare-target-select" class="form-input"></select>
-            </div>
-            <div style="flex-shrink:0; display:flex; gap:0.5rem;">
-              <button class="btn btn-primary" id="btn-run-compare">開始比對</button>
-            </div>
-          </div>
-          <div id="compare-error" class="text-danger text-sm" style="margin-top:0.75rem"></div>
-        </div>
-
-        <div id="compare-results-area" style="display:none; flex-direction:column; gap:1.5rem;">
-          <style>
-            .diff-tab-card {
-              cursor: pointer;
-              transition: all 0.2s ease;
-            }
-
-            .diff-tab-card:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            }
-
-            .diff-tab-card.active {
-              border-color: var(--color-brand-500);
-              box-shadow: 0 0 0 3px hsla(221, 83%, 53%, 0.15);
-            }
-          </style>
-
-          <!-- Stats Grid as Tabs -->
-          <div class="grid-stats" style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;">
-            <div class="stat-card diff-tab-card active" data-diff-tab="ip_changed" style="padding:0.75rem">
-              <div class="stat-label text-danger">🚨 IP 異動</div>
-              <div class="stat-value text-danger" id="diff-stat-ip">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">目標 IP 改變，需防範網域遭搶註或劫持</div>
-            </div>
-            <div class="stat-card diff-tab-card" data-diff-tab="degraded" style="padding:0.75rem">
-              <div class="stat-label text-warning">⚠️ 狀態劣化</div>
-              <div class="stat-value text-warning" id="diff-stat-degraded">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">原本正常的連結變成失效或發生連線錯誤</div>
-            </div>
-            <div class="stat-card diff-tab-card" data-diff-tab="recovered" style="padding:0.75rem">
-              <div class="stat-label text-success">🟢 狀態復原</div>
-              <div class="stat-value text-success" id="diff-stat-recovered">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">原本失效的連結已修復或恢復正常連線</div>
-            </div>
-            <div class="stat-card diff-tab-card" data-diff-tab="security_downgraded" style="padding:0.75rem">
-              <div class="stat-label text-warning">🔓 安全降級</div>
-              <div class="stat-value text-warning" id="diff-stat-sec">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">連線從安全的 HTTPS 降級為明文 HTTP 傳輸</div>
-            </div>
-            <div class="stat-card diff-tab-card" data-diff-tab="new_links" style="padding:0.75rem">
-              <div class="stat-label text-info">➕ 新增外連</div>
-              <div class="stat-value text-info" id="diff-stat-new">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">新出現的外部連結，需防範未經授權之植入</div>
-            </div>
-            <div class="stat-card diff-tab-card" data-diff-tab="removed_links" style="padding:0.75rem">
-              <div class="stat-label text-muted">➖ 消失外連</div>
-              <div class="stat-value text-muted" id="diff-stat-removed">0</div>
-              <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">過去存在但本次掃描已移除的外部連結</div>
-            </div>
-          </div>
-
-          <div class="card" style="padding:0; overflow:hidden;">
-            <div class="card-header"
-              style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-              <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
-                <span class="card-title link-title" style="margin-right:0.5rem">比對結果</span>
-                <div style="display:flex; align-items:center; gap:0.75rem">
-                  <button class="btn btn-secondary btn-icon" id="btn-compare-exclude-modal" title="設定排除網域"
-                    style="flex-shrink:0;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
-                      <path d="m22 3-5 5" />
-                      <path d="m17 3 5 5" />
-                    </svg>
-                  </button>
+            <!-- ── 比對任務視圖 ────────────────────────────────────── -->
+            <div id="view-compare" style="display:none">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">比對任務</h1>
+                        <p class="page-subtitle">比對兩個不同時期的歷史任務，找出外連健康度與資安狀態變化。</p>
+                    </div>
                 </div>
-              </div>
-              <div style="display:flex;gap:0.75rem">
-                <button class="btn btn-secondary btn-sm" id="btn-compare-export-csv">
-                  <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
-                  </div>
-                  CSV
-                </button>
-                <button class="btn btn-secondary btn-sm" id="btn-compare-export-json">
-                  <div
-                    style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
-                  </div>
-                  JSON
-                </button>
-              </div>
-            </div>
-            <div id="compare-details-container"
-              style="padding:0 0 1rem; max-height:60vh; overflow-y:auto; background:var(--surface-base);">
-              <!-- Details rendered here -->
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- ── 移交任務視圖 ────────────────────────────────────── -->
-      <div id="view-transfer" style="display:none">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">移交任務</h1>
-            <p class="page-subtitle">將您的任務擁有權移交給系統內的其他使用者。</p>
-          </div>
-        </div>
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <div style="display:flex; flex-wrap:wrap; gap:1.5rem; align-items:flex-end;">
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                            <label class="form-label" for="compare-base-select">基準任務 (舊) <span
+                                    class="required">*</span></label>
+                            <select id="compare-base-select" class="form-input"></select>
+                        </div>
+                        <div class="form-group" style="flex:1; margin-bottom:0;">
+                            <label class="form-label" for="compare-target-select">對照任務 (新) <span
+                                    class="required">*</span></label>
+                            <select id="compare-target-select" class="form-input"></select>
+                        </div>
+                        <div style="flex-shrink:0; display:flex; gap:0.5rem;">
+                            <button class="btn btn-primary" id="btn-run-compare">開始比對</button>
+                        </div>
+                    </div>
+                    <div id="compare-error" class="text-danger text-sm" style="margin-top:0.75rem"></div>
+                </div>
 
-        <div class="card" style="max-width: 600px; margin: 0 auto;">
-          <form id="transfer-view-form">
-            <div class="form-group" style="margin-bottom:1.5rem">
-              <label class="form-label" for="transfer-job-select">選擇欲移交的任務 <span class="required">*</span></label>
-              <select id="transfer-job-select" class="form-input" required></select>
-            </div>
-            <div class="form-group" style="margin-bottom:1.5rem">
-              <label class="form-label" for="transfer-target-email">接收任務的使用者 Email <span
-                  class="required">*</span></label>
-              <input class="form-input" type="email" id="transfer-target-email" required
-                placeholder="user@example.com" />
-              <div class="form-hint" style="margin-top:0.5rem">移交成功後，您將無法再看到或管理此任務。此操作無法撤銷。</div>
-            </div>
-            <div id="transfer-view-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
-            </div>
-            <div style="display:flex; justify-content:flex-end;">
-              <button type="submit" class="btn btn-primary" id="btn-run-transfer">確定移交</button>
-            </div>
-          </form>
-        </div>
-      </div>
+                <div id="compare-results-area" style="display:none; flex-direction:column; gap:1.5rem;">
+                    <style>
+                        .diff-tab-card {
+                            cursor: pointer;
+                            transition: all 0.2s ease;
+                        }
 
-    </main>
-  </div>
+                        .diff-tab-card:hover {
+                            transform: translateY(-2px);
+                            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                        }
 
-  <!-- ── 任務完整設定檢視 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="job-config-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:600px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">任務設定參數 (唯讀)</h2>
-        <button id="job-config-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group mb-6">
-        <div id="job-config-display-container" style="max-height: 60vh; overflow-y: auto; padding-right: 0.5rem;"></div>
-      </div>
-      <div class="d-flex justify-end">
-        <button type="button" class="btn btn-primary" id="job-config-ok">確定</button>
-      </div>
+                        .diff-tab-card.active {
+                            border-color: var(--color-brand-500);
+                            box-shadow: 0 0 0 3px hsla(221, 83%, 53%, 0.15);
+                        }
+                    </style>
+
+                    <!-- Stats Grid as Tabs -->
+                    <div class="grid-stats"
+                        style="grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:0.75rem;">
+                        <div class="stat-card diff-tab-card active" data-diff-tab="ip_changed" style="padding:0.75rem">
+                            <div class="stat-label text-danger">🚨 IP 異動</div>
+                            <div class="stat-value text-danger" id="diff-stat-ip">0</div>
+                            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">目標 IP 改變，需防範網域遭搶註或劫持
+                            </div>
+                        </div>
+                        <div class="stat-card diff-tab-card" data-diff-tab="degraded" style="padding:0.75rem">
+                            <div class="stat-label text-warning">⚠️ 狀態劣化</div>
+                            <div class="stat-value text-warning" id="diff-stat-degraded">0</div>
+                            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">原本正常的連結變成失效或發生連線錯誤
+                            </div>
+                        </div>
+                        <div class="stat-card diff-tab-card" data-diff-tab="recovered" style="padding:0.75rem">
+                            <div class="stat-label text-success">🟢 狀態復原</div>
+                            <div class="stat-value text-success" id="diff-stat-recovered">0</div>
+                            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">原本失效的連結已修復或恢復正常連線
+                            </div>
+                        </div>
+                        <div class="stat-card diff-tab-card" data-diff-tab="security_downgraded"
+                            style="padding:0.75rem">
+                            <div class="stat-label text-warning">🔓 安全降級</div>
+                            <div class="stat-value text-warning" id="diff-stat-sec">0</div>
+                            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">連線從安全的 HTTPS 降級為明文
+                                HTTP 傳輸</div>
+                        </div>
+                        <div class="stat-card diff-tab-card" data-diff-tab="new_links" style="padding:0.75rem">
+                            <div class="stat-label text-info">➕ 新增外連</div>
+                            <div class="stat-value text-info" id="diff-stat-new">0</div>
+                            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">新出現的外部連結，需防範未經授權之植入
+                            </div>
+                        </div>
+                        <div class="stat-card diff-tab-card" data-diff-tab="removed_links" style="padding:0.75rem">
+                            <div class="stat-label text-muted">➖ 消失外連</div>
+                            <div class="stat-value text-muted" id="diff-stat-removed">0</div>
+                            <div class="text-xs text-muted" style="margin-top:auto;line-height:1.3">過去存在但本次掃描已移除的外部連結
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="padding:0; overflow:hidden;">
+                        <div class="card-header"
+                            style="padding:1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                            <div class="link-toolbar" style="display:flex; align-items:center; gap:0.75rem">
+                                <span class="card-title link-title" style="margin-right:0.5rem">比對結果</span>
+                                <div style="display:flex; align-items:center; gap:0.75rem">
+                                    <button class="btn btn-secondary btn-icon" id="btn-compare-exclude-modal"
+                                        title="設定排除網域" style="flex-shrink:0;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
+                                            <path d="m22 3-5 5" />
+                                            <path d="m17 3 5 5" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:0.75rem">
+                                <button class="btn btn-secondary btn-sm" id="btn-compare-export-csv">
+                                    <div
+                                        style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
+                                    </div>
+                                    CSV
+                                </button>
+                                <button class="btn btn-secondary btn-sm" id="btn-compare-export-json">
+                                    <div
+                                        style="width:14px;height:14px;margin-right:0.25rem;vertical-align:text-bottom;display:inline-block;background-color:currentColor;mask:url(/static/image/icon-download.svg) no-repeat center / contain;-webkit-mask:url(/static/image/icon-download.svg) no-repeat center / contain;">
+                                    </div>
+                                    JSON
+                                </button>
+                            </div>
+                        </div>
+                        <div id="compare-details-container"
+                            style="padding:0 0 1rem; max-height:60vh; overflow-y:auto; background:var(--surface-base);">
+                            <!-- Details rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── 移交任務視圖 ────────────────────────────────────── -->
+            <div id="view-transfer" style="display:none">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">移交任務</h1>
+                        <p class="page-subtitle">將您的任務擁有權移交給系統內的其他使用者。</p>
+                    </div>
+                </div>
+
+                <div class="card" style="max-width: 600px; margin: 0 auto;">
+                    <form id="transfer-view-form">
+                        <div class="form-group" style="margin-bottom:1.5rem">
+                            <label class="form-label" for="transfer-job-select">選擇欲移交的任務 <span
+                                    class="required">*</span></label>
+                            <select id="transfer-job-select" class="form-input" required></select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:1.5rem">
+                            <label class="form-label" for="transfer-target-email">接收任務的使用者 Email <span
+                                    class="required">*</span></label>
+                            <input class="form-input" type="email" id="transfer-target-email" required
+                                placeholder="user@example.com" />
+                            <div class="form-hint" style="margin-top:0.5rem">移交成功後，您將無法再看到或管理此任務。此操作無法撤銷。</div>
+                        </div>
+                        <div id="transfer-view-error"
+                            style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
+                        </div>
+                        <div style="display:flex; justify-content:flex-end;">
+                            <button type="submit" class="btn btn-primary" id="btn-run-transfer">確定移交</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </main>
     </div>
-  </div>
 
-  <!-- ── 預設清單檢視 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="default-list-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:500px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="default-list-title">預設清單</h2>
-        <button id="default-list-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group mb-6">
-        <textarea class="form-textarea" id="default-list-display" rows="12" readonly
-          style="font-family:monospace; font-size:0.875rem; line-height:1.4; background:var(--surface-raised); color:var(--text-primary); cursor:default;"></textarea>
-      </div>
-      <div class="d-flex justify-end">
-        <button type="button" class="btn btn-primary" id="default-list-ok">確定</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 變更密碼 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="change-pwd-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">修改密碼</h2>
-        <button id="change-pwd-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <form id="change-pwd-form">
-        <div class="d-flex flex-col gap-4 mb-6">
-          <div class="form-group">
-            <label class="form-label" for="current-password">現有密碼 <span class="required">*</span></label>
-            <input class="form-input" type="password" id="current-password" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="new-password-change">新密碼 <span class="required">*</span></label>
-            <input class="form-input" type="password" id="new-password-change" required />
-            <div style="margin-top:0.5rem">
-              <div class="progress-bar">
-                <div class="progress-fill" id="pwd-strength-bar" style="width:0%;transition:width 0.3s,background 0.3s">
-                </div>
-              </div>
-              <div style="display:flex;justify-content:space-between;margin-top:0.25rem">
-                <span class="form-hint">密碼強度</span>
-                <span class="text-xs font-medium" id="pwd-strength-label" style="transition:color 0.3s"></span>
-              </div>
+    <!-- ── 任務完整設定檢視 Modal ────────────────────────────────────── -->
+    <div class="modal-backdrop" id="job-config-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">任務設定參數 (唯讀)</h2>
+                <button type="button" id="job-config-close" class="modal-close-btn">&times;</button>
             </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="confirm-password-change">確認新密碼 <span class="required">*</span></label>
-            <input class="form-input" type="password" id="confirm-password-change" required />
-          </div>
-          <div
-            style="font-size:0.8125rem;color:var(--text-muted);background:var(--surface-overlay);padding:0.875rem;border-radius:0.5rem">
-            <div style="font-weight:600;color:var(--text-secondary);margin-bottom:0.375rem">密碼安全要求</div>
-            <ul style="list-style:disc;padding-left:1.25rem;display:flex;flex-direction:column;gap:0.25rem;margin:0">
-              <li>長度至少 12 個字元</li>
-              <li>需包含大寫、小寫、數字、特殊符號中的至少 3 類</li>
-              <li>不得包含電子郵件帳號名稱（@ 之前的字串）</li>
-            </ul>
-          </div>
-          <div id="change-pwd-error" style="color:var(--color-danger-400);font-size:0.875rem"></div>
+            <div class="modal-body">
+                <div class="form-group mb-2">
+                    <div id="job-config-container"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="job-config-ok">確定</button>
+            </div>
         </div>
-        <div class="d-flex justify-end gap-3">
-          <button type="button" class="btn btn-ghost" id="change-pwd-cancel">取消</button>
-          <button type="submit" class="btn btn-primary" id="change-pwd-submit">儲存修改</button>
+    </div>
+
+    <!-- ── 預設清單檢視 Modal ────────────────────────────────────── -->
+    <div class="modal-backdrop" id="default-list-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="default-list-title">-</h2>
+                <button type="button" id="default-list-close" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-2">
+                    <textarea class="form-textarea" id="default-list-display" rows="12" readonly
+                        style="background:var(--surface-raised);"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="default-list-ok">確定</button>
+            </div>
         </div>
-      </form>
     </div>
-  </div>
 
-  </div> <!-- End of view-job-detail -->
+    </div> <!-- End of view-job-detail -->
 
-  <!-- ── 共用確認 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="confirm-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-4">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
-        <button id="confirm-modal-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="mb-6" style="color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
-        id="confirm-modal-message"></div>
-      <div class="d-flex justify-end gap-3">
-        <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
-        <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
-      </div>
+    <!-- ── 排除網域 Modal ────────────────────────────────────── -->
+    <div class="modal-backdrop" id="exclude-domains-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">排除指定網域</h2>
+                <button type="button" id="exclude-domains-close" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-2">
+                    <label class="form-check-label">
+                        <input type="checkbox" id="exclude-domains-enabled" checked /> 啟用排除過濾
+                    </label>
+                </div>
+                <div class="form-group mb-2">
+                    <label class="form-label" for="exclude-domains-textarea">網域清單 (每行一個)</label>
+                    <textarea class="form-textarea" id="exclude-domains-textarea" rows="6"
+                        placeholder="facebook.com&#10;youtube.com"></textarea>
+                    <div class="form-hint mt-2">這些網域將從結果列表中隱藏，並自動儲存在您的瀏覽器中。</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="exclude-domains-cancel">取消</button>
+                <button type="button" class="btn btn-primary" id="exclude-domains-submit">確定儲存</button>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- ── 排除網域 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="exclude-domains-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">排除指定網域</h2>
-        <button id="exclude-domains-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="form-group" style="margin-bottom:0.5rem">
-        <label
-          style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
-          <input type="checkbox" id="exclude-domains-enabled" checked /> 啟用排除過濾
-        </label>
-      </div>
-      <div class="form-group mb-6">
-        <label class="form-label" for="exclude-domains-textarea">網域清單 (每行一個)</label>
-        <textarea class="form-textarea" id="exclude-domains-textarea" rows="6"
-          placeholder="facebook.com&#10;youtube.com"></textarea>
-        <div class="form-hint" style="margin-top:0.5rem">這些網域將從結果列表中隱藏，並自動儲存在您的瀏覽器中。</div>
-      </div>
-      <div class="d-flex justify-end gap-3">
-        <button type="button" class="btn btn-ghost" id="exclude-domains-cancel">取消</button>
-        <button type="button" class="btn btn-primary" id="exclude-domains-submit">確定儲存</button>
-      </div>
-    </div>
-  </div>
+    <script type="module" src="/static/js/components/confirm-modal.js"></script>
+    <script type="module" src="/static/js/components/app-topbar.js"></script>
+    <script type="module">
+        import * as api from '/static/js/api.js';
+        import { toast } from '/static/js/components/toast.js';
+        import { getCurrentUser } from '/static/js/auth.js';
+        import { renderJobList } from '/static/js/jobs.js';
+        import { initJobDetailPage, destroyJobDetailPage } from '/static/js/job-detail.js';
+        import { initComparePage } from '/static/js/compare.js';
+        import { initTransferPage } from '/static/js/transfer.js';
+        import { initDuplicatePage } from '/static/js/duplicate.js';
 
-  <div class="toast-container"></div>
+        // ── 初始化使用者資訊 ──────────────────────────────────────
+        async function initUser() {
+            const user = await getCurrentUser();
+            if (!user) { window.location.replace('/'); return; }
 
-  <script type="module">
-    import * as api from '/static/js/api.js';
-    import { toast } from '/static/js/toast.js';
-    import { logout, getCurrentUser, initPasswordStrength } from '/static/js/auth.js';
-    import { renderJobList } from '/static/js/jobs.js';
-    import { initJobDetailPage, destroyJobDetailPage } from '/static/js/job-detail.js';
-    import { initComparePage } from '/static/js/compare.js';
-    import { initTransferPage } from '/static/js/transfer.js';
-    import { initDuplicatePage } from '/static/js/duplicate.js';
+            const adminSection = document.getElementById('admin-nav-section');
 
-    // ── 共用確認 Modal 邏輯 ───────────────────────────────────
-    function showConfirm(title, message, confirmText = '確定', isDanger = false) {
-      return new Promise((resolve) => {
-        const modal = document.getElementById('confirm-modal');
-        const titleEl = document.getElementById('confirm-modal-title');
-        const messageEl = document.getElementById('confirm-modal-message');
-        const submitBtn = document.getElementById('confirm-modal-submit');
-        const cancelBtn = document.getElementById('confirm-modal-cancel');
-        const closeBtn = document.getElementById('confirm-modal-close');
-
-        titleEl.textContent = title;
-        messageEl.textContent = message;
-        submitBtn.textContent = confirmText;
-        submitBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
-
-        const cleanup = () => {
-          submitBtn.removeEventListener('click', onConfirm);
-          cancelBtn.removeEventListener('click', onCancel);
-          closeBtn.removeEventListener('click', onCancel);
-          modal.style.display = 'none';
-        };
-
-        const onConfirm = () => { cleanup(); resolve(true); };
-        const onCancel = () => { cleanup(); resolve(false); };
-
-        submitBtn.addEventListener('click', onConfirm);
-        cancelBtn.addEventListener('click', onCancel);
-        closeBtn.addEventListener('click', onCancel);
-
-        modal.style.display = 'flex';
-      });
-    }
-
-    // ── 初始化使用者資訊 ──────────────────────────────────────
-    async function initUser() {
-      const user = await getCurrentUser();
-      if (!user) { window.location.replace('/'); return; }
-
-      const emailEl = document.getElementById('topbar-email');
-      const roleEl = document.getElementById('topbar-role');
-      const avatarEl = document.getElementById('topbar-avatar');
-      const adminSection = document.getElementById('admin-nav-section');
-
-      if (emailEl) emailEl.textContent = user.email;
-      if (roleEl) roleEl.textContent = user.role === 'admin' ? '管理員' : '使用者';
-      if (avatarEl) avatarEl.textContent = user.email.charAt(0).toUpperCase();
-
-      if (adminSection && user.role === 'admin') {
-        adminSection.style.display = '';
-      }
-    }
-
-    // ── Hash-based SPA Router ─────────────────────────────────
-    const viewJobs = document.getElementById('view-jobs');
-    const viewDetail = document.getElementById('view-job-detail');
-    const viewCreate = document.getElementById('view-create-job');
-    const viewHelp = document.getElementById('view-help');
-    const viewCompare = document.getElementById('view-compare');
-    const viewTransfer = document.getElementById('view-transfer');
-    const viewDuplicate = document.getElementById('view-duplicate');
-    const navJobs = document.getElementById('nav-jobs');
-    const navNewJob = document.getElementById('nav-new-job');
-    const navHelp = document.getElementById('nav-help');
-    const navCompare = document.getElementById('nav-compare');
-    const navTransfer = document.getElementById('nav-transfer');
-    const navDuplicate = document.getElementById('nav-duplicate');
-
-    let _hasCheckedInitialJobs = false;
-
-    async function loadJobsList() {
-      try {
-        const jobs = await api.get('/api/jobs');
-
-        if (!_hasCheckedInitialJobs) {
-          _hasCheckedInitialJobs = true;
-          if (jobs.length === 0 && (!window.location.hash || window.location.hash === '#/jobs' || window.location.hash === '#')) {
-            window.location.href = '/help.html';
-            return;
-          }
-        }
-
-        renderJobList(jobs, document.getElementById('jobs-list-container'));
-      } catch (err) {
-        toast.error('無法載入任務列表：' + err.message);
-      }
-    }
-
-    // ── 預設清單 Modal 邏輯 ───────────────────────────────────
-    const defaultListModal = document.getElementById('default-list-modal');
-    function showDefaultListModal(title, content) {
-      if (!defaultListModal) return;
-      document.getElementById('default-list-title').textContent = title;
-      document.getElementById('default-list-display').value = content;
-      defaultListModal.style.display = 'flex';
-    }
-    document.getElementById('default-list-close')?.addEventListener('click', () => defaultListModal.style.display = 'none');
-    document.getElementById('default-list-ok')?.addEventListener('click', () => defaultListModal.style.display = 'none');
-
-    let _globalDefaultConfig = null;
-    let _isDefaultsLoaded = false;
-    async function loadJobDefaults() {
-      if (_isDefaultsLoaded) return;
-      try {
-        // 加上時間戳記強迫瀏覽器不使用快取
-        const config = await api.get('/api/jobs/default-config?_t=' + Date.now());
-        if (!config) return;
-        _globalDefaultConfig = config;
-
-        const setField = (id, val, min, max) => {
-          const el = document.getElementById(id);
-          if (!el) return;
-          if (val !== undefined && val !== null) {
-            el.value = Array.isArray(val) ? val.join('\n') : val;
-            el.defaultValue = el.value;
-          } else {
-            el.value = '';
-            el.defaultValue = '';
-          }
-          if (min !== undefined && min !== null) el.min = min;
-          if (max !== undefined && max !== null) el.max = max;
-          if (min !== undefined && min !== null && max !== undefined && max !== null) {
-            el.placeholder = `${min} ~ ${max}`;
-          } else if (min !== undefined && min !== null) {
-            el.placeholder = `${min} ~ 無限制`;
-          }
-        };
-
-        const extEl = document.getElementById('job-ignore-exts');
-        if (extEl) extEl.placeholder = '.pdf\n.zip';
-        const btnViewExts = document.getElementById('btn-view-exts');
-        if (btnViewExts && config.ignore_extensions?.length) {
-          btnViewExts.style.display = 'inline-block';
-          btnViewExts.addEventListener('click', () => {
-            showDefaultListModal('預設攔截副檔名 (唯讀)', config.ignore_extensions.join('\n'));
-          });
-        }
-
-        const regexEl = document.getElementById('job-ignore-regexes');
-        if (regexEl) regexEl.placeholder = '^https://example\\.com/logout';
-        const btnViewRegexes = document.getElementById('btn-view-regexes');
-        if (btnViewRegexes && config.ignore_regexes?.length) {
-          btnViewRegexes.style.display = 'inline-block';
-          btnViewRegexes.addEventListener('click', () => {
-            showDefaultListModal('預設攔截路徑規則 (唯讀)', config.ignore_regexes.join('\n'));
-          });
-        }
-
-        const uaEl = document.getElementById('job-user-agent');
-        if (uaEl) {
-          uaEl.value = '';
-          uaEl.defaultValue = '';
-          uaEl.placeholder = config.user_agent ? config.user_agent : '預設啟動 fake-useragent 隨機輪替';
-        }
-
-        const sslEl = document.getElementById('job-ssl-exempt');
-        if (sslEl) sslEl.placeholder = 'example.com';
-        const btnViewSsl = document.getElementById('btn-view-ssl');
-        if (btnViewSsl && config.ssl_exempt_domains?.length) {
-          btnViewSsl.style.display = 'inline-block';
-          btnViewSsl.addEventListener('click', () => {
-            showDefaultListModal('預設自簽憑證豁免網域 (唯讀)', config.ssl_exempt_domains.join('\n'));
-          });
-        }
-
-        const socialEl = document.getElementById('job-social-domains');
-        if (socialEl) socialEl.placeholder = 'facebook.com';
-        const btnViewSocial = document.getElementById('btn-view-social');
-        if (btnViewSocial && config.social_domains?.length) {
-          btnViewSocial.style.display = 'inline-block';
-          btnViewSocial.addEventListener('click', () => {
-            showDefaultListModal('預設社群與反爬蟲網域 (唯讀)', config.social_domains.join('\n'));
-          });
-        }
-
-        const dd = config.domain_delays || {};
-        const ddLines = Object.entries(dd).map(([k, v]) => `${k}: ${v}`);
-        const ddEl = document.getElementById('job-domain-delays');
-        if (ddEl) {
-          ddEl.value = '';
-          ddEl.defaultValue = '';
-        }
-        const btnViewDd = document.getElementById('btn-view-dd');
-        if (btnViewDd && ddLines.length) {
-          btnViewDd.style.display = 'inline-block';
-          btnViewDd.addEventListener('click', () => {
-            showDefaultListModal('預設特定網域延遲 (唯讀)', ddLines.join('\n'));
-          });
-        }
-
-        setField('job-delay', config.delay, config.min_delay, config.max_delay);
-        setField('job-timeout', config.timeout, config.min_timeout, config.max_timeout);
-        setField('job-connect-timeout', config.connect_timeout, config.min_connect_timeout, config.max_connect_timeout);
-        setField('job-ext-check-timeout', config.external_check_timeout, config.min_external_check_timeout, config.max_external_check_timeout);
-        setField('job-retries', config.retries, config.min_retries, config.max_retries);
-        setField('job-max-depth', config.max_depth, 1, config.max_max_depth);
-        setField('job-max-pages', config.max_pages, 1, config.max_max_pages);
-        setField('job-proxy-url', config.proxy_url);
-
-        _isDefaultsLoaded = true;
-      } catch (err) {
-        console.error('無法載入全域預設配置:', err);
-      }
-    }
-
-    let _currentView = null;
-
-    async function route() {
-      const hash = window.location.hash || '#/jobs';
-      const jobMatch = hash.match(/^#\/jobs\/([^/]+)$/);
-
-      viewJobs.style.display = 'none';
-      viewDetail.style.display = 'none';
-      if (viewCreate) viewCreate.style.display = 'none';
-      if (viewHelp) viewHelp.style.display = 'none';
-      if (viewCompare) viewCompare.style.display = 'none';
-      if (viewTransfer) viewTransfer.style.display = 'none';
-      if (viewDuplicate) viewDuplicate.style.display = 'none';
-      if (navJobs) navJobs.classList.remove('active');
-      if (navNewJob) navNewJob.classList.remove('active');
-      if (navHelp) navHelp.classList.remove('active');
-      if (navCompare) navCompare.classList.remove('active');
-      if (navTransfer) navTransfer.classList.remove('active');
-      if (navDuplicate) navDuplicate.classList.remove('active');
-
-      if (hash === '#/help') {
-        if (viewHelp) viewHelp.style.display = '';
-        if (navHelp) navHelp.classList.add('active');
-        _currentView = 'help';
-        destroyJobDetailPage();
-      } else if (hash.startsWith('#/compare')) {
-        if (viewCompare) viewCompare.style.display = '';
-        if (navCompare) navCompare.classList.add('active');
-        _currentView = 'compare';
-        destroyJobDetailPage();
-
-        const params = new URLSearchParams(hash.split('?')[1] || '');
-        const baseId = params.get('base');
-        const targetId = params.get('target');
-
-        await initComparePage(baseId, targetId);
-      } else if (hash.startsWith('#/transfer')) {
-        if (viewTransfer) viewTransfer.style.display = '';
-        if (navTransfer) navTransfer.classList.add('active');
-        _currentView = 'transfer';
-        destroyJobDetailPage();
-
-        const params = new URLSearchParams(hash.split('?')[1] || '');
-        const jobId = params.get('job');
-
-        await initTransferPage(jobId);
-      } else if (hash.startsWith('#/duplicate')) {
-        if (viewDuplicate) viewDuplicate.style.display = '';
-        if (navDuplicate) navDuplicate.classList.add('active');
-        _currentView = 'duplicate';
-        destroyJobDetailPage();
-
-        await initDuplicatePage();
-      } else if (hash.startsWith('#/new')) {
-        if (viewCreate) viewCreate.style.display = '';
-        if (navNewJob) navNewJob.classList.add('active');
-        _currentView = 'new';
-        destroyJobDetailPage();
-        await loadJobDefaults();
-
-        // 每次進入新建/複製頁面，都先重置表單以避免舊有狀態殘留
-        const form = document.getElementById('create-job-form');
-        if (form) form.reset();
-
-        const params = new URLSearchParams(hash.split('?')[1] || '');
-        const cloneId = params.get('clone');
-        if (cloneId) {
-          try {
-            const job = await api.get(`/api/jobs/${cloneId}`);
-            const c = job.config || {};
-
-            const isEquivalent = (a, b) => {
-              if (a === b) return true;
-              if (a == null || b == null) return false;
-
-              // 容錯處理：若兩者皆能轉為非空數字，則以數值大小進行比對，相容字串數字與數值型態
-              if (a !== '' && b !== '' && !isNaN(Number(a)) && !isNaN(Number(b))) {
-                if (Number(a) === Number(b)) return true;
-              }
-
-              if (Array.isArray(a) && Array.isArray(b)) {
-                if (a.length !== b.length) return false;
-                const sortedA = [...a].sort();
-                const sortedB = [...b].sort();
-                return sortedA.every((val, index) => val === sortedB[index]);
-              }
-              if (typeof a === 'object' && typeof b === 'object') {
-                const keysA = Object.keys(a);
-                const keysB = Object.keys(b);
-                if (keysA.length !== keysB.length) return false;
-                return keysA.every(k => isEquivalent(a[k], b[k]));
-              }
-              return false;
-            };
-
-            const getFilteredValue = (key, val) => {
-              if (!_globalDefaultConfig) return val;
-              const defaultVal = _globalDefaultConfig[key];
-
-              // 針對聯集/合併類型的參數 (陣列與字典)，進行差集過濾，只留下使用者自訂的部分
-              if (Array.isArray(val) && Array.isArray(defaultVal)) {
-                const filtered = val.filter(item => !defaultVal.includes(item));
-                return filtered.length > 0 ? filtered : '';
-              } else if (val !== null && typeof val === 'object' && defaultVal !== null && typeof defaultVal === 'object' && !Array.isArray(val)) {
-                const filtered = {};
-                for (const [k, v] of Object.entries(val)) {
-                  if (defaultVal[k] !== v) {
-                    filtered[k] = v;
-                  }
-                }
-                return Object.keys(filtered).length > 0 ? filtered : '';
-              }
-
-              if (isEquivalent(val, defaultVal)) {
-                return ''; // 與預設值相同，濾除，維持空值讓 placeholder 顯示預設值
-              }
-              return val;
-            };
-
-            const setVal = (id, val) => {
-              const el = document.getElementById(id);
-              if (el) {
-                if (val !== undefined && val !== null) {
-                  el.value = Array.isArray(val) ? val.join('\n') : val;
-                } else {
-                  el.value = '';
-                }
-              }
-            };
-
-            setVal('job-url', job.start_url);
-            setVal('job-target-domains', c.target_domains);
-            setVal('job-trusted-domains', c.trusted_domains);
-            setVal('job-ignore-exts', getFilteredValue('ignore_extensions', c.ignore_extensions));
-            setVal('job-ignore-regexes', getFilteredValue('ignore_regexes', c.ignore_regexes));
-            setVal('job-ssl-exempt', getFilteredValue('ssl_exempt_domains', c.ssl_exempt_domains));
-            setVal('job-social-domains', getFilteredValue('social_domains', c.social_domains));
-
-            // 單一覆寫型欄位，複製時直接填入原始快照值，不再進行全域濾除
-            setVal('job-user-agent', c.user_agent);
-
-            if (c.proxy_url && !c.proxy_url.includes('***')) {
-              setVal('job-proxy-url', c.proxy_url);
-            } else if (c.proxy_url && c.proxy_url.includes('***')) {
-              setVal('job-proxy-url', '');
-              toast.warning('已隱藏原始任務的 Proxy 密碼，請重新輸入代理伺服器位址 (若需要)。');
-            } else {
-              setVal('job-proxy-url', '');
+            if (adminSection && user.role === 'admin') {
+                adminSection.style.display = '';
             }
-
-            setVal('job-timeout', c.timeout);
-            setVal('job-connect-timeout', c.connect_timeout);
-            setVal('job-ext-check-timeout', c.external_check_timeout);
-            setVal('job-delay', c.delay);
-            setVal('job-retries', c.retries);
-            setVal('job-max-depth', c.max_depth);
-            setVal('job-max-pages', c.max_pages);
-
-            // domain_delays 屬於字典合併，依然需要進行過濾，防止全域網域延遲被寫死回表單
-            const filteredDomainDelays = getFilteredValue('domain_delays', c.domain_delays);
-            if (filteredDomainDelays) {
-              const ddLines = Object.entries(filteredDomainDelays).map(([k, v]) => `${k}: ${v}`);
-              setVal('job-domain-delays', ddLines);
-            } else {
-              setVal('job-domain-delays', '');
-            }
-          } catch (err) {
-            toast.error('無法載入欲複製的任務：' + err.message);
-          }
         }
-      } else if (jobMatch) {
-        const jobId = jobMatch[1];
-        viewDetail.style.display = '';
-        document.getElementById('job-id-display').textContent = jobId;
-        _currentView = 'detail';
-        destroyJobDetailPage();
-        await initJobDetailPage(jobId);
-      } else {
-        viewJobs.style.display = '';
-        if (navJobs) navJobs.classList.add('active');
-        _currentView = 'list';
-        destroyJobDetailPage();
-        await loadJobsList();
-      }
-    }
 
-    // 登出
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-      const confirmed = await showConfirm('登出', '確定要登出系統嗎？', '登出');
-      if (confirmed) logout();
-    });
+        // ── Hash-based SPA Router ─────────────────────────────────
+        const viewJobs = document.getElementById('view-jobs');
+        const viewDetail = document.getElementById('view-job-detail');
+        const viewCreate = document.getElementById('view-create-job');
+        const viewHelp = document.getElementById('view-help');
+        const viewCompare = document.getElementById('view-compare');
+        const viewTransfer = document.getElementById('view-transfer');
+        const viewDuplicate = document.getElementById('view-duplicate');
+        const navJobs = document.getElementById('nav-jobs');
+        const navNewJob = document.getElementById('nav-new-job');
+        const navHelp = document.getElementById('nav-help');
+        const navCompare = document.getElementById('nav-compare');
+        const navTransfer = document.getElementById('nav-transfer');
+        const navDuplicate = document.getElementById('nav-duplicate');
 
-    // 初始化
-    await initUser();
-    await route();
-    window.addEventListener('hashchange', route);
+        let _hasCheckedInitialJobs = false;
 
-    // ── 密碼修改 ──────────────────────────────────────────────
-    const changePwdModal = document.getElementById('change-pwd-modal');
-    const changePwdBtn = document.getElementById('change-pwd-btn');
-    const changePwdClose = document.getElementById('change-pwd-close');
-    const changePwdCancel = document.getElementById('change-pwd-cancel');
-    const changePwdForm = document.getElementById('change-pwd-form');
-    const pwdStrengthBar = document.getElementById('pwd-strength-bar');
-    const pwdStrengthLabel = document.getElementById('pwd-strength-label');
-    const newPwdInput = document.getElementById('new-password-change');
-
-    if (newPwdInput && pwdStrengthBar && pwdStrengthLabel) {
-      initPasswordStrength(newPwdInput, pwdStrengthBar, pwdStrengthLabel);
-    }
-
-    function openChangePwdModal() {
-      changePwdModal.style.display = 'flex';
-      changePwdForm.reset();
-      document.getElementById('change-pwd-error').textContent = '';
-      if (pwdStrengthBar) {
-        pwdStrengthBar.style.width = '0%';
-        pwdStrengthBar.style.background = '';
-      }
-      if (pwdStrengthLabel) {
-        pwdStrengthLabel.textContent = '';
-      }
-    }
-
-    function closeChangePwdModal() {
-      changePwdModal.style.display = 'none';
-    }
-
-    changePwdBtn.addEventListener('click', openChangePwdModal);
-    changePwdClose.addEventListener('click', closeChangePwdModal);
-    changePwdCancel.addEventListener('click', closeChangePwdModal);
-
-    changePwdForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const currentPwd = document.getElementById('current-password').value;
-      const newPwd = newPwdInput.value;
-      const confirmPwd = document.getElementById('confirm-password-change').value;
-      const errorEl = document.getElementById('change-pwd-error');
-      const submitBtn = document.getElementById('change-pwd-submit');
-
-      errorEl.textContent = '';
-
-      if (newPwd !== confirmPwd) {
-        errorEl.textContent = '新密碼與確認密碼不一致。';
-        return;
-      }
-
-      if (currentPwd === newPwd) {
-        errorEl.textContent = '新密碼不得與現有密碼相同。';
-        return;
-      }
-
-      submitBtn.classList.add('loading');
-      submitBtn.disabled = true;
-
-      try {
-        await api.patch('/api/auth/password', {
-          current_password: currentPwd,
-          new_password: newPwd
-        });
-        closeChangePwdModal();
-        alert('密碼已修改，請使用新密碼重新登入');
-        logout();
-      } catch (err) {
-        errorEl.textContent = err.message || '修改密碼失敗。';
-      } finally {
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-      }
-    });
-
-    // ── 建立任務邏輯 ───────────────────────────────────────────
-    const createJobForm = document.getElementById('create-job-form');
-    if (createJobForm) {
-      const jobUrlInput = document.getElementById('job-url');
-      const targetDomainsInput = document.getElementById('job-target-domains');
-      const trustedDomainsInput = document.getElementById('job-trusted-domains');
-
-      // 自動填寫網域防呆：當網址輸入完畢時，自動提取 hostname 填入目標網域與信任網域
-      if (jobUrlInput && targetDomainsInput) {
-        jobUrlInput.addEventListener('blur', () => {
-          if (jobUrlInput.value.trim()) {
+        async function loadJobsList() {
             try {
-              const url = new URL(jobUrlInput.value.trim());
-              if (!targetDomainsInput.value.trim()) {
-                targetDomainsInput.value = url.hostname;
-              }
-              if (trustedDomainsInput && !trustedDomainsInput.value.trim()) {
-                trustedDomainsInput.value = url.hostname;
-              }
-            } catch (e) { }
-          }
-        });
-      }
+                const jobs = await api.get('/api/jobs');
 
-      createJobForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const submitBtn = document.getElementById('btn-submit-job');
-        const errorEl = document.getElementById('create-job-error');
-        errorEl.textContent = '';
+                if (!_hasCheckedInitialJobs) {
+                    _hasCheckedInitialJobs = true;
+                    if (jobs.length === 0 && (!window.location.hash || window.location.hash === '#/jobs' || window.location.hash === '#')) {
+                        window.location.href = '/help.html';
+                        return;
+                    }
+                }
 
-        const startUrl = jobUrlInput.value.trim();
-        const targetDomainsRaw = targetDomainsInput.value;
-        const trustedDomainsRaw = document.getElementById('job-trusted-domains').value;
-        const ignoreExtsRaw = document.getElementById('job-ignore-exts').value;
-        const ignoreRegexesRaw = document.getElementById('job-ignore-regexes').value;
-
-        if (!targetDomainsRaw.trim()) {
-          errorEl.textContent = '請填寫至少一個目標網域。';
-          return;
-        }
-
-        submitBtn.classList.add('loading');
-        submitBtn.disabled = true;
-
-        try {
-          const body = {
-            start_url: startUrl,
-            target_domains: targetDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean),
-            trusted_domains: trustedDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean)
-          };
-
-          const depth = document.getElementById('job-max-depth').value;
-          if (depth) body.max_depth = parseInt(depth, 10);
-
-          const pages = document.getElementById('job-max-pages').value;
-          if (pages) body.max_pages = parseInt(pages, 10);
-
-          const delay = document.getElementById('job-delay').value;
-          if (delay) body.delay = parseFloat(delay);
-
-          const timeout = document.getElementById('job-timeout').value;
-          if (timeout) body.timeout = parseFloat(timeout);
-
-          const connectTimeout = document.getElementById('job-connect-timeout').value;
-          if (connectTimeout) body.connect_timeout = parseFloat(connectTimeout);
-
-          const extCheckTimeout = document.getElementById('job-ext-check-timeout').value;
-          if (extCheckTimeout) body.external_check_timeout = parseFloat(extCheckTimeout);
-
-          const retries = document.getElementById('job-retries').value;
-          if (retries) body.retries = parseInt(retries, 10);
-
-          const proxyUrl = document.getElementById('job-proxy-url').value.trim();
-          if (proxyUrl) body.proxy_url = proxyUrl;
-
-          const ignoreExts = ignoreExtsRaw.split('\n').map(s => s.trim()).filter(Boolean);
-          if (ignoreExts.length) body.ignore_extensions = ignoreExts;
-
-          const ignoreRegexes = ignoreRegexesRaw.split('\n').map(s => s.trim()).filter(Boolean);
-          if (ignoreRegexes.length) body.ignore_regexes = ignoreRegexes;
-
-          const userAgent = document.getElementById('job-user-agent').value.trim();
-          if (userAgent) body.user_agent = userAgent;
-
-          const sslExemptRaw = document.getElementById('job-ssl-exempt').value;
-          const sslExempt = sslExemptRaw.split('\n').map(s => s.trim()).filter(Boolean);
-          if (sslExempt.length) body.ssl_exempt_domains = sslExempt;
-
-          const socialDomainsRaw = document.getElementById('job-social-domains').value;
-          const socialDomains = socialDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
-          if (socialDomains.length) body.social_domains = socialDomains;
-
-          const ddLines = document.getElementById('job-domain-delays').value.split('\n').map(s => s.trim()).filter(Boolean);
-          if (ddLines.length > 0) {
-            const domain_delays = {};
-            for (const line of ddLines) {
-              const parts = line.split(':');
-              if (parts.length !== 2) throw new Error('特定網域延遲格式錯誤，必須為 "網域: 延遲秒數"');
-              const domain = parts[0].trim();
-              const delayVal = parseFloat(parts[1].trim());
-              if (isNaN(delayVal) || delayVal < 0) throw new Error(`特定網域延遲秒數無效: ${parts[1]}`);
-              domain_delays[domain] = delayVal;
+                renderJobList(jobs, document.getElementById('jobs-list-container'));
+            } catch (err) {
+                toast.error('無法載入任務列表：' + err.message);
             }
-            body.domain_delays = domain_delays;
-          }
-
-          const res = await api.post('/api/jobs', body);
-          toast.success('任務已建立成功！');
-          window.location.hash = `#/jobs/${res.job_id}`;
-          createJobForm.reset();
-        } catch (err) {
-          errorEl.textContent = err.message || '建立任務失敗。';
-        } finally {
-          submitBtn.classList.remove('loading');
-          submitBtn.disabled = false;
         }
-      });
-    }
-  </script>
 
-  <script type="module" src="/static/js/components/job-status.js"></script>
-  <script type="module" src="/static/js/components/job-progress.js"></script>
-  <script type="module" src="/static/js/components/job-controls.js"></script>
-  <script type="module" src="/static/js/components/job-stats.js"></script>
-  <script type="module" src="/static/js/components/link-table.js"></script>
+        // ── 預設清單 Modal 邏輯 ───────────────────────────────────
+        const defaultListModal = document.getElementById('default-list-modal');
+        function showDefaultListModal(title, content) {
+            if (!defaultListModal) return;
+            document.getElementById('default-list-title').textContent = title;
+            document.getElementById('default-list-display').value = content;
+            defaultListModal.style.display = 'flex';
+        }
+        document.getElementById('default-list-close')?.addEventListener('click', () => defaultListModal.style.display = 'none');
+        document.getElementById('default-list-ok')?.addEventListener('click', () => defaultListModal.style.display = 'none');
+
+        let _globalDefaultConfig = null;
+        let _isDefaultsLoaded = false;
+        async function loadJobDefaults() {
+            if (_isDefaultsLoaded) return;
+            try {
+                // 加上時間戳記強迫瀏覽器不使用快取
+                const config = await api.get('/api/jobs/default-config?_t=' + Date.now());
+                if (!config) return;
+                _globalDefaultConfig = config;
+
+                const setField = (id, val, min, max) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (val !== undefined && val !== null) {
+                        el.value = Array.isArray(val) ? val.join('\n') : val;
+                        el.defaultValue = el.value;
+                    } else {
+                        el.value = '';
+                        el.defaultValue = '';
+                    }
+                    if (min !== undefined && min !== null) el.min = min;
+                    if (max !== undefined && max !== null) el.max = max;
+                    if (min !== undefined && min !== null && max !== undefined && max !== null) {
+                        el.placeholder = `${min} ~ ${max}`;
+                    } else if (min !== undefined && min !== null) {
+                        el.placeholder = `${min} ~ 無限制`;
+                    }
+                };
+
+                const extEl = document.getElementById('job-ignore-exts');
+                if (extEl) extEl.placeholder = '.pdf\n.zip';
+                const btnViewExts = document.getElementById('btn-view-exts');
+                if (btnViewExts && config.ignore_extensions?.length) {
+                    btnViewExts.style.display = 'inline-block';
+                    btnViewExts.addEventListener('click', () => {
+                        showDefaultListModal('預設忽略的副檔名 (唯讀)', config.ignore_extensions.join('\n'));
+                    });
+                }
+
+                const regexEl = document.getElementById('job-ignore-regexes');
+                if (regexEl) regexEl.placeholder = '^https://example\\.com/logout';
+                const btnViewRegexes = document.getElementById('btn-view-regexes');
+                if (btnViewRegexes && config.ignore_regexes?.length) {
+                    btnViewRegexes.style.display = 'inline-block';
+                    btnViewRegexes.addEventListener('click', () => {
+                        showDefaultListModal('預設攔截路徑規則 (唯讀)', config.ignore_regexes.join('\n'));
+                    });
+                }
+
+                const uaEl = document.getElementById('job-user-agent');
+                if (uaEl) {
+                    uaEl.value = '';
+                    uaEl.defaultValue = '';
+                    uaEl.placeholder = config.user_agent ? config.user_agent : '預設啟動 fake-useragent 隨機輪替';
+                }
+
+                const sslEl = document.getElementById('job-ssl-exempt');
+                if (sslEl) sslEl.placeholder = 'example.com';
+                const btnViewSsl = document.getElementById('btn-view-ssl');
+                if (btnViewSsl && config.ssl_exempt_domains?.length) {
+                    btnViewSsl.style.display = 'inline-block';
+                    btnViewSsl.addEventListener('click', () => {
+                        showDefaultListModal('預設自簽憑證豁免網域 (唯讀)', config.ssl_exempt_domains.join('\n'));
+                    });
+                }
+
+                const socialEl = document.getElementById('job-social-domains');
+                if (socialEl) socialEl.placeholder = 'facebook.com';
+                const btnViewSocial = document.getElementById('btn-view-social');
+                if (btnViewSocial && config.social_domains?.length) {
+                    btnViewSocial.style.display = 'inline-block';
+                    btnViewSocial.addEventListener('click', () => {
+                        showDefaultListModal('預設社群與反爬蟲網域 (唯讀)', config.social_domains.join('\n'));
+                    });
+                }
+
+                const dd = config.domain_delays || {};
+                const ddLines = Object.entries(dd).map(([k, v]) => `${k}: ${v}`);
+                const ddEl = document.getElementById('job-domain-delays');
+                if (ddEl) {
+                    ddEl.value = '';
+                    ddEl.defaultValue = '';
+                }
+                const btnViewDd = document.getElementById('btn-view-dd');
+                if (btnViewDd && ddLines.length) {
+                    btnViewDd.style.display = 'inline-block';
+                    btnViewDd.addEventListener('click', () => {
+                        showDefaultListModal('預設特定網域延遲 (唯讀)', ddLines.join('\n'));
+                    });
+                }
+
+                setField('job-delay', config.delay, config.min_delay, config.max_delay);
+                setField('job-timeout', config.timeout, config.min_timeout, config.max_timeout);
+                setField('job-connect-timeout', config.connect_timeout, config.min_connect_timeout, config.max_connect_timeout);
+                setField('job-ext-check-timeout', config.external_check_timeout, config.min_external_check_timeout, config.max_external_check_timeout);
+                setField('job-retries', config.retries, config.min_retries, config.max_retries);
+                setField('job-max-depth', config.max_depth, 1, config.max_max_depth);
+                setField('job-max-pages', config.max_pages, 1, config.max_max_pages);
+                setField('job-proxy-url', config.proxy_url);
+
+                _isDefaultsLoaded = true;
+            } catch (err) {
+                console.error('無法載入全域預設配置:', err);
+            }
+        }
+
+        let _currentView = null;
+
+        async function route() {
+            const hash = window.location.hash || '#/jobs';
+            const jobMatch = hash.match(/^#\/jobs\/([^/]+)$/);
+
+            viewJobs.style.display = 'none';
+            viewDetail.style.display = 'none';
+            if (viewCreate) viewCreate.style.display = 'none';
+            if (viewHelp) viewHelp.style.display = 'none';
+            if (viewCompare) viewCompare.style.display = 'none';
+            if (viewTransfer) viewTransfer.style.display = 'none';
+            if (viewDuplicate) viewDuplicate.style.display = 'none';
+            if (navJobs) navJobs.classList.remove('active');
+            if (navNewJob) navNewJob.classList.remove('active');
+            if (navHelp) navHelp.classList.remove('active');
+            if (navCompare) navCompare.classList.remove('active');
+            if (navTransfer) navTransfer.classList.remove('active');
+            if (navDuplicate) navDuplicate.classList.remove('active');
+
+            if (hash === '#/help') {
+                if (viewHelp) viewHelp.style.display = '';
+                if (navHelp) navHelp.classList.add('active');
+                _currentView = 'help';
+                destroyJobDetailPage();
+            } else if (hash.startsWith('#/compare')) {
+                if (viewCompare) viewCompare.style.display = '';
+                if (navCompare) navCompare.classList.add('active');
+                _currentView = 'compare';
+                destroyJobDetailPage();
+
+                const params = new URLSearchParams(hash.split('?')[1] || '');
+                const baseId = params.get('base');
+                const targetId = params.get('target');
+
+                await initComparePage(baseId, targetId);
+            } else if (hash.startsWith('#/transfer')) {
+                if (viewTransfer) viewTransfer.style.display = '';
+                if (navTransfer) navTransfer.classList.add('active');
+                _currentView = 'transfer';
+                destroyJobDetailPage();
+
+                const params = new URLSearchParams(hash.split('?')[1] || '');
+                const jobId = params.get('job');
+
+                await initTransferPage(jobId);
+            } else if (hash.startsWith('#/duplicate')) {
+                if (viewDuplicate) viewDuplicate.style.display = '';
+                if (navDuplicate) navDuplicate.classList.add('active');
+                _currentView = 'duplicate';
+                destroyJobDetailPage();
+
+                await initDuplicatePage();
+            } else if (hash.startsWith('#/new')) {
+                if (viewCreate) viewCreate.style.display = '';
+                if (navNewJob) navNewJob.classList.add('active');
+                _currentView = 'new';
+                destroyJobDetailPage();
+                await loadJobDefaults();
+
+                // 每次進入新建/複製頁面，都先重置表單以避免舊有狀態殘留
+                const form = document.getElementById('create-job-form');
+                if (form) form.reset();
+
+                const params = new URLSearchParams(hash.split('?')[1] || '');
+                const cloneId = params.get('clone');
+                if (cloneId) {
+                    try {
+                        const job = await api.get(`/api/jobs/${cloneId}`);
+                        const c = job.config || {};
+
+                        const isEquivalent = (a, b) => {
+                            if (a === b) return true;
+                            if (a == null || b == null) return false;
+
+                            // 容錯處理：若兩者皆能轉為非空數字，則以數值大小進行比對，相容字串數字與數值型態
+                            if (a !== '' && b !== '' && !isNaN(Number(a)) && !isNaN(Number(b))) {
+                                if (Number(a) === Number(b)) return true;
+                            }
+
+                            if (Array.isArray(a) && Array.isArray(b)) {
+                                if (a.length !== b.length) return false;
+                                const sortedA = [...a].sort();
+                                const sortedB = [...b].sort();
+                                return sortedA.every((val, index) => val === sortedB[index]);
+                            }
+                            if (typeof a === 'object' && typeof b === 'object') {
+                                const keysA = Object.keys(a);
+                                const keysB = Object.keys(b);
+                                if (keysA.length !== keysB.length) return false;
+                                return keysA.every(k => isEquivalent(a[k], b[k]));
+                            }
+                            return false;
+                        };
+
+                        const getFilteredValue = (key, val) => {
+                            if (!_globalDefaultConfig) return val;
+                            const defaultVal = _globalDefaultConfig[key];
+
+                            // 針對聯集/合併類型的參數 (陣列與字典)，進行差集過濾，只留下使用者自訂的部分
+                            if (Array.isArray(val) && Array.isArray(defaultVal)) {
+                                const filtered = val.filter(item => !defaultVal.includes(item));
+                                return filtered.length > 0 ? filtered : '';
+                            } else if (val !== null && typeof val === 'object' && defaultVal !== null && typeof defaultVal === 'object' && !Array.isArray(val)) {
+                                const filtered = {};
+                                for (const [k, v] of Object.entries(val)) {
+                                    if (defaultVal[k] !== v) {
+                                        filtered[k] = v;
+                                    }
+                                }
+                                return Object.keys(filtered).length > 0 ? filtered : '';
+                            }
+
+                            if (isEquivalent(val, defaultVal)) {
+                                return ''; // 與預設值相同，濾除，維持空值讓 placeholder 顯示預設值
+                            }
+                            return val;
+                        };
+
+                        const setVal = (id, val) => {
+                            const el = document.getElementById(id);
+                            if (el) {
+                                if (val !== undefined && val !== null) {
+                                    el.value = Array.isArray(val) ? val.join('\n') : val;
+                                } else {
+                                    el.value = '';
+                                }
+                            }
+                        };
+
+                        setVal('job-url', job.start_url);
+                        setVal('job-target-domains', c.target_domains);
+                        setVal('job-trusted-domains', c.trusted_domains);
+                        setVal('job-ignore-exts', getFilteredValue('ignore_extensions', c.ignore_extensions));
+                        setVal('job-ignore-regexes', getFilteredValue('ignore_regexes', c.ignore_regexes));
+                        setVal('job-ssl-exempt', getFilteredValue('ssl_exempt_domains', c.ssl_exempt_domains));
+                        setVal('job-social-domains', getFilteredValue('social_domains', c.social_domains));
+
+                        // 單一覆寫型欄位，複製時直接填入原始快照值，不再進行全域濾除
+                        setVal('job-user-agent', c.user_agent);
+
+                        if (c.proxy_url && !c.proxy_url.includes('***')) {
+                            setVal('job-proxy-url', c.proxy_url);
+                        } else if (c.proxy_url && c.proxy_url.includes('***')) {
+                            setVal('job-proxy-url', '');
+                            toast.warning('已隱藏原始任務的 Proxy 密碼，請重新輸入代理伺服器位址 (若需要)。');
+                        } else {
+                            setVal('job-proxy-url', '');
+                        }
+
+                        setVal('job-timeout', c.timeout);
+                        setVal('job-connect-timeout', c.connect_timeout);
+                        setVal('job-ext-check-timeout', c.external_check_timeout);
+                        setVal('job-delay', c.delay);
+                        setVal('job-retries', c.retries);
+                        setVal('job-max-depth', c.max_depth);
+                        setVal('job-max-pages', c.max_pages);
+
+                        // domain_delays 屬於字典合併，依然需要進行過濾，防止全域網域延遲被寫死回表單
+                        const filteredDomainDelays = getFilteredValue('domain_delays', c.domain_delays);
+                        if (filteredDomainDelays) {
+                            const ddLines = Object.entries(filteredDomainDelays).map(([k, v]) => `${k}: ${v}`);
+                            setVal('job-domain-delays', ddLines);
+                        } else {
+                            setVal('job-domain-delays', '');
+                        }
+                    } catch (err) {
+                        toast.error('無法載入欲複製的任務：' + err.message);
+                    }
+                }
+            } else if (jobMatch) {
+                const jobId = jobMatch[1];
+                viewDetail.style.display = '';
+                document.getElementById('job-id-display').textContent = jobId;
+                _currentView = 'detail';
+                destroyJobDetailPage();
+                await initJobDetailPage(jobId);
+            } else {
+                viewJobs.style.display = '';
+                if (navJobs) navJobs.classList.add('active');
+                _currentView = 'list';
+                destroyJobDetailPage();
+                await loadJobsList();
+            }
+        }
+
+        // 初始化
+        await initUser();
+        await route();
+        window.addEventListener('hashchange', route);
+
+        // ── 建立任務邏輯 ───────────────────────────────────────────
+        const createJobForm = document.getElementById('create-job-form');
+        if (createJobForm) {
+            const jobUrlInput = document.getElementById('job-url');
+            const targetDomainsInput = document.getElementById('job-target-domains');
+            const trustedDomainsInput = document.getElementById('job-trusted-domains');
+
+            // 自動填寫網域防呆：當網址輸入完畢時，自動提取 hostname 填入目標網域與信任網域
+            if (jobUrlInput && targetDomainsInput) {
+                jobUrlInput.addEventListener('blur', () => {
+                    if (jobUrlInput.value.trim()) {
+                        try {
+                            const url = new URL(jobUrlInput.value.trim());
+                            if (!targetDomainsInput.value.trim()) {
+                                targetDomainsInput.value = url.hostname;
+                            }
+                            if (trustedDomainsInput && !trustedDomainsInput.value.trim()) {
+                                trustedDomainsInput.value = url.hostname;
+                            }
+                        } catch (e) { }
+                    }
+                });
+            }
+
+            createJobForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitBtn = document.getElementById('btn-submit-job');
+                const errorEl = document.getElementById('create-job-error');
+                errorEl.textContent = '';
+
+                const startUrl = jobUrlInput.value.trim();
+                const targetDomainsRaw = targetDomainsInput.value;
+                const trustedDomainsRaw = document.getElementById('job-trusted-domains').value;
+                const ignoreExtsRaw = document.getElementById('job-ignore-exts').value;
+                const ignoreRegexesRaw = document.getElementById('job-ignore-regexes').value;
+
+                if (!targetDomainsRaw.trim()) {
+                    errorEl.textContent = '請填寫至少一個目標網域。';
+                    return;
+                }
+
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+
+                try {
+                    const body = {
+                        start_url: startUrl,
+                        target_domains: targetDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean),
+                        trusted_domains: trustedDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean)
+                    };
+
+                    const depth = document.getElementById('job-max-depth').value;
+                    if (depth) body.max_depth = parseInt(depth, 10);
+
+                    const pages = document.getElementById('job-max-pages').value;
+                    if (pages) body.max_pages = parseInt(pages, 10);
+
+                    const delay = document.getElementById('job-delay').value;
+                    if (delay) body.delay = parseFloat(delay);
+
+                    const timeout = document.getElementById('job-timeout').value;
+                    if (timeout) body.timeout = parseFloat(timeout);
+
+                    const connectTimeout = document.getElementById('job-connect-timeout').value;
+                    if (connectTimeout) body.connect_timeout = parseFloat(connectTimeout);
+
+                    const extCheckTimeout = document.getElementById('job-ext-check-timeout').value;
+                    if (extCheckTimeout) body.external_check_timeout = parseFloat(extCheckTimeout);
+
+                    const retries = document.getElementById('job-retries').value;
+                    if (retries) body.retries = parseInt(retries, 10);
+
+                    const proxyUrl = document.getElementById('job-proxy-url').value.trim();
+                    if (proxyUrl) body.proxy_url = proxyUrl;
+
+                    const ignoreExts = ignoreExtsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+                    if (ignoreExts.length) body.ignore_extensions = ignoreExts;
+
+                    const ignoreRegexes = ignoreRegexesRaw.split('\n').map(s => s.trim()).filter(Boolean);
+                    if (ignoreRegexes.length) body.ignore_regexes = ignoreRegexes;
+
+                    const userAgent = document.getElementById('job-user-agent').value.trim();
+                    if (userAgent) body.user_agent = userAgent;
+
+                    const sslExemptRaw = document.getElementById('job-ssl-exempt').value;
+                    const sslExempt = sslExemptRaw.split('\n').map(s => s.trim()).filter(Boolean);
+                    if (sslExempt.length) body.ssl_exempt_domains = sslExempt;
+
+                    const socialDomainsRaw = document.getElementById('job-social-domains').value;
+                    const socialDomains = socialDomainsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+                    if (socialDomains.length) body.social_domains = socialDomains;
+
+                    const ddLines = document.getElementById('job-domain-delays').value.split('\n').map(s => s.trim()).filter(Boolean);
+                    if (ddLines.length > 0) {
+                        const domain_delays = {};
+                        for (const line of ddLines) {
+                            const parts = line.split(':');
+                            if (parts.length !== 2) throw new Error('特定網域延遲格式錯誤，必須為 "網域: 延遲秒數"');
+                            const domain = parts[0].trim();
+                            const delayVal = parseFloat(parts[1].trim());
+                            if (isNaN(delayVal) || delayVal < 0) throw new Error(`特定網域延遲秒數無效: ${parts[1]}`);
+                            domain_delays[domain] = delayVal;
+                        }
+                        body.domain_delays = domain_delays;
+                    }
+
+                    const res = await api.post('/api/jobs', body);
+                    toast.success('任務已建立成功！');
+                    window.location.hash = `#/jobs/${res.job_id}`;
+                    createJobForm.reset();
+                } catch (err) {
+                    errorEl.textContent = err.message || '建立任務失敗。';
+                } finally {
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                }
+            });
+        }
+    </script>
+
+    <script type="module" src="/static/js/components/job-status.js"></script>
+    <script type="module" src="/static/js/components/job-progress.js"></script>
+    <script type="module" src="/static/js/components/job-controls.js"></script>
+    <script type="module" src="/static/js/components/job-stats.js"></script>
+    <script type="module" src="/static/js/components/link-table.js"></script>
 </body>
 
 </html>

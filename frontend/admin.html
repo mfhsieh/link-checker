@@ -2,1600 +2,1290 @@
 <html lang="zh-TW">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>後台管理 — 網站連結檢查系統</title>
-  <meta name="description" content="系統管理員後台：使用者管理、系統配置、操作日誌查閱。" />
-  <link rel="stylesheet" href="/static/css/base.css" />
-  <link rel="stylesheet" href="/static/css/components.css" />
-  <link rel="stylesheet" href="/static/css/layout.css" />
-  <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>後台管理 — 網站連結檢查系統</title>
+    <meta name="description" content="系統管理員後台：使用者管理、系統配置、操作日誌查閱。" />
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/components.css" />
+    <link rel="stylesheet" href="/static/css/layout.css" />
+    <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
 </head>
 
 <body>
 
-  <div class="app-shell" id="app-shell">
+    <div class="app-shell" id="app-shell">
 
-    <!-- ── Top Bar ──────────────────────────────────────────── -->
-    <header class="topbar">
-      <a class="topbar-brand" href="/admin.html" id="topbar-brand">
-        <div class="topbar-logo" aria-hidden="true" title="Link Checker">
-          <img src="/static/image/logo.svg" alt="Link Checker" style="width: 18px; height: 18px;" />
-        </div>
-        <span class="topbar-title">網站連結檢查系統 — 管理後台</span>
-        <span
-          style="margin-left:0.5rem;font-size:0.75rem;color:var(--text-muted);border:1px solid var(--surface-border);border-radius:9999px;padding:0.125rem 0.5rem">後台</span>
-      </a>
-      <div class="topbar-actions">
-        <button class="btn btn-ghost btn-sm" id="logout-btn" title="登出">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round" style="width:16px;height:16px">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span class="btn-text">登出</span>
-        </button>
-      </div>
-    </header>
+        <!-- ── Top Bar ──────────────────────────────────────────── -->
+        <app-topbar href="/admin.html" title-text="網站連結檢查系統" badge-text="管理後台"></app-topbar>
 
-    <!-- ── Sidebar ────────────────────────────────────────── -->
-    <nav class="sidebar" aria-label="後台導覽">
-      <div class="sidebar-section" id="admin-sidebar-section">
-        <div class="sidebar-section-title">後台管理</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item active" id="nav-users" href="#/admin/users">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-              </svg>
-              使用者管理
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-jobs" href="#/admin/jobs">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12M3 6.75h.008v.008H3V6.75zm0 5.25h.008v.008H3V12zm0 5.25h.008v.008H3v-.008z" />
-              </svg>
-              任務監控
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-config" href="#/admin/config">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              爬蟲配置
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-smtp" href="#/admin/smtp">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-              </svg>
-              郵件測試
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-logs" href="#/admin/logs">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-              </svg>
-              操作日誌
-            </a>
-          </li>
-        </ul>
-      </div>
-
-      <div class="sidebar-divider"></div>
-
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">任務管理</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" href="/app.html">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-              </svg>
-              回到前台
-            </a>
-          </li>
-        </ul>
-      </div>
-    </nav>
-
-    <!-- ── Main Content ────────────────────────────────────── -->
-    <main class="main-content" id="main-content">
-
-      <!-- 使用者管理 -->
-      <div id="view-users">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">使用者管理</h1>
-            <p class="page-subtitle">管理系統帳號與邀請</p>
-          </div>
-          <button class="btn btn-primary" id="invite-user-btn">
-            <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px">
-              <path
-                d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-            </svg>
-            邀請新使用者
-          </button>
-        </div>
-        <div id="users-table-container"></div>
-      </div>
-
-      <!-- 任務監控 -->
-      <div id="view-jobs" style="display:none">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">任務監控</h1>
-            <p class="page-subtitle">監控與強制管理系統內的所有爬蟲任務</p>
-          </div>
-        </div>
-        <div id="jobs-table-container"></div>
-      </div>
-
-      <!-- 爬蟲配置 -->
-      <div id="view-config" style="display:none">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">爬蟲配置</h1>
-            <p class="page-subtitle">全域爬蟲參數設定（config_global.yaml）</p>
-          </div>
-        </div>
-        <form id="config-form">
-          <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; align-items: start;">
-            <!-- 左欄：數值與字串設定 -->
-            <div style="flex: 1 1 400px; display:flex; flex-direction:column; gap: 1.5rem;">
-              <div class="card">
-                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
-                    class="card-title">預設爬蟲行為</span></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-timeout">預設逾時 (秒)</label>
-                    <input class="form-input" type="number" id="cfg-timeout" placeholder="載入中..." required />
-                    <div class="form-hint">網頁請求等待回應的最大秒數預設值。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-connect-timeout">TCP 連線逾時 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-connect-timeout" placeholder="載入中..."
-                      required />
-                    <div class="form-hint">TCP 建立連線等待時間預設值。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-ext-check-timeout">外連探測逾時 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-ext-check-timeout" placeholder="載入中..."
-                      required />
-                    <div class="form-hint">外連存活檢查等待時間預設值。</div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-delay">預設延遲 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-delay" placeholder="載入中..." required />
-                    <div class="form-hint">每次發送請求前的等待預設值。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-jitter-ratio">延遲抖動 (0~1)</label>
-                    <input class="form-input" type="number" step="0.01" min="0" max="1" id="cfg-jitter-ratio"
-                      placeholder="載入中..." />
-                    <div class="form-hint">實際延遲時間隨機增減的比例（個別任務無法覆寫）。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-retries">預設重試次數</label>
-                    <input class="form-input" type="number" id="cfg-retries" placeholder="載入中..." required />
-                    <div class="form-hint">發生暫時性錯誤時的重試次數預設值。</div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-depth">最大深度</label>
-                    <input class="form-input" type="number" id="cfg-max-depth" placeholder="載入中..." />
-                    <div class="form-hint">從起點開始點擊的最大層數預設值（留空代表無限制）。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-pages">最大頁數</label>
-                    <input class="form-input" type="number" id="cfg-max-pages" placeholder="載入中..." />
-                    <div class="form-hint">單一任務總抓取頁數預設值（留空代表無限制）。</div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-content-length">最大下載容量 (Bytes)</label>
-                    <input class="form-input" type="number" id="cfg-max-content-length" placeholder="載入中..." required />
-                    <div class="form-hint">保護記憶體的硬性容量限制（個別任務無法覆寫）。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-redirects">最大重導向次數</label>
-                    <input class="form-input" type="number" id="cfg-max-redirects" placeholder="載入中..." required />
-                    <div class="form-hint">跟隨 HTTP 重導向的最大次數限制（個別任務無法覆寫）。</div>
-                  </div>
-                </div>
-                <div class="form-group" style="margin-bottom:1rem">
-                  <label class="form-label" for="cfg-user-agent">User-Agent</label>
-                  <input class="form-input" type="text" id="cfg-user-agent" placeholder="預設：啟動 fake-useragent 隨機輪替" />
-                  <div class="form-hint">
-                    全域預設 HTTP 請求身分特徵標頭。<br>
-                    <strong>留空：</strong>自動啟用隨機輪替 (fake-useragent) 偽裝身分防封鎖。<br>
-                    <strong>填寫：</strong>全局強制鎖定為該特定身分。若個別任務有填寫將完全取代此設定 <strong>【完全覆寫】</strong>。
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="cfg-proxy-url">Proxy URL</label>
-                  <input class="form-input" type="text" id="cfg-proxy-url"
-                    placeholder="http://user:password@proxy.example.com:8080" />
-                  <div class="form-hint">全域預設代理伺服器（Proxy）連線位址。若個別任務有填寫將取代此設定
-                    <strong>【條件覆寫】</strong>。注意：伺服器環境變數具有最高強制覆寫優先權。
-                  </div>
-                </div>
-              </div>
-
-              <div class="card">
-                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
-                    class="card-title">安全上下限限制</span></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-min-timeout">最小逾時 (秒)</label>
-                    <input class="form-input" type="number" id="cfg-min-timeout" placeholder="載入中..." required />
-                    <div class="form-hint">個別任務可設定的下限值。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-timeout">最大逾時 (秒)</label>
-                    <input class="form-input" type="number" id="cfg-max-timeout" placeholder="載入中..." required />
-                    <div class="form-hint">個別任務可設定的上限值。</div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-min-connect-timeout">最小 TCP 連線逾時 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-min-connect-timeout" placeholder="載入中..."
-                      required />
-                    <div class="form-hint">個別任務可設定的下限值。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-connect-timeout">最大 TCP 連線逾時 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-max-connect-timeout" placeholder="載入中..."
-                      required />
-                    <div class="form-hint">個別任務可設定的上限值。</div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-min-ext-check-timeout">最小外連探測逾時 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-min-ext-check-timeout"
-                      placeholder="載入中..." required />
-                    <div class="form-hint">個別任務可設定的下限值。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-ext-check-timeout">最大外連探測逾時 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-max-ext-check-timeout"
-                      placeholder="載入中..." required />
-                    <div class="form-hint">個別任務可設定的上限值。</div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-min-delay">最小延遲 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-min-delay" placeholder="載入中..."
-                      required />
-                    <div class="form-hint">個別任務可設定的下限值。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-delay">最大延遲 (秒)</label>
-                    <input class="form-input" type="number" step="0.1" id="cfg-max-delay" placeholder="載入中..."
-                      required />
-                    <div class="form-hint">個別任務可設定的上限值。</div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-min-retries">最小重試次數</label>
-                    <input class="form-input" type="number" id="cfg-min-retries" placeholder="載入中..." required />
-                    <div class="form-hint">個別任務可設定的下限值。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-retries">最大重試次數</label>
-                    <input class="form-input" type="number" id="cfg-max-retries" placeholder="載入中..." required />
-                    <div class="form-hint">個別任務可設定的上限值。</div>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-max-depth">最大爬取深度限制</label>
-                    <input class="form-input" type="number" id="cfg-max-max-depth" placeholder="載入中..." />
-                    <div class="form-hint">系統全域強制的最大深度天花板。</div>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="cfg-max-max-pages">最大抓取頁數限制</label>
-                    <input class="form-input" type="number" id="cfg-max-max-pages" placeholder="載入中..." />
-                    <div class="form-hint">系統全域強制的最大抓取頁數天花板。</div>
-                  </div>
-                </div>
-              </div>
+        <!-- ── Sidebar ────────────────────────────────────────── -->
+        <nav class="sidebar" aria-label="後台導覽">
+            <div class="sidebar-section" id="admin-sidebar-section">
+                <div class="sidebar-section-title">後台管理</div>
+                <ul class="sidebar-nav">
+                    <li>
+                        <a class="sidebar-item active" id="nav-users" href="#/admin/users">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                            </svg>
+                            使用者管理
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-item" id="nav-jobs" href="#/admin/jobs">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12M3 6.75h.008v.008H3V6.75zm0 5.25h.008v.008H3V12zm0 5.25h.008v.008H3v-.008z" />
+                            </svg>
+                            任務監控
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-item" id="nav-config" href="#/admin/config">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            爬蟲配置
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-item" id="nav-smtp" href="#/admin/smtp">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                            </svg>
+                            郵件測試
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-item" id="nav-logs" href="#/admin/logs">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                            操作日誌
+                        </a>
+                    </li>
+                </ul>
             </div>
 
-            <!-- 右欄：過濾與清單 -->
-            <div style="flex: 1 1 400px; display:flex; flex-direction:column; gap: 1.5rem;">
-              <div class="card">
-                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
-                    class="card-title">過濾與網域規則</span></div>
+            <div class="sidebar-divider"></div>
 
-                <div
-                  style="padding-bottom:1rem; border-bottom:1px solid var(--surface-border-subtle); margin-bottom:1rem">
-                  <div class="form-group" style="margin-bottom:0.5rem">
-                    <label
-                      style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
-                      <input type="checkbox" id="cfg-mime-enabled" /> 啟用 MIME 類型過濾
-                    </label>
-                  </div>
-                  <div class="form-group" style="margin-bottom:0">
-                    <label class="form-label" for="cfg-mime-types">允許的 MIME 類型</label>
-                    <textarea class="form-textarea" id="cfg-mime-types" rows="2"
-                      placeholder="text/html&#10;每行一個"></textarea>
-                    <div class="form-hint">指定允許爬取的 MIME 類型，開啟後僅會爬取符合條件的檔案。</div>
-                  </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom:1rem">
-                  <label class="form-label" for="cfg-ignore-exts">略過副檔名 (ignore_extensions)</label>
-                  <textarea class="form-textarea" id="cfg-ignore-exts" rows="2" placeholder=".pdf&#10;每行一個"></textarea>
-                  <div class="form-hint">這些副檔名將作為全域預設略過名單。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
-                </div>
-                <div class="form-group" style="margin-bottom:1rem">
-                  <label class="form-label" for="cfg-ignore-regexes">排除的路徑規則 (ignore_regexes)</label>
-                  <textarea class="form-textarea" id="cfg-ignore-regexes" rows="2"
-                    placeholder="^https://...&#10;每行一個"></textarea>
-                  <div class="form-hint">符合正則表示式的路徑將被預設排除。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
-                </div>
-                <div class="form-group" style="margin-bottom:1rem">
-                  <label class="form-label" for="cfg-domain-delays">網域特定延遲 (domain_delays)</label>
-                  <textarea class="form-textarea" id="cfg-domain-delays" rows="2"
-                    placeholder="example.com: 5.0&#10;每行一個 (網域: 秒數)"></textarea>
-                  <div class="form-hint">特定網域的自訂延遲秒數，格式為「網域: 秒數」。將與任務設定合併，衝突時以任務為準 <strong>【字典合併與優先覆寫】</strong>。</div>
-                </div>
-                <div class="form-group" style="margin-bottom:1rem">
-                  <label class="form-label" for="cfg-ssl-exempt">自簽憑證豁免網域 (ssl_exempt_domains)</label>
-                  <textarea class="form-textarea" id="cfg-ssl-exempt" rows="2"
-                    placeholder="example.com&#10;每行一個"></textarea>
-                  <div class="form-hint">全域預設不驗證 SSL 憑證的目標網域。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
-                </div>
-                <div class="form-group" style="margin-bottom:0">
-                  <label class="form-label" for="cfg-social-domains">社群與反爬蟲網域 (social_domains)</label>
-                  <textarea class="form-textarea" id="cfg-social-domains" rows="2"
-                    placeholder="facebook.com&#10;每行一個"></textarea>
-                  <div class="form-hint">被標示為社群平台的網域（例如 Facebook），可被特別過濾或保護。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
-                </div>
-              </div>
-
-              <!-- 儲存操作區 -->
-              <div class="card" style="background:var(--surface-raised)">
-                <div id="config-error" style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
-                </div>
-                <button type="submit" class="btn btn-primary btn-lg" id="save-config-btn"
-                  style="width:100%">儲存配置</button>
-              </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">任務管理</div>
+                <ul class="sidebar-nav">
+                    <li>
+                        <a class="sidebar-item" href="/app.html">
+                            <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.75">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                            </svg>
+                            回到前台
+                        </a>
+                    </li>
+                </ul>
             </div>
-          </div>
-        </form>
-      </div>
+        </nav>
 
-      <!-- 郵件測試 -->
-      <div id="view-smtp" style="display:none">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">郵件測試</h1>
-            <p class="page-subtitle">目前 SMTP 設定（從環境變數讀取，唯讀）</p>
-          </div>
-        </div>
-        <div class="card" style="margin-bottom:1.5rem">
-          <div id="smtp-info-container">
-            <div class="skeleton" style="height:120px;border-radius:0.5rem"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">測試 SMTP 寄送</span></div>
-          <div class="form-group" style="margin-bottom:1rem">
-            <label class="form-label" for="smtp-test-email">測試收件者</label>
-            <input class="form-input" type="email" id="smtp-test-email" placeholder="admin@example.com"
-              style="max-width:360px" />
-          </div>
-          <button class="btn btn-primary" id="smtp-test-btn">寄送測試郵件</button>
-        </div>
-      </div>
+        <!-- ── Main Content ────────────────────────────────────── -->
+        <main class="main-content" id="main-content">
 
-      <!-- 操作日誌 -->
-      <div id="view-logs" style="display:none">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">操作日誌</h1>
-            <p class="page-subtitle">身分驗證與系統操作事件紀錄</p>
-          </div>
-        </div>
-        <div id="logs-container"></div>
-      </div>
+            <!-- 使用者管理 -->
+            <div id="view-users">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">使用者管理</h1>
+                        <p class="page-subtitle">管理系統帳號與邀請</p>
+                    </div>
+                    <button class="btn btn-primary" id="invite-user-btn">
+                        <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px">
+                            <path
+                                d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                        </svg>
+                        邀請新使用者
+                    </button>
+                </div>
+                <div id="users-table-container"></div>
+            </div>
 
-    </main>
-  </div>
+            <!-- 任務監控 -->
+            <div id="view-jobs" style="display:none">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">任務監控</h1>
+                        <p class="page-subtitle">監控與強制管理系統內的所有爬蟲任務</p>
+                    </div>
+                </div>
+                <div id="jobs-table-container"></div>
+            </div>
 
-  <!-- ── 邀請新使用者 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="invite-user-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">邀請新使用者</h2>
-        <button id="invite-user-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <form id="invite-user-form">
-        <div class="d-flex flex-col gap-4 mb-6">
-          <div class="form-group">
-            <label class="form-label" for="invite-email">受邀者的電子郵件 <span class="required">*</span></label>
-            <input class="form-input" type="email" id="invite-email" required placeholder="user@example.com" />
-          </div>
-          <div id="invite-user-error" style="color:var(--color-danger-400);font-size:0.875rem"></div>
-        </div>
-        <div class="d-flex justify-end gap-3">
-          <button type="button" class="btn btn-ghost" id="invite-user-cancel">取消</button>
-          <button type="submit" class="btn btn-primary" id="invite-user-submit">送出邀請</button>
-        </div>
-      </form>
+            <!-- 爬蟲配置 -->
+            <div id="view-config" style="display:none">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">爬蟲配置</h1>
+                        <p class="page-subtitle">全域爬蟲參數設定（config_global.yaml）</p>
+                    </div>
+                </div>
+                <form id="config-form">
+                    <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; align-items: start;">
+                        <!-- 左欄：數值與字串設定 -->
+                        <div style="flex: 1 1 400px; display:flex; flex-direction:column; gap: 1.5rem;">
+                            <div class="card">
+                                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                                        class="card-title">預設爬蟲行為</span></div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-timeout">預設逾時 (秒)</label>
+                                        <input class="form-input" type="number" id="cfg-timeout" placeholder="載入中..."
+                                            required />
+                                        <div class="form-hint">網頁請求等待回應的最大秒數預設值。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-connect-timeout">TCP 連線逾時 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1" id="cfg-connect-timeout"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">TCP 建立連線等待時間預設值。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-ext-check-timeout">外連探測逾時 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1" id="cfg-ext-check-timeout"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">外連存活檢查等待時間預設值。</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-delay">預設延遲 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1" id="cfg-delay"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">每次發送請求前的等待預設值。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-jitter-ratio">延遲抖動 (0~1)</label>
+                                        <input class="form-input" type="number" step="0.01" min="0" max="1"
+                                            id="cfg-jitter-ratio" placeholder="載入中..." />
+                                        <div class="form-hint">實際延遲時間隨機增減的比例（個別任務無法覆寫）。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-retries">預設重試次數</label>
+                                        <input class="form-input" type="number" id="cfg-retries" placeholder="載入中..."
+                                            required />
+                                        <div class="form-hint">發生暫時性錯誤時的重試次數預設值。</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-depth">最大深度</label>
+                                        <input class="form-input" type="number" id="cfg-max-depth"
+                                            placeholder="載入中..." />
+                                        <div class="form-hint">從起點開始點擊的最大層數預設值（留空代表無限制）。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-pages">最大頁數</label>
+                                        <input class="form-input" type="number" id="cfg-max-pages"
+                                            placeholder="載入中..." />
+                                        <div class="form-hint">單一任務總抓取頁數預設值（留空代表無限制）。</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-content-length">最大下載容量 (Bytes)</label>
+                                        <input class="form-input" type="number" id="cfg-max-content-length"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">保護記憶體的硬性容量限制（個別任務無法覆寫）。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-redirects">最大重導向次數</label>
+                                        <input class="form-input" type="number" id="cfg-max-redirects"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">跟隨 HTTP 重導向的最大次數限制（個別任務無法覆寫）。</div>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom:1rem">
+                                    <label class="form-label" for="cfg-user-agent">User-Agent</label>
+                                    <input class="form-input" type="text" id="cfg-user-agent"
+                                        placeholder="預設：啟動 fake-useragent 隨機輪替" />
+                                    <div class="form-hint">
+                                        全域預設 HTTP 請求身分特徵標頭。<br>
+                                        <strong>留空：</strong>自動啟用隨機輪替 (fake-useragent) 偽裝身分防封鎖。<br>
+                                        <strong>填寫：</strong>全局強制鎖定為該特定身分。若個別任務有填寫將完全取代此設定 <strong>【完全覆寫】</strong>。
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="cfg-proxy-url">Proxy URL</label>
+                                    <input class="form-input" type="text" id="cfg-proxy-url"
+                                        placeholder="http://user:password@proxy.example.com:8080" />
+                                    <div class="form-hint">全域預設代理伺服器（Proxy）連線位址。若個別任務有填寫將取代此設定
+                                        <strong>【條件覆寫】</strong>。注意：伺服器環境變數具有最高強制覆寫優先權。
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                                        class="card-title">安全上下限限制</span></div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-min-timeout">最小逾時 (秒)</label>
+                                        <input class="form-input" type="number" id="cfg-min-timeout"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的下限值。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-timeout">最大逾時 (秒)</label>
+                                        <input class="form-input" type="number" id="cfg-max-timeout"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的上限值。</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-min-connect-timeout">最小 TCP 連線逾時 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1" id="cfg-min-connect-timeout"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的下限值。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-connect-timeout">最大 TCP 連線逾時 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1" id="cfg-max-connect-timeout"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的上限值。</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-min-ext-check-timeout">最小外連探測逾時 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1"
+                                            id="cfg-min-ext-check-timeout" placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的下限值。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-ext-check-timeout">最大外連探測逾時 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1"
+                                            id="cfg-max-ext-check-timeout" placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的上限值。</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-min-delay">最小延遲 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1" id="cfg-min-delay"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的下限值。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-delay">最大延遲 (秒)</label>
+                                        <input class="form-input" type="number" step="0.1" id="cfg-max-delay"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的上限值。</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-min-retries">最小重試次數</label>
+                                        <input class="form-input" type="number" id="cfg-min-retries"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的下限值。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-retries">最大重試次數</label>
+                                        <input class="form-input" type="number" id="cfg-max-retries"
+                                            placeholder="載入中..." required />
+                                        <div class="form-hint">個別任務可設定的上限值。</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-max-depth">最大爬取深度限制</label>
+                                        <input class="form-input" type="number" id="cfg-max-max-depth"
+                                            placeholder="載入中..." />
+                                        <div class="form-hint">系統全域強制的最大深度天花板。</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="cfg-max-max-pages">最大抓取頁數限制</label>
+                                        <input class="form-input" type="number" id="cfg-max-max-pages"
+                                            placeholder="載入中..." />
+                                        <div class="form-hint">系統全域強制的最大抓取頁數天花板。</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 右欄：過濾與清單 -->
+                        <div style="flex: 1 1 400px; display:flex; flex-direction:column; gap: 1.5rem;">
+                            <div class="card">
+                                <div class="card-header" style="margin-bottom:1.25rem; padding-bottom:1rem"><span
+                                        class="card-title">過濾與網域規則</span></div>
+
+                                <div
+                                    style="padding-bottom:1rem; border-bottom:1px solid var(--surface-border-subtle); margin-bottom:1rem">
+                                    <div class="form-group" style="margin-bottom:0.5rem">
+                                        <label
+                                            style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
+                                            <input type="checkbox" id="cfg-mime-enabled" /> 啟用 MIME 類型過濾
+                                        </label>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom:0">
+                                        <label class="form-label" for="cfg-mime-types">允許的 MIME 類型</label>
+                                        <textarea class="form-textarea" id="cfg-mime-types" rows="2"
+                                            placeholder="text/html&#10;每行一個"></textarea>
+                                        <div class="form-hint">指定允許爬取的 MIME 類型，開啟後僅會爬取符合條件的檔案。</div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-bottom:1rem">
+                                    <label class="form-label" for="cfg-ignore-exts">略過副檔名 (ignore_extensions)</label>
+                                    <textarea class="form-textarea" id="cfg-ignore-exts" rows="2"
+                                        placeholder=".pdf&#10;每行一個"></textarea>
+                                    <div class="form-hint">這些副檔名將作為全域預設略過名單。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
+                                </div>
+                                <div class="form-group" style="margin-bottom:1rem">
+                                    <label class="form-label" for="cfg-ignore-regexes">排除的路徑規則 (ignore_regexes)</label>
+                                    <textarea class="form-textarea" id="cfg-ignore-regexes" rows="2"
+                                        placeholder="^https://...&#10;每行一個"></textarea>
+                                    <div class="form-hint">符合正則表示式的路徑將被預設排除。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。</div>
+                                </div>
+                                <div class="form-group" style="margin-bottom:1rem">
+                                    <label class="form-label" for="cfg-domain-delays">網域特定延遲 (domain_delays)</label>
+                                    <textarea class="form-textarea" id="cfg-domain-delays" rows="2"
+                                        placeholder="example.com: 5.0&#10;每行一個 (網域: 秒數)"></textarea>
+                                    <div class="form-hint">特定網域的自訂延遲秒數，格式為「網域: 秒數」。將與任務設定合併，衝突時以任務為準
+                                        <strong>【字典合併與優先覆寫】</strong>。
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom:1rem">
+                                    <label class="form-label" for="cfg-ssl-exempt">自簽憑證豁免網域 (ssl_exempt_domains)</label>
+                                    <textarea class="form-textarea" id="cfg-ssl-exempt" rows="2"
+                                        placeholder="example.com&#10;每行一個"></textarea>
+                                    <div class="form-hint">全域預設不驗證 SSL 憑證的目標網域。將與個別任務設定合併疊加生效 <strong>【聯集】</strong>。
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0">
+                                    <label class="form-label" for="cfg-social-domains">社群與反爬蟲網域 (social_domains)</label>
+                                    <textarea class="form-textarea" id="cfg-social-domains" rows="2"
+                                        placeholder="facebook.com&#10;每行一個"></textarea>
+                                    <div class="form-hint">被標示為社群平台的網域（例如 Facebook），可被特別過濾或保護。將與個別任務設定合併疊加生效
+                                        <strong>【聯集】</strong>。
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 儲存操作區 -->
+                            <div class="card" style="background:var(--surface-raised)">
+                                <div id="config-error"
+                                    style="color:var(--color-danger-400);font-size:0.875rem;margin-bottom:1rem">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg" id="save-config-btn"
+                                    style="width:100%">儲存配置</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 郵件測試 -->
+            <div id="view-smtp" style="display:none">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">郵件測試</h1>
+                        <p class="page-subtitle">目前 SMTP 設定（從環境變數讀取，唯讀）</p>
+                    </div>
+                </div>
+                <div class="card" style="margin-bottom:1.5rem">
+                    <div id="smtp-info-container">
+                        <div class="skeleton" style="height:120px;border-radius:0.5rem"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><span class="card-title">測試 SMTP 寄送</span></div>
+                    <div class="form-group" style="margin-bottom:1rem">
+                        <label class="form-label" for="smtp-test-email">測試收件者</label>
+                        <input class="form-input" type="email" id="smtp-test-email" placeholder="admin@example.com"
+                            style="max-width:360px" />
+                    </div>
+                    <button class="btn btn-primary" id="smtp-test-btn">寄送測試郵件</button>
+                </div>
+            </div>
+
+            <!-- 操作日誌 -->
+            <div id="view-logs" style="display:none">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">操作日誌</h1>
+                        <p class="page-subtitle">身分驗證與系統操作事件紀錄</p>
+                    </div>
+                </div>
+                <div id="logs-container"></div>
+            </div>
+
+        </main>
     </div>
-  </div>
 
-  <!-- ── 共用確認 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="confirm-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-4">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0" id="confirm-modal-title">確認操作</h2>
-        <button id="confirm-modal-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <div class="mb-6" style="color:var(--text-secondary); font-size:0.9375rem; line-height:1.5"
-        id="confirm-modal-message"></div>
-      <div class="d-flex justify-end gap-3">
-        <button type="button" class="btn btn-ghost" id="confirm-modal-cancel">取消</button>
-        <button type="button" class="btn btn-primary" id="confirm-modal-submit">確定</button>
-      </div>
+    <!-- ── 邀請新使用者 Modal ────────────────────────────────────── -->
+    <div class="modal-backdrop" id="invite-user-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">邀請新使用者</h2>
+                <button type="button" id="invite-user-close" class="modal-close-btn">&times;</button>
+            </div>
+            <form id="invite-user-form">
+                <div class="modal-body">
+                    <div class="form-group mb-2">
+                        <label class="form-label" for="invite-email">受邀者的電子郵件 <span class="required">*</span></label>
+                        <input class="form-input" type="email" id="invite-email" required
+                            placeholder="user@example.com" />
+                    </div>
+                    <div id="invite-user-error" class="form-error mt-2"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="invite-user-cancel">取消</button>
+                    <button type="submit" class="btn btn-primary" id="invite-user-submit">送出邀請</button>
+                </div>
+            </form>
+        </div>
     </div>
-  </div>
 
-  <div class="toast-container"></div>
+    <script type="module" src="/static/js/components/link-table.js"></script>
+    <script type="module" src="/static/js/components/confirm-modal.js"></script>
+    <script type="module" src="/static/js/components/app-topbar.js"></script>
+    <script type="module">
+        import * as api from '/static/js/api.js';
+        import { toast } from '/static/js/components/toast.js';
+        import { getCurrentUser } from '/static/js/auth.js';
 
-  <script type="module">
-    import * as api from '/static/js/api.js';
-    import { toast } from '/static/js/toast.js';
-    import { logout, getCurrentUser } from '/static/js/auth.js';
+        // ── 權限驗證 ──────────────────────────────────────────────
+        const user = await getCurrentUser();
+        if (!user || user.role !== 'admin') {
+            window.location.replace('/app.html');
+            throw new Error('Non-admin access');
+        }
 
-    // ── 權限驗證 ──────────────────────────────────────────────
-    const user = await getCurrentUser();
-    if (!user || user.role !== 'admin') {
-      window.location.replace('/app.html');
-      throw new Error('Non-admin access');
-    }
+        // ── 使用者管理 ────────────────────────────────────────────
+        let _userSort = { key: 'created_at', asc: false };
+        let _userColFilters = {};
+        let _currentUsers = [];
 
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-      const confirmed = await showConfirm('登出', '確定要登出系統嗎？', '登出');
-      if (confirmed) logout();
-    });
+        function renderUsersTable(container) {
+            let linkTable = container.querySelector('link-table');
+            if (!linkTable) {
+                container.replaceChildren();
+                linkTable = document.createElement('link-table');
+                linkTable.id = 'admin-users-table';
 
-    // ── 共用確認 Modal 邏輯 ───────────────────────────────────
-    function showConfirm(title, message, confirmText = '確定', isDanger = false) {
-      return new Promise((resolve) => {
-        const modal = document.getElementById('confirm-modal');
-        const titleEl = document.getElementById('confirm-modal-title');
-        const messageEl = document.getElementById('confirm-modal-message');
-        const submitBtn = document.getElementById('confirm-modal-submit');
-        const cancelBtn = document.getElementById('confirm-modal-cancel');
-        const closeBtn = document.getElementById('confirm-modal-close');
+                linkTable.addEventListener('sort-change', (e) => {
+                    _userSort = e.detail;
+                    renderUsersTable(container);
+                });
 
-        titleEl.textContent = title;
-        messageEl.textContent = message;
-        submitBtn.textContent = confirmText;
-        submitBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+                linkTable.addEventListener('filter-change', (e) => {
+                    _userColFilters[e.detail.key] = e.detail.value;
+                    renderUsersTable(container);
+                });
 
-        const cleanup = () => {
-          submitBtn.removeEventListener('click', onConfirm);
-          cancelBtn.removeEventListener('click', onCancel);
-          closeBtn.removeEventListener('click', onCancel);
-          modal.style.display = 'none';
-        };
-
-        const onConfirm = () => { cleanup(); resolve(true); };
-        const onCancel = () => { cleanup(); resolve(false); };
-
-        submitBtn.addEventListener('click', onConfirm);
-        cancelBtn.addEventListener('click', onCancel);
-        closeBtn.addEventListener('click', onCancel);
-
-        modal.style.display = 'flex';
-      });
-    }
-
-    // ── 使用者管理 ────────────────────────────────────────────
-
-    let _userSort = { key: 'created_at', asc: false };
-    let _userColFilters = {};
-    let _currentUsers = [];
-
-    function renderUsersTable(container) {
-      const headers = [
-        { label: '電子郵件', key: 'email' },
-        { label: '角色', key: 'role' },
-        { label: '狀態', key: 'status' },
-        { label: '建立時間', key: 'created_at' },
-        { label: '最後登入', key: 'last_login_at' },
-        { label: '操作', key: null, filterable: false }
-      ];
-
-      let table = container.querySelector('.table');
-      if (!table) {
-        container.replaceChildren();
-        const wrapper = document.createElement('div');
-        wrapper.className = 'table-wrapper';
-        table = document.createElement('table');
-        table.className = 'table';
-        const thead = document.createElement('thead');
-        const trHead = document.createElement('tr');
-
-        headers.forEach(h => {
-          const th = document.createElement('th');
-          th.style.verticalAlign = 'top';
-          if (!h.key) {
-            th.textContent = h.label;
-          } else {
-            const headerTop = document.createElement('div');
-            headerTop.style.display = 'flex';
-            headerTop.style.justifyContent = 'space-between';
-            headerTop.style.alignItems = 'center';
-            headerTop.style.cursor = 'pointer';
-
-            const labelSpan = document.createElement('span');
-            labelSpan.textContent = h.label;
-            headerTop.appendChild(labelSpan);
-
-            const icon = document.createElement('span');
-            icon.className = 'sort-icon';
-            icon.style.fontSize = '0.75rem';
-            icon.style.marginLeft = '0.25rem';
-            if (_userSort.key === h.key) {
-              icon.textContent = _userSort.asc ? '▲' : '▼';
-              icon.style.color = 'var(--color-brand-500)';
-            } else {
-              icon.textContent = '⇅';
-              icon.style.color = 'var(--text-muted)';
+                container.appendChild(linkTable);
             }
-            headerTop.appendChild(icon);
 
-            headerTop.addEventListener('click', () => {
-              if (_userSort.key === h.key) {
-                _userSort.asc = !_userSort.asc;
-              } else {
-                _userSort.key = h.key;
-                _userSort.asc = true;
-              }
-              renderUsersTable(container);
+            const statusMap = { pending: '待設密', active: '正常', suspended: '已停用', expired: '已過期' };
+
+            let data = [..._currentUsers];
+            for (const [k, v] of Object.entries(_userColFilters)) {
+                if (!v) continue;
+                data = data.filter(item => {
+                    let val = item[k];
+                    if (k === 'role') val = val === 'admin' ? '管理員' : '使用者';
+                    else if (k === 'status') val = statusMap[val] || val;
+                    else if (k === 'created_at' || k === 'last_login_at') val = api.formatLocalTime(val);
+                    return String(val || '').toLowerCase().includes(v);
+                });
+            }
+
+            data.sort((a, b) => {
+                let valA = a[_userSort.key];
+                let valB = b[_userSort.key];
+                if (valA === undefined || valA === null) valA = '';
+                if (valB === undefined || valB === null) valB = '';
+
+                if (_userSort.key === 'created_at' || _userSort.key === 'last_login_at') {
+                    valA = new Date(valA).getTime() || 0;
+                    valB = new Date(valB).getTime() || 0;
+                    return _userSort.asc ? valA - valB : valB - valA;
+                }
+                valA = String(valA).toLowerCase();
+                valB = String(valB).toLowerCase();
+                if (valA < valB) return _userSort.asc ? -1 : 1;
+                if (valA > valB) return _userSort.asc ? 1 : -1;
+                return 0;
             });
-            th.appendChild(headerTop);
 
-            if (h.filterable !== false) {
-              const filterInput = document.createElement('input');
-              filterInput.type = 'text';
-              filterInput.className = 'form-input text-xs';
-              filterInput.placeholder = '篩選...';
-              filterInput.style.marginTop = '0.5rem';
-              filterInput.style.padding = '0.25rem 0.5rem';
-              filterInput.style.height = 'auto';
-              filterInput.style.fontWeight = 'normal';
-              filterInput.value = _userColFilters[h.key] || '';
+            const headers = [
+                { label: '電子郵件', key: 'email', render: v => { const span = document.createElement('span'); span.textContent = v; return span; } },
+                {
+                    label: '角色', key: 'role', render: v => {
+                        const span = document.createElement('span');
+                        span.className = `badge badge-${v === 'admin' ? 'admin' : 'pending'}`;
+                        span.textContent = v === 'admin' ? '管理員' : '使用者';
+                        return span;
+                    }
+                },
+                {
+                    label: '狀態', key: 'status', render: v => {
+                        const span = document.createElement('span');
+                        span.className = `badge badge-${v}`;
+                        span.textContent = statusMap[v] || v;
+                        return span;
+                    }
+                },
+                {
+                    label: '建立時間', key: 'created_at', className: 'text-sm text-muted', render: v => {
+                        const span = document.createElement('span');
+                        span.textContent = api.formatLocalTime(v);
+                        return span;
+                    }
+                },
+                {
+                    label: '最後登入', key: 'last_login_at', className: 'text-sm text-muted', render: v => {
+                        const span = document.createElement('span');
+                        span.textContent = api.formatLocalTime(v);
+                        return span;
+                    }
+                },
+                {
+                    label: '操作', key: 'actions', filterable: false, sortable: false, render: (_, u) => {
+                        const actionDiv = document.createElement('div');
+                        actionDiv.style.display = 'flex';
+                        actionDiv.style.gap = '0.5rem';
+                        actionDiv.style.flexWrap = 'wrap';
+                        const addBtn = (text, btnClass, action) => {
+                            const btn = document.createElement('button');
+                            btn.className = `btn btn-sm ${btnClass}`;
+                            btn.textContent = text;
+                            btn.addEventListener('click', async (e) => {
+                                e.stopPropagation();
+                                if (action === 'promote') await changeUserRole(u.id, u.email, 'admin');
+                                if (action === 'demote') await changeUserRole(u.id, u.email, 'user');
+                                if (action === 'suspend') await suspendUser(u.id);
+                                if (action === 'activate') await activateUser(u.id, u.email);
+                                if (action === 'resend') await resendInvite(u.id, u.email);
+                                if (action === 'delete') await deleteUser(u.id, u.email);
+                            });
+                            actionDiv.appendChild(btn);
+                        };
+                        if (u.id !== user.id && u.role === 'user' && u.status !== 'suspended') addBtn('設為管理員', 'btn-secondary', 'promote');
+                        if (u.id !== user.id && u.role === 'admin') addBtn('取消管理員', 'btn-danger', 'demote');
+                        if (u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin') addBtn('停用', 'btn-danger', 'suspend');
+                        if (u.status === 'suspended') addBtn('啟用', 'btn-secondary', 'activate');
+                        if (['pending', 'expired'].includes(u.status)) addBtn('重寄邀請', 'btn-secondary', 'resend');
+                        if (u.id !== user.id && u.role !== 'admin') addBtn('刪除', 'btn-danger', 'delete');
+                        return actionDiv;
+                    }
+                }
+            ];
 
-              filterInput.addEventListener('input', (e) => {
-                _userColFilters[h.key] = e.target.value.toLowerCase();
+            linkTable.config = {
+                headers,
+                data,
+                sort: _userSort,
+                colFilters: _userColFilters,
+                pagination: { current: 1, total: 1 },
+                loading: false
+            };
+        }
+
+        async function loadUsers() {
+            const container = document.getElementById('users-table-container');
+            try {
+                const users = await api.get('/api/admin/users');
+                if (!users || users.length === 0) {
+                    container.replaceChildren();
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-state';
+                    const title = document.createElement('div');
+                    title.className = 'empty-state-title';
+                    title.textContent = '尚無使用者';
+                    empty.appendChild(title);
+                    container.appendChild(empty);
+                    return;
+                }
+                _currentUsers = users;
                 renderUsersTable(container);
-              });
-              filterInput.addEventListener('click', e => e.stopPropagation());
-              th.appendChild(filterInput);
+            } catch (err) {
+                container.replaceChildren();
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                const desc = document.createElement('div');
+                desc.className = 'empty-state-desc text-danger';
+                desc.textContent = err.message;
+                empty.appendChild(desc);
+                container.appendChild(empty);
             }
-          }
-          trHead.appendChild(th);
-        });
-        thead.appendChild(trHead);
-        table.appendChild(thead);
-        table.appendChild(document.createElement('tbody'));
-        wrapper.appendChild(table);
-        container.appendChild(wrapper);
-      }
-
-      const statusMap = { pending: '待設密', active: '正常', suspended: '已停用', expired: '已過期' };
-
-      let data = [..._currentUsers];
-      for (const [k, v] of Object.entries(_userColFilters)) {
-        if (!v) continue;
-        data = data.filter(item => {
-          let val = item[k];
-          if (k === 'role') val = val === 'admin' ? '管理員' : '使用者';
-          else if (k === 'status') val = statusMap[val] || val;
-          else if (k === 'created_at' || k === 'last_login_at') val = api.formatLocalTime(val);
-          return String(val || '').toLowerCase().includes(v);
-        });
-      }
-
-      data.sort((a, b) => {
-        let valA = a[_userSort.key];
-        let valB = b[_userSort.key];
-        if (valA === undefined || valA === null) valA = '';
-        if (valB === undefined || valB === null) valB = '';
-
-        if (_userSort.key === 'created_at' || _userSort.key === 'last_login_at') {
-          valA = new Date(valA).getTime() || 0;
-          valB = new Date(valB).getTime() || 0;
-          return _userSort.asc ? valA - valB : valB - valA;
         }
 
-        valA = String(valA).toLowerCase();
-        valB = String(valB).toLowerCase();
-        if (valA < valB) return _userSort.asc ? -1 : 1;
-        if (valA > valB) return _userSort.asc ? 1 : -1;
-        return 0;
-      });
-
-      const tbody = table.querySelector('tbody');
-      tbody.replaceChildren();
-
-      data.forEach(u => {
-        const trBody = document.createElement('tr');
-        const tdEmail = document.createElement('td');
-        tdEmail.textContent = u.email;
-        trBody.appendChild(tdEmail);
-        const tdRole = document.createElement('td');
-        const roleBadge = document.createElement('span');
-        roleBadge.className = `badge badge-${u.role === 'admin' ? 'admin' : 'pending'}`;
-        roleBadge.textContent = u.role === 'admin' ? '管理員' : '使用者';
-        tdRole.appendChild(roleBadge);
-        trBody.appendChild(tdRole);
-        const tdStatus = document.createElement('td');
-        const statusBadge = document.createElement('span');
-        statusBadge.className = `badge badge-${u.status}`;
-        statusBadge.textContent = statusMap[u.status] || u.status;
-        tdStatus.appendChild(statusBadge);
-        trBody.appendChild(tdStatus);
-        const tdCreated = document.createElement('td');
-        tdCreated.className = 'text-sm text-muted';
-        tdCreated.textContent = api.formatLocalTime(u.created_at);
-        trBody.appendChild(tdCreated);
-        const tdLogin = document.createElement('td');
-        tdLogin.className = 'text-sm text-muted';
-        tdLogin.textContent = api.formatLocalTime(u.last_login_at);
-        trBody.appendChild(tdLogin);
-        const tdActions = document.createElement('td');
-        const actionDiv = document.createElement('div');
-        actionDiv.style.display = 'flex';
-        actionDiv.style.gap = '0.5rem';
-        actionDiv.style.flexWrap = 'wrap';
-        const addBtn = (text, btnClass, action) => {
-          const btn = document.createElement('button');
-          btn.className = `btn btn-sm ${btnClass} user-action-btn`;
-          btn.dataset.action = action;
-          btn.dataset.id = u.id;
-          btn.dataset.email = u.email;
-          btn.textContent = text;
-          actionDiv.appendChild(btn);
-        };
-        if (u.id !== user.id && u.role === 'user' && u.status !== 'suspended') addBtn('設為管理員', 'btn-secondary', 'promote');
-        if (u.id !== user.id && u.role === 'admin') addBtn('取消管理員', 'btn-danger', 'demote');
-        if (u.status !== 'suspended' && u.id !== user.id && u.role !== 'admin') addBtn('停用', 'btn-danger', 'suspend');
-        if (u.status === 'suspended') addBtn('啟用', 'btn-secondary', 'activate');
-        if (['pending', 'expired'].includes(u.status)) addBtn('重寄邀請', 'btn-secondary', 'resend');
-        if (u.id !== user.id && u.role !== 'admin') addBtn('刪除', 'btn-danger', 'delete');
-        tdActions.appendChild(actionDiv);
-        trBody.appendChild(tdActions);
-        tbody.appendChild(trBody);
-      });
-    }
-
-    async function loadUsers() {
-      const container = document.getElementById('users-table-container');
-      try {
-        const users = await api.get('/api/admin/users');
-        if (!users || users.length === 0) {
-          container.replaceChildren();
-          const empty = document.createElement('div');
-          empty.className = 'empty-state';
-          const title = document.createElement('div');
-          title.className = 'empty-state-title';
-          title.textContent = '尚無使用者';
-          empty.appendChild(title);
-          container.appendChild(empty);
-          return;
+        async function suspendUser(userId) {
+            const confirmed = await showConfirm('⚠️ 停用帳號', '確定要停用此帳號？該使用者的所有 Session 將立即失效。', '停用', true);
+            if (!confirmed) return;
+            try {
+                await api.patch(`/api/admin/users/${userId}`, { status: 'suspended' });
+                toast.success('帳號已停用。');
+                await loadUsers();
+            } catch (err) { toast.error(err.message); }
         }
-        _currentUsers = users;
-        renderUsersTable(container);
-      } catch (err) {
-        container.replaceChildren();
-        const empty = document.createElement('div');
-        empty.className = 'empty-state';
-        const desc = document.createElement('div');
-        desc.className = 'empty-state-desc text-danger';
-        desc.textContent = err.message;
-        empty.appendChild(desc);
-        container.appendChild(empty);
-      }
-    }
 
-    async function suspendUser(userId) {
-      const confirmed = await showConfirm('⚠️ 停用帳號', '確定要停用此帳號？該使用者的所有 Session 將立即失效。', '停用', true);
-      if (!confirmed) return;
-      try {
-        await api.patch(`/api/admin/users/${userId}`, { status: 'suspended' });
-        toast.success('帳號已停用。');
-        await loadUsers();
-      } catch (err) { toast.error(err.message); }
-    }
+        async function activateUser(userId, email) {
+            const confirmed = await showConfirm('⚠️ 啟用帳號', `確定要重新啟用帳號 ${api.escapeHtml(email)}？啟用後該使用者將可正常登入。`, '啟用', true);
+            if (!confirmed) return;
+            try {
+                await api.patch(`/api/admin/users/${userId}`, { status: 'active' });
+                toast.success('帳號已重新啟用。');
+                await loadUsers();
+            } catch (err) { toast.error(err.message); }
+        }
 
-    async function activateUser(userId, email) {
-      const confirmed = await showConfirm('⚠️ 啟用帳號', `確定要重新啟用帳號 ${api.escapeHtml(email)}？啟用後該使用者將可正常登入。`, '啟用', true);
-      if (!confirmed) return;
-      try {
-        await api.patch(`/api/admin/users/${userId}`, { status: 'active' });
-        toast.success('帳號已重新啟用。');
-        await loadUsers();
-      } catch (err) { toast.error(err.message); }
-    }
+        async function changeUserRole(userId, email, newRole) {
+            const isPromote = newRole === 'admin';
+            const roleName = isPromote ? '管理員' : '一般使用者';
+            const title = isPromote ? '⚠️ 設為管理員' : '⚠️ 取消管理員';
+            const msg = isPromote
+                ? `確定要將帳號 ${api.escapeHtml(email)} 提權為「管理員」？這將允許其存取所有後台系統設定與操作。`
+                : `確定要將帳號 ${api.escapeHtml(email)} 降權為「一般使用者」？其將立即失去後台存取權限。`;
 
-    async function changeUserRole(userId, email, newRole) {
-      const isPromote = newRole === 'admin';
-      const roleName = isPromote ? '管理員' : '一般使用者';
-      const title = isPromote ? '⚠️ 設為管理員' : '⚠️ 取消管理員';
-      const msg = isPromote
-        ? `確定要將帳號 ${api.escapeHtml(email)} 提權為「管理員」？這將允許其存取所有後台系統設定與操作。`
-        : `確定要將帳號 ${api.escapeHtml(email)} 降權為「一般使用者」？其將立即失去後台存取權限。`;
+            const confirmed = await showConfirm(title, msg, '確定變更', true);
+            if (!confirmed) return;
+            try {
+                await api.patch(`/api/admin/users/${userId}`, { role: newRole });
+                toast.success(`帳號角色已變更為${roleName}。`);
+                await loadUsers();
+            } catch (err) { toast.error(err.message); }
+        }
 
-      const confirmed = await showConfirm(title, msg, '確定變更', true);
-      if (!confirmed) return;
-      try {
-        await api.patch(`/api/admin/users/${userId}`, { role: newRole });
-        toast.success(`帳號角色已變更為${roleName}。`);
-        await loadUsers();
-      } catch (err) { toast.error(err.message); }
-    }
+        async function resendInvite(userId, email) {
+            const confirmed = await showConfirm('重新寄送邀請', `確定要重新寄送邀請信至 ${api.escapeHtml(email)}？原本未使用的邀請碼將會立即失效。`, '重新寄送');
+            if (!confirmed) return;
+            try {
+                await api.post(`/api/admin/users/${userId}/resend-invite`);
+                toast.success('邀請已重新寄送。');
+            } catch (err) { toast.error(err.message); }
+        }
 
-    async function resendInvite(userId, email) {
-      const confirmed = await showConfirm('重新寄送邀請', `確定要重新寄送邀請信至 ${api.escapeHtml(email)}？原本未使用的邀請碼將會立即失效。`, '重新寄送');
-      if (!confirmed) return;
-      try {
-        await api.post(`/api/admin/users/${userId}/resend-invite`);
-        toast.success('邀請已重新寄送。');
-      } catch (err) { toast.error(err.message); }
-    }
+        async function deleteUser(userId, email) {
+            const confirmed = await showConfirm('🚨 刪除帳號', `確定要刪除帳號 ${api.escapeHtml(email)}？此操作將一併刪除其所有任務資料，且無法復原。`, '永久刪除', true);
+            if (!confirmed) return;
+            try {
+                await api.del(`/api/admin/users/${userId}`);
+                toast.success('帳號已進入刪除排程，資料將於背景清理。');
+                await loadUsers();
+            } catch (err) { toast.error(err.message); }
+        }
 
-    async function deleteUser(userId, email) {
-      const confirmed = await showConfirm('🚨 刪除帳號', `確定要刪除帳號 ${api.escapeHtml(email)}？此操作將一併刪除其所有任務資料，且無法復原。`, '永久刪除', true);
-      if (!confirmed) return;
-      try {
-        await api.del(`/api/admin/users/${userId}`);
-        toast.success('帳號已進入刪除排程，資料將於背景清理。');
-        await loadUsers();
-      } catch (err) { toast.error(err.message); }
-    }
 
-    // 綁定使用者列表的事件委派
-    document.getElementById('users-table-container').addEventListener('click', async (e) => {
-      const btn = e.target.closest('.user-action-btn');
-      if (!btn) return;
-      const { action, id, email } = btn.dataset;
 
-      if (action === 'promote') await changeUserRole(id, email, 'admin');
-      if (action === 'demote') await changeUserRole(id, email, 'user');
-      if (action === 'suspend') await suspendUser(id);
-      if (action === 'activate') await activateUser(id, email);
-      if (action === 'resend') await resendInvite(id, email);
-      if (action === 'delete') await deleteUser(id, email);
-    });
+        // 邀請新使用者
+        const inviteModal = document.getElementById('invite-user-modal');
+        const inviteForm = document.getElementById('invite-user-form');
+        const inviteError = document.getElementById('invite-user-error');
+        const inviteSubmitBtn = document.getElementById('invite-user-submit');
 
-    // 邀請新使用者
-    const inviteModal = document.getElementById('invite-user-modal');
-    const inviteForm = document.getElementById('invite-user-form');
-    const inviteError = document.getElementById('invite-user-error');
-    const inviteSubmitBtn = document.getElementById('invite-user-submit');
+        function closeInviteModal() {
+            inviteModal.style.display = 'none';
+            inviteForm.reset();
+            inviteError.textContent = '';
+        }
 
-    function closeInviteModal() {
-      inviteModal.style.display = 'none';
-      inviteForm.reset();
-      inviteError.textContent = '';
-    }
-
-    document.getElementById('invite-user-btn').addEventListener('click', () => {
-      inviteModal.style.display = 'flex';
-      setTimeout(() => document.getElementById('invite-email').focus(), 50);
-    });
-    document.getElementById('invite-user-close').addEventListener('click', closeInviteModal);
-    document.getElementById('invite-user-cancel').addEventListener('click', closeInviteModal);
-
-    inviteForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('invite-email').value.trim().toLowerCase();
-      if (!email) return;
-
-      inviteError.textContent = '';
-      inviteSubmitBtn.classList.add('loading');
-      inviteSubmitBtn.disabled = true;
-
-      try {
-        await api.post('/api/admin/users', { email });
-        toast.success(`邀請已寄送至 ${api.escapeHtml(email)}。`);
-        closeInviteModal();
-        await loadUsers();
-      } catch (err) {
-        inviteError.textContent = err.message || '邀請失敗。';
-      } finally {
-        inviteSubmitBtn.classList.remove('loading');
-        inviteSubmitBtn.disabled = false;
-      }
-    });
-
-    // ── 系統配置 ─────────────────────────────────────────────
-
-    async function loadConfig() {
-      try {
-        const fullConfig = await api.get('/api/admin/config');
-        const c = fullConfig.crawler || {};
-
-        document.getElementById('cfg-timeout').value = c.timeout ?? '';
-        document.getElementById('cfg-connect-timeout').value = c.connect_timeout ?? '';
-        document.getElementById('cfg-ext-check-timeout').value = c.external_check_timeout ?? '';
-        document.getElementById('cfg-delay').value = c.delay ?? '';
-        document.getElementById('cfg-jitter-ratio').value = c.jitter_ratio ?? '';
-        document.getElementById('cfg-retries').value = c.retries ?? '';
-        document.getElementById('cfg-max-depth').value = c.max_depth ?? '';
-        document.getElementById('cfg-max-pages').value = c.max_pages ?? '';
-        document.getElementById('cfg-max-content-length').value = c.max_content_length ?? '';
-        document.getElementById('cfg-max-redirects').value = c.max_redirects ?? '';
-        const cfgUaEl = document.getElementById('cfg-user-agent');
-        cfgUaEl.value = c.user_agent ?? '';
-        cfgUaEl.placeholder = '預設啟動 fake-useragent 隨機輪替';
-        document.getElementById('cfg-proxy-url').value = c.proxy_url ?? '';
-
-        document.getElementById('cfg-min-timeout').value = c.min_timeout ?? '';
-        document.getElementById('cfg-max-timeout').value = c.max_timeout ?? '';
-        document.getElementById('cfg-min-connect-timeout').value = c.min_connect_timeout ?? '';
-        document.getElementById('cfg-max-connect-timeout').value = c.max_connect_timeout ?? '';
-        document.getElementById('cfg-min-ext-check-timeout').value = c.min_external_check_timeout ?? '';
-        document.getElementById('cfg-max-ext-check-timeout').value = c.max_external_check_timeout ?? '';
-        document.getElementById('cfg-min-delay').value = c.min_delay ?? '';
-        document.getElementById('cfg-max-delay').value = c.max_delay ?? '';
-        document.getElementById('cfg-min-retries').value = c.min_retries ?? '';
-        document.getElementById('cfg-max-retries').value = c.max_retries ?? '';
-        document.getElementById('cfg-max-max-depth').value = c.max_max_depth ?? '';
-        document.getElementById('cfg-max-max-pages').value = c.max_max_pages ?? '';
-
-        ['cfg-timeout', 'cfg-connect-timeout', 'cfg-ext-check-timeout', 'cfg-delay', 'cfg-jitter-ratio', 'cfg-retries',
-          'cfg-min-timeout', 'cfg-max-timeout', 'cfg-min-connect-timeout', 'cfg-max-connect-timeout',
-          'cfg-min-ext-check-timeout', 'cfg-max-ext-check-timeout', 'cfg-min-delay', 'cfg-max-delay',
-          'cfg-min-retries', 'cfg-max-retries', 'cfg-max-content-length'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.placeholder = '';
-          });
-
-        ['cfg-max-depth', 'cfg-max-pages', 'cfg-max-max-depth', 'cfg-max-max-pages'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.placeholder = '無限制';
+        document.getElementById('invite-user-btn').addEventListener('click', () => {
+            inviteModal.style.display = 'flex';
+            setTimeout(() => document.getElementById('invite-email').focus(), 50);
         });
+        document.getElementById('invite-user-close').addEventListener('click', closeInviteModal);
+        document.getElementById('invite-user-cancel').addEventListener('click', closeInviteModal);
 
-        document.getElementById('cfg-ssl-exempt').value = (c.ssl_exempt_domains || []).join('\n');
-        document.getElementById('cfg-social-domains').value = (c.social_domains || []).join('\n');
-        document.getElementById('cfg-ignore-exts').value = (c.ignore_extensions || []).join('\n');
-        document.getElementById('cfg-ignore-regexes').value = (c.ignore_regexes || []).join('\n');
+        inviteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('invite-email').value.trim().toLowerCase();
+            if (!email) return;
 
-        const dd = c.domain_delays || {};
-        const ddLines = Object.entries(dd).map(([k, v]) => `${k}: ${v}`);
-        document.getElementById('cfg-domain-delays').value = ddLines.join('\n');
+            inviteError.textContent = '';
+            inviteSubmitBtn.classList.add('loading');
+            inviteSubmitBtn.disabled = true;
 
-        const mime = c.mime_type_filter || { enabled: true, allowed_types: [] };
-        document.getElementById('cfg-mime-enabled').checked = mime.enabled;
-        document.getElementById('cfg-mime-types').value = (mime.allowed_types || []).join('\n');
-      } catch (err) { toast.error('載入配置失敗：' + err.message); }
-    }
-
-    document.getElementById('config-form')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const errorEl = document.getElementById('config-error');
-      errorEl.textContent = '';
-      try {
-        const getInt = (id) => { const v = document.getElementById(id).value; return v === '' ? null : parseInt(v, 10); };
-        const getFloat = (id) => { const v = document.getElementById(id).value; return v === '' ? null : parseFloat(v); };
-        const getStr = (id) => document.getElementById(id).value.trim() || null;
-        const getList = (id) => document.getElementById(id).value.split('\n').map(s => s.trim()).filter(Boolean);
-
-        const ddLines = getList('cfg-domain-delays');
-        const domain_delays = {};
-        for (const line of ddLines) {
-          const parts = line.split(':');
-          if (parts.length !== 2) throw new Error('網域特定延遲格式錯誤，必須為 "網域: 延遲秒數"');
-          const domain = parts[0].trim();
-          const delay = parseFloat(parts[1].trim());
-          if (isNaN(delay)) throw new Error(`網域特定延遲秒數無效: ${parts[1]}`);
-          domain_delays[domain] = delay;
-        }
-
-        const crawlerConfig = {
-          timeout: getInt('cfg-timeout'),
-          connect_timeout: getFloat('cfg-connect-timeout'),
-          external_check_timeout: getFloat('cfg-ext-check-timeout'),
-          delay: getFloat('cfg-delay'),
-          jitter_ratio: getFloat('cfg-jitter-ratio'),
-          retries: getInt('cfg-retries'),
-          max_depth: getInt('cfg-max-depth'),
-          max_pages: getInt('cfg-max-pages'),
-          max_content_length: getInt('cfg-max-content-length'),
-          max_redirects: getInt('cfg-max-redirects'),
-          user_agent: getStr('cfg-user-agent'),
-          proxy_url: getStr('cfg-proxy-url'),
-
-          min_timeout: getInt('cfg-min-timeout'),
-          max_timeout: getInt('cfg-max-timeout'),
-          min_connect_timeout: getFloat('cfg-min-connect-timeout'),
-          max_connect_timeout: getFloat('cfg-max-connect-timeout'),
-          min_external_check_timeout: getFloat('cfg-min-ext-check-timeout'),
-          max_external_check_timeout: getFloat('cfg-max-ext-check-timeout'),
-          min_delay: getFloat('cfg-min-delay'),
-          max_delay: getFloat('cfg-max-delay'),
-          min_retries: getInt('cfg-min-retries'),
-          max_retries: getInt('cfg-max-retries'),
-          max_max_depth: getInt('cfg-max-max-depth'),
-          max_max_pages: getInt('cfg-max-max-pages'),
-
-          ssl_exempt_domains: getList('cfg-ssl-exempt'),
-          social_domains: getList('cfg-social-domains'),
-          ignore_extensions: getList('cfg-ignore-exts'),
-          ignore_regexes: getList('cfg-ignore-regexes'),
-          domain_delays: domain_delays,
-
-          mime_type_filter: {
-            enabled: document.getElementById('cfg-mime-enabled').checked,
-            allowed_types: getList('cfg-mime-types')
-          }
-        };
-
-        const payload = { crawler: crawlerConfig };
-
-        const confirmed = await showConfirm('⚠️ 儲存爬蟲配置', '確定要覆寫全域爬蟲配置嗎？這將影響所有後續建立的爬蟲任務與安全限制。', '確定儲存', true);
-        if (!confirmed) return;
-
-        const btn = document.getElementById('save-config-btn');
-        btn.classList.add('loading');
-        btn.disabled = true;
-
-        try {
-          await api.patch('/api/admin/config', payload);
-          toast.success('配置已儲存。');
-
-          btn.classList.remove('loading');
-          btn.disabled = false;
-        } catch (err) {
-          errorEl.textContent = err.message;
-          btn.classList.remove('loading');
-          btn.disabled = false;
-        }
-      } catch (err) {
-        errorEl.textContent = err.message;
-      }
-    });
-
-    // ── SMTP ─────────────────────────────────────────────────
-
-    async function loadSmtp() {
-      try {
-        const smtp = await api.get('/api/admin/smtp');
-        const container = document.getElementById('smtp-info-container');
-        container.replaceChildren();
-
-        const grid = document.createElement('div');
-        grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = 'repeat(auto-fit,minmax(200px,1fr))';
-        grid.style.gap = '1rem';
-
-        const items = [
-          ['Host', smtp.host], ['Port', smtp.port],
-          ['TLS', smtp.use_tls ? '✓ 啟用' : '✗ 停用'],
-          ['Username', smtp.username || '(未設定)'],
-          ['From Name', smtp.from_name], ['From Email', smtp.from_email]
-        ];
-
-        items.forEach(([k, v]) => {
-          const div = document.createElement('div');
-          const lbl = document.createElement('div');
-          lbl.className = 'text-xs text-muted';
-          lbl.textContent = k;
-          const val = document.createElement('div');
-          val.className = 'text-sm font-mono';
-          val.textContent = String(v);
-          div.appendChild(lbl);
-          div.appendChild(val);
-          grid.appendChild(div);
-        });
-
-        const note = document.createElement('div');
-        note.style.marginTop = '1rem';
-        note.style.padding = '0.75rem';
-        note.style.background = 'var(--surface-overlay)';
-        note.style.borderRadius = '0.375rem';
-        note.style.fontSize = '0.8125rem';
-        note.style.color = 'var(--text-muted)';
-        note.textContent = `💡 ${smtp.note}`;
-
-        container.appendChild(grid);
-        container.appendChild(note);
-      } catch (err) { toast.error('載入 SMTP 設定失敗。'); }
-    }
-
-    document.getElementById('smtp-test-btn')?.addEventListener('click', async () => {
-      const email = document.getElementById('smtp-test-email').value.trim();
-      if (!email) { toast.warning('請填寫測試收件者 Email。'); return; }
-
-      const confirmed = await showConfirm('發送測試郵件', `確定要發送 SMTP 測試郵件至 ${api.escapeHtml(email)} 嗎？`, '確定發送');
-      if (!confirmed) return;
-
-      const btn = document.getElementById('smtp-test-btn');
-      btn.classList.add('loading');
-      btn.disabled = true;
-
-      try {
-        await api.post('/api/admin/smtp/test', { to_email: email });
-        toast.success('測試郵件已寄送成功！');
-      } catch (err) { toast.error(err.message); } finally {
-        btn.classList.remove('loading');
-        btn.disabled = false;
-      }
-    });
-
-    // ── 操作日誌 ─────────────────────────────────────────────
-
-    let _logPage = 1;
-    let _logSort = { key: 'created_at', asc: false };
-    let _logColFilters = {};
-    let _currentLogs = [];
-
-    function renderLogsTable(container) {
-      const headers = [
-        { label: '時間', key: 'created_at' },
-        { label: '事件類型', key: 'event_type' },
-        { label: '使用者 ID', key: 'user_id' },
-        { label: 'IP', key: 'ip_address' },
-        { label: '詳情', key: 'detail' }
-      ];
-
-      let table = container.querySelector('.table');
-      if (!table) {
-        container.replaceChildren();
-        const wrapper = document.createElement('div');
-        wrapper.className = 'table-wrapper';
-        table = document.createElement('table');
-        table.className = 'table';
-        const thead = document.createElement('thead');
-        const trHead = document.createElement('tr');
-
-        headers.forEach(h => {
-          const th = document.createElement('th');
-          th.style.verticalAlign = 'top';
-          if (!h.key) {
-            th.textContent = h.label;
-          } else {
-            const headerTop = document.createElement('div');
-            headerTop.style.display = 'flex';
-            headerTop.style.justifyContent = 'space-between';
-            headerTop.style.alignItems = 'center';
-            headerTop.style.cursor = 'pointer';
-
-            const labelSpan = document.createElement('span');
-            labelSpan.textContent = h.label;
-            headerTop.appendChild(labelSpan);
-
-            const icon = document.createElement('span');
-            icon.className = 'sort-icon';
-            icon.style.fontSize = '0.75rem';
-            icon.style.marginLeft = '0.25rem';
-            if (_logSort.key === h.key) {
-              icon.textContent = _logSort.asc ? '▲' : '▼';
-              icon.style.color = 'var(--color-brand-500)';
-            } else {
-              icon.textContent = '⇅';
-              icon.style.color = 'var(--text-muted)';
+            try {
+                await api.post('/api/admin/users', { email });
+                toast.success(`邀請已寄送至 ${api.escapeHtml(email)}。`);
+                closeInviteModal();
+                await loadUsers();
+            } catch (err) {
+                inviteError.textContent = err.message || '邀請失敗。';
+            } finally {
+                inviteSubmitBtn.classList.remove('loading');
+                inviteSubmitBtn.disabled = false;
             }
-            headerTop.appendChild(icon);
+        });
 
-            headerTop.addEventListener('click', () => {
-              if (_logSort.key === h.key) {
-                _logSort.asc = !_logSort.asc;
-              } else {
-                _logSort.key = h.key;
-                _logSort.asc = true;
-              }
-              renderLogsTable(container);
+        // ── 系統配置 ─────────────────────────────────────────────
+
+        async function loadConfig() {
+            try {
+                const fullConfig = await api.get('/api/admin/config');
+                const c = fullConfig.crawler || {};
+
+                document.getElementById('cfg-timeout').value = c.timeout ?? '';
+                document.getElementById('cfg-connect-timeout').value = c.connect_timeout ?? '';
+                document.getElementById('cfg-ext-check-timeout').value = c.external_check_timeout ?? '';
+                document.getElementById('cfg-delay').value = c.delay ?? '';
+                document.getElementById('cfg-jitter-ratio').value = c.jitter_ratio ?? '';
+                document.getElementById('cfg-retries').value = c.retries ?? '';
+                document.getElementById('cfg-max-depth').value = c.max_depth ?? '';
+                document.getElementById('cfg-max-pages').value = c.max_pages ?? '';
+                document.getElementById('cfg-max-content-length').value = c.max_content_length ?? '';
+                document.getElementById('cfg-max-redirects').value = c.max_redirects ?? '';
+                const cfgUaEl = document.getElementById('cfg-user-agent');
+                cfgUaEl.value = c.user_agent ?? '';
+                cfgUaEl.placeholder = '預設啟動 fake-useragent 隨機輪替';
+                document.getElementById('cfg-proxy-url').value = c.proxy_url ?? '';
+
+                document.getElementById('cfg-min-timeout').value = c.min_timeout ?? '';
+                document.getElementById('cfg-max-timeout').value = c.max_timeout ?? '';
+                document.getElementById('cfg-min-connect-timeout').value = c.min_connect_timeout ?? '';
+                document.getElementById('cfg-max-connect-timeout').value = c.max_connect_timeout ?? '';
+                document.getElementById('cfg-min-ext-check-timeout').value = c.min_external_check_timeout ?? '';
+                document.getElementById('cfg-max-ext-check-timeout').value = c.max_external_check_timeout ?? '';
+                document.getElementById('cfg-min-delay').value = c.min_delay ?? '';
+                document.getElementById('cfg-max-delay').value = c.max_delay ?? '';
+                document.getElementById('cfg-min-retries').value = c.min_retries ?? '';
+                document.getElementById('cfg-max-retries').value = c.max_retries ?? '';
+                document.getElementById('cfg-max-max-depth').value = c.max_max_depth ?? '';
+                document.getElementById('cfg-max-max-pages').value = c.max_max_pages ?? '';
+
+                ['cfg-timeout', 'cfg-connect-timeout', 'cfg-ext-check-timeout', 'cfg-delay', 'cfg-jitter-ratio', 'cfg-retries',
+                    'cfg-min-timeout', 'cfg-max-timeout', 'cfg-min-connect-timeout', 'cfg-max-connect-timeout',
+                    'cfg-min-ext-check-timeout', 'cfg-max-ext-check-timeout', 'cfg-min-delay', 'cfg-max-delay',
+                    'cfg-min-retries', 'cfg-max-retries', 'cfg-max-content-length'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.placeholder = '';
+                    });
+
+                ['cfg-max-depth', 'cfg-max-pages', 'cfg-max-max-depth', 'cfg-max-max-pages'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.placeholder = '無限制';
+                });
+
+                document.getElementById('cfg-ssl-exempt').value = (c.ssl_exempt_domains || []).join('\n');
+                document.getElementById('cfg-social-domains').value = (c.social_domains || []).join('\n');
+                document.getElementById('cfg-ignore-exts').value = (c.ignore_extensions || []).join('\n');
+                document.getElementById('cfg-ignore-regexes').value = (c.ignore_regexes || []).join('\n');
+
+                const dd = c.domain_delays || {};
+                const ddLines = Object.entries(dd).map(([k, v]) => `${k}: ${v}`);
+                document.getElementById('cfg-domain-delays').value = ddLines.join('\n');
+
+                const mime = c.mime_type_filter || { enabled: true, allowed_types: [] };
+                document.getElementById('cfg-mime-enabled').checked = mime.enabled;
+                document.getElementById('cfg-mime-types').value = (mime.allowed_types || []).join('\n');
+            } catch (err) { toast.error('載入配置失敗：' + err.message); }
+        }
+
+        document.getElementById('config-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('config-error');
+            errorEl.textContent = '';
+            try {
+                const getInt = (id) => { const v = document.getElementById(id).value; return v === '' ? null : parseInt(v, 10); };
+                const getFloat = (id) => { const v = document.getElementById(id).value; return v === '' ? null : parseFloat(v); };
+                const getStr = (id) => document.getElementById(id).value.trim() || null;
+                const getList = (id) => document.getElementById(id).value.split('\n').map(s => s.trim()).filter(Boolean);
+
+                const ddLines = getList('cfg-domain-delays');
+                const domain_delays = {};
+                for (const line of ddLines) {
+                    const parts = line.split(':');
+                    if (parts.length !== 2) throw new Error('網域特定延遲格式錯誤，必須為 "網域: 延遲秒數"');
+                    const domain = parts[0].trim();
+                    const delay = parseFloat(parts[1].trim());
+                    if (isNaN(delay)) throw new Error(`網域特定延遲秒數無效: ${parts[1]}`);
+                    domain_delays[domain] = delay;
+                }
+
+                const crawlerConfig = {
+                    timeout: getInt('cfg-timeout'),
+                    connect_timeout: getFloat('cfg-connect-timeout'),
+                    external_check_timeout: getFloat('cfg-ext-check-timeout'),
+                    delay: getFloat('cfg-delay'),
+                    jitter_ratio: getFloat('cfg-jitter-ratio'),
+                    retries: getInt('cfg-retries'),
+                    max_depth: getInt('cfg-max-depth'),
+                    max_pages: getInt('cfg-max-pages'),
+                    max_content_length: getInt('cfg-max-content-length'),
+                    max_redirects: getInt('cfg-max-redirects'),
+                    user_agent: getStr('cfg-user-agent'),
+                    proxy_url: getStr('cfg-proxy-url'),
+
+                    min_timeout: getInt('cfg-min-timeout'),
+                    max_timeout: getInt('cfg-max-timeout'),
+                    min_connect_timeout: getFloat('cfg-min-connect-timeout'),
+                    max_connect_timeout: getFloat('cfg-max-connect-timeout'),
+                    min_external_check_timeout: getFloat('cfg-min-ext-check-timeout'),
+                    max_external_check_timeout: getFloat('cfg-max-ext-check-timeout'),
+                    min_delay: getFloat('cfg-min-delay'),
+                    max_delay: getFloat('cfg-max-delay'),
+                    min_retries: getInt('cfg-min-retries'),
+                    max_retries: getInt('cfg-max-retries'),
+                    max_max_depth: getInt('cfg-max-max-depth'),
+                    max_max_pages: getInt('cfg-max-max-pages'),
+
+                    ssl_exempt_domains: getList('cfg-ssl-exempt'),
+                    social_domains: getList('cfg-social-domains'),
+                    ignore_extensions: getList('cfg-ignore-exts'),
+                    ignore_regexes: getList('cfg-ignore-regexes'),
+                    domain_delays: domain_delays,
+
+                    mime_type_filter: {
+                        enabled: document.getElementById('cfg-mime-enabled').checked,
+                        allowed_types: getList('cfg-mime-types')
+                    }
+                };
+
+                const payload = { crawler: crawlerConfig };
+
+                const confirmed = await showConfirm('⚠️ 儲存爬蟲配置', '確定要覆寫全域爬蟲配置嗎？這將影響所有後續建立的爬蟲任務與安全限制。', '確定儲存', true);
+                if (!confirmed) return;
+
+                const btn = document.getElementById('save-config-btn');
+                btn.classList.add('loading');
+                btn.disabled = true;
+
+                try {
+                    await api.patch('/api/admin/config', payload);
+                    toast.success('配置已儲存。');
+
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                } catch (err) {
+                    errorEl.textContent = err.message;
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                errorEl.textContent = err.message;
+            }
+        });
+
+        // ── SMTP ─────────────────────────────────────────────────
+
+        async function loadSmtp() {
+            try {
+                const smtp = await api.get('/api/admin/smtp');
+                const container = document.getElementById('smtp-info-container');
+                container.replaceChildren();
+
+                const grid = document.createElement('div');
+                grid.style.display = 'grid';
+                grid.style.gridTemplateColumns = 'repeat(auto-fit,minmax(200px,1fr))';
+                grid.style.gap = '1rem';
+
+                const items = [
+                    ['Host', smtp.host], ['Port', smtp.port],
+                    ['TLS', smtp.use_tls ? '✓ 啟用' : '✗ 停用'],
+                    ['Username', smtp.username || '(未設定)'],
+                    ['From Name', smtp.from_name], ['From Email', smtp.from_email]
+                ];
+
+                items.forEach(([k, v]) => {
+                    const div = document.createElement('div');
+                    const lbl = document.createElement('div');
+                    lbl.className = 'text-xs text-muted';
+                    lbl.textContent = k;
+                    const val = document.createElement('div');
+                    val.className = 'text-sm font-mono';
+                    val.textContent = String(v);
+                    div.appendChild(lbl);
+                    div.appendChild(val);
+                    grid.appendChild(div);
+                });
+
+                const note = document.createElement('div');
+                note.style.marginTop = '1rem';
+                note.style.padding = '0.75rem';
+                note.style.background = 'var(--surface-overlay)';
+                note.style.borderRadius = '0.375rem';
+                note.style.fontSize = '0.8125rem';
+                note.style.color = 'var(--text-muted)';
+                note.textContent = `💡 ${smtp.note}`;
+
+                container.appendChild(grid);
+                container.appendChild(note);
+            } catch (err) { toast.error('載入 SMTP 設定失敗。'); }
+        }
+
+        document.getElementById('smtp-test-btn')?.addEventListener('click', async () => {
+            const email = document.getElementById('smtp-test-email').value.trim();
+            if (!email) { toast.warning('請填寫測試收件者 Email。'); return; }
+
+            const confirmed = await showConfirm('發送測試郵件', `確定要發送 SMTP 測試郵件至 ${api.escapeHtml(email)} 嗎？`, '確定發送');
+            if (!confirmed) return;
+
+            const btn = document.getElementById('smtp-test-btn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            try {
+                await api.post('/api/admin/smtp/test', { to_email: email });
+                toast.success('測試郵件已寄送成功！');
+            } catch (err) { toast.error(err.message); } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+
+        // ── 操作日誌 ─────────────────────────────────────────────
+
+        let _logPage = 1;
+        let _logSort = { key: 'created_at', asc: false };
+        let _logColFilters = {};
+        let _currentLogs = [];
+
+        function renderLogsTable(container, res) {
+            let linkTable = container.querySelector('link-table');
+            if (!linkTable) {
+                container.replaceChildren();
+                linkTable = document.createElement('link-table');
+                linkTable.id = 'admin-logs-table';
+
+                linkTable.addEventListener('sort-change', (e) => {
+                    _logSort = e.detail;
+                    renderLogsTable(container, res);
+                });
+
+                linkTable.addEventListener('page-change', (e) => {
+                    loadLogs(e.detail.page);
+                });
+
+                container.appendChild(linkTable);
+            }
+
+            let data = [..._currentLogs];
+            data.sort((a, b) => {
+                let valA = a[_logSort.key];
+                let valB = b[_logSort.key];
+                if (valA === undefined || valA === null) valA = '';
+                if (valB === undefined || valB === null) valB = '';
+
+                if (_logSort.key === 'created_at') {
+                    valA = new Date(valA).getTime() || 0;
+                    valB = new Date(valB).getTime() || 0;
+                    return _logSort.asc ? valA - valB : valB - valA;
+                }
+
+                valA = String(valA).toLowerCase();
+                valB = String(valB).toLowerCase();
+                if (valA < valB) return _logSort.asc ? -1 : 1;
+                if (valA > valB) return _logSort.asc ? 1 : -1;
+                return 0;
             });
-            th.appendChild(headerTop);
 
-            if (h.filterable !== false) {
-              const filterInput = document.createElement('input');
-              filterInput.type = 'text';
-              filterInput.className = 'form-input text-xs';
-              filterInput.placeholder = '篩選...';
-              filterInput.style.marginTop = '0.5rem';
-              filterInput.style.padding = '0.25rem 0.5rem';
-              filterInput.style.height = 'auto';
-              filterInput.style.fontWeight = 'normal';
-              filterInput.value = _logColFilters[h.key] || '';
+            const headers = [
+                { label: '時間', key: 'created_at', className: 'text-xs font-mono text-muted', render: v => { const span = document.createElement('span'); span.textContent = api.formatLocalTime(v); return span; } },
+                {
+                    label: '事件類型', key: 'event_type', render: v => {
+                        const code = document.createElement('code');
+                        code.style.fontSize = '0.75rem';
+                        code.style.color = 'var(--color-brand-400)';
+                        code.textContent = v;
+                        return code;
+                    }
+                },
+                { label: '使用者 ID', key: 'user_id', className: 'text-xs font-mono text-muted', render: v => { const span = document.createElement('span'); span.textContent = v || '-'; return span; } },
+                { label: 'IP', key: 'ip_address', className: 'text-xs font-mono', render: v => { const span = document.createElement('span'); span.textContent = v || '-'; return span; } },
+                { label: '詳情', key: 'detail', className: 'text-xs text-muted', render: v => { const span = document.createElement('span'); span.textContent = v || '-'; return span; } }
+            ];
 
-              filterInput.addEventListener('input', (e) => {
-                _logColFilters[h.key] = e.target.value.toLowerCase();
-                renderLogsTable(container);
-              });
-              filterInput.addEventListener('click', e => e.stopPropagation());
-              th.appendChild(filterInput);
-            }
-          }
-          trHead.appendChild(th);
-        });
-        thead.appendChild(trHead);
-        table.appendChild(thead);
-        table.appendChild(document.createElement('tbody'));
-        wrapper.appendChild(table);
-        container.appendChild(wrapper);
-      }
-
-      let data = [..._currentLogs];
-      for (const [k, v] of Object.entries(_logColFilters)) {
-        if (!v) continue;
-        data = data.filter(item => {
-          let val = item[k];
-          if (k === 'created_at') val = api.formatLocalTime(val);
-          return String(val || '').toLowerCase().includes(v);
-        });
-      }
-
-      data.sort((a, b) => {
-        let valA = a[_logSort.key];
-        let valB = b[_logSort.key];
-        if (valA === undefined || valA === null) valA = '';
-        if (valB === undefined || valB === null) valB = '';
-
-        if (_logSort.key === 'created_at') {
-          valA = new Date(valA).getTime() || 0;
-          valB = new Date(valB).getTime() || 0;
-          return _logSort.asc ? valA - valB : valB - valA;
+            linkTable.config = {
+                headers,
+                data,
+                sort: _logSort,
+                pagination: { current: res.page, total: res.total_pages },
+                loading: false
+            };
         }
 
-        valA = String(valA).toLowerCase();
-        valB = String(valB).toLowerCase();
-        if (valA < valB) return _logSort.asc ? -1 : 1;
-        if (valA > valB) return _logSort.asc ? 1 : -1;
-        return 0;
-      });
-
-      const tbody = table.querySelector('tbody');
-      tbody.replaceChildren();
-
-      data.forEach(log => {
-        const tr = document.createElement('tr');
-        const tdTime = document.createElement('td');
-        tdTime.className = 'text-xs font-mono text-muted';
-        tdTime.textContent = api.formatLocalTime(log.created_at);
-        tr.appendChild(tdTime);
-        const tdType = document.createElement('td');
-        const code = document.createElement('code');
-        code.style.fontSize = '0.75rem';
-        code.style.color = 'var(--color-brand-400)';
-        code.textContent = log.event_type;
-        tdType.appendChild(code);
-        tr.appendChild(tdType);
-        const tdUser = document.createElement('td');
-        tdUser.className = 'text-xs font-mono text-muted';
-        tdUser.textContent = log.user_id || '-';
-        tr.appendChild(tdUser);
-        const tdIp = document.createElement('td');
-        tdIp.className = 'text-xs font-mono';
-        tdIp.textContent = log.ip_address || '-';
-        tr.appendChild(tdIp);
-        const tdDetail = document.createElement('td');
-        tdDetail.className = 'text-xs text-muted';
-        tdDetail.textContent = log.detail || '-';
-        tr.appendChild(tdDetail);
-        tbody.appendChild(tr);
-      });
-    }
-
-    async function loadLogs(page = 1) {
-      _logPage = page;
-      const container = document.getElementById('logs-container');
-      try {
-        const res = await api.get('/api/admin/logs', { page, page_size: 50 });
-        const items = res.items || [];
-        if (!items.length) {
-          container.replaceChildren();
-          const empty = document.createElement('div');
-          empty.className = 'empty-state';
-          const title = document.createElement('div');
-          title.className = 'empty-state-title';
-          title.textContent = '無日誌記錄';
-          empty.appendChild(title);
-          container.appendChild(empty);
-          return;
+        async function loadLogs(page = 1) {
+            _logPage = page;
+            const container = document.getElementById('logs-container');
+            try {
+                const res = await api.get('/api/admin/logs', { page, page_size: 50 });
+                const items = res.items || [];
+                if (!items.length) {
+                    container.replaceChildren();
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-state';
+                    const title = document.createElement('div');
+                    title.className = 'empty-state-title';
+                    title.textContent = '無日誌記錄';
+                    empty.appendChild(title);
+                    container.appendChild(empty);
+                    return;
+                }
+                _currentLogs = items;
+                renderLogsTable(container, res);
+            } catch (err) { toast.error('載入日誌失敗：' + err.message); }
         }
-        _currentLogs = items;
-        renderLogsTable(container);
-        renderLogPagination(res, container);
-      } catch (err) { toast.error('載入日誌失敗：' + err.message); }
-    }
 
-    function renderLogPagination(res, container) {
-      let paginationEl = container.querySelector('#logs-pagination');
-      if (!paginationEl) {
-        paginationEl = document.createElement('div');
-        paginationEl.id = 'logs-pagination';
-        container.appendChild(paginationEl);
-      }
-      paginationEl.replaceChildren();
+        // ── 任務監控 ─────────────────────────────────────────────
 
-      const { page, total_pages } = res;
-      if (total_pages <= 1) return;
+        let _allJobSort = { key: 'created_at', asc: false };
+        let _allJobColFilters = {};
+        let _currentAllJobs = [];
 
-      const paginationDivEl = document.createElement('div');
-      paginationDivEl.className = 'pagination';
+        function renderAllJobsTable(container) {
+            let linkTable = container.querySelector('link-table');
+            if (!linkTable) {
+                container.replaceChildren();
+                linkTable = document.createElement('link-table');
+                linkTable.id = 'admin-alljobs-table';
 
-      const firstBtn = document.createElement('button');
-      firstBtn.className = 'page-btn';
-      firstBtn.textContent = '«';
-      firstBtn.title = '第一頁';
-      if (page <= 1) firstBtn.disabled = true;
-      else firstBtn.addEventListener('click', () => loadLogs(1));
-      paginationDivEl.appendChild(firstBtn);
+                linkTable.addEventListener('sort-change', (e) => {
+                    _allJobSort = e.detail;
+                    renderAllJobsTable(container);
+                });
 
-      const prevBtn = document.createElement('button');
-      prevBtn.className = 'page-btn';
-      prevBtn.textContent = '‹';
-      if (page <= 1) prevBtn.disabled = true;
-      else prevBtn.addEventListener('click', () => loadLogs(page - 1));
-      paginationDivEl.appendChild(prevBtn);
+                linkTable.addEventListener('filter-change', (e) => {
+                    _allJobColFilters[e.detail.key] = e.detail.value;
+                    renderAllJobsTable(container);
+                });
 
-      const delta = 2;
-      const start = Math.max(1, page - delta);
-      const end = Math.min(total_pages, page + delta);
-
-      for (let i = start; i <= end; i++) {
-        const pageBtn = document.createElement('button');
-        pageBtn.className = i === page ? 'page-btn active' : 'page-btn';
-        pageBtn.textContent = i;
-        if (i !== page) pageBtn.addEventListener('click', () => loadLogs(i));
-        paginationDivEl.appendChild(pageBtn);
-      }
-
-      const nextBtn = document.createElement('button');
-      nextBtn.className = 'page-btn';
-      nextBtn.textContent = '›';
-      if (page >= total_pages) nextBtn.disabled = true;
-      else nextBtn.addEventListener('click', () => loadLogs(page + 1));
-      paginationDivEl.appendChild(nextBtn);
-
-      const lastBtn = document.createElement('button');
-      lastBtn.className = 'page-btn';
-      lastBtn.textContent = '»';
-      lastBtn.title = '最後一頁';
-      if (page >= total_pages) lastBtn.disabled = true;
-      else lastBtn.addEventListener('click', () => loadLogs(total_pages));
-      paginationDivEl.appendChild(lastBtn);
-
-      paginationEl.appendChild(paginationDivEl);
-    }
-
-    // ── 任務監控 ─────────────────────────────────────────────
-
-    let _allJobSort = { key: 'created_at', asc: false };
-    let _allJobColFilters = {};
-    let _currentAllJobs = [];
-
-    function renderAllJobsTable(container) {
-      const headers = [
-        { label: '任務 ID / 擁有者', key: 'id' },
-        { label: '起始網址', key: 'start_url' },
-        { label: '狀態', key: 'status' },
-        { label: '建立時間', key: 'created_at' },
-        { label: '操作', key: null, filterable: false }
-      ];
-
-      let table = container.querySelector('.table');
-      if (!table) {
-        container.replaceChildren();
-        const wrapper = document.createElement('div');
-        wrapper.className = 'table-wrapper';
-        table = document.createElement('table');
-        table.className = 'table';
-        const thead = document.createElement('thead');
-        const trHead = document.createElement('tr');
-
-        headers.forEach(h => {
-          const th = document.createElement('th');
-          th.style.verticalAlign = 'top';
-          if (!h.key) {
-            th.textContent = h.label;
-          } else {
-            const headerTop = document.createElement('div');
-            headerTop.style.display = 'flex';
-            headerTop.style.justifyContent = 'space-between';
-            headerTop.style.alignItems = 'center';
-            headerTop.style.cursor = 'pointer';
-
-            const labelSpan = document.createElement('span');
-            labelSpan.textContent = h.label;
-            headerTop.appendChild(labelSpan);
-
-            const icon = document.createElement('span');
-            icon.className = 'sort-icon';
-            icon.style.fontSize = '0.75rem';
-            icon.style.marginLeft = '0.25rem';
-            if (_allJobSort.key === h.key) {
-              icon.textContent = _allJobSort.asc ? '▲' : '▼';
-              icon.style.color = 'var(--color-brand-500)';
-            } else {
-              icon.textContent = '⇅';
-              icon.style.color = 'var(--text-muted)';
+                container.appendChild(linkTable);
             }
-            headerTop.appendChild(icon);
 
-            headerTop.addEventListener('click', () => {
-              if (_allJobSort.key === h.key) {
-                _allJobSort.asc = !_allJobSort.asc;
-              } else {
-                _allJobSort.key = h.key;
-                _allJobSort.asc = true;
-              }
-              renderAllJobsTable(container);
+            const statusMap = { pending: '等待中', starting: '啟動中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' };
+
+            let data = [..._currentAllJobs];
+            for (const [k, v] of Object.entries(_allJobColFilters)) {
+                if (!v) continue;
+                data = data.filter(item => {
+                    let val = item[k];
+                    if (k === 'id') {
+                        const ownerId = item.user_id || '匿名';
+                        if (String(val).toLowerCase().includes(v) || ownerId.toLowerCase().includes(v)) return true;
+                        return false;
+                    } else if (k === 'status') val = statusMap[val] || val;
+                    else if (k === 'created_at') val = api.formatLocalTime(val);
+                    return String(val || '').toLowerCase().includes(v);
+                });
+            }
+
+            data.sort((a, b) => {
+                let valA = a[_allJobSort.key];
+                let valB = b[_allJobSort.key];
+                if (valA === undefined || valA === null) valA = '';
+                if (valB === undefined || valB === null) valB = '';
+
+                if (_allJobSort.key === 'created_at') {
+                    valA = new Date(valA).getTime() || 0;
+                    valB = new Date(valB).getTime() || 0;
+                    return _allJobSort.asc ? valA - valB : valB - valA;
+                }
+
+                valA = String(valA).toLowerCase();
+                valB = String(valB).toLowerCase();
+                if (valA < valB) return _allJobSort.asc ? -1 : 1;
+                if (valA > valB) return _allJobSort.asc ? 1 : -1;
+                return 0;
             });
-            th.appendChild(headerTop);
 
-            if (h.filterable !== false) {
-              const filterInput = document.createElement('input');
-              filterInput.type = 'text';
-              filterInput.className = 'form-input text-xs';
-              filterInput.placeholder = '篩選...';
-              filterInput.style.marginTop = '0.5rem';
-              filterInput.style.padding = '0.25rem 0.5rem';
-              filterInput.style.height = 'auto';
-              filterInput.style.fontWeight = 'normal';
-              filterInput.value = _allJobColFilters[h.key] || '';
+            const headers = [
+                {
+                    label: '任務 ID / 擁有者', key: 'id', render: (_, j) => {
+                        const divWrap = document.createElement('div');
+                        const divId = document.createElement('div');
+                        divId.style.fontWeight = '500';
+                        divId.style.fontSize = '0.875rem';
+                        divId.textContent = j.id;
+                        const divOwner = document.createElement('div');
+                        divOwner.className = 'text-xs text-muted';
+                        divOwner.style.marginTop = '0.25rem';
+                        divOwner.textContent = `擁有者 ID: ${j.user_id || '匿名'}`;
+                        divWrap.appendChild(divId);
+                        divWrap.appendChild(divOwner);
+                        return divWrap;
+                    }
+                },
+                {
+                    label: '起始網址', key: 'start_url', render: (_, j) => {
+                        if (j.user_id === user.id) {
+                            const aUrl = document.createElement('a');
+                            aUrl.href = `/app.html#/jobs/${j.id}`;
+                            aUrl.className = 'text-link';
+                            aUrl.style.wordBreak = 'break-all';
+                            aUrl.title = '查看任務詳情';
+                            aUrl.textContent = j.start_url;
+                            return aUrl;
+                        } else {
+                            const divUrl = document.createElement('div');
+                            divUrl.style.wordBreak = 'break-all';
+                            divUrl.textContent = j.start_url;
+                            return divUrl;
+                        }
+                    }
+                },
+                {
+                    label: '狀態', key: 'status', render: v => {
+                        const spanStatus = document.createElement('span');
+                        spanStatus.className = `badge badge-${v}`;
+                        spanStatus.textContent = statusMap[v] || v;
+                        return spanStatus;
+                    }
+                },
+                {
+                    label: '建立時間', key: 'created_at', className: 'text-sm text-muted', render: v => {
+                        const span = document.createElement('span');
+                        span.textContent = api.formatLocalTime(v);
+                        return span;
+                    }
+                },
+                {
+                    label: '操作', key: 'actions', filterable: false, sortable: false, render: (_, j) => {
+                        const divActions = document.createElement('div');
+                        divActions.style.display = 'flex';
+                        divActions.style.gap = '0.5rem';
+                        if (['running', 'starting'].includes(j.status)) {
+                            const btnTakeover = document.createElement('button');
+                            btnTakeover.className = 'btn btn-sm btn-secondary';
+                            btnTakeover.textContent = '強制暫停';
+                            btnTakeover.addEventListener('click', async (e) => {
+                                e.stopPropagation();
+                                await takeoverJob(j.id);
+                            });
+                            divActions.appendChild(btnTakeover);
+                        }
+                        const btnDel = document.createElement('button');
+                        btnDel.className = 'btn btn-sm btn-danger';
+                        btnDel.textContent = '刪除';
+                        btnDel.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            await deleteJob(j.id);
+                        });
+                        divActions.appendChild(btnDel);
+                        return divActions;
+                    }
+                }
+            ];
 
-              filterInput.addEventListener('input', (e) => {
-                _allJobColFilters[h.key] = e.target.value.toLowerCase();
+            linkTable.config = {
+                headers,
+                data,
+                sort: _allJobSort,
+                colFilters: _allJobColFilters,
+                pagination: { current: 1, total: 1 },
+                loading: false
+            };
+        }
+
+        async function loadAllJobs() {
+            const container = document.getElementById('jobs-table-container');
+            try {
+                const jobs = await api.get('/api/admin/jobs');
+                if (!jobs || jobs.length === 0) {
+                    container.replaceChildren();
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-state';
+                    const title = document.createElement('div');
+                    title.className = 'empty-state-title';
+                    title.textContent = '目前無任何任務';
+                    empty.appendChild(title);
+                    container.appendChild(empty);
+                    return;
+                }
+                _currentAllJobs = jobs;
                 renderAllJobsTable(container);
-              });
-              filterInput.addEventListener('click', e => e.stopPropagation());
-              th.appendChild(filterInput);
+            } catch (err) {
+                container.replaceChildren();
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                const desc = document.createElement('div');
+                desc.className = 'empty-state-desc text-danger';
+                desc.textContent = err.message;
+                empty.appendChild(desc);
+                container.appendChild(empty);
             }
-          }
-          trHead.appendChild(th);
-        });
-        thead.appendChild(trHead);
-        table.appendChild(thead);
-        table.appendChild(document.createElement('tbody'));
-        wrapper.appendChild(table);
-        container.appendChild(wrapper);
-      }
-
-      const statusMap = { pending: '等待中', starting: '啟動中', running: '執行中', paused: '已暫停', completed: '已完成', error: '異常' };
-
-      let data = [..._currentAllJobs];
-      for (const [k, v] of Object.entries(_allJobColFilters)) {
-        if (!v) continue;
-        data = data.filter(item => {
-          let val = item[k];
-          if (k === 'id') {
-            const ownerId = item.user_id || '匿名';
-            if (String(val).toLowerCase().includes(v) || ownerId.toLowerCase().includes(v)) return true;
-            return false;
-          } else if (k === 'status') val = statusMap[val] || val;
-          else if (k === 'created_at') val = api.formatLocalTime(val);
-          return String(val || '').toLowerCase().includes(v);
-        });
-      }
-
-      data.sort((a, b) => {
-        let valA = a[_allJobSort.key];
-        let valB = b[_allJobSort.key];
-        if (valA === undefined || valA === null) valA = '';
-        if (valB === undefined || valB === null) valB = '';
-
-        if (_allJobSort.key === 'created_at') {
-          valA = new Date(valA).getTime() || 0;
-          valB = new Date(valB).getTime() || 0;
-          return _allJobSort.asc ? valA - valB : valB - valA;
         }
 
-        valA = String(valA).toLowerCase();
-        valB = String(valB).toLowerCase();
-        if (valA < valB) return _allJobSort.asc ? -1 : 1;
-        if (valA > valB) return _allJobSort.asc ? 1 : -1;
-        return 0;
-      });
-
-      const tbody = table.querySelector('tbody');
-      tbody.replaceChildren();
-
-      data.forEach(j => {
-        const tr = document.createElement('tr');
-        const tdId = document.createElement('td');
-        const divId = document.createElement('div');
-        divId.style.fontWeight = '500';
-        divId.style.fontSize = '0.875rem';
-        divId.textContent = j.id;
-        const divOwner = document.createElement('div');
-        divOwner.className = 'text-xs text-muted';
-        divOwner.style.marginTop = '0.25rem';
-        divOwner.textContent = `擁有者 ID: ${j.user_id || '匿名'}`;
-        tdId.appendChild(divId);
-        tdId.appendChild(divOwner);
-        tr.appendChild(tdId);
-        const tdUrl = document.createElement('td');
-        if (j.user_id === user.id) {
-          const aUrl = document.createElement('a');
-          aUrl.href = `/app.html#/jobs/${j.id}`;
-          aUrl.className = 'text-link';
-          aUrl.style.wordBreak = 'break-all';
-          aUrl.title = '查看任務詳情';
-          aUrl.textContent = j.start_url;
-          tdUrl.appendChild(aUrl);
-        } else {
-          const divUrl = document.createElement('div');
-          divUrl.style.wordBreak = 'break-all';
-          divUrl.textContent = j.start_url;
-          tdUrl.appendChild(divUrl);
+        async function takeoverJob(jobId) {
+            const confirmed = await showConfirm('⚠️ 強制暫停任務', '確定要強制暫停該任務嗎？', '強制暫停', true);
+            if (!confirmed) return;
+            try {
+                await api.post(`/api/admin/jobs/${jobId}/takeover`);
+                toast.success('任務已強制暫停。');
+                await loadAllJobs();
+            } catch (err) {
+                toast.error(err.message);
+            }
         }
-        tr.appendChild(tdUrl);
-        const tdStatus = document.createElement('td');
-        const spanStatus = document.createElement('span');
-        spanStatus.className = `badge badge-${j.status}`;
-        spanStatus.textContent = statusMap[j.status] || j.status;
-        tdStatus.appendChild(spanStatus);
-        tr.appendChild(tdStatus);
-        const tdCreated = document.createElement('td');
-        tdCreated.className = 'text-sm text-muted';
-        tdCreated.textContent = api.formatLocalTime(j.created_at);
-        tr.appendChild(tdCreated);
-        const tdActions = document.createElement('td');
-        const divActions = document.createElement('div');
-        divActions.style.display = 'flex';
-        divActions.style.gap = '0.5rem';
-        if (['running', 'starting'].includes(j.status)) {
-          const btnTakeover = document.createElement('button');
-          btnTakeover.className = 'btn btn-sm btn-secondary job-action-btn';
-          btnTakeover.dataset.action = 'takeover';
-          btnTakeover.dataset.id = j.id;
-          btnTakeover.textContent = '強制暫停';
-          divActions.appendChild(btnTakeover);
+
+        async function deleteJob(jobId) {
+            const confirmed = await showConfirm('🚨 強制刪除任務', '確定要強制刪除該任務？此操作將清除所有關聯之佇列與外連資料，且無法復原。', '永久刪除', true);
+            if (!confirmed) return;
+            try {
+                await api.del(`/api/admin/jobs/${jobId}`);
+                toast.success('任務已強制刪除。');
+                await loadAllJobs();
+            } catch (err) {
+                toast.error(err.message);
+            }
         }
-        const btnDel = document.createElement('button');
-        btnDel.className = 'btn btn-sm btn-danger job-action-btn';
-        btnDel.dataset.action = 'delete';
-        btnDel.dataset.id = j.id;
-        btnDel.textContent = '刪除';
-        divActions.appendChild(btnDel);
-        tdActions.appendChild(divActions);
-        tr.appendChild(tdActions);
-        tbody.appendChild(tr);
-      });
-    }
 
-    async function loadAllJobs() {
-      const container = document.getElementById('jobs-table-container');
-      try {
-        const jobs = await api.get('/api/admin/jobs');
-        if (!jobs || jobs.length === 0) {
-          container.replaceChildren();
-          const empty = document.createElement('div');
-          empty.className = 'empty-state';
-          const title = document.createElement('div');
-          title.className = 'empty-state-title';
-          title.textContent = '目前無任何任務';
-          empty.appendChild(title);
-          container.appendChild(empty);
-          return;
+
+
+        // ── Hash Router ───────────────────────────────────────────
+
+        const views = {
+            'users': 'view-users',
+            'jobs': 'view-jobs',
+            'config': 'view-config',
+            'smtp': 'view-smtp',
+            'logs': 'view-logs',
+        };
+        const navItems = {
+            'users': 'nav-users',
+            'jobs': 'nav-jobs',
+            'config': 'nav-config',
+            'smtp': 'nav-smtp',
+            'logs': 'nav-logs',
+        };
+        const loaders = {
+            'users': loadUsers,
+            'jobs': loadAllJobs,
+            'config': loadConfig,
+            'smtp': loadSmtp,
+            'logs': () => loadLogs(1),
+        };
+
+        async function adminRoute() {
+            const hash = window.location.hash || '#/admin/users';
+            const match = hash.match(/^#\/admin\/(\w+)/);
+            const view = match ? match[1] : 'users';
+
+            Object.entries(views).forEach(([k, v]) => {
+                document.getElementById(v).style.display = k === view ? '' : 'none';
+            });
+            Object.entries(navItems).forEach(([k, v]) => {
+                document.getElementById(v)?.classList.toggle('active', k === view);
+            });
+
+            if (loaders[view]) await loaders[view]();
         }
-        _currentAllJobs = jobs;
-        renderAllJobsTable(container);
-      } catch (err) {
-        container.replaceChildren();
-        const empty = document.createElement('div');
-        empty.className = 'empty-state';
-        const desc = document.createElement('div');
-        desc.className = 'empty-state-desc text-danger';
-        desc.textContent = err.message;
-        empty.appendChild(desc);
-        container.appendChild(empty);
-      }
-    }
 
-    async function takeoverJob(jobId) {
-      const confirmed = await showConfirm('⚠️ 強制暫停任務', '確定要強制暫停該任務嗎？', '強制暫停', true);
-      if (!confirmed) return;
-      try {
-        await api.post(`/api/admin/jobs/${jobId}/takeover`);
-        toast.success('任務已強制暫停。');
-        await loadAllJobs();
-      } catch (err) {
-        toast.error(err.message);
-      }
-    }
-
-    async function deleteJob(jobId) {
-      const confirmed = await showConfirm('🚨 強制刪除任務', '確定要強制刪除該任務？此操作將清除所有關聯之佇列與外連資料，且無法復原。', '永久刪除', true);
-      if (!confirmed) return;
-      try {
-        await api.del(`/api/admin/jobs/${jobId}`);
-        toast.success('任務已強制刪除。');
-        await loadAllJobs();
-      } catch (err) {
-        toast.error(err.message);
-      }
-    }
-
-    // 綁定任務列表的事件委派
-    document.getElementById('jobs-table-container').addEventListener('click', async (e) => {
-      const btn = e.target.closest('.job-action-btn');
-      if (!btn) return;
-      const { action, id } = btn.dataset;
-      if (action === 'takeover') await takeoverJob(id);
-      if (action === 'delete') await deleteJob(id);
-    });
-
-    // ── Hash Router ───────────────────────────────────────────
-
-    const views = {
-      'users': 'view-users',
-      'jobs': 'view-jobs',
-      'config': 'view-config',
-      'smtp': 'view-smtp',
-      'logs': 'view-logs',
-    };
-    const navItems = {
-      'users': 'nav-users',
-      'jobs': 'nav-jobs',
-      'config': 'nav-config',
-      'smtp': 'nav-smtp',
-      'logs': 'nav-logs',
-    };
-    const loaders = {
-      'users': loadUsers,
-      'jobs': loadAllJobs,
-      'config': loadConfig,
-      'smtp': loadSmtp,
-      'logs': () => loadLogs(1),
-    };
-
-    async function adminRoute() {
-      const hash = window.location.hash || '#/admin/users';
-      const match = hash.match(/^#\/admin\/(\w+)/);
-      const view = match ? match[1] : 'users';
-
-      Object.entries(views).forEach(([k, v]) => {
-        document.getElementById(v).style.display = k === view ? '' : 'none';
-      });
-      Object.entries(navItems).forEach(([k, v]) => {
-        document.getElementById(v)?.classList.toggle('active', k === view);
-      });
-
-      if (loaders[view]) await loaders[view]();
-    }
-
-    window.addEventListener('hashchange', adminRoute);
-    await adminRoute();
-  </script>
+        window.addEventListener('hashchange', adminRoute);
+        await adminRoute();
+    </script>
 
 </body>
 

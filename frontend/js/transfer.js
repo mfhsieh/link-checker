@@ -3,7 +3,7 @@
  */
 
 import * as api from './api.js';
-import { toast } from './toast.js';
+import { toast } from './components/toast.js';
 
 /** @type {boolean} 是否已綁定任務移交事件 */
 let _eventsBound = false;

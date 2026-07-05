@@ -9,13 +9,14 @@
 /* ── CSS Custom Properties (Design Tokens) ────────────────── */
 :root {
   /* Color Palette — Primary */
-  --color-brand-50: hsl(221, 83%, 97%);
-  --color-brand-100: hsl(221, 83%, 93%);
-  --color-brand-200: hsl(221, 83%, 85%);
-  --color-brand-400: hsl(221, 83%, 65%);
-  --color-brand-500: hsl(221, 83%, 53%);
-  --color-brand-600: hsl(221, 83%, 43%);
-  --color-brand-700: hsl(221, 83%, 35%);
+  --color-brand-50: hsl(221, 83%, 95%);
+  --color-brand-100: hsl(221, 83%, 90%);
+  --color-brand-200: hsl(221, 83%, 80%);
+  --color-brand-300: hsl(221, 83%, 70%);
+  --color-brand-400: hsl(221, 83%, 60%);
+  --color-brand-500: hsl(221, 83%, 50%);
+  --color-brand-600: hsl(221, 83%, 40%);
+  --color-brand-700: hsl(221, 83%, 30%);
 
   /* Color Palette — Neutrals (Dark Mode Base) */
   --color-neutral-950: hsl(222, 47%, 5%);
@@ -392,6 +393,10 @@ ol {
   margin-top: var(--space-2);
 }
 
+.mt-4 {
+  margin-top: var(--space-4);
+}
+
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -559,7 +564,112 @@ ol {
 .mask-icon-btn {
   width: 14px;
   height: 14px;
-  margin-right: 0.25rem;
+}
+
+/* ── Form Elements ────────────────────────────────────────── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.form-label .required {
+  color: var(--color-danger-400);
+  margin-left: 0.125rem;
+}
+
+.form-check-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: var(--surface-overlay);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+  appearance: none;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--color-brand-500);
+  box-shadow: var(--shadow-glow);
+}
+
+.form-input.error,
+.form-select.error,
+.form-textarea.error {
+  border-color: var(--color-danger-500);
+  box-shadow: 0 0 0 3px hsla(0, 72%, 51%, 0.25);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 5rem;
+  line-height: 1.5rem;
+}
+
+.form-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.form-error {
+  font-size: var(--text-xs);
+  color: var(--color-danger-400);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ── Password Rules Box ───────────────────────────────────── */
+.pwd-rules-box {
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: var(--space-4);
+}
+
+.pwd-rules-title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.pwd-rules-list {
+  list-style: disc;
+  padding-left: var(--space-5);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 /* ── Cards ────────────────────────────────────────────────── */
@@ -855,4 +965,86 @@ ol {
   color: var(--color-brand-400);
   background: hsla(221, 83%, 53%, 0.1);
   border-color: hsla(221, 83%, 53%, 0.3);
+}
+
+/* ── Modal ────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-neutral-950) 80%, transparent);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
+  overscroll-behavior: contain;
+}
+
+.modal {
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overscroll-behavior: contain;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 0;
+  margin: 0 1.5rem;
+  border-bottom: 1px solid var(--surface-border-subtle);
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+  padding: 0;
+  border-radius: var(--radius-md);
+  transition: color 0.2s;
+}
+
+.modal-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.modal-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.modal-body {
+  padding: var(--space-6);
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .75rem;
+  padding: 1rem 0;
+  margin: 0 1.5rem;
+  border-top: 1px solid var(--surface-border-subtle);
+}
+
+/* ── Scroll Bleed Prevention ─────────────────────────────── */
+body.modal-open {
+  overflow: hidden !important;
+}
+
+body.modal-open .main-content,
+body.modal-open .sidebar {
+  overflow: hidden !important;
 }

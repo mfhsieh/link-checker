@@ -145,7 +145,7 @@ export class JobStatusCard extends HTMLElement {
         this._btnConfigEl.id = 'btn-view-config';
         this._btnConfigEl.title = '檢視此任務的完整設定';
 
-        const configIconEl = document.createElement('div');
+        const configIconEl = document.createElement('span');
         configIconEl.className = 'mask-icon mask-icon-btn icon-info';
 
         this._btnConfigEl.appendChild(configIconEl);

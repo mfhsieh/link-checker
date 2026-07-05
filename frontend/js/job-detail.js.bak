@@ -516,12 +516,12 @@ function renderInternalResultsTable(res, containerEl) {
         headers = [
             { label: '來源頁面 (Source)', key: 'source_url' },
             { label: '失效數量', key: 'occurrence_count' },
-            { label: '目標 URL', key: 'targets', sortable: false, filterable: false }
+            { label: '目標頁面', key: 'targets', sortable: false, filterable: false }
         ];
     } else {
         headers = [
             { label: '來源頁面 (Source)', key: 'Source URL' },
-            { label: '目標 URL', key: 'URL' },
+            { label: '目標頁面', key: 'URL' },
             { label: 'HTTPS', key: 'is_secure' },
             { label: 'HTTP 狀態', key: 'HTTP Status Code' },
             { label: '錯誤訊息', key: 'Error Message' }
@@ -1496,13 +1496,13 @@ function renderResultsTable(res, containerEl) {
     const isJobActive = _currentJobStatus === 'running' || _currentJobStatus === 'starting';
 
     if (isGroupTarget) {
-        _currentDetailHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: 'HTTPS', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '來源數', key: 'occurrence_count' }, { label: '錯誤訊息', key: 'error_message' }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
+        _currentDetailHeaders = [{ label: '目標頁面', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: 'HTTPS', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '來源數', key: 'occurrence_count' }, { label: '錯誤訊息', key: 'error_message' }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
     } else if (isGroupSource) {
-        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '外連數量', key: 'occurrence_count' }, { label: '目標 URL', key: 'targets', sortable: false, filterable: false }];
+        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '外連數量', key: 'occurrence_count' }, { label: '目標頁面', key: 'targets', sortable: false, filterable: false }];
     } else if (isGroupDomain) {
-        _currentDetailHeaders = [{ label: '外部網域', key: 'domain' }, { label: '來源數', key: 'occurrence_count' }, { label: '不重複網址數', key: 'unique_urls_count' }, { label: '目標 URL', key: 'unique_urls', sortable: false, filterable: false }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
+        _currentDetailHeaders = [{ label: '外部網域', key: 'domain' }, { label: '來源數', key: 'occurrence_count' }, { label: '不重複網址數', key: 'unique_urls_count' }, { label: '目標頁面', key: 'unique_urls', sortable: false, filterable: false }, { label: '來源頁面', key: 'source_urls', sortable: false, filterable: false }];
     } else {
-        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: 'HTTPS', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '錯誤訊息', key: 'error_message' }];
+        _currentDetailHeaders = [{ label: '來源頁面', key: 'source_url' }, { label: '目標頁面', key: 'target_url' }, { label: 'IP 位址', key: 'ip_address' }, { label: 'HTTPS', key: 'is_secure' }, { label: 'HTTP 狀態', key: 'http_status_code' }, { label: '錯誤訊息', key: 'error_message' }];
     }
 
     if (!isJobActive && (isGroupTarget || isGroupSource)) {

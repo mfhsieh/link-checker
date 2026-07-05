@@ -16,7 +16,7 @@ document.addEventListener('click', (e) => {
 
 
 import * as api from './api.js';
-import { toast } from './toast.js';
+import { toast } from './components/toast.js';
 
 let _eventSource = null;
 let _currentJobId = null;
@@ -63,6 +63,10 @@ const jobIntStats = document.getElementById('job-int-stats');
 const extDataTable = document.getElementById('ext-data-table');
 const intDataTable = document.getElementById('int-data-table');
 
+/**
+ * 開啟 Server-Sent Events (SSE) 即時更新任務狀態
+ * @param {string} jobId - 任務 ID
+ */
 function startSseStream(jobId) {
     if (_eventSource) _eventSource.close();
     _eventSource = new EventSource(`/api/jobs/${jobId}/stream`);
@@ -79,6 +83,9 @@ function startSseStream(jobId) {
     };
 }
 
+/**
+ * 停止 Server-Sent Events (SSE) 更新
+ */
 function stopSseStream() {
     if (_eventSource) {
         _eventSource.close();
@@ -86,38 +93,21 @@ function stopSseStream() {
     }
 }
 
+/**
+ * 顯示確認對話框
+ * @param {string} title - 對話框標題
+ * @param {string} message - 確認訊息內容
+ * @param {string} [confirmText='確定'] - 確認按鈕的文字
+ * @param {boolean} [isDanger=false] - 是否為危險操作（影響按鈕樣式）
+ * @returns {Promise<boolean>} 使用者是否點擊確認
+ */
 function showConfirm(title, message, confirmText = '確定', isDanger = false) {
-    return new Promise((resolve) => {
-        const modal = document.getElementById('confirm-modal');
-        const titleEl = document.getElementById('confirm-modal-title');
-        const messageEl = document.getElementById('confirm-modal-message');
-        const submitBtn = document.getElementById('confirm-modal-submit');
-        const cancelBtn = document.getElementById('confirm-modal-cancel');
-        const closeBtn = document.getElementById('confirm-modal-close');
-
-        titleEl.textContent = title;
-        messageEl.textContent = message;
-        submitBtn.textContent = confirmText;
-        submitBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
-
-        const cleanup = () => {
-            submitBtn.removeEventListener('click', onConfirm);
-            cancelBtn.removeEventListener('click', onCancel);
-            closeBtn.removeEventListener('click', onCancel);
-            modal.style.display = 'none';
-        };
-
-        const onConfirm = () => { cleanup(); resolve(true); };
-        const onCancel = () => { cleanup(); resolve(false); };
-
-        submitBtn.addEventListener('click', onConfirm);
-        cancelBtn.addEventListener('click', onCancel);
-        closeBtn.addEventListener('click', onCancel);
-
-        modal.style.display = 'flex';
-    });
+    return window.showConfirm(title, message, confirmText, isDanger);
 }
 
+/**
+ * 清空任務詳情頁面的 UI 狀態
+ */
 function clearJobDetailUI() {
     document.getElementById('job-status').textContent = '載入中...';
     document.getElementById('job-status').className = 'badge badge-pending';
@@ -126,6 +116,11 @@ function clearJobDetailUI() {
     if (jobControls) jobControls.job = null;
 }
 
+/**
+ * 初始化任務詳情頁面
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 export async function initJobDetailPage(jobId) {
     _currentJobId = jobId;
     stopSseStream();
@@ -167,10 +162,18 @@ export async function initJobDetailPage(jobId) {
     await loadResults(jobId);
 }
 
+/**
+ * 銷毀並清理任務詳情頁面資源
+ */
 export function destroyJobDetailPage() {
     stopSseStream();
 }
 
+/**
+ * 更新任務詳細資訊，並決定是否啟動 SSE
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function refreshJobDetail(jobId) {
     try {
         const job = await api.get(`/api/jobs/${jobId}`);
@@ -189,6 +192,10 @@ async function refreshJobDetail(jobId) {
     }
 }
 
+/**
+ * 渲染任務基本資訊至畫面上
+ * @param {Object} job - 任務資料物件
+ */
 function renderJobInfo(job) {
     _currentJobStatus = job.status;
     const isJobRunning = job.is_running;
@@ -214,6 +221,11 @@ function renderJobInfo(job) {
     }
 }
 
+/**
+ * 載入並渲染外部與內部連結的所有結果與統計摘要
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function loadResults(jobId) {
     await Promise.all([
         loadExternalSummary(jobId),
@@ -223,6 +235,11 @@ async function loadResults(jobId) {
     ]);
 }
 
+/**
+ * 載入外部連結的統計摘要
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function loadExternalSummary(jobId) {
     const reqId = ++_currentExtSummaryReqId;
     const cacheKey = `${_currentExcludeEnabled ? _currentExclude : ''}|${_currentGroupBy}`;
@@ -245,6 +262,11 @@ async function loadExternalSummary(jobId) {
     }
 }
 
+/**
+ * 載入外部連結的詳細分頁結果
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function loadExternalResultsPage(jobId) {
     const reqId = ++_currentExtReqId;
     if (extDataTable) extDataTable.config = { loading: true };
@@ -262,6 +284,7 @@ async function loadExternalResultsPage(jobId) {
         if (jobId !== _currentJobId || reqId !== _currentExtReqId) return;
 
         renderExtResultsTable(res);
+        updateExtToolbarButtons();
     } catch (err) {
         if (jobId !== _currentJobId || reqId !== _currentExtReqId) return;
         if (extDataTable) extDataTable.config = { loading: false, data: [] };
@@ -269,6 +292,12 @@ async function loadExternalResultsPage(jobId) {
     }
 }
 
+/**
+ * 建立一個單純的文字表格儲存格
+ * @param {string} text - 文字內容
+ * @param {string} [cls=''] - 附加的 CSS 類別
+ * @returns {HTMLSpanElement}
+ */
 const createCell = (text, cls = '') => {
     const span = document.createElement('span');
     span.textContent = text;
@@ -276,6 +305,13 @@ const createCell = (text, cls = '') => {
     return span;
 };
 
+/**
+ * 建立包含 URL 的超連結節點
+ * @param {string} url - 網址
+ * @param {string} [maxWidth='300px'] - 最大寬度限制
+ * @param {string|null} [displayText=null] - 顯示文字，若為 null 則顯示原始網址
+ * @returns {HTMLAnchorElement|HTMLSpanElement}
+ */
 const renderUrlNode = (url, maxWidth = '300px', displayText = null) => {
     if (!url) return createCell('-', 'text-muted');
     const a = document.createElement('a');
@@ -291,6 +327,13 @@ const renderUrlNode = (url, maxWidth = '300px', displayText = null) => {
     return a;
 };
 
+/**
+ * 建立包含多個 URL 的展開/收合節點
+ * @param {Array<Object>|string} val - URL 資料陣列或字串
+ * @param {string} [maxWidth='300px'] - 最大寬度限制
+ * @param {Function} [extractUrl=(x)=>x] - 提取 URL 的回呼函式
+ * @returns {HTMLDivElement}
+ */
 const renderUrlArrayNode = (val, maxWidth = '300px', extractUrl = (x) => x) => {
     if (!val || !val.length) return createCell('-', 'text-muted');
     const wrapper = document.createElement('div');
@@ -324,6 +367,12 @@ const renderUrlArrayNode = (val, maxWidth = '300px', extractUrl = (x) => x) => {
     return wrapper;
 };
 
+/**
+ * 建立錯誤訊息節點
+ * @param {string} msg - 錯誤訊息
+ * @param {string} [maxWidth='300px'] - 最大寬度限制
+ * @returns {HTMLSpanElement}
+ */
 const renderErrorMessage = (msg, maxWidth = '300px') => {
     if (!msg) return createCell('-', 'text-muted');
     const span = document.createElement('span');
@@ -335,6 +384,11 @@ const renderErrorMessage = (msg, maxWidth = '300px') => {
     return span;
 };
 
+/**
+ * 建立 HTTP 狀態碼的樣式節點
+ * @param {number|null} code - HTTP 狀態碼
+ * @returns {HTMLSpanElement}
+ */
 const renderHttpStatusCode = (code) => {
     if (code === null || code === undefined) return createCell('-', 'text-muted');
     const span = document.createElement('span');
@@ -346,6 +400,10 @@ const renderHttpStatusCode = (code) => {
     return span;
 };
 
+/**
+ * 渲染外部連結的結果表格
+ * @param {Object} res - API 回傳的分頁結果物件
+ */
 function renderExtResultsTable(res) {
     const isJobActive = _currentJobStatus === 'running' || _currentJobStatus === 'starting';
     let headers = [];
@@ -385,6 +443,9 @@ function renderExtResultsTable(res) {
         ];
     }
 
+    const isJobRunning = ['running', 'starting'].includes(_currentJobStatus);
+    const isExtSelectable = (_currentGroupBy === 'target' || _currentGroupBy === 'source') && !isJobRunning;
+
     if (extDataTable) {
         extDataTable.config = {
             headers,
@@ -392,11 +453,18 @@ function renderExtResultsTable(res) {
             sort: _detailSort,
             colFilters: _detailColFilters,
             pagination: { current: res.page, total: res.total_pages },
-            loading: false
+            loading: false,
+            selectable: isExtSelectable,
+            rowKey: _currentGroupBy === 'target' ? 'target_url' : 'source_url'
         };
     }
 }
 
+/**
+ * 載入內部連結的統計摘要
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function loadInternalSummary(jobId) {
     const reqId = ++_currentIntSummaryReqId;
     const cacheKey = `${_internalGroupBy}`;
@@ -416,6 +484,11 @@ async function loadInternalSummary(jobId) {
     }
 }
 
+/**
+ * 載入內部連結的詳細分頁結果
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>}
+ */
 async function loadInternalResultsPage(jobId) {
     const reqId = ++_currentIntReqId;
     if (intDataTable) intDataTable.config = { loading: true };
@@ -432,6 +505,7 @@ async function loadInternalResultsPage(jobId) {
         if (jobId !== _currentJobId || reqId !== _currentIntReqId) return;
 
         renderInternalResultsTable(res);
+        updateIntToolbarButtons();
     } catch (err) {
         if (jobId !== _currentJobId || reqId !== _currentIntReqId) return;
         if (intDataTable) intDataTable.config = { loading: false, data: [] };
@@ -439,6 +513,10 @@ async function loadInternalResultsPage(jobId) {
     }
 }
 
+/**
+ * 渲染內部連結的結果表格
+ * @param {Object} res - API 回傳的分頁結果物件
+ */
 function renderInternalResultsTable(res) {
     let headers = [];
 
@@ -458,6 +536,9 @@ function renderInternalResultsTable(res) {
         ];
     }
 
+    const isJobRunning = ['running', 'starting'].includes(_currentJobStatus);
+    const isIntSelectable = _internalGroupBy === 'none' && !isJobRunning;
+
     if (intDataTable) {
         intDataTable.config = {
             headers,
@@ -465,12 +546,104 @@ function renderInternalResultsTable(res) {
             sort: _internalSort,
             colFilters: _internalColFilters,
             pagination: { current: res.page, total: res.total_pages },
-            loading: false
+            loading: false,
+            selectable: isIntSelectable,
+            rowKey: 'target_url'
         };
     }
 }
 
+/**
+ * 更新外部連結頁籤中的工具列按鈕狀態
+ */
+function updateExtToolbarButtons() {
+    const btnReprobe = document.getElementById('btn-ext-reprobe-selected');
+    const btnExport = document.getElementById('btn-ext-export-selected');
+    if (_extSelectedUrls.size > 0) {
+        if (btnReprobe) {
+            btnReprobe.style.display = 'inline-flex';
+            btnReprobe.textContent = `重新探測 (${_extSelectedUrls.size})`;
+        }
+        if (btnExport) {
+            btnExport.style.display = 'inline-flex';
+            btnExport.textContent = `匯出選取 (${_extSelectedUrls.size})`;
+        }
+    } else {
+        if (btnReprobe) btnReprobe.style.display = 'none';
+        if (btnExport) btnExport.style.display = 'none';
+    }
+}
+
+/**
+ * 更新內部連結頁籤中的工具列按鈕狀態
+ */
+function updateIntToolbarButtons() {
+    const btnReprobe = document.getElementById('btn-int-reprobe-selected');
+    const btnExport = document.getElementById('btn-int-export-selected');
+    if (_intSelectedUrls.size > 0) {
+        if (btnReprobe) {
+            btnReprobe.style.display = 'inline-flex';
+            btnReprobe.textContent = `重新探測 (${_intSelectedUrls.size})`;
+        }
+        if (btnExport) {
+            btnExport.style.display = 'inline-flex';
+            btnExport.textContent = `匯出選取 (${_intSelectedUrls.size})`;
+        }
+    } else {
+        if (btnReprobe) btnReprobe.style.display = 'none';
+        if (btnExport) btnExport.style.display = 'none';
+    }
+}
+
+/**
+ * 綁定任務詳情頁面內 Web Components 的各項事件
+ */
 function bindWebComponentEvents() {
+    // ── 綁定排除網域 Modal 邏輯
+    const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
+    const excludeModalEl = document.getElementById('exclude-domains-modal');
+    const excludeTextareaInput = document.getElementById('exclude-domains-textarea');
+    const excludeEnabledCheckbox = document.getElementById('exclude-domains-enabled');
+    const excludeSubmitBtn = document.getElementById('exclude-domains-submit');
+    const excludeCloseBtn = document.getElementById('exclude-domains-close');
+    const excludeCancelBtn = document.getElementById('exclude-domains-cancel');
+
+    if (openExcludeBtn && excludeModalEl) {
+        const closeExcludeModal = () => { excludeModalEl.style.display = 'none'; document.body.classList.remove('modal-open'); };
+
+        openExcludeBtn.addEventListener('click', () => {
+            excludeTextareaInput.value = _currentExclude.split(',').filter(Boolean).join('\n');
+            if (excludeEnabledCheckbox) excludeEnabledCheckbox.checked = _currentExcludeEnabled;
+            excludeModalEl.style.display = 'flex';
+            document.body.classList.add('modal-open');
+            setTimeout(() => excludeTextareaInput.focus(), 50);
+        });
+
+        if (excludeCloseBtn) excludeCloseBtn.addEventListener('click', closeExcludeModal);
+        if (excludeCancelBtn) excludeCancelBtn.addEventListener('click', closeExcludeModal);
+
+        if (excludeSubmitBtn) {
+            excludeSubmitBtn.addEventListener('click', async () => {
+                if (document.getElementById('view-job-detail').style.display === 'none') return;
+
+                if (excludeEnabledCheckbox) {
+                    _currentExcludeEnabled = excludeEnabledCheckbox.checked;
+                    localStorage.setItem('link-checker-exclude-enabled', _currentExcludeEnabled);
+                }
+
+                const lines = excludeTextareaInput.value.split('\n').map(s => s.trim()).filter(Boolean);
+                _currentExclude = lines.join(',');
+                localStorage.setItem('link-checker-exclude-domains', _currentExclude);
+
+                closeExcludeModal();
+
+                _currentPage = 1;
+                _extSummaryCache.key = null;
+                await loadResults(_currentJobId);
+            });
+        }
+    }
+
     // 頁籤切換
     document.querySelectorAll('#job-detail-tabs .tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -512,6 +685,105 @@ function bindWebComponentEvents() {
         });
     }
 
+    // 表格選擇變更
+    if (extDataTable) {
+        extDataTable.addEventListener('selection-change', (e) => {
+            _extSelectedUrls = new Set(e.detail.selectedKeys);
+            updateExtToolbarButtons();
+        });
+    }
+
+    if (intDataTable) {
+        intDataTable.addEventListener('selection-change', (e) => {
+            _intSelectedUrls = new Set(e.detail.selectedKeys);
+            updateIntToolbarButtons();
+        });
+    }
+
+    // ── 重新探測與匯出選取按鈕 ──────────────────────────────────────────
+    const btnExtReprobe = document.getElementById('btn-ext-reprobe-selected');
+    if (btnExtReprobe) {
+        btnExtReprobe.addEventListener('click', async () => {
+            if (_extSelectedUrls.size === 0) return;
+            const isSourceGroup = _currentGroupBy === 'source';
+            const typeLabel = isSourceGroup ? '關聯的自家網頁（內部連結）' : '外部連結';
+            const ok = await showConfirm('重新探測', `確定要重新探測選取的 ${_extSelectedUrls.size} 個${typeLabel}嗎？`);
+            if (!ok) return;
+            try {
+                const linkType = isSourceGroup ? 'internal' : 'external';
+                await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: linkType, urls: Array.from(_extSelectedUrls) });
+                if (isSourceGroup) {
+                    toast.success('已將關聯的自家網頁加入重新探測佇列');
+                    _intSummaryCache = { key: null, data: null };
+                    loadInternalResultsPage(_currentJobId);
+                } else {
+                    toast.success('已將選取的外部連結設為待探測');
+                }
+                _extSelectedUrls.clear();
+                updateExtToolbarButtons();
+                _extSummaryCache = { key: null, data: null };
+                loadExternalResultsPage(_currentJobId);
+                refreshJobDetail(_currentJobId);
+            } catch (err) {
+                toast.error(err.message || '探測失敗');
+            }
+        });
+    }
+
+    const btnExtExportPartial = document.getElementById('btn-ext-export-selected');
+    if (btnExtExportPartial) {
+        btnExtExportPartial.addEventListener('click', async () => {
+            if (_extSelectedUrls.size === 0) return;
+            try {
+                await api.download(`/api/jobs/${_currentJobId}/export/partial`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link_type: 'external', urls: Array.from(_extSelectedUrls) })
+                });
+                toast.success('匯出成功');
+            } catch (err) {
+                toast.error('匯出失敗');
+            }
+        });
+    }
+
+    const btnIntReprobe = document.getElementById('btn-int-reprobe-selected');
+    if (btnIntReprobe) {
+        btnIntReprobe.addEventListener('click', async () => {
+            if (_intSelectedUrls.size === 0) return;
+            const ok = await showConfirm('重新探測', `確定要將選取的 ${_intSelectedUrls.size} 個內部連結重新探測嗎？`);
+            if (!ok) return;
+            try {
+                const res = await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: 'internal', urls: Array.from(_intSelectedUrls) });
+                toast.success(res.message || '重新探測已啟動');
+                _intSelectedUrls.clear();
+                updateIntToolbarButtons();
+                _intSummaryCache = { key: null, data: null };
+                loadInternalResultsPage(_currentJobId);
+                refreshJobDetail(_currentJobId);
+            } catch (err) {
+                toast.error(err.message || '探測失敗');
+            }
+        });
+    }
+
+    const btnIntExportPartial = document.getElementById('btn-int-export-selected');
+    if (btnIntExportPartial) {
+        btnIntExportPartial.addEventListener('click', async () => {
+            if (_intSelectedUrls.size === 0) return;
+            try {
+                await api.download(`/api/jobs/${_currentJobId}/export/partial`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ link_type: 'internal', urls: Array.from(_intSelectedUrls) })
+                });
+                toast.success('匯出成功');
+            } catch (err) {
+                toast.error('匯出失敗');
+            }
+        });
+    }
+
     // ── 完整報表匯出 (Web Component) ───────────────────────────────────
     document.addEventListener('export-full', async (e) => {
         if (!e.detail || !e.detail.job) return;
@@ -524,6 +796,14 @@ function bindWebComponentEvents() {
     });
 
     // ── 列表 CSV/JSON 匯出按鈕 ───────────────────────────────────
+    /**
+     * 構建匯出資料的 URL 並附加相關查詢參數
+     * @param {string} basePath - API 基礎路徑
+     * @param {string} fmt - 匯出格式 ('csv'|'json')
+     * @param {Object} [filter] - 篩選條件
+     * @param {string} [groupBy] - 群組條件
+     * @returns {string} 完整的 API 請求網址
+     */
     const buildExportUrl = (basePath, fmt, filter, groupBy) => {
         const params = new URLSearchParams({ fmt });
         if (filter && filter !== 'all') params.append('filter', filter);
@@ -577,7 +857,7 @@ function bindWebComponentEvents() {
         if (!e.detail || !e.detail.job) return;
         const job = e.detail.job;
         const c = job.config;
-        const container = document.getElementById('job-config-display-container');
+        const container = document.getElementById('job-config-container');
         if (container && configModalEl) {
             container.replaceChildren();
             if (!c) {
@@ -614,7 +894,7 @@ function bindWebComponentEvents() {
                     const section = document.createElement('div');
                     const titleEl = document.createElement('div');
                     titleEl.style.fontWeight = '600';
-                    titleEl.style.borderBottom = '1px solid var(--surface-border)';
+                    // titleEl.style.borderBottom = '1px solid var(--surface-border)';
                     titleEl.style.paddingBottom = '0.5rem';
                     titleEl.style.marginBottom = '0.75rem';
                     titleEl.textContent = title;

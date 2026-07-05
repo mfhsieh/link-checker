@@ -3,7 +3,7 @@
  */
 
 import * as api from './api.js';
-import { toast } from './toast.js';
+import { toast } from './components/toast.js';
 
 // ── 密碼強度顯示 ──────────────────────────────────────────────
 
@@ -243,24 +243,22 @@ export async function logout() {
 // ── 使用者狀態工具 ─────────────────────────────────────────────
 
 /**
- * 取得當前使用者資訊（快取狀態）
- * @type {Object|null}
+ * 取得當前使用者資訊（快取狀態，存放 Promise 以避免併發請求）
+ * @type {Promise<Object|null>|null}
  */
-let _cachedUser = null;
+let _userPromise = null;
 
 /**
  * 取得當前使用者資訊（快取版本）
  * @param {boolean} [forceRefresh=false] - 是否強制重新發送 API 請求
  * @returns {Promise<Object|null>} 使用者物件或 null（未登入）
  */
-export async function getCurrentUser(forceRefresh = false) {
-    if (_cachedUser && !forceRefresh) return _cachedUser;
-    try {
-        _cachedUser = await api.get('/api/auth/me', { _t: Date.now() });
-        return _cachedUser;
-    } catch (_) {
-        return null;
-    }
+export function getCurrentUser(forceRefresh = false) {
+    if (forceRefresh) _userPromise = null;
+    if (_userPromise) return _userPromise;
+
+    _userPromise = api.get('/api/auth/me', { _t: Date.now() }).catch(() => null);
+    return _userPromise;
 }
 
 /**
@@ -268,5 +266,5 @@ export async function getCurrentUser(forceRefresh = false) {
  * @returns {void} 無回傳值
  */
 export function clearUserCache() {
-    _cachedUser = null;
+    _userPromise = null;
 }

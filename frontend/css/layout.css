@@ -13,101 +13,7 @@
   min-height: 100vh;
 }
 
-/* ── Top Bar ──────────────────────────────────────────────── */
-.topbar {
-  grid-area: topbar;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--space-6);
-  background: var(--surface-base);
-  border-bottom: 1px solid var(--surface-border-subtle);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
-}
 
-.topbar-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  text-decoration: none;
-}
-
-.topbar-logo {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-700));
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.875rem;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.topbar-title {
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.topbar-user {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.topbar-user:hover {
-  background: var(--surface-overlay);
-}
-
-.topbar-avatar {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-800, #1e3a8a));
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-bold);
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.topbar-user-info {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
-
-.topbar-user-name {
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-primary);
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.topbar-user-role {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
 
 /* ── Sidebar ──────────────────────────────────────────────── */
 .sidebar {
@@ -266,7 +172,7 @@
 .login-logo-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-700));
+  background: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-600));
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;

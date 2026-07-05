@@ -3,7 +3,7 @@
  */
 
 import * as api from './api.js';
-import { toast } from './toast.js';
+import { toast } from './components/toast.js';
 import { initPasswordStrength } from './auth.js';
 
 /**

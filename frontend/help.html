@@ -17,40 +17,7 @@
   <div class="app-shell" id="app-shell">
 
     <!-- ── Top Bar ──────────────────────────────────────────── -->
-    <header class="topbar">
-      <a class="topbar-brand" href="/app.html" id="topbar-brand">
-        <div class="topbar-logo" aria-hidden="true" title="Link Checker">
-          <img src="/static/image/logo.svg" alt="Link Checker" style="width: 18px; height: 18px;" />
-        </div>
-        <span class="topbar-title">網站連結檢查系統</span>
-      </a>
-      <div class="topbar-actions">
-        <div class="topbar-user" id="topbar-user" role="button" tabindex="0" title="帳號選單">
-          <div class="topbar-avatar" id="topbar-avatar">-</div>
-          <div class="topbar-user-info">
-            <span class="topbar-user-name" id="topbar-email">載入中...</span>
-            <span class="topbar-user-role" id="topbar-role"></span>
-          </div>
-        </div>
-        <button class="btn btn-ghost btn-sm" id="change-pwd-btn" title="修改密碼">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round" style="width:16px;height:16px">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-          <span class="btn-text">修改密碼</span>
-        </button>
-        <button class="btn btn-ghost btn-sm" id="logout-btn" title="登出">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round" style="width:16px;height:16px">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span class="btn-text">登出</span>
-        </button>
-      </div>
-    </header>
+    <app-topbar></app-topbar>
 
     <!-- ── Sidebar ────────────────────────────────────────── -->
     <nav class="sidebar" aria-label="主導覽">
@@ -328,162 +295,28 @@
     </main>
   </div>
 
-  <!-- ── 變更密碼 Modal ────────────────────────────────────── -->
-  <div class="modal-overlay" id="change-pwd-modal"
-    style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999;">
-    <div class="modal-content card"
-      style="width:100%; max-width:400px; padding:1.5rem; background:var(--surface-base); border-radius:var(--radius-lg)">
-      <div class="d-flex justify-between align-center mb-6">
-        <h2 style="font-size:1.25rem; font-weight:600; margin:0">修改密碼</h2>
-        <button id="change-pwd-close"
-          style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1">&times;</button>
-      </div>
-      <form id="change-pwd-form">
-        <div class="d-flex flex-col gap-4 mb-6">
-          <div class="form-group">
-            <label class="form-label" for="current-password">現有密碼 <span class="required">*</span></label>
-            <input class="form-input" type="password" id="current-password" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="new-password-change">新密碼 <span class="required">*</span></label>
-            <input class="form-input" type="password" id="new-password-change" required />
-            <div style="margin-top:0.5rem">
-              <div class="progress-bar">
-                <div class="progress-fill" id="pwd-strength-bar" style="width:0%;transition:width 0.3s,background 0.3s">
-                </div>
-              </div>
-              <div style="display:flex;justify-content:space-between;margin-top:0.25rem">
-                <span class="form-hint">密碼強度</span>
-                <span class="text-xs font-medium" id="pwd-strength-label" style="transition:color 0.3s"></span>
-              </div>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="confirm-password-change">確認新密碼 <span class="required">*</span></label>
-            <input class="form-input" type="password" id="confirm-password-change" required />
-          </div>
-          <div
-            style="font-size:0.8125rem;color:var(--text-muted);background:var(--surface-overlay);padding:0.875rem;border-radius:0.5rem">
-            <div style="font-weight:600;color:var(--text-secondary);margin-bottom:0.375rem">密碼安全要求</div>
-            <ul style="list-style:disc;padding-left:1.25rem;display:flex;flex-direction:column;gap:0.25rem;margin:0">
-              <li>長度至少 12 個字元</li>
-              <li>需包含大寫、小寫、數字、特殊符號中的至少 3 類</li>
-              <li>不得包含電子郵件帳號名稱（@ 之前的字串）</li>
-            </ul>
-          </div>
-          <div id="change-pwd-error" style="color:var(--color-danger-400);font-size:0.875rem"></div>
-        </div>
-        <div class="d-flex justify-end gap-3">
-          <button type="button" class="btn btn-ghost" id="change-pwd-cancel">取消</button>
-          <button type="submit" class="btn btn-primary" id="change-pwd-submit">儲存修改</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
-  <div class="toast-container"></div>
 
+  <script type="module" src="/static/js/components/app-topbar.js"></script>
   <script type="module">
     import * as api from '/static/js/api.js';
-    import { toast } from '/static/js/toast.js';
-    import { logout, getCurrentUser, initPasswordStrength } from '/static/js/auth.js';
+    import { toast } from '/static/js/components/toast.js';
+    import { getCurrentUser } from '/static/js/auth.js';
 
     async function initUser() {
       const user = await getCurrentUser();
       if (!user) { window.location.replace('/'); return; }
 
-      const emailEl = document.getElementById('topbar-email');
-      const roleEl = document.getElementById('topbar-role');
-      const avatarEl = document.getElementById('topbar-avatar');
       const adminSection = document.getElementById('admin-nav-section');
-
-      if (emailEl) emailEl.textContent = user.email;
-      if (roleEl) roleEl.textContent = user.role === 'admin' ? '管理員' : '使用者';
-      if (avatarEl) avatarEl.textContent = user.email.charAt(0).toUpperCase();
 
       if (adminSection && user.role === 'admin') {
         adminSection.style.display = '';
       }
     }
 
-    // 登出
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-      logout();
-    });
 
-    // 變更密碼功能
-    const changePwdModal = document.getElementById('change-pwd-modal');
-    const changePwdBtn = document.getElementById('change-pwd-btn');
-    const changePwdClose = document.getElementById('change-pwd-close');
-    const changePwdCancel = document.getElementById('change-pwd-cancel');
-    const changePwdForm = document.getElementById('change-pwd-form');
-    const pwdStrengthBar = document.getElementById('pwd-strength-bar');
-    const pwdStrengthLabel = document.getElementById('pwd-strength-label');
-    const newPwdInput = document.getElementById('new-password-change');
 
-    if (newPwdInput && pwdStrengthBar && pwdStrengthLabel) {
-      initPasswordStrength(newPwdInput, pwdStrengthBar, pwdStrengthLabel);
-    }
 
-    function openChangePwdModal() {
-      changePwdModal.style.display = 'flex';
-      changePwdForm.reset();
-      document.getElementById('change-pwd-error').textContent = '';
-      if (pwdStrengthBar) {
-        pwdStrengthBar.style.width = '0%';
-        pwdStrengthBar.style.background = '';
-      }
-      if (pwdStrengthLabel) {
-        pwdStrengthLabel.textContent = '';
-      }
-    }
-
-    function closeChangePwdModal() {
-      changePwdModal.style.display = 'none';
-    }
-
-    changePwdBtn.addEventListener('click', openChangePwdModal);
-    changePwdClose.addEventListener('click', closeChangePwdModal);
-    changePwdCancel.addEventListener('click', closeChangePwdModal);
-
-    changePwdForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const currentPwd = document.getElementById('current-password').value;
-      const newPwd = newPwdInput.value;
-      const confirmPwd = document.getElementById('confirm-password-change').value;
-      const errorEl = document.getElementById('change-pwd-error');
-      const submitBtn = document.getElementById('change-pwd-submit');
-
-      errorEl.textContent = '';
-
-      if (newPwd !== confirmPwd) {
-        errorEl.textContent = '新密碼與確認密碼不一致。';
-        return;
-      }
-
-      if (currentPwd === newPwd) {
-        errorEl.textContent = '新密碼不得與現有密碼相同。';
-        return;
-      }
-
-      submitBtn.classList.add('loading');
-      submitBtn.disabled = true;
-
-      try {
-        await api.patch('/api/auth/password', {
-          current_password: currentPwd,
-          new_password: newPwd
-        });
-        closeChangePwdModal();
-        alert('密碼已修改，請使用新密碼重新登入');
-        logout();
-      } catch (err) {
-        errorEl.textContent = err.message || '修改密碼失敗。';
-      } finally {
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-      }
-    });
 
     initUser();
   </script>

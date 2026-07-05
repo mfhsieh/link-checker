@@ -305,15 +305,16 @@ export function updateSortIcons(containerEl, activeKey, isAsc) {
   });
 }
 
-// 全域監聽 Modal (modal-overlay) 的開關狀態，防範背景 Scroll Bleed
+// 全域監聽 Modal (modal-backdrop) 的開關狀態，防範背景 Scroll Bleed
 if (typeof window !== 'undefined') {
   const initModalObserver = () => {
-    const modalOverlays = document.querySelectorAll('.modal-overlay');
-    if (modalOverlays.length === 0) return;
+    const modalBackdrops = document.querySelectorAll('.modal-backdrop');
+    
+    let shadowModalOpenCount = 0;
 
     const updateBodyScroll = () => {
-      let hasVisibleModal = false;
-      modalOverlays.forEach(el => {
+      let hasVisibleModal = shadowModalOpenCount > 0;
+      modalBackdrops.forEach(el => {
         if (el.style.display !== 'none' && el.style.visibility !== 'hidden') {
           hasVisibleModal = true;
         }
@@ -333,8 +334,18 @@ if (typeof window !== 'undefined') {
       });
     });
 
-    modalOverlays.forEach(el => {
+    modalBackdrops.forEach(el => {
       observer.observe(el, { attributes: true, attributeFilter: ['style'] });
+    });
+
+    document.addEventListener('modal-opened', () => {
+      shadowModalOpenCount++;
+      updateBodyScroll();
+    });
+
+    document.addEventListener('modal-closed', () => {
+      shadowModalOpenCount = Math.max(0, shadowModalOpenCount - 1);
+      updateBodyScroll();
     });
 
     // 初始檢查一次

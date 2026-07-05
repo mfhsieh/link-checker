@@ -3,7 +3,7 @@
  */
 
 import * as api from './api.js';
-import { toast } from './toast.js';
+import { toast } from './components/toast.js';
 
 /** @type {Object|null} 目前比對的差異資料 */
 let _currentDiffData = null;
@@ -165,6 +165,74 @@ function bindCompareEvents() {
  * @param {string} tabName - 頁籤名稱
  * @returns {void} 無回傳值
  */
+/**
+ * 建立一個文字節點或帶有 className 的 span
+ */
+function createTextNode(text, className = '') {
+    if (!className) return document.createTextNode(text || '-');
+    const span = document.createElement('span');
+    span.className = className;
+    span.textContent = text || '-';
+    return span;
+}
+
+/**
+ * 渲染網址清單 (List)
+ */
+function renderUrlArrayNode(urls, className = 'text-muted') {
+    if (!urls || urls.length === 0) return createTextNode('-');
+    const div = document.createElement('div');
+    div.style.maxHeight = '150px';
+    div.style.overflowY = 'auto';
+    div.style.paddingRight = '4px';
+    const ul = document.createElement('ul');
+    ul.style.margin = '0';
+    ul.style.paddingLeft = '0';
+    ul.style.listStyle = 'none';
+    ul.style.fontSize = '0.8125rem';
+    urls.forEach(u => {
+        const li = document.createElement('li');
+        li.className = 'truncate ' + className;
+        li.style.maxWidth = '250px';
+        li.style.marginBottom = '0.25rem';
+        li.title = u;
+        const a = document.createElement('a');
+        a.href = u;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        if (className === 'text-muted') a.style.color = 'inherit';
+        else a.className = 'text-link';
+        a.textContent = u;
+        li.appendChild(a);
+        ul.appendChild(li);
+    });
+    if (urls.length >= 10) {
+        const truncLi = document.createElement('li');
+        truncLi.className = 'text-xs text-muted';
+        truncLi.style.marginTop = '0.25rem';
+        truncLi.textContent = '... (清單過長已截斷)';
+        ul.appendChild(truncLi);
+    }
+    div.appendChild(ul);
+    return div;
+}
+
+/**
+ * 渲染單一網址
+ */
+function renderSingleUrlNode(url, className = 'text-link') {
+    if (!url) return createTextNode('-');
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.className = className;
+    if (className === 'text-muted') a.style.color = 'inherit';
+    a.textContent = url;
+    a.title = url;
+    return a;
+}
+
 function renderCompareTab(tabName) {
     _currentTab = tabName;
 
@@ -185,333 +253,81 @@ function renderCompareTab(tabName) {
         return;
     }
 
-    if (tabName === 'ip_changed') _currentCompareHeaders = [{ label: '網域', key: 'domain' }, { label: '舊 IP 位址', key: 'old_ip' }, { label: '新 IP 位址', key: 'new_ip' }, { label: '影響 URL 數', key: 'url_count' }, { label: '目標 URL 清單', key: 'target_urls', sortable: false, filterable: false }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
-    else if (tabName === 'degraded' || tabName === 'recovered') _currentCompareHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: '原狀態', key: 'old_status' }, { label: '新狀態', key: 'new_status' }, { label: '新錯誤訊息', key: 'new_error' }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
-    else if (tabName === 'security_downgraded') _currentCompareHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: '安全狀態變化', key: 'status', sortable: false, filterable: false }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
-    else if (tabName === 'new_links') _currentCompareHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: 'IP 位址', key: 'ip' }, { label: 'HTTP 狀態', key: 'status_code' }, { label: '錯誤訊息', key: 'error' }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
-    else if (tabName === 'removed_links') _currentCompareHeaders = [{ label: '目標 URL', key: 'target_url' }, { label: '原 IP 位址', key: 'old_ip' }, { label: '原 HTTP 狀態', key: 'old_status_code' }, { label: '原錯誤訊息', key: 'old_error' }, { label: '來源頁面', key: 'sources', sortable: false, filterable: false }];
+    if (tabName === 'ip_changed') {
+        _currentCompareHeaders = [
+            { label: '網域', key: 'domain', truncate: '200px', className: 'font-mono font-medium', render: v => createTextNode(v) },
+            { label: '舊 IP 位址', key: 'old_ip', className: 'font-mono text-xs text-muted', render: v => createTextNode(v) },
+            { label: '新 IP 位址', key: 'new_ip', className: 'font-mono text-xs text-danger', render: v => createTextNode(v) },
+            { label: '影響 URL 數', key: 'url_count', className: 'font-semibold', render: v => createTextNode(v) },
+            { label: '目標頁面 清單', key: 'target_urls', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, '') },
+            { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+        ];
+    } else if (tabName === 'degraded' || tabName === 'recovered') {
+        const isDeg = tabName === 'degraded';
+        _currentCompareHeaders = [
+            { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v, 'text-muted') },
+            { label: '原狀態', key: 'old_status', className: isDeg ? 'text-success' : 'text-danger', render: v => createTextNode(v || '連線失敗') },
+            { label: '新狀態', key: 'new_status', className: isDeg ? 'text-danger' : 'text-success', render: v => createTextNode(v || '連線失敗') },
+            { label: '新錯誤訊息', key: 'new_error', className: 'text-xs text-muted', truncate: '160px', render: v => createTextNode(v) },
+            { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+        ];
+    } else if (tabName === 'security_downgraded') {
+        _currentCompareHeaders = [
+            { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v, 'text-muted') },
+            { label: '安全狀態變化', key: 'status', sortable: false, filterable: false, render: () => createTextNode('HTTPS ➔ HTTP', 'text-warning text-sm') },
+            { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+        ];
+    } else if (tabName === 'new_links') {
+        _currentCompareHeaders = [
+            { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v, 'text-muted') },
+            { label: 'IP 位址', key: 'ip', className: 'font-mono text-xs', render: v => createTextNode(v) },
+            { label: 'HTTP 狀態', key: 'status_code', render: v => createTextNode(v, !v ? 'text-muted' : (v >= 400 ? 'text-danger' : 'text-success')) },
+            { label: '錯誤訊息', key: 'error', className: 'text-xs text-muted', truncate: '160px', render: v => createTextNode(v) },
+            { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+        ];
+    } else if (tabName === 'removed_links') {
+        _currentCompareHeaders = [
+            { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v, 'text-muted') },
+            { label: '原 IP 位址', key: 'old_ip', className: 'font-mono text-xs text-muted', render: v => createTextNode(v) },
+            { label: '原 HTTP 狀態', key: 'old_status_code', className: 'text-muted', render: v => createTextNode(v) },
+            { label: '原錯誤訊息', key: 'old_error', className: 'text-xs text-muted', truncate: '160px', render: v => createTextNode(v) },
+            { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+        ];
+    }
 
-    let tableEl = containerEl.querySelector('.table');
-    if (!tableEl || containerEl.dataset.renderedTab !== tabName) {
+    let linkTable = containerEl.querySelector('link-table');
+    if (!linkTable) {
         containerEl.replaceChildren();
-        const wrapperEl = document.createElement('div');
-        wrapperEl.className = 'table-wrapper';
-        tableEl = document.createElement('table');
-        tableEl.className = 'table';
-        const theadEl = document.createElement('thead');
-        const trHeadEl = document.createElement('tr');
-
-        _currentCompareHeaders.forEach(h => {
-            const th = document.createElement('th');
-            th.style.verticalAlign = 'top';
-            const headerTop = document.createElement('div');
-            headerTop.style.display = 'flex';
-            headerTop.style.justifyContent = 'space-between';
-            headerTop.style.alignItems = 'center';
-            if (h.sortable !== false) headerTop.style.cursor = 'pointer';
-
-            const label = document.createElement('span');
-            label.textContent = h.label;
-            headerTop.appendChild(label);
-
-            if (h.sortable !== false) {
-                const sortIcon = document.createElement('span');
-                sortIcon.className = 'sort-icon';
-                sortIcon.dataset.key = h.key;
-                sortIcon.style.color = 'var(--text-muted)';
-                sortIcon.style.fontSize = '0.75rem';
-                sortIcon.style.marginLeft = '0.25rem';
-                sortIcon.textContent = _compareSort.key === h.key ? (_compareSort.asc ? '▲' : '▼') : '⇅';
-                if (_compareSort.key === h.key) sortIcon.style.color = 'var(--color-brand-500)';
-                headerTop.appendChild(sortIcon);
-
-                headerTop.addEventListener('click', () => {
-                    if (_compareSort.key === h.key) _compareSort.asc = !_compareSort.asc;
-                    else { _compareSort.key = h.key; _compareSort.asc = true; }
-
-                    api.updateSortIcons(trHeadEl, _compareSort.key, _compareSort.asc);
-                    renderCompareTbody(tableEl, tabName);
-                });
-            }
-            th.appendChild(headerTop);
-
-            if (h.filterable !== false) {
-                const filterInput = api.createFilterInput(_compareColFilters[h.key], (newVal) => {
-                    _compareColFilters[h.key] = newVal;
-                    renderCompareTbody(tableEl, tabName);
-                });
-                th.appendChild(filterInput);
-            }
-
-            trHeadEl.appendChild(th);
+        linkTable = document.createElement('link-table');
+        linkTable.id = 'compare-data-table';
+        
+        // 綁定排序與篩選事件 (前端實作)
+        linkTable.addEventListener('sort-change', (e) => {
+            _compareSort = e.detail;
+            renderCompareTab(_currentTab);
         });
-
-        theadEl.appendChild(trHeadEl);
-        tableEl.appendChild(theadEl);
-        tableEl.appendChild(document.createElement('tbody'));
-        wrapperEl.appendChild(tableEl);
-        containerEl.appendChild(wrapperEl);
-        containerEl.dataset.renderedTab = tabName;
+        linkTable.addEventListener('filter-change', (e) => {
+            _compareColFilters[e.detail.key] = e.detail.value;
+            renderCompareTab(_currentTab);
+        });
+        
+        containerEl.appendChild(linkTable);
     }
+    containerEl.dataset.renderedTab = tabName;
 
-    renderCompareTbody(tableEl, tabName);
+    const filteredData = _getFilteredData();
+    
+    linkTable.config = {
+        headers: _currentCompareHeaders,
+        data: filteredData,
+        sort: _compareSort,
+        colFilters: _compareColFilters,
+        pagination: { current: 1, total: 1 }, // 比較頁面不作分頁
+        loading: false
+    };
 }
 
-/**
- * 渲染差異表格內容
- * @param {HTMLTableElement} tableEl - 欲渲染的表格元素
- * @param {string} tabName - 目前選中的頁籤名稱
- * @returns {void}
- */
-function renderCompareTbody(tableEl, tabName) {
-    const data = _getFilteredData();
-    let tbody = tableEl.querySelector('tbody');
-    tbody.replaceChildren();
 
-    if (data.length === 0) {
-        const tr = document.createElement('tr');
-        const td = document.createElement('td');
-        td.colSpan = _currentCompareHeaders.length;
-        td.className = 'text-center text-muted';
-        td.style.padding = '1rem';
-        td.textContent = '本頁無符合篩選條件的結果';
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-        return;
-    }
-
-    data.forEach(item => {
-        const tr = document.createElement('tr');
-
-        if (tabName === 'ip_changed') {
-            const tdDomain = document.createElement('td');
-            tdDomain.className = 'font-mono font-medium truncate';
-            tdDomain.style.maxWidth = '200px';
-            tdDomain.title = item.domain;
-            tdDomain.textContent = item.domain;
-            tr.appendChild(tdDomain);
-
-            const tdOld = document.createElement('td');
-            tdOld.className = 'font-mono text-xs text-muted';
-            tdOld.textContent = item.old_ip || '-';
-            tr.appendChild(tdOld);
-
-            const tdNew = document.createElement('td');
-            tdNew.className = 'font-mono text-xs text-danger';
-            tdNew.textContent = item.new_ip || '-';
-            tr.appendChild(tdNew);
-
-            const tdCount = document.createElement('td');
-            tdCount.style.fontWeight = '600';
-            tdCount.textContent = item.url_count;
-            tr.appendChild(tdCount);
-
-            const tdUrls = document.createElement('td');
-            if (item.target_urls && item.target_urls.length > 0) {
-                const divUrls = document.createElement('div');
-                divUrls.style.maxHeight = '150px';
-                divUrls.style.overflowY = 'auto';
-                divUrls.style.paddingRight = '4px';
-                const ul = document.createElement('ul');
-                ul.style.margin = '0';
-                ul.style.paddingLeft = '0';
-                ul.style.listStyle = 'none';
-                ul.style.fontSize = '0.8125rem';
-                item.target_urls.forEach(u => {
-                    const li = document.createElement('li');
-                    li.className = 'truncate';
-                    li.style.maxWidth = '360px';
-                    li.style.marginBottom = '0.25rem';
-                    li.title = u;
-                    const aU = document.createElement('a');
-                    aU.href = u;
-                    aU.target = '_blank';
-                    aU.rel = 'noopener noreferrer';
-                    aU.className = 'text-link';
-                    aU.textContent = u;
-                    li.appendChild(aU);
-                    ul.appendChild(li);
-                });
-                if (item.target_urls.length >= 10) {
-                    const truncLi = document.createElement('li');
-                    truncLi.className = 'text-xs text-muted';
-                    truncLi.style.marginTop = '0.25rem';
-                    truncLi.textContent = '... (清單過長已截斷)';
-                    ul.appendChild(truncLi);
-                }
-                divUrls.appendChild(ul);
-                tdUrls.appendChild(divUrls);
-            } else {
-                tdUrls.className = 'text-muted';
-                tdUrls.textContent = '-';
-            }
-            tr.appendChild(tdUrls);
-
-            const tdSources = document.createElement('td');
-            if (item.sources && item.sources.length > 0) {
-                const divSources = document.createElement('div');
-                divSources.style.maxHeight = '150px';
-                divSources.style.overflowY = 'auto';
-                divSources.style.paddingRight = '4px';
-                const ul = document.createElement('ul');
-                ul.style.margin = '0';
-                ul.style.paddingLeft = '0';
-                ul.style.listStyle = 'none';
-                ul.style.fontSize = '0.8125rem';
-                item.sources.forEach(src => {
-                    const li = document.createElement('li');
-                    li.className = 'truncate text-muted';
-                    li.style.maxWidth = '250px';
-                    li.style.marginBottom = '0.25rem';
-                    li.title = src;
-                    const aSrc = document.createElement('a');
-                    aSrc.href = src;
-                    aSrc.target = '_blank';
-                    aSrc.rel = 'noopener noreferrer';
-                    aSrc.style.color = 'inherit';
-                    aSrc.textContent = src;
-                    li.appendChild(aSrc);
-                    ul.appendChild(li);
-                });
-                if (item.sources.length >= 10) {
-                    const truncLi = document.createElement('li');
-                    truncLi.className = 'text-xs text-muted';
-                    truncLi.style.marginTop = '0.25rem';
-                    truncLi.textContent = '... (清單過長已截斷)';
-                    ul.appendChild(truncLi);
-                }
-                divSources.appendChild(ul);
-                tdSources.appendChild(divSources);
-            } else {
-                tdSources.className = 'text-muted';
-                tdSources.textContent = '-';
-            }
-            tr.appendChild(tdSources);
-
-        } else {
-            const tdTarget = document.createElement('td');
-            tdTarget.className = 'truncate';
-            tdTarget.style.maxWidth = '260px';
-            tdTarget.title = item.target_url;
-            const aTarget = document.createElement('a');
-            aTarget.href = item.target_url;
-            aTarget.target = '_blank';
-            aTarget.rel = 'noopener noreferrer';
-            aTarget.className = 'text-link';
-            aTarget.style.color = 'inherit';
-            aTarget.textContent = item.target_url;
-            tdTarget.appendChild(aTarget);
-            tr.appendChild(tdTarget);
-
-            if (tabName === 'degraded' || tabName === 'recovered') {
-                const isDegraded = tabName === 'degraded';
-
-                const tdOld = document.createElement('td');
-                tdOld.className = isDegraded ? 'text-success' : 'text-danger';
-                tdOld.textContent = item.old_status || '連線失敗';
-                tr.appendChild(tdOld);
-
-                const tdNew = document.createElement('td');
-                tdNew.className = isDegraded ? 'text-danger' : 'text-success';
-                tdNew.textContent = item.new_status || '連線失敗';
-                tr.appendChild(tdNew);
-
-                const tdErr = document.createElement('td');
-                tdErr.className = 'text-xs text-muted truncate';
-                tdErr.style.maxWidth = '160px';
-                tdErr.title = item.new_error || '';
-                tdErr.textContent = item.new_error || '-';
-                tr.appendChild(tdErr);
-
-            } else if (tabName === 'new_links') {
-                const tdIp = document.createElement('td');
-                tdIp.className = 'font-mono text-xs';
-                tdIp.textContent = item.ip || '-';
-                tr.appendChild(tdIp);
-
-                const status = item.status_code;
-                const tdStatus = document.createElement('td');
-                tdStatus.className = !status ? 'text-muted' : (status >= 400 ? 'text-danger' : 'text-success');
-                tdStatus.textContent = status || '-';
-                tr.appendChild(tdStatus);
-
-                const tdErr = document.createElement('td');
-                tdErr.className = 'text-xs text-muted truncate';
-                tdErr.style.maxWidth = '160px';
-                tdErr.title = item.error || '';
-                tdErr.textContent = item.error || '-';
-                tr.appendChild(tdErr);
-
-            } else if (tabName === 'removed_links') {
-                const tdIp = document.createElement('td');
-                tdIp.className = 'font-mono text-xs text-muted';
-                tdIp.textContent = item.old_ip || '-';
-                tr.appendChild(tdIp);
-
-                const tdStatus = document.createElement('td');
-                tdStatus.className = 'text-muted';
-                tdStatus.textContent = item.old_status_code || '-';
-                tr.appendChild(tdStatus);
-
-                const tdErr = document.createElement('td');
-                tdErr.className = 'text-xs text-muted truncate';
-                tdErr.style.maxWidth = '160px';
-                tdErr.title = item.old_error || '';
-                tdErr.textContent = item.old_error || '-';
-                tr.appendChild(tdErr);
-
-            } else if (tabName === 'security_downgraded') {
-                const tdSec = document.createElement('td');
-                tdSec.className = 'text-warning text-sm';
-                tdSec.textContent = 'HTTPS ➔ HTTP';
-                tr.appendChild(tdSec);
-            }
-
-            const tdSources = document.createElement('td');
-            if (item.sources && item.sources.length > 0) {
-                const divSources = document.createElement('div');
-                divSources.style.maxHeight = '150px';
-                divSources.style.overflowY = 'auto';
-                divSources.style.paddingRight = '4px';
-                const ul = document.createElement('ul');
-                ul.style.margin = '0';
-                ul.style.paddingLeft = '0';
-                ul.style.listStyle = 'none';
-                ul.style.fontSize = '0.8125rem';
-                item.sources.forEach(src => {
-                    const li = document.createElement('li');
-                    li.className = 'truncate text-muted';
-                    li.style.maxWidth = '250px';
-                    li.style.marginBottom = '0.25rem';
-                    li.title = src;
-                    const aSrc = document.createElement('a');
-                    aSrc.href = src;
-                    aSrc.target = '_blank';
-                    aSrc.rel = 'noopener noreferrer';
-                    aSrc.style.color = 'inherit';
-                    aSrc.textContent = src;
-                    li.appendChild(aSrc);
-                    ul.appendChild(li);
-                });
-                if (item.sources.length >= 10) {
-                    const truncLi = document.createElement('li');
-                    truncLi.className = 'text-xs text-muted';
-                    truncLi.style.marginTop = '0.25rem';
-                    truncLi.textContent = '... (清單過長已截斷)';
-                    ul.appendChild(truncLi);
-                }
-                divSources.appendChild(ul);
-                tdSources.appendChild(divSources);
-            } else {
-                tdSources.className = 'text-muted';
-                tdSources.textContent = '-';
-            }
-            tr.appendChild(tdSources);
-        }
-
-        tbody.appendChild(tr);
-    });
-}
 
 /**
  * 取得經過過濾與排序後的差異資料
@@ -632,11 +448,11 @@ function exportCompareCsv() {
 
     let headers = [];
     const tabName = _currentTab;
-    if (tabName === 'ip_changed') headers = ['網域', '舊 IP 位址', '新 IP 位址', '影響 URL 數', '目標 URL 清單', '來源頁面'];
-    else if (tabName === 'degraded' || tabName === 'recovered') headers = ['目標 URL', '原狀態', '新狀態', '新錯誤訊息', '來源頁面'];
-    else if (tabName === 'security_downgraded') headers = ['目標 URL', '安全狀態變化', '來源頁面'];
-    else if (tabName === 'new_links') headers = ['目標 URL', 'IP 位址', 'HTTP 狀態', '錯誤訊息', '來源頁面'];
-    else if (tabName === 'removed_links') headers = ['目標 URL', '原 IP 位址', '原 HTTP 狀態', '原錯誤訊息', '來源頁面'];
+    if (tabName === 'ip_changed') headers = ['網域', '舊 IP 位址', '新 IP 位址', '影響 URL 數', '目標頁面 清單', '來源頁面'];
+    else if (tabName === 'degraded' || tabName === 'recovered') headers = ['目標頁面', '原狀態', '新狀態', '新錯誤訊息', '來源頁面'];
+    else if (tabName === 'security_downgraded') headers = ['目標頁面', '安全狀態變化', '來源頁面'];
+    else if (tabName === 'new_links') headers = ['目標頁面', 'IP 位址', 'HTTP 狀態', '錯誤訊息', '來源頁面'];
+    else if (tabName === 'removed_links') headers = ['目標頁面', '原 IP 位址', '原 HTTP 狀態', '原錯誤訊息', '來源頁面'];
 
     let csvContent = '\uFEFF'; // BOM
     csvContent += headers.map(h => `"${h}"`).join(',') + '\n';

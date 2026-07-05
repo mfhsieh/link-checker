@@ -188,7 +188,7 @@ export class JobProgressCard extends HTMLElement {
         this._btnExportEl.id = 'btn-export-full';
         this._btnExportEl.title = '匯出完整報表 (ZIP 壓縮檔)';
 
-        const exportIconEl = document.createElement('div');
+        const exportIconEl = document.createElement('span');
         exportIconEl.className = 'mask-icon mask-icon-btn icon-download';
 
         this._btnExportEl.appendChild(exportIconEl);

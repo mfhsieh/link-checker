@@ -57,9 +57,9 @@ def validate_password_strength(password: str, email: str) -> list[str]:
     驗證密碼是否符合安全強度標準。
 
     規則：
-    - 長度至少 12 個字元
-    - 至少包含大寫字母、小寫字母、數字、特殊符號中的三類
-    - 不得與電子郵件本地端（@ 前面的部分）相同或包含之
+    - 至少 12 個字元。
+    - 至少包含大寫、小寫、數字、特殊符號中的 3 類。
+    - 不得包含電子郵件帳號名稱 (@ 之前的字串) 或被包含於其中。
 
     Args:
         password (str): 欲驗證的密碼。
@@ -71,15 +71,15 @@ def validate_password_strength(password: str, email: str) -> list[str]:
     errors: list[str] = []
 
     if len(password) < _MIN_LENGTH:
-        errors.append(f"密碼長度至少需要 {_MIN_LENGTH} 個字元。")
+        errors.append(f"密碼需至少 {_MIN_LENGTH} 個字元。")
 
     matched_classes = sum(1 for pattern in _COMPLEXITY_PATTERNS if pattern.search(password))
     if matched_classes < _MIN_COMPLEXITY_CLASSES:
-        errors.append(f"密碼需包含大寫字母、小寫字母、數字、特殊符號中的至少 {_MIN_COMPLEXITY_CLASSES} 類。")
+        errors.append(f"密碼需至少包含大寫、小寫、數字、特殊符號中的 {_MIN_COMPLEXITY_CLASSES} 類。")
 
     # 提取 email 本地端（@ 前面的部分）並進行相似度比對
     local_part = email.split("@")[0].lower() if "@" in email else email.lower()
     if local_part and (local_part in password.lower() or password.lower() in local_part):
-        errors.append("密碼不得與電子郵件帳號相同或包含電子郵件的本地端部分。")
+        errors.append("密碼不得包含電子郵件帳號名稱 (@ 之前的字串) 或被包含於其中。")
 
     return errors

@@ -36,8 +36,40 @@ export class LinkDataTable extends HTMLElement {
         this._colFilters = {};
         /** @type {{ current: number, total: number }} @private */
         this._pagination = { current: 1, total: 1 };
-        /** @type {boolean} @private */
+        /**
+         * 是否顯示分頁載入中的遮罩
+         * @type {boolean}
+         * @private
+         */
         this._loading = false;
+
+        /**
+         * 是否開啟多選 (Checkbox) 欄位
+         * @type {boolean}
+         * @private
+         */
+        this._selectable = false;
+
+        /**
+         * 作為選項識別碼的資料屬性名稱，預設為 'url', 'URL', 或 'domain' (向下相容)
+         * @type {string|null}
+         * @private
+         */
+        this._rowKey = null;
+
+        /**
+         * 存放目前已選取的 row key 集合
+         * @type {Set<string>}
+         * @private
+         */
+        this._selectedKeys = new Set();
+
+        /**
+         * 是否開啟整列點擊事件 (row-click)
+         * @type {boolean}
+         * @private
+         */
+        this._rowClickable = false;
 
         // DOM 快取（在 render() 後初始化）
         /** @type {HTMLTableSectionElement|null} @private */ this._tableHeadEl = null;
@@ -66,23 +98,37 @@ export class LinkDataTable extends HTMLElement {
     /**
      * 接收並套用表格設定，觸發畫面重繪。
      * 傳入 null 或 undefined 時直接返回，不做任何操作。
-     * @param {Object}                              cfg              - 表格設定物件
-     * @param {Array<Object>}                       [cfg.headers]    - 欄位定義陣列
-     * @param {Array<Object>}                       [cfg.data]       - 表格資料陣列
-     * @param {{ key: string, asc: boolean }}       [cfg.sort]       - 目前的排序狀態
-     * @param {Object<string, string>}              [cfg.colFilters] - 各欄位的篩選值
-     * @param {{ current: number, total: number }}  [cfg.pagination] - 分頁狀態
-     * @param {boolean}                             [cfg.loading]    - 是否顯示載入中覆蓋層
+     * @param {Object}         [config.headers]    - 欄位定義陣列
+     * @param {Array<Object>}  [config.data]       - 表格資料陣列
+     * @param {Object}         [config.sort]       - 排序狀態物件 `{ key: string, asc: boolean }`
+     * @param {Object}         [config.colFilters] - 欄位篩選物件 `{ key: value }`
+     * @param {Object}         [config.pagination] - 分頁資訊物件 `{ current: 1, total: 1 }`
+     * @param {boolean}        [config.loading]    - 是否顯示載入中遮罩
+     * @param {boolean}        [config.selectable] - 是否開啟第一欄的 Checkbox 選取功能
+     * @param {string}         [config.rowKey]     - 用來識別選取列的唯一鍵值屬性名（未設定則依序找 'url', 'URL', 'domain'）
+     * @param {boolean}        [config.rowClickable] - 是否整列可點擊並觸發事件
      */
-    set config(cfg) {
-        if (!cfg) return;
-        if (cfg.headers) this._headers = cfg.headers;
-        if (cfg.data) this._data = cfg.data;
-        if (cfg.sort) this._sort = cfg.sort;
-        if (cfg.colFilters) this._colFilters = cfg.colFilters;
-        if (cfg.pagination) this._pagination = cfg.pagination;
-        if (typeof cfg.loading === 'boolean') this._loading = cfg.loading;
-
+    set config(config) {
+        if (!config) return;
+        this._headers = config.headers || this._headers;
+        this._data = config.data || [];
+        this._sort = config.sort || { key: null, asc: true };
+        this._colFilters = config.colFilters || {};
+        this._pagination = config.pagination || { current: 1, total: 1 };
+        this._loading = config.loading || false;
+        
+        if (config.selectable !== undefined) {
+            this._selectable = config.selectable;
+        }
+        if (config.rowKey !== undefined) {
+            this._rowKey = config.rowKey;
+        }
+        if (config.rowClickable !== undefined) {
+            this._rowClickable = config.rowClickable;
+        }
+        // 如果資料更新（例如換頁），我們選擇保留勾選狀態，讓使用者可跨頁勾選
+        // 若外部需清空，可傳遞選取的 keys 或由外部重新實例化
+        
         this.updateView();
     }
 
@@ -262,6 +308,40 @@ export class LinkDataTable extends HTMLElement {
 
         const trEl = document.createElement('tr');
 
+        // 如果開啟選取功能，加入表頭 Checkbox
+        if (this._selectable) {
+            const thCb = document.createElement('th');
+            thCb.style.width = '40px';
+            thCb.style.textAlign = 'center';
+            
+            const cbAll = document.createElement('input');
+            cbAll.type = 'checkbox';
+            cbAll.style.cursor = 'pointer';
+            
+            // 計算目前頁面所有有效的 key
+            const pageKeys = this._data.map(row => this._getRowKey(row)).filter(k => k !== undefined);
+            
+            if (pageKeys.length > 0) {
+                const allSelected = pageKeys.every(k => this._selectedKeys.has(k));
+                const someSelected = pageKeys.some(k => this._selectedKeys.has(k));
+                cbAll.checked = allSelected;
+                cbAll.indeterminate = someSelected && !allSelected;
+            }
+            
+            cbAll.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                pageKeys.forEach(k => {
+                    if (isChecked) this._selectedKeys.add(k);
+                    else this._selectedKeys.delete(k);
+                });
+                this._dispatchSelectionChange();
+                this.updateView(); // 重新渲染更新勾選狀態
+            });
+            
+            thCb.appendChild(cbAll);
+            trEl.appendChild(thCb);
+        }
+
         this._headers.forEach(col => {
             const thEl = document.createElement('th');
 
@@ -347,6 +427,43 @@ export class LinkDataTable extends HTMLElement {
 
         this._data.forEach(row => {
             const trEl = document.createElement('tr');
+            
+            if (this._rowClickable) {
+                trEl.style.cursor = 'pointer';
+                trEl.addEventListener('click', (e) => {
+                    // 如果點擊的是按鈕或其子元素，或者輸入框等，不觸發 row-click
+                    if (e.target.closest('button, a, input, select, textarea, .job-actions')) return;
+                    this.dispatchEvent(new CustomEvent('row-click', {
+                        detail: row,
+                        bubbles: true,
+                        composed: true
+                    }));
+                });
+            }
+
+            const rKey = this._getRowKey(row);
+
+            // 如果開啟選取功能，加入該列的 Checkbox
+            if (this._selectable) {
+                const tdCb = document.createElement('td');
+                tdCb.style.textAlign = 'center';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.style.cursor = 'pointer';
+                if (rKey !== undefined) {
+                    cb.checked = this._selectedKeys.has(rKey);
+                    cb.addEventListener('change', (e) => {
+                        if (e.target.checked) this._selectedKeys.add(rKey);
+                        else this._selectedKeys.delete(rKey);
+                        this._dispatchSelectionChange();
+                        this._renderHeaders(); // 僅更新表頭的 checkbox 狀態，避免重新渲染整個 body
+                    });
+                } else {
+                    cb.disabled = true;
+                }
+                tdCb.appendChild(cb);
+                trEl.appendChild(tdCb);
+            }
 
             this._headers.forEach(col => {
                 const tdEl = document.createElement('td');
@@ -427,6 +544,30 @@ export class LinkDataTable extends HTMLElement {
     _dispatchPageChange(page) {
         this.dispatchEvent(new CustomEvent('page-change', {
             detail: { page },
+            bubbles: true,
+            composed: true,
+        }));
+    }
+
+    /**
+     * 從 row 取出對應的唯一鍵值 (用於 selection)
+     * @param {Object} row 
+     * @returns {string|undefined}
+     * @private
+     */
+    _getRowKey(row) {
+        if (this._rowKey) return row[this._rowKey];
+        return row['url'] || row['URL'] || row['domain'] || row['target_url'];
+    }
+
+    /**
+     * 派送 `selection-change` 自訂事件，通知外部選取狀態變更。
+     * @fires selection-change
+     * @private
+     */
+    _dispatchSelectionChange() {
+        this.dispatchEvent(new CustomEvent('selection-change', {
+            detail: { selectedKeys: Array.from(this._selectedKeys) },
             bubbles: true,
             composed: true,
         }));

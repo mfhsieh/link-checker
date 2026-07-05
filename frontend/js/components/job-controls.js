@@ -94,8 +94,8 @@ export class JobControls extends HTMLElement {
         const iconEl = document.createElement('span');
         const url = `/static/image/icon-${name}.svg`;
         iconEl.className = 'mask-icon mask-icon-btn';
-        iconEl.style.webkitMask = `url('${url}') no-repeat center / contain`;
         iconEl.style.mask = `url('${url}') no-repeat center / contain`;
+        iconEl.style.webkitMask = `url('${url}') no-repeat center / contain`;
         return iconEl;
     }
 
