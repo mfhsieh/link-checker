@@ -75,7 +75,10 @@ function startSseStream(jobId) {
     // 每 30 秒定期拉取一次統計卡片與報表（如果還在跑的話）
     if (!_pollingInterval) {
         _pollingInterval = setInterval(() => {
-            loadResults(jobId);
+            _extSummaryCache.key = null; // 強制失效快取以獲取最新統計
+            _intSummaryCache.key = null;
+            loadExternalSummary(jobId);
+            loadInternalSummary(jobId);
         }, 30000);
     }
 
