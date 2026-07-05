@@ -2,324 +2,245 @@
 <html lang="zh-TW">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>說明與教學 — 網站連結檢查系統</title>
-  <meta name="description" content="管理外部連結掃描任務，查閱進度與結果。" />
-  <link rel="stylesheet" href="/static/css/base.css" />
-  <link rel="stylesheet" href="/static/css/components.css" />
-  <link rel="stylesheet" href="/static/css/layout.css" />
-  <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>說明與教學 — 網站連結檢查系統</title>
+    <meta name="description" content="管理外部連結掃描任務，查閱進度與結果。" />
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/components.css" />
+    <link rel="stylesheet" href="/static/css/layout.css" />
+    <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
+
+    <link href="/static/css/help.css" rel="stylesheet" />
+    <style>
+        p {
+            padding-bottom: 1rem;
+        }
+
+        strong {
+            color: var(--text-primary);
+        }
+
+        .doc-text-center {
+            text-align: center;
+        }
+    </style>
 </head>
 
 <body>
 
-  <div class="app-shell" id="app-shell">
+    <div class="app-shell" id="app-shell">
 
-    <!-- ── Top Bar ──────────────────────────────────────────── -->
-    <app-topbar></app-topbar>
+        <!-- ── Top Bar ──────────────────────────────────────────── -->
+        <app-topbar></app-topbar>
 
-    <!-- ── Sidebar ────────────────────────────────────────── -->
-    <nav class="sidebar" aria-label="主導覽">
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">任務管理</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" id="nav-jobs" href="/app.html#/jobs" data-view="jobs">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-              </svg>
-              我的任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-duplicate" href="/app.html#/duplicate" data-view="duplicate">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-              </svg>
-              複製任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-compare" href="/app.html#/compare" data-view="compare">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
-              </svg>
-              比對任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-transfer" href="/app.html#/transfer" data-view="transfer">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-              </svg>
-              移交任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-new-job" href="/app.html#/new" data-view="new">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              新增任務
-            </a>
-          </li>
-        </ul>
-      </div>
+        <!-- ── Side Bar ──────────────────────────────────────────── -->
+        <app-sidebar mode="app" active-id="nav-help"></app-sidebar>
 
-      <div class="sidebar-divider"></div>
+        <!-- ── Main Content ────────────────────────────────────── -->
+        <main class="main-content" id="main-content">
 
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">支援</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item active" id="nav-help" href="#" data-view="help">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
-              </svg>
-              說明與教學
-            </a>
-          </li>
-
-          <li>
-            <a class="sidebar-item" id="nav-faq" href="/faq.html">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-              </svg>
-              常見問答
-            </a>
-          </li>
-
-        </ul>
-      </div>
-
-      <div class="sidebar-divider"></div>
-
-      <!-- 後台管理（僅 admin 可見）-->
-      <div class="sidebar-section" id="admin-nav-section" style="display:none">
-        <div class="sidebar-section-title">後台管理</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" href="/admin.html">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              進入後台
-            </a>
-          </li>
-        </ul>
-      </div>
-    </nav>
-
-    <!-- ── Main Content ────────────────────────────────────── -->
-    <main class="main-content" id="main-content">
-      <!-- ── 說明與教學視圖 ────────────────────────────────────── -->
-      <div id="view-help" style="display:block; max-width: 800px; margin: 0 auto;">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">說明與教學</h1>
-            <p class="page-subtitle">三分鐘搞懂這個工具能幫你做什麼！</p>
-          </div>
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:1.5rem;">
-
-          <!-- 原理介紹 -->
-          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
-              🤖 這個工具到底在幹嘛？
-            </h2>
-            <p>想像系統是一個「<strong>虛擬小幫手（爬蟲）</strong>」。你給他一個網址，他就會點進去，順著網頁上的超連結，一頁一頁地逛遍你的整個網站。</p>
-            <p>小幫手最重要的任務是：<strong>幫你找出網站裡所有的連結（包含連到別人的、以及連到自己站內的），並檢查它們有沒有壞掉！</strong></p>
-            <ul style="padding-left:1.5rem; margin-top:0.5rem; margin-bottom:0;">
-              <li style="margin-bottom:0.5rem;"><strong>抓出死結（內部與外部）</strong>： 幫你找出網頁上那些連不到東西、點了會出現「404
-                找不到網頁」的失效連結，避免讀者點到錯誤畫面。</li>
-              <li style="margin-bottom:0.5rem;"><strong>保護讀者安全（外部）</strong>：
-                有些外部網站可能已經倒閉、網域過期了。如果被壞人偷偷買下那個網址放病毒，你的讀者點過去就會受害！小幫手會提早揪出這些過期的連結讓你刪掉。</li>
-              <li style="margin-bottom:0.5rem;"><strong>揪出沒加密的連結（外部）</strong>： 告訴你哪些連到外面的連結還在用不安全的
-                <code>http://</code>，提醒你改成有加密保護的 <code>https://</code>。
-              </li>
-              <li><strong>整理出一目了然的清單</strong>： 最後會給你兩張大報表，分別列出「內部連結」和「外部連結」的健康狀況。</li>
-            </ul>
-          </div>
-
-          <!-- 核心名詞解釋 -->
-          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
-              📖 三個一定要懂的重要名詞
-            </h2>
-            <p>在開始叫小幫手工作前，你必須先認識這三個詞：</p>
-            <div style="display:grid; gap:1rem; margin-top:1rem;">
-              <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
-                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">📍 出發點 (起始 URL)</div>
-                <div>就像是小幫手出發探險的第一站（通常是你的官網首頁）。他會從這裡開始，把網頁上的連結通通點進去。</div>
-              </div>
-              <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
-                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🏠 自家的圍牆 (目標網域)</div>
-                <div>
-                  這是你給小幫手規定的「<strong>活動範圍</strong>」。他只會在這面圍牆（你的網域）裡面四處逛。如果遇到連去別人家網站的連結，他只會站在門口確認「這條路是不是通的？」，<strong>絕對不會</strong>跑去別人家裡面繼續逛，不然他會把全宇宙的網頁都逛完！
+            <!-- ── 說明與教學視圖 ────────────────────────────────────── -->
+            <div id="view-help" class="doc-view">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">說明與教學</h1>
+                        <p class="page-subtitle">三分鐘搞懂這個工具能幫你做什麼！</p>
+                    </div>
                 </div>
-              </div>
-              <div style="background:var(--surface-raised); padding:1rem; border-radius:0.5rem;">
-                <div style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">🌍 自己人免檢哨站 (信任網域)</div>
-                <div>有時候你會有很多個自己的信任的網站（比如 <code>gov.tw</code>
-                  結尾的其他網站）。你可以把這些自己人加入信任名單，這樣小幫手遇到這些網址時，就知道「喔！這是自己人，不需要特別當成外部連結來抓錯」。</div>
-              </div>
+
+                <div class="doc-content">
+
+                    <!-- ── 原理介紹 ──────────────────────────────────────────── -->
+                    <div class="card doc-card">
+                        <div class="doc-card-header">
+                            <h2 class="doc-card-title">🤖 這個工具到底在幹嘛？</h2>
+                        </div>
+                        <p>想像系統是一個「<strong>虛擬小幫手（爬蟲）</strong>」。你給他一個網址，他就會點進去，順著網頁上的超連結，一頁一頁地逛遍你的整個網站。</p>
+                        <p>小幫手最重要的任務是：<strong>幫你找出網站裡所有的連結（包含連到別人的、以及連到自己站內的），並檢查它們有沒有壞掉！</strong></p>
+                        <ul class="doc-ul-lg">
+                            <li class="doc-li-mb-md"><strong>抓出死結（內部與外部）</strong>： 幫你找出網頁上那些連不到東西、點了會出現「404
+                                找不到網頁」的失效連結，避免讀者點到錯誤畫面。</li>
+                            <li class="doc-li-mb-md"><strong>保護讀者安全（外部）</strong>：
+                                有些外部網站可能已經倒閉、網域過期了。如果被壞人偷偷買下那個網址放病毒，你的讀者點過去就會受害！小幫手會提早揪出這些過期的連結讓你刪掉。</li>
+                            <li class="doc-li-mb-md"><strong>揪出沒加密的連結（外部）</strong>： 告訴你哪些連到外面的連結還在用不安全的
+                                <code>http://</code>，提醒你改成有加密保護的 <code>https://</code>。
+                            </li>
+                            <li><strong>整理出一目了然的清單</strong>： 最後會給你兩張大報表，分別列出「內部連結」和「外部連結」的健康狀況。</li>
+                        </ul>
+                    </div>
+
+                    <!-- ── 核心名詞解釋 ──────────────────────────────────────── -->
+                    <div class="card doc-card">
+                        <div class="doc-card-header">
+                            <h2 class="doc-card-title">📖 三個一定要懂的重要名詞</h2>
+                        </div>
+                        <p>在開始叫小幫手工作前，你必須先認識這三個詞：</p>
+                        <div class="doc-grid">
+                            <div class="doc-grid-item">
+                                <div class="doc-grid-title">📍 出發點
+                                    (起始 URL)</div>
+                                <div>就像是小幫手出發探險的第一站（通常是你的官網首頁）。他會從這裡開始，把網頁上的連結通通點進去。</div>
+                            </div>
+                            <div class="doc-grid-item">
+                                <div class="doc-grid-title">🏠 自家的圍牆
+                                    (目標網域)</div>
+                                <div>
+                                    這是你給小幫手規定的「<strong>活動範圍</strong>」。他只會在這面圍牆（你的網域）裡面四處逛。如果遇到連去別人家網站的連結，他只會站在門口確認「這條路是不是通的？」，<strong>絕對不會</strong>跑去別人家裡面繼續逛，不然他會把全宇宙的網頁都逛完！
+                                </div>
+                            </div>
+                            <div class="doc-grid-item">
+                                <div class="doc-grid-title">🌍
+                                    自己人免檢哨站 (信任網域)</div>
+                                <div>有時候你會有很多個自己的信任的網站（比如 <code>gov.tw</code>
+                                    結尾的其他網站）。你可以把這些自己人加入信任名單，這樣小幫手遇到這些網址時，就知道「喔！這是自己人，不需要特別當成外部連結來抓錯」。</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── 操作步驟 ──────────────────────────────────────────── -->
+                    <div class="card doc-card">
+                        <div class="doc-card-header">
+                            <h2 class="doc-card-title">🚀 開始你的第一次掃描任務！</h2>
+                        </div>
+                        <ol class="doc-ul-lg">
+                            <li class="doc-li-mb-md">
+                                <strong>新增任務</strong>：點擊左側導覽列的「新增任務」。
+                            </li>
+                            <li class="doc-li-mb-md">
+                                <strong>設定出發點與圍牆</strong>：貼上你要檢查的「起始
+                                URL」。系統通常很聰明，會自動幫你把「目標網域」填好。
+                            </li>
+                            <li class="doc-li-mb-md">
+                                <strong>設定煞車機制（很重要！必看！）</strong>：為了不讓小幫手跑到天荒地老，建議您要設定以下限制：
+                                <ul class="doc-ul-lg">
+                                    <li class="doc-li-mb-md">
+                                        <strong>最大抓取頁數</strong>：如果你的網站超大（有幾萬頁），請一定要設定一個上限（例如 500
+                                        頁），不然掃描會花上好幾天。
+                                    </li>
+                                    <li class="doc-li-mb-md"><strong>最大爬取深度</strong>：也就是小幫手能「連點幾層連結」。設定 2 或 3
+                                        層，可以讓他只檢查比較表層、重要的頁面。</li>
+                                </ul>
+                            </li>
+                            <li class="doc-li-mb-md">
+                                <strong>建立並啟動</strong>：按下「建立任務並開始」，然後你就可以泡杯咖啡，看著進度條慢慢跑囉！
+                            </li>
+                            <li>
+                                <strong>看報表抓蟲</strong>：任務跑完後，系統會給你一份報告，你就可以根據報告去網站後台把那些壞掉的連結通通修好！
+                            </li>
+                        </ol>
+                    </div>
+
+                    <!-- ── 參數大解密 ────────────────────────────────────────── -->
+                    <div class="card doc-card">
+                        <div class="doc-card-header">
+                            <h2 class="doc-card-title">⚙️ 參數設定大解密</h2>
+                        </div>
+                        <p>建立任務時會看到很多設定欄位，別怕！把它們想像成你給小幫手出任務前下的「特別規定」就好：</p>
+                        <ul class="doc-ul-lg">
+                            <li class="doc-li-mb-md"><strong>起始 URL</strong>：
+                                小幫手跳傘降落的「第一站」。他會從這個網頁開始，尋找並點擊其他連結。</li>
+                            <li class="doc-li-mb-md"><strong>目標網域</strong>：
+                                小幫手的「活動範圍（圍牆）」。只允許他在這幾個網域內四處逛，超過這個範圍就只會在門口看一眼，不會走進去。</li>
+                            <li class="doc-li-mb-md"><strong>信任網域</strong>：
+                                「自己人免檢名單」。如果連到的網站是自己信任的其他網站，就直接放行，不用當作「外部連結」來列管。
+                            </li>
+                            <li class="doc-li-mb-md"><strong>忽略的路徑規則 (Regex)</strong>：
+                                這是給高手的過濾器。你可以寫一段特殊的語法，讓小幫手只要看到符合規則的網址，就直接假裝沒看到跳過去。</li>
+                            <li class="doc-li-mb-md"><strong>忽略的副檔名</strong>： 告訴小幫手：「如果你看到是 <code>.pdf</code>
+                                或是
+                                <code>.zip</code> 結尾的檔案，就不要理它！」（系統其實已經幫你預設好最常用的副檔名了）
+                            </li>
+                            <li class="doc-li-mb-md"><strong>社群與反爬蟲網域</strong>： 告訴小幫手：「這幾個網站（像是
+                                Facebook）脾氣很差，防備心很重。如果遇到他們，記得放慢腳步、輕輕敲門。」這能大幅減少被對方當作惡意攻擊而擋在門外的機率。</li>
+                            <li class="doc-li-mb-md"><strong>自簽憑證豁免網域</strong>：
+                                網站的安全憑證就像是「身分證」。有些公司內部測試用的網站，只有自己發的臨時身分證。把網址填在這，就是跟小幫手說：「雖然他沒有正式身分證，但他是我們自己人，直接放行，不要報錯！」
+                            </li>
+                            <li class="doc-li-mb-md"><strong>特定網域延遲 (秒)</strong>：
+                                專門為某些「特別脆弱」的網站設計的專屬煞車。例如，你可以規定：「平常點其他網站只要休息
+                                2 秒，但如果點到
+                                <code>old.example.com</code> 這個老主機時，必須強制休息 10 秒」，以免把它操壞。
+                            </li>
+                            <li class="doc-li-mb-md"><strong>最大爬取深度</strong>： 規定小幫手「最多只能連點幾層連結」。像是一層層打開的門，設定 2
+                                的話，他往內走兩層之後就不會再往下挖了。這能避免他迷失在無底洞裡。</li>
+                            <li class="doc-li-mb-md"><strong>最大抓取頁數</strong>： 給小幫手一個「業績上限」。例如設定 500，他看完 500
+                                頁就會直接打卡下班。這是保護你的網站伺服器不要過勞死的最強煞車！</li>
+                            <li class="doc-li-mb-md"><strong>請求延遲</strong>：
+                                規定小幫手每點擊下一個網頁前，必須「發呆喘口氣」幾秒鐘。這樣你的網站才不會因為被點太快而大塞車當機。</li>
+                            <li class="doc-li-mb-md"><strong>失敗重試次數</strong>：
+                                給別人一次機會！如果第一次連線失敗，小幫手會再多試幾次，如果真的都不行才宣告放棄。</li>
+                            <li class="doc-li-mb-md"><strong>總連線逾時</strong>：
+                                小幫手看「一整個網頁」的總耐心上限。這包含了他下載圖片、讀取整個網頁內容的時間。如果等太久還沒跑完，他就會直接放棄。</li>
+                            <li class="doc-li-mb-md"><strong>TCP 連線逾時</strong>：
+                                小幫手「按門鈴等對方開門」的耐心上限。按了門鈴後，如果對方連第一聲「歡迎光臨」都遲遲不說，小幫手就會認定這間店沒開。</li>
+                            <li><strong>外連探測逾時</strong>：
+                                這是專門用來檢查「連到外面的網站」有沒有壞掉的耐心時間。因為他只是在門口確認這家店還在不在，不用走進去逛，所以這個時間通常可以設定短一點，讓他動作快一點。
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- ── 效能與優化 ────────────────────────────────────────── -->
+                    <div class="card doc-card">
+                        <div class="doc-card-header">
+                            <h2 class="doc-card-title">💡 進階小知識（讓你變得更厲害）</h2>
+                        </div>
+                        <p>當你開始熟悉系統後，你一定會遇到以下這些狀況：</p>
+                        <ul class="doc-ul-lg">
+                            <li class="doc-li-mb-md"><strong>為什麼臉書 (Facebook)
+                                    等社群連結總是顯示壞掉或錯誤？</strong><br>因為這些大型社群網站有很強的防護機制，他們看到小幫手這種「機器人」來敲門，就會直接把他擋在門外（顯示 403
+                                錯誤或是遭到阻擋）。這<strong>不代表</strong>那個連結壞了，只是對方不歡迎機器人而已。</li>
+                            <li class="doc-li-mb-md">
+                                <strong>覺得某個網址的錯誤很煩，不想再看到了？</strong><br>你可以在結果列表使用「<strong>排除指定網域</strong>」的功能，把不想看的網域（例如上述的
+                                Facebook）隱藏起來，眼不見為淨！
+                            </li>
+                            <li class="doc-li-mb-md">
+                                <strong>為什麼掃描速度有點慢？</strong><br>在進階設定裡有一個叫「<strong>請求延遲</strong>」的數值。為了不讓小幫手點太快、把你的網站伺服器搞到當機，系統規定他每看一頁就要「喘口氣（延遲幾秒）」。這是為了保護你的網站，所以稍微等一下是值得的喔！
+                            </li>
+                            <li><strong>可以不要檢查圖片或 PDF
+                                    檔嗎？</strong><br>可以！在進階設定裡找到「<strong>忽略的副檔名</strong>」，系統預設已經幫你跳過很多不必要的檔案了，你也可以自己再把不需要檢查的檔案類型加上去。
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- ── GitHub 連結 ───────────────────────────────────────── -->
+                    <div class="card doc-card doc-text-center">
+                        <div class="doc-card-header">
+                            <h2 class="doc-card-title">⭐ 專案開源與支援</h2>
+                        </div>
+                        <p>喜歡這個專案嗎？有任何問題或建議，歡迎到 GitHub 上看看！</p>
+                        <a href="https://github.com/mfhsieh/link-checker" target="_blank" rel="noopener noreferrer"
+                            class="btn btn-primary">
+                            <span class="icon-github"></span> 前往 GitHub
+                        </a>
+                    </div>
+
+                </div>
             </div>
-          </div>
+        </main>
+    </div>
 
-          <!-- 操作步驟 -->
-          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
-              🚀 開始你的第一次掃描任務！
-            </h2>
-            <ol style="padding-left:1.5rem; margin-bottom:0;">
-              <li style="margin-bottom:0.75rem;">
-                <strong style="color:var(--text-primary)">新增任務</strong>：點擊左側導覽列的「新增任務」。
-              </li>
-              <li style="margin-bottom:0.75rem;">
-                <strong style="color:var(--text-primary)">設定出發點與圍牆</strong>：貼上你要檢查的「起始 URL」。系統通常很聰明，會自動幫你把「目標網域」填好。
-              </li>
-              <li style="margin-bottom:0.75rem;">
-                <strong style="color:var(--text-primary)">設定煞車機制（很重要！必看！）</strong>：為了不讓小幫手跑到天荒地老，建議您要設定以下限制：
-                <ul style="padding-left:1.5rem; margin-top:0.25rem; list-style-type:circle;">
-                  <li style="margin-bottom:0.25rem;"><strong>最大抓取頁數</strong>：如果你的網站超大（有幾萬頁），請一定要設定一個上限（例如 500
-                    頁），不然掃描會花上好幾天。</li>
-                  <li style="margin-bottom:0.25rem;"><strong>最大爬取深度</strong>：也就是小幫手能「連點幾層連結」。設定 2 或 3
-                    層，可以讓他只檢查比較表層、重要的頁面。</li>
-                </ul>
-              </li>
-              <li style="margin-bottom:0.75rem;">
-                <strong style="color:var(--text-primary)">建立並啟動</strong>：按下「建立任務並開始」，然後你就可以泡杯咖啡，看著進度條慢慢跑囉！
-              </li>
-              <li>
-                <strong style="color:var(--text-primary)">看報表抓蟲</strong>：任務跑完後，系統會給你一份報告，你就可以根據報告去網站後台把那些壞掉的連結通通修好！
-              </li>
-            </ol>
-          </div>
+    <!-- ── Scripts ───────────────────────────────────────────── -->
+    <script type="module" src="/static/js/components/app-topbar.js"></script>
+    <script type="module" src="/static/js/components/app-sidebar.js"></script>
+    <script type="module">
+        import * as api from '/static/js/api.js';
+        import { toast } from '/static/js/components/toast.js';
+        import { getCurrentUser } from '/static/js/auth.js';
 
-          <!-- 參數大解密 -->
-          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
-              ⚙️ 參數設定大解密
-            </h2>
-            <p>建立任務時會看到很多設定欄位，別怕！把它們想像成你給小幫手出任務前下的「特別規定」就好：</p>
-            <ul style="padding-left:1.5rem; margin-top:0.5rem; margin-bottom:0;">
-              <li style="margin-bottom:0.5rem;"><strong>起始 URL</strong>： 小幫手跳傘降落的「第一站」。他會從這個網頁開始，尋找並點擊其他連結。</li>
-              <li style="margin-bottom:0.5rem;"><strong>目標網域</strong>：
-                小幫手的「活動範圍（圍牆）」。只允許他在這幾個網域內四處逛，超過這個範圍就只會在門口看一眼，不會走進去。</li>
-              <li style="margin-bottom:0.5rem;"><strong>信任網域</strong>： 「自己人免檢名單」。如果連到的網站是自己信任的其他網站，就直接放行，不用當作「外部連結」來列管。
-              </li>
-              <li style="margin-bottom:0.5rem;"><strong>忽略的路徑規則 (Regex)</strong>：
-                這是給高手的過濾器。你可以寫一段特殊的語法，讓小幫手只要看到符合規則的網址，就直接假裝沒看到跳過去。</li>
-              <li style="margin-bottom:0.5rem;"><strong>忽略的副檔名</strong>： 告訴小幫手：「如果你看到是 <code>.pdf</code> 或是
-                <code>.zip</code> 結尾的檔案，就不要理它！」（系統其實已經幫你預設好最常用的副檔名了）
-              </li>
-              <li style="margin-bottom:0.5rem;"><strong>社群與反爬蟲網域</strong>： 告訴小幫手：「這幾個網站（像是
-                Facebook）脾氣很差，防備心很重。如果遇到他們，記得放慢腳步、輕輕敲門。」這能大幅減少被對方當作惡意攻擊而擋在門外的機率。</li>
-              <li style="margin-bottom:0.5rem;"><strong>自簽憑證豁免網域</strong>：
-                網站的安全憑證就像是「身分證」。有些公司內部測試用的網站，只有自己發的臨時身分證。把網址填在這，就是跟小幫手說：「雖然他沒有正式身分證，但他是我們自己人，直接放行，不要報錯！」</li>
-              <li style="margin-bottom:0.5rem;"><strong>特定網域延遲 (秒)</strong>： 專門為某些「特別脆弱」的網站設計的專屬煞車。例如，你可以規定：「平常點其他網站只要休息
-                2 秒，但如果點到
-                <code>old.example.com</code> 這個老主機時，必須強制休息 10 秒」，以免把它操壞。
-              </li>
-              <li style="margin-bottom:0.5rem;"><strong>最大爬取深度</strong>： 規定小幫手「最多只能連點幾層連結」。像是一層層打開的門，設定 2
-                的話，他往內走兩層之後就不會再往下挖了。這能避免他迷失在無底洞裡。</li>
-              <li style="margin-bottom:0.5rem;"><strong>最大抓取頁數</strong>： 給小幫手一個「業績上限」。例如設定 500，他看完 500
-                頁就會直接打卡下班。這是保護你的網站伺服器不要過勞死的最強煞車！</li>
-              <li style="margin-bottom:0.5rem;"><strong>請求延遲</strong>：
-                規定小幫手每點擊下一個網頁前，必須「發呆喘口氣」幾秒鐘。這樣你的網站才不會因為被點太快而大塞車當機。</li>
-              <li style="margin-bottom:0.5rem;"><strong>失敗重試次數</strong>： 給別人一次機會！如果第一次連線失敗，小幫手會再多試幾次，如果真的都不行才宣告放棄。</li>
-              <li style="margin-bottom:0.5rem;"><strong>總連線逾時</strong>：
-                小幫手看「一整個網頁」的總耐心上限。這包含了他下載圖片、讀取整個網頁內容的時間。如果等太久還沒跑完，他就會直接放棄。</li>
-              <li style="margin-bottom:0.5rem;"><strong>TCP 連線逾時</strong>：
-                小幫手「按門鈴等對方開門」的耐心上限。按了門鈴後，如果對方連第一聲「歡迎光臨」都遲遲不說，小幫手就會認定這間店沒開。</li>
-              <li><strong>外連探測逾時</strong>：
-                這是專門用來檢查「連到外面的網站」有沒有壞掉的耐心時間。因為他只是在門口確認這家店還在不在，不用走進去逛，所以這個時間通常可以設定短一點，讓他動作快一點。
-              </li>
-            </ul>
-          </div>
+        async function initUser() {
+            const user = await getCurrentUser();
+            if (!user) { window.location.replace('/'); return; }
 
-          <!-- 效能與優化 -->
-          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
-              💡 進階小知識（讓你變得更厲害）
-            </h2>
-            <p>當你開始熟悉系統後，你一定會遇到以下這些狀況：</p>
-            <ul style="padding-left:1.5rem; margin-top:0.5rem; margin-bottom:0;">
-              <li style="margin-bottom:0.5rem;"><strong>為什麼臉書 (Facebook)
-                  等社群連結總是顯示壞掉或錯誤？</strong><br>因為這些大型社群網站有很強的防護機制，他們看到小幫手這種「機器人」來敲門，就會直接把他擋在門外（顯示 403
-                錯誤或是遭到阻擋）。這<strong>不代表</strong>那個連結壞了，只是對方不歡迎機器人而已。</li>
-              <li style="margin-bottom:0.5rem;">
-                <strong>覺得某個網址的錯誤很煩，不想再看到了？</strong><br>你可以在結果列表使用「<strong>排除指定網域</strong>」的功能，把不想看的網域（例如上述的
-                Facebook）隱藏起來，眼不見為淨！
-              </li>
-              <li style="margin-bottom:0.5rem;">
-                <strong>為什麼掃描速度有點慢？</strong><br>在進階設定裡有一個叫「<strong>請求延遲</strong>」的數值。為了不讓小幫手點太快、把你的網站伺服器搞到當機，系統規定他每看一頁就要「喘口氣（延遲幾秒）」。這是為了保護你的網站，所以稍微等一下是值得的喔！
-              </li>
-              <li><strong>可以不要檢查圖片或 PDF
-                  檔嗎？</strong><br>可以！在進階設定裡找到「<strong>忽略的副檔名</strong>」，系統預設已經幫你跳過很多不必要的檔案了，你也可以自己再把不需要檢查的檔案類型加上去。</li>
-            </ul>
-          </div>
+            if (user.role === 'admin') {
+                const appSidebar = document.querySelector('app-sidebar');
+                if (appSidebar) {
+                    appSidebar.setAttribute('is-admin', 'true');
+                }
+            }
+        }
 
-          <!-- GitHub 連結 -->
-          <div class="card" style="line-height:1.6; color:var(--text-secondary); text-align:center;">
-            <h2 style="color:var(--text-primary); margin-top:0; margin-bottom:0.5rem; font-size:1.125rem;">
-              ⭐ 專案開源與支援
-            </h2>
-            <p style="margin-bottom:1rem;">喜歡這個專案嗎？有任何問題或建議，歡迎到 GitHub 上看看！</p>
-            <a href="https://github.com/mfhsieh/link-checker" target="_blank" rel="noopener noreferrer"
-              class="btn btn-primary"
-              style="display:inline-flex; align-items:center; gap:0.5rem; text-decoration:none;">
-              <svg viewBox="0 0 24 24" fill="currentColor" style="width:20px; height:20px;">
-                <path
-                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z">
-                </path>
-              </svg>
-              前往 GitHub
-            </a>
-          </div>
-
-        </div>
-      </div>
-
-
-    </main>
-  </div>
-
-
-
-  <script type="module" src="/static/js/components/app-topbar.js"></script>
-  <script type="module">
-    import * as api from '/static/js/api.js';
-    import { toast } from '/static/js/components/toast.js';
-    import { getCurrentUser } from '/static/js/auth.js';
-
-    async function initUser() {
-      const user = await getCurrentUser();
-      if (!user) { window.location.replace('/'); return; }
-
-      const adminSection = document.getElementById('admin-nav-section');
-
-      if (adminSection && user.role === 'admin') {
-        adminSection.style.display = '';
-      }
-    }
-
-
-
-
-
-    initUser();
-  </script>
+        initUser();
+    </script>
 
 </body>
 

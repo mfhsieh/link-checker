@@ -1,373 +1,291 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>常見問答 — 網站連結檢查系統</title>
-  <meta name="description" content="管理外部連結掃描任務，查閱進度與結果。" />
-  <link rel="stylesheet" href="/static/css/base.css" />
-  <link rel="stylesheet" href="/static/css/components.css" />
-  <link rel="stylesheet" href="/static/css/layout.css" />
-  <link rel="icon" type="image/svg+xml" href="/static/image/logo.svg" />
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>常見問答 — 網站連結檢查系統</title>
+    <meta content="管理外部連結掃描任務，查閱進度與結果。" name="description" />
+    <link href="/static/css/base.css" rel="stylesheet" />
+    <link href="/static/css/components.css" rel="stylesheet" />
+    <link href="/static/css/layout.css" rel="stylesheet" />
+    <link href="/static/image/logo.svg" rel="icon" type="image/svg+xml" />
+    <link href="/static/css/help.css" rel="stylesheet" />
 </head>
 
 <body>
+    <div class="app-shell" id="app-shell">
 
-  <div class="app-shell" id="app-shell">
+        <!-- ── Top Bar ──────────────────────────────────────────── -->
+        <app-topbar></app-topbar>
 
-    <!-- ── Top Bar ──────────────────────────────────────────── -->
-    <app-topbar></app-topbar>
+        <!-- ── Side Bar ──────────────────────────────────────────── -->
+        <app-sidebar active-id="nav-faq" mode="app"></app-sidebar>
 
-    <!-- ── Sidebar ────────────────────────────────────────── -->
-    <nav class="sidebar" aria-label="主導覽">
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">任務管理</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" id="nav-jobs" href="/app.html#/jobs" data-view="jobs">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-              </svg>
-              我的任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-duplicate" href="/app.html#/duplicate" data-view="duplicate">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-              </svg>
-              複製任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-compare" href="/app.html#/compare" data-view="compare">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
-              </svg>
-              比對任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-transfer" href="/app.html#/transfer" data-view="transfer">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-              </svg>
-              移交任務
-            </a>
-          </li>
-          <li>
-            <a class="sidebar-item" id="nav-new-job" href="/app.html#/new" data-view="new">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              新增任務
-            </a>
-          </li>
-        </ul>
-      </div>
+        <!-- ── Main Content ────────────────────────────────────── -->
+        <main class="main-content" id="main-content">
 
-      <div class="sidebar-divider"></div>
-
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">支援</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" id="nav-help" href="/help.html">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
-              </svg>
-              說明與教學
-            </a>
-          </li>
-
-          <li>
-            <a class="sidebar-item active" id="nav-faq" href="#">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-              </svg>
-              常見問答
-            </a>
-          </li>
-
-        </ul>
-      </div>
-
-      <div class="sidebar-divider"></div>
-
-      <!-- 後台管理（僅 admin 可見）-->
-      <div class="sidebar-section" id="admin-nav-section" style="display:none">
-        <div class="sidebar-section-title">後台管理</div>
-        <ul class="sidebar-nav">
-          <li>
-            <a class="sidebar-item" href="/admin.html">
-              <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              進入後台
-            </a>
-          </li>
-        </ul>
-      </div>
-    </nav>
-
-    <!-- ── Main Content ────────────────────────────────────── -->
-    <main class="main-content" id="main-content">
-      <!-- ── 說明與教學視圖 ────────────────────────────────────── -->
-      <div id="view-help" style="display:block; max-width: 800px; margin: 0 auto;">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">常見問答 (FAQ)</h1>
-            <p class="page-subtitle">關於系統運作、任務設定與其它問題的解答</p>
-          </div>
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:1.5rem;">
-
-          <!-- 常見問題 -->
-          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <div
-              style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                style="width: 24px; height: 24px; margin-right: 0.75rem; color: var(--text-primary); flex-shrink: 0;">
-                <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round"></path>
-                <line x1="12" y1="17" x2="12.01" y2="17" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round"></line>
-              </svg>
-              <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">常見問題</h2>
-            </div>
-
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務詳情「外部連結診斷」下的各個方塊代表什麼意思？
-            </h4>
-            <ul style="margin-top:0; margin-bottom:1.25rem; padding-left:1.5rem; line-height:1.6">
-              <li style="margin-bottom:0.5rem;"><strong>診斷總數</strong>：這次爬蟲一共檢查了幾個連到別人家網站的網址。</li>
-              <li style="margin-bottom:0.5rem;"><strong>正常連結</strong>：沒問題！點擊後可以順利打開對方網站。</li>
-              <li style="margin-bottom:0.5rem;"><strong>DNS
-                  錯誤</strong>：就像店面倒閉了，根本找不到這個網址的伺服器。這<strong>非常危險</strong>，因為壞人有可能會把這個網址用來放假網站或病毒，建議趕快把這個連結修好或刪掉。</li>
-              <li style="margin-bottom:0.5rem;"><strong>資源遺失</strong>：對方的網站還活著，但你要找的那一頁已經被刪除或不見了
-                (例如 404 找不到網頁)。建議您把這條連結修好或刪掉。</li>
-              <li style="margin-bottom:0.5rem;"><strong>伺服器異常</strong>：對方網站的主機現在當機了 (例如 500
-                錯誤)，可以過幾天再來看它修好了沒。但也有可能對方只是不喜歡爬蟲，故意對爬蟲說不歡迎進門。</li>
-              <li style="margin-bottom:0.5rem;">
-                <strong>底層異常</strong>：連線失敗，通常是因為對方的安全設定有問題（例如：憑證過期、憑證串鍊不正確），或是對方直接拒絕您連線。
-              </li>
-              <li style="margin-bottom:0.5rem;"><strong>其他異常</strong>：不屬於上述原因的連線錯誤。例如：系統根本看不懂這個連線是要幹嘛的 (例如 400 錯誤)。</li>
-              <li style="margin-bottom:0.5rem;"><strong>遭到阻擋</strong>：對方網站的防護機制把我們的爬蟲擋在門外了（例如
-                403 錯誤）。這不代表連結壞掉，您可以自己點開確認看看。</li>
-              <li><strong>非 HTTPS</strong>：這個連結還在使用沒有加密的 <code>http://</code>。建議改成加密的
-                <code>https://</code>，保護讀者的連線隱私。
-              </li>
-            </ul>
-
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務詳情「內部連結診斷」下的各個方塊代表什麼意思？
-            </h4>
-            <ul style="margin-top:0; margin-bottom:1.25rem; padding-left:1.5rem; line-height:1.6">
-              <li style="margin-bottom:0.5rem;"><strong>診斷總數</strong>：爬蟲逛您自己網站時，總共遇到幾次失敗或壞掉的狀況。</li>
-              <li style="margin-bottom:0.5rem;"><strong>伺服器異常</strong>：您的網站當機了 (例如 500
-                錯誤)。這很嚴重，如果不是您故意擋爬蟲的話，代表讀者可能也會看到當機畫面，請趕快找工程師修理！
-              </li>
-              <li style="margin-bottom:0.5rem;"><strong>底層異常</strong>：網路連線有問題，可能是您的防火牆設定錯了，或是您網站的憑證壞了。</li>
-              <li style="margin-bottom:0.5rem;"><strong>連線逾時</strong>：您的網站回應太慢了，爬蟲等太久只好放棄。可能是現在網站大塞車，或是主機跑不動了。</li>
-              <li style="margin-bottom:0.5rem;"><strong>資源遺失</strong>：您自己的網站裡有「死連結」(例如 404
-                錯誤)，也就是您貼出的網址或圖片不見了，請進系統後台把它補上或改掉。</li>
-              <li style="margin-bottom:0.5rem;"><strong>其他異常</strong>：少見的未知錯誤。例如：系統根本看不懂這個連線是要幹嘛的 (例如
-                400 錯誤)。</li>
-              <li style="margin-bottom:0.5rem;"><strong>網頁截斷</strong>：你的網頁太大了，爬蟲啃不動，讀到一半就放棄了。說不定網頁後半還有重要的連結，您自己去看一看。
-              </li>
-              <li style="margin-bottom:0.5rem;"><strong>權限阻擋</strong>：網站的防護機制把我們的爬蟲擋在門外了（例如
-                403 錯誤）。這不代表連結壞掉，您可以自己點開確認看看。</li>
-              <li><strong>非 HTTPS</strong>：這個連結還在使用沒有加密的 <code>http://</code>。建議改成加密的 <code>https://</code>，保護讀者的連線隱私。
-              </li>
-            </ul>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 為什麼任務執行了很久都沒結束？</h4>
-            <p style="margin-top:0; margin-bottom:1.25rem;">
-              為了不讓爬蟲把您的網站伺服器塞爆，系統預設在每次點擊之間都會有「請求延遲」（例如 3 秒）。如果您的網站有幾千頁，加總起來就會需要幾個小時才能掃描完。建議可以利用「最大抓取頁數」來限制掃描規模。
-            </p>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 為什麼有些正常的外部連結（例如
-              Facebook）會顯示為 HTTP 錯誤？</h4>
-            <p style="margin-top:0; margin-bottom:1.25rem;">
-              許多大型網站（如 Facebook 等社群平台）設有嚴格的防爬蟲機制。當系統自動檢查這些連結時，可能會被對方阻擋並回傳 HTTP 錯誤（例如 403
-              禁止存取）。雖然系統會嘗試繞過防護，但仍可能會出現大量的錯誤回報，這屬於正常現象。
-            </p>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 為什麼我用瀏覽器點開沒問題，但爬蟲卻顯示失敗或超時？
-            </h4>
-            <p style="margin-top:0; margin-bottom:0.5rem;">
-              因為「自動化爬蟲程式」與「真實人類使用瀏覽器」在底層行為有極大的差異，導致某些連結爬蟲無法順利取得：
-            </p>
-            <ul style="margin-top:0; margin-bottom:1.25rem; padding-left:1.5rem; line-height:1.6">
-              <li style="margin-bottom:0.25rem;"><strong>IP 被封鎖</strong>：爬蟲通常運行在雲端主機上，部分網站的防火牆會直接封鎖來自雲端資料中心的連線。</li>
-              <li style="margin-bottom:0.25rem;"><strong>防護機制 (WAF) 阻擋</strong>：爬蟲的行為特徵容易觸發對方的網站防禦系統，導致被「直接拒絕
-                (403)」或是「刻意掛起不回應 (Timeout)」。</li>
-              <li style="margin-bottom:0.25rem;"><strong>無法執行 JavaScript</strong>：現代的資安防護（如 Cloudflare 真人驗證）會要求執行一段 JS
-                程式碼來證明是人類，這是一般爬蟲做不到的。</li>
-              <li style="margin-bottom:0.25rem;"><strong>嚴格的安全驗證</strong>：若對方網站的 SSL
-                憑證安裝不完整（缺少中繼憑證），現代瀏覽器會自動上網下載補齊，但爬蟲基於嚴格的安全規範會直接報錯中斷。</li>
-            </ul>
-            <div
-              style="background:var(--bg-secondary); padding:1rem; border-radius:0.5rem; border-left:4px solid var(--color-warning-400); margin-bottom:1.25rem;">
-              <strong>💡 重要建議：</strong>
-              系統的報錯是作為「初步異常警報」。當遇到這類狀況時，<strong>強烈建議您務必「親自點擊連結」進行確認！</strong><br>
-              如果您發現瀏覽器可以順利打開，您後續可以安心地將該網域加入任務的「自簽憑證豁免網域」或「社群與反爬蟲網域」清單中，以減少未來的誤報。
-            </div>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 報表裡出現「探測失敗: (60) SSL
-              certificate problem」錯誤是什麼意思？</h4>
-            <p style="margin-top:0; margin-bottom:1.25rem;">
-              這代表小幫手在連線該網站時，發現對方的「安全憑證 (SSL)」有問題，因此基於安全考量主動中斷了連線。最常見的原因是該網站發生了「憑證斷鍊 (Certificate Chain
-              Incomplete)」，也就是網站工程師在設定憑證時少裝了中繼憑證。<br>
-              遇到這種狀況時，您可以將該網址貼到 <a href="https://www.sslshopper.com/ssl-checker.html" target="_blank"
-                rel="noopener noreferrer" class="btn btn-secondary btn-sm"
-                style="text-decoration:none; display:inline-flex; vertical-align:middle; margin:0 0.25rem;">SSL Checker
-                <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg></a> 進行檢查。如果檢查結果出現紅色的斷鍊警告，那就代表是對方網站沒設定好，跟您無關！
-            </p>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務卡在「執行中」或是發生未知的錯誤怎麼辦？</h4>
-            <p style="margin-top:0; margin-bottom:1.25rem;">
-              您可以點擊任務詳情中的「暫停」按鈕，並在暫停後點擊「重置」來重新開始。如果任務徹底卡死，請聯絡系統管理員從後台進行「強制接管」。
-            </p>
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">Q: 任務失敗或修復連結後，該如何重新測試？</h4>
-            <p style="margin-top:0; margin-bottom:0.5rem;">
-              系統提供兩種層級的重新測試方式，您可以根據需求選擇：
-            </p>
-            <p style="margin-top:0; margin-bottom:0.5rem;"><strong>1. 任務層級（針對整個掃描任務）</strong></p>
-            <ul style="margin-top:0; margin-bottom:0.5rem; padding-left:1.5rem; line-height:1.6">
-              <li style="margin-bottom:0.5rem;"><strong>重置 (Reset)</strong>：刪除該任務所有的掃描紀錄，從頭開始重新爬取整個網站。</li>
-              <li style="margin-bottom:0.5rem;"><strong>重試
-                  (Retry)</strong>：保留已成功的掃描紀錄，並針對先前<strong>「內部連結失敗的目標頁面」</strong>以及<strong>「外部連結失敗的來源頁面」</strong>重新爬取。
-              </li>
-            </ul>
-            <p style="margin-top:0; margin-bottom:0.5rem;"><strong>2. URL 層級 (針對局部重新探測)</strong></p>
-            <p style="margin-top:0; margin-bottom:0.5rem;">
-              當您修復了幾個損壞的網頁或連結時，無須重新掃描整個網站。只要任務不在執行中，即可針對特定項目進行「局部重新探測」。探測行為會依據連結類型與檢視模式而有所不同：
-            </p>
-            <ul style="margin-top:0; margin-bottom:0; padding-left:1.5rem; line-height:1.6">
-              <li style="margin-bottom:0.5rem;">
-                <strong>內部連結</strong>：在<strong>「平舖列表」</strong>檢視時，是對<strong>「目標頁面」</strong>的重新爬取，系統會重新解析「目標頁面」及其底下的內部連結與外部連結。
-              </li>
-              <li style="margin-bottom:0.5rem;">
-                <strong>外部連結</strong>：在依<strong>「外連目標」</strong>聚合時，是對外連目標的<strong>「目標頁面」</strong>重新爬取。系統會再次發出 HTTP
-                請求確認對方網站是否恢復正常。</li>
-              <li>
-                <strong>外部連結</strong>：在依<strong>「自家網頁」</strong>聚合時，是對自家網頁的<strong>「來源頁面」</strong>重新爬取，系統會重新解析「來源頁面」及其底下的內部連結與外部連結。
-              </li>
-            </ul>
-          </div>
-
-          <!-- ── 進階設定與規則 ────────────────────────────────────── -->
-          <div class="card" style="line-height:1.6; color:var(--text-secondary)">
-            <div
-              style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                style="width: 24px; height: 24px; margin-right: 0.75rem; color: var(--text-primary); flex-shrink: 0;">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                </path>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
-                </path>
-              </svg>
-              <h2 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">進階設定與規則</h2>
-            </div>
-
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">
-              Q: 當目標是特定子目錄 (例如 <code>https://example.com/path/</code>) 時，如何設定讓爬蟲只抓取該目錄下的網址？
-            </h4>
-            <p style="margin-top:0; margin-bottom:0.5rem;">
-              如果您只想讓爬蟲專注在特定的子目錄底下，不希望它連到網站的其他地方（如首頁或其他目錄），您可以利用「進階過濾與網路」中的 <strong>忽略的路徑規則 (Regex)</strong> 功能來達成。
-            </p>
-            <p style="margin-top:0; margin-bottom:0.5rem;">請在建立任務時這樣設定：</p>
-            <ol style="margin-top: 0.5rem; margin-bottom: 1.25rem; padding-left: 1.5rem; line-height:1.6;">
-              <li style="margin-bottom:0.5rem;"><strong>起始網址</strong>：填寫您的目標目錄，例如 <code>https://example.com/path/</code>
-              </li>
-              <li style="margin-bottom:0.5rem;"><strong>目標網域</strong>：填寫您的網域，例如 <code>example.com</code></li>
-              <li><strong>忽略的路徑規則 (Regex)</strong>：利用「負向先行斷言 (?!)」的精準寫法，把同網域下<strong>不屬於</strong>該目錄的網址都忽略掉。寫法如下：
-                <div
-                  style="background: var(--surface-base); padding: 0.75rem; border-radius: var(--radius-md); font-family: monospace; margin-top: 0.5rem; margin-bottom: 0.5rem; border: 1px solid var(--border-color);">
-                  ^https://example\.com/(?!path(?:/|$))
+            <!-- ── 常見問答視圖 ──────────────────────────────────────── -->
+            <div class="doc-view" id="view-faq">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">常見問答 (FAQ)</h1>
+                        <p class="page-subtitle">關於系統運作、任務設定與其它問題的解答</p>
+                    </div>
                 </div>
-              </li>
-            </ol>
-            <p style="margin-top:0; margin-bottom:0.5rem;"><strong>💡 原理說明</strong>：這段語法的意思是「只要是
-              <code>https://example.com/</code> 底下的網址，如果接下來的路徑<strong>不是</strong> <code>path/</code> 或剛好在
-              <code>path</code> 結束，就將它視為忽略名單」。這種寫法能精準保留目標目錄，且能避免不小心放行名稱相似的目錄（例如 <code>pathway</code>）。
-            </p>
-            <p style="margin-top:0; margin-bottom:0.5rem;">
-              💡 接近最後的 <code>?:</code> 則代表「非捕獲群組」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
-            </p>
-            <p style="margin-top:0; margin-bottom:0;">
-              💡 此外，如果遇到的是<strong>子網域</strong>（例如 <code>https://cgi.example.com/</code>），因為開頭不符合
-              <code>https://example.com/</code>，所以這條規則不會將它忽略，而是交由系統的其他規則來判定是否抓取。
-            </p>
 
-            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;" />
+                <div class="doc-content">
 
-            <h4 style="color:var(--text-primary); margin-bottom:0.25rem; font-size:1rem;">
-              Q: 網站裡有一大堆下載附件的連結，可以不要爬它們來節省時間嗎？
-            </h4>
-            <p style="margin-top:0; margin-bottom:0.5rem;">
-              可以的！除了系統內建的「忽略的副檔名」功能外，有時候網站的下載連結是放在特定的路徑下（例如 <code>/downloads/</code> 或 <code>/files/</code>
-              目錄）。為了大幅加快整個爬取的時間，您可以利用 <strong>忽略的路徑規則 (Regex)</strong> 把這些連結通通排除。
-            </p>
-            <p style="margin-top:0; margin-bottom:0.5rem;">例如，如果您想在 <code>example.com</code> 網站中，忽略所有
-              <code>downloads</code>、<code>files</code> 或 <code>assets</code> 目錄下的網址，只需在欄位中填入：
-            </p>
-            <div
-              style="background: var(--surface-base); padding: 0.75rem; border-radius: var(--radius-md); font-family: monospace; margin-top: 0.5rem; margin-bottom: 0.5rem; border: 1px solid var(--border-color);">
-              ^https://example\.com/(?:downloads|files|assets)/
+                    <!-- ── 常見問題 ──────────────────────────────────────────── -->
+                    <div class="card doc-card">
+                        <div class="doc-card-header">
+                            <span aria-label="Help Icon" class="icon-help"></span>
+                            <h2 class="doc-card-title">常見問題</h2>
+                        </div>
+                        <h4 class="doc-q-title">Q:
+                            任務詳情「外部連結診斷」下的各個方塊代表什麼意思？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <ul class="doc-ul-lg">
+                                <li class="doc-li-mb-md"><strong>診斷總數</strong>：這次爬蟲一共檢查了幾個連到別人家網站的網址。</li>
+                                <li class="doc-li-mb-md"><strong>正常連結</strong>：沒問題！點擊後可以順利打開對方網站。</li>
+                                <li class="doc-li-mb-md"><strong>DNS
+                                        錯誤</strong>：就像店面倒閉了，根本找不到這個網址的伺服器。這<strong>非常危險</strong>，因為壞人有可能會把這個網址用來放假網站或病毒，建議趕快把這個連結修好或刪掉。
+                                </li>
+                                <li class="doc-li-mb-md"><strong>資源遺失</strong>：對方的網站還活著，但你要找的那一頁已經被刪除或不見了
+                                    (例如 404 找不到網頁)。建議您把這條連結修好或刪掉。</li>
+                                <li class="doc-li-mb-md"><strong>伺服器異常</strong>：對方網站的主機現在當機了 (例如 500
+                                    錯誤)，可以過幾天再來看它修好了沒。但也有可能對方只是不喜歡爬蟲，故意對爬蟲說不歡迎進門。</li>
+                                <li class="doc-li-mb-md">
+                                    <strong>底層異常</strong>：連線失敗，通常是因為對方的安全設定有問題（例如：憑證過期、憑證串鍊不正確），或是對方直接拒絕您連線。
+                                </li>
+                                <li class="doc-li-mb-md"><strong>其他異常</strong>：不屬於上述原因的連線錯誤。例如：系統根本看不懂這個連線是要幹嘛的 (例如
+                                    400 錯誤)。</li>
+                                <li class="doc-li-mb-md"><strong>遭到阻擋</strong>：對方網站的防護機制把我們的爬蟲擋在門外了（例如
+                                    403 錯誤）。這不代表連結壞掉，您可以自己點開確認看看。</li>
+                                <li><strong>非 HTTPS</strong>：這個連結還在使用沒有加密的 <code>http://</code>。建議改成加密的
+                                    <code>https://</code>，保護讀者的連線隱私。
+                                </li>
+                            </ul>
+                        </div>
+                        <h4 class="doc-q-title">Q:
+                            任務詳情「內部連結診斷」下的各個方塊代表什麼意思？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <ul class="doc-ul-lg">
+                                <li class="doc-li-mb-md"><strong>診斷總數</strong>：爬蟲逛您自己網站時，總共遇到幾次失敗或壞掉的狀況。</li>
+                                <li class="doc-li-mb-md"><strong>伺服器異常</strong>：您的網站當機了 (例如 500
+                                    錯誤)。這很嚴重，如果不是您故意擋爬蟲的話，代表讀者可能也會看到當機畫面，請趕快找工程師修理！
+                                </li>
+                                <li class="doc-li-mb-md"><strong>底層異常</strong>：網路連線有問題，可能是您的防火牆設定錯了，或是您網站的憑證壞了。
+                                </li>
+                                <li class="doc-li-mb-md">
+                                    <strong>連線逾時</strong>：您的網站回應太慢了，爬蟲等太久只好放棄。可能是現在網站大塞車，或是主機跑不動了。
+                                </li>
+                                <li class="doc-li-mb-md"><strong>資源遺失</strong>：您自己的網站裡有「死連結」(例如 404
+                                    錯誤)，也就是您貼出的網址或圖片不見了，請進系統後台把它補上或改掉。</li>
+                                <li class="doc-li-mb-md"><strong>其他異常</strong>：少見的未知錯誤。例如：系統根本看不懂這個連線是要幹嘛的 (例如
+                                    400 錯誤)。</li>
+                                <li class="doc-li-mb-md">
+                                    <strong>網頁截斷</strong>：你的網頁太大了，爬蟲啃不動，讀到一半就放棄了。說不定網頁後半還有重要的連結，您自己去看一看。
+                                </li>
+                                <li class="doc-li-mb-md"><strong>權限阻擋</strong>：網站的防護機制把我們的爬蟲擋在門外了（例如
+                                    403 錯誤）。這不代表連結壞掉，您可以自己點開確認看看。</li>
+                                <li><strong>非 HTTPS</strong>：這個連結還在使用沒有加密的 <code>http://</code>。建議改成加密的
+                                    <code>https://</code>，保護讀者的連線隱私。
+                                </li>
+                            </ul>
+                        </div>
+                        <h4 class="doc-q-title">Q: 為什麼任務執行了很久都沒結束？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p-mb-lg">
+                                為了不讓爬蟲把您的網站伺服器塞爆，系統預設在每次點擊之間都會有「請求延遲」（例如 3
+                                秒）。如果您的網站有幾千頁，加總起來就會需要幾個小時才能掃描完。建議可以利用「最大抓取頁數」來限制掃描規模。
+                            </p>
+                        </div>
+                        <h4 class="doc-q-title">Q: 為什麼有些正常的外部連結（例如
+                            Facebook）會顯示為 HTTP 錯誤？</h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p-mb-lg">
+                                許多大型網站（如 Facebook 等社群平台）設有嚴格的防爬蟲機制。當系統自動檢查這些連結時，可能會被對方阻擋並回傳 HTTP 錯誤（例如 403
+                                禁止存取）。雖然系統會嘗試繞過防護，但仍可能會出現大量的錯誤回報，這屬於正常現象。
+                            </p>
+                        </div>
+                        <h4 class="doc-q-title">Q:
+                            為什麼我用瀏覽器點開沒問題，但爬蟲卻顯示失敗或超時？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p-mb-sm">
+                                因為「自動化爬蟲程式」與「真實人類使用瀏覽器」在底層行為有極大的差異，導致某些連結爬蟲無法順利取得：
+                            </p>
+                            <ul class="doc-ul-lg">
+                                <li class="doc-li-mb-sm"><strong>IP
+                                        被封鎖</strong>：爬蟲通常運行在雲端主機上，部分網站的防火牆會直接封鎖來自雲端資料中心的連線。</li>
+                                <li class="doc-li-mb-sm"><strong>防護機制 (WAF)
+                                        阻擋</strong>：爬蟲的行為特徵容易觸發對方的網站防禦系統，導致被「直接拒絕
+                                    (403)」或是「刻意掛起不回應 (Timeout)」。</li>
+                                <li class="doc-li-mb-sm"><strong>無法執行 JavaScript</strong>：現代的資安防護（如 Cloudflare
+                                    真人驗證）會要求執行一段 JS
+                                    程式碼來證明是人類，這是一般爬蟲做不到的。</li>
+                                <li class="doc-li-mb-sm"><strong>嚴格的安全驗證</strong>：若對方網站的 SSL
+                                    憑證安裝不完整（缺少中繼憑證），現代瀏覽器會自動上網下載補齊，但爬蟲基於嚴格的安全規範會直接報錯中斷。</li>
+                            </ul>
+                            <p class="doc-p-mb-sm"><strong>💡 重要建議：</strong>
+                                系統的報錯是作為「初步異常警報」。當遇到這類狀況時，<strong>強烈建議您務必「親自點擊連結」進行確認！</strong><br /></p>
+                            <p class="doc-p-mb-0">💡 如果您發現瀏覽器可以順利打開，您後續可以安心地將該網域加入任務的「自簽憑證豁免網域」或「社群與反爬蟲網域」清單中，以減少未來的誤報。
+                            </p>
+                        </div>
+                        <h4 class="doc-q-title">Q: 報表裡出現「探測失敗:
+                            (60) SSL
+                            certificate problem」錯誤是什麼意思？</h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p-mb-lg">
+                                這代表小幫手在連線該網站時，發現對方的「安全憑證 (SSL)」有問題，因此基於安全考量主動中斷了連線。最常見的原因是該網站發生了「憑證斷鍊 (Certificate Chain
+                                Incomplete)」，也就是網站工程師在設定憑證時少裝了中繼憑證。<br />
+                                遇到這種狀況時，您可以將該網址貼到 <a class="btn btn-secondary btn-sm doc-btn-icon"
+                                    href="https://www.sslshopper.com/ssl-checker.html" rel="noopener noreferrer"
+                                    target="_blank">SSL
+                                    Checker
+                                    <span aria-label="External Link" class="icon-external"></span></a>
+                                進行檢查。如果檢查結果出現紅色的斷鍊警告，那就代表是對方網站沒設定好，跟您無關！
+                            </p>
+                        </div>
+                        <h4 class="doc-q-title">Q:
+                            任務卡在「執行中」或是發生未知的錯誤怎麼辦？</h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p-mb-lg">
+                                您可以點擊任務詳情中的「暫停」按鈕，並在暫停後點擊「重置」來重新開始。如果任務徹底卡死，請聯絡系統管理員從後台進行「強制接管」。
+                            </p>
+                        </div>
+                        <h4 class="doc-q-title">Q:
+                            任務失敗或修復連結後，該如何重新測試？</h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p-mb-sm">
+                                系統提供兩種層級的重新測試方式，您可以根據需求選擇：
+                            </p>
+                            <p class="doc-p-mb-sm"><strong>1. 任務層級（針對整個掃描任務）</strong></p>
+                            <ul class="doc-li-mb-md">
+                                <li class="doc-li-mb-md"><strong>重置 (Reset)</strong>：刪除該任務所有的掃描紀錄，從頭開始重新爬取整個網站。
+                                </li>
+                                <li class="doc-li-mb-md"><strong>重試
+                                        (Retry)</strong>：保留已成功的掃描紀錄，並針對先前<strong>「內部連結失敗的目標頁面」</strong>以及<strong>「外部連結失敗的來源頁面」</strong>重新爬取。
+                                </li>
+                            </ul>
+                            <p class="doc-p-mb-sm"><strong>2. URL 層級 (針對局部重新探測)</strong></p>
+                            <p class="doc-p-mb-sm">
+                                當您修復了幾個損壞的網頁或連結時，無須重新掃描整個網站。只要任務不在執行中，即可針對特定項目進行「局部重新探測」。探測行為會依據連結類型與檢視模式而有所不同：
+                            </p>
+                            <ul class="doc-ul-lg" style="margin-bottom:0;">
+                                <li class="doc-li-mb-md">
+                                    <strong>內部連結</strong>：在<strong>「平舖列表」</strong>檢視時，是對<strong>「目標頁面」</strong>的重新爬取，系統會重新解析「目標頁面」及其底下的內部連結與外部連結。
+                                </li>
+                                <li class="doc-li-mb-md">
+                                    <strong>外部連結</strong>：在依<strong>「外連目標」</strong>聚合時，是對外連目標的<strong>「目標頁面」</strong>重新爬取。系統會再次發出
+                                    HTTP
+                                    請求確認對方網站是否恢復正常。
+                                </li>
+                                <li>
+                                    <strong>外部連結</strong>：在依<strong>「自家網頁」</strong>聚合時，是對自家網頁的<strong>「來源頁面」</strong>重新爬取，系統會重新解析「來源頁面」及其底下的內部連結與外部連結。
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- ── 進階設定與規則 ────────────────────────────────────── -->
+                    <div class="card doc-card">
+                        <div class="doc-card-header">
+                            <span aria-label="Config Icon" class="icon-config"></span>
+                            <h2 class="doc-card-title">進階設定與規則</h2>
+                        </div>
+                        <h4 class="doc-q-title">
+                            Q: 當目標是特定子目錄 (例如 <code>https://example.com/path/</code>) 時，如何設定讓爬蟲只抓取該目錄下的網址？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p-mb-sm">
+                                如果您只想讓爬蟲專注在特定的子目錄底下，不希望它連到網站的其他地方（如首頁或其他目錄），您可以利用「進階過濾與網路」中的 <strong>忽略的路徑規則
+                                    (Regex)</strong> 功能來達成。
+                            </p>
+                            <p class="doc-p-mb-sm">請在建立任務時這樣設定：</p>
+                            <ol class="doc-ol-lg">
+                                <li class="doc-li-mb-md"><strong>起始網址</strong>：填寫您的目標目錄，例如
+                                    <code>https://example.com/path/</code>
+                                </li>
+                                <li class="doc-li-mb-md"><strong>目標網域</strong>：填寫您的網域，例如 <code>example.com</code>
+                                </li>
+                                <li><strong>忽略的路徑規則 (Regex)</strong>：利用「負向先行斷言
+                                    (?!)」的精準寫法，把同網域下<strong>不屬於</strong>該目錄的網址都忽略掉。寫法如下：
+                                    <div class="doc-code-block">
+                                        ^https://example\.com/(?!path(?:/|$))
+                                    </div>
+                                </li>
+                            </ol>
+                            <p class="doc-p-mb-sm"><strong>💡 原理說明</strong>：這段語法的意思是「只要是
+                                <code>https://example.com/</code> 底下的網址，如果接下來的路徑<strong>不是</strong> <code>path/</code>
+                                或剛好在
+                                <code>path</code> 結束，就將它視為忽略名單」。這種寫法能精準保留目標目錄，且能避免不小心放行名稱相似的目錄（例如 <code>pathway</code>）。
+                            </p>
+                            <p class="doc-p-mb-sm">
+                                💡 接近最後的 <code>?:</code> 則代表「非捕獲群組」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
+                            </p>
+                            <p class="doc-p-mb-0">
+                                💡 此外，如果遇到的是<strong>子網域</strong>（例如 <code>https://cgi.example.com/</code>），因為開頭不符合
+                                <code>https://example.com/</code>，所以這條規則不會將它忽略，而是交由系統的其他規則來判定是否抓取。
+                            </p>
+                        </div>
+                        <h4 class="doc-q-title">
+                            Q: 網站裡有一大堆下載附件的連結，可以不要爬它們來節省時間嗎？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p-mb-sm">
+                                可以的！除了系統內建的「忽略的副檔名」功能外，有時候網站的下載連結是放在特定的路徑下（例如 <code>/downloads/</code> 或
+                                <code>/files/</code>
+                                目錄）。為了大幅加快整個爬取的時間，您可以利用 <strong>忽略的路徑規則 (Regex)</strong> 把這些連結通通排除。
+                            </p>
+                            <p class="doc-p-mb-sm">例如，如果您想在 <code>example.com</code> 網站中，忽略所有
+                                <code>downloads</code>、<code>files</code> 或 <code>assets</code> 目錄下的網址，只需在欄位中填入：
+                            </p>
+                            <div class="doc-code-block">
+                                ^https://example\.com/(?:downloads|files|assets)/
+                            </div>
+                            <p class="doc-p-mb-sm"><strong>💡 原理說明</strong>：這段語法會精準比對開頭為
+                                <code>https://example.com/</code> 且緊接著是這三個目錄其中之一的網址，然後把它跳過。
+                            </p>
+                            <p class="doc-p-mb-0">
+                                💡 加上 <code>?:</code> 則代表「非捕獲群組 (Non-capturing
+                                group)」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
-            <p style="margin-top:0; margin-bottom:0.5rem;"><strong>💡 原理說明</strong>：這段語法會精準比對開頭為
-              <code>https://example.com/</code> 且緊接著是這三個目錄其中之一的網址，然後把它跳過。
-            </p>
-            <p style="margin-top:0; margin-bottom:0;">
-              💡 加上 <code>?:</code> 則代表「非捕獲群組 (Non-capturing group)」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
-            </p>
-          </div>
+        </main>
+    </div>
 
-        </div>
-      </div>
+    <!-- ── Scripts ───────────────────────────────────────────── -->
+    <script src="/static/js/components/app-topbar.js" type="module"></script>
+    <script src="/static/js/components/app-sidebar.js" type="module"></script>
+    <script type="module">
+        import * as api from '/static/js/api.js';
+        import { toast } from '/static/js/components/toast.js';
+        import { getCurrentUser } from '/static/js/auth.js';
 
-    </main>
-  </div>
+        async function initUser() {
+            const user = await getCurrentUser();
+            if (!user) { window.location.replace('/'); return; }
 
+            if (user.role === 'admin') {
+                const appSidebar = document.querySelector('app-sidebar');
+                if (appSidebar) {
+                    appSidebar.setAttribute('is-admin', 'true');
+                }
+            }
+        }
 
-
-  <script type="module" src="/static/js/components/app-topbar.js"></script>
-  <script type="module">
-    import * as api from '/static/js/api.js';
-    import { toast } from '/static/js/components/toast.js';
-    import { getCurrentUser } from '/static/js/auth.js';
-
-    async function initUser() {
-      const user = await getCurrentUser();
-      if (!user) { window.location.replace('/'); return; }
-
-      const adminSection = document.getElementById('admin-nav-section');
-
-      if (adminSection && user.role === 'admin') {
-        adminSection.style.display = '';
-      }
-    }
-
-
-
-
-
-    initUser();
-  </script>
-
+        initUser();
+    </script>
 </body>
 
 </html>

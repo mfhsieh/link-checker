@@ -1,0 +1,152 @@
+.doc-view {
+    display: block;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.doc-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.doc-card {
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.doc-card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.doc-card h2.doc-card-title {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.doc-grid {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.doc-grid-item {
+    background: var(--surface-raised);
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+.doc-grid-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.doc-q-title {
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    font-size: 1.125rem;
+    margin-top: 1.5rem;
+}
+
+.doc-p-mb-lg {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+}
+
+.doc-p-mb-sm {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.doc-p-mb-0 {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.doc-ul-lg {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    padding-left: 1.5rem;
+    line-height: 1.6;
+}
+
+.doc-ol-lg {
+    margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
+    padding-left: 1.5rem;
+    line-height: 1.6;
+}
+
+.doc-li-mb-md {
+    margin-bottom: 0.5rem;
+}
+
+.doc-li-mb-sm {
+    margin-bottom: 0.25rem;
+}
+
+.doc-btn-icon {
+    text-decoration: none;
+    display: inline-flex;
+    vertical-align: middle;
+    margin: 0 0.25rem;
+}
+
+.doc-code-block {
+    background: var(--surface-base);
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    font-family: monospace;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.icon-config {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+    -webkit-mask: url(/static/image/icon-config.svg) no-repeat center / contain;
+    mask: url(/static/image/icon-config.svg) no-repeat center / contain;
+    background-color: var(--text-primary);
+}
+
+.icon-help {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+    -webkit-mask: url(/static/image/icon-help.svg) no-repeat center / contain;
+    mask: url(/static/image/icon-help.svg) no-repeat center / contain;
+    background-color: var(--text-primary);
+}
+
+.icon-external {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    -webkit-mask: url(/static/image/icon-external.svg) no-repeat center / contain;
+    mask: url(/static/image/icon-external.svg) no-repeat center / contain;
+    background-color: currentColor;
+    vertical-align: middle;
+}
+
+.icon-github {
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    -webkit-mask: url(/static/image/github.svg) no-repeat center / contain;
+    mask: url(/static/image/github.svg) no-repeat center / contain;
+    background-color: currentColor;
+    vertical-align: middle;
+}
