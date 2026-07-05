@@ -132,8 +132,14 @@ function clearJobDetailUI() {
     if (jobControls) jobControls.job = null;
     
     // 清空統計卡片與報表，防止殘留上一個任務的舊資料
-    if (jobExtStats) jobExtStats.stats = null;
-    if (jobIntStats) jobIntStats.stats = null;
+    if (jobExtStats) {
+        jobExtStats.stats = null;
+        jobExtStats.activeFilter = 'all';
+    }
+    if (jobIntStats) {
+        jobIntStats.stats = null;
+        jobIntStats.activeFilter = 'all';
+    }
     if (extDataTable) extDataTable.config = { data: [], loading: true };
     if (intDataTable) intDataTable.config = { data: [], loading: true };
 }
