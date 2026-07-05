@@ -277,7 +277,7 @@ async function loadExternalSummary(jobId) {
     }
     try {
         const params = {};
-        if (_currentExcludeEnabled && _currentExclude) params.exclude_domains = _currentExclude;
+        if (_currentExcludeEnabled && _currentExclude) params.exclude = _currentExclude;
         if (_currentGroupBy !== 'none') params.group_by = _currentGroupBy;
 
         const res = await api.get(`/api/jobs/${jobId}/results/summary`, params);
@@ -301,7 +301,7 @@ async function loadExternalResultsPage(jobId) {
     try {
         const params = { group_by: _currentGroupBy, page: _currentPage, page_size: 50, sort_by: _detailSort.key || undefined, sort_asc: _detailSort.asc };
         if (_currentFilter && _currentFilter !== 'all') params.filter = _currentFilter;
-        if (_currentExcludeEnabled && _currentExclude) params.exclude_domains = _currentExclude;
+        if (_currentExcludeEnabled && _currentExclude) params.exclude = _currentExclude;
 
         const activeFilters = Object.fromEntries(Object.entries(_detailColFilters).filter(([_, v]) => v.trim() !== ''));
         if (Object.keys(activeFilters).length > 0) {
@@ -846,6 +846,7 @@ function bindWebComponentEvents() {
         const params = new URLSearchParams({ fmt });
         if (filter && filter !== 'all') params.append('filter', filter);
         if (groupBy && groupBy !== 'none') params.append('group_by', groupBy);
+        if (_currentExcludeEnabled && _currentExclude) params.append('exclude', _currentExclude);
         return `${basePath}?${params.toString()}`;
     };
 
