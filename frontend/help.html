@@ -12,16 +12,8 @@
     <link rel="stylesheet" href="/static/css/layout.css" />
     <link href="/static/css/help.css" rel="stylesheet" />
     <style>
-        p {
-            padding-bottom: 1rem;
-        }
-
         strong {
             color: var(--text-primary);
-        }
-
-        .doc-text-center {
-            text-align: center;
         }
     </style>
 </head>
@@ -55,14 +47,14 @@
                         <div class="doc-card-header">
                             <h2 class="doc-card-title">🤖 這個工具到底在幹嘛？</h2>
                         </div>
-                        <p>想像系統是一個「<strong>虛擬小幫手（爬蟲）</strong>」。你給他一個網址，他就會點進去，順著網頁上的超連結，一頁一頁地逛遍你的整個網站。</p>
-                        <p>小幫手最重要的任務是：<strong>幫你找出網站裡所有的連結（包含連到別人的、以及連到自己站內的），並檢查它們有沒有壞掉！</strong></p>
-                        <ul class="doc-ul-lg">
-                            <li class="doc-li-mb-md"><strong>抓出死結（內部與外部）</strong>： 幫你找出網頁上那些連不到東西、點了會出現「404
+                        <p class="doc-p">想像系統是一個「<strong>虛擬小幫手（爬蟲）</strong>」。你給他一個網址，他就會點進去，順著網頁上的超連結，一頁一頁地逛遍你的整個網站。</p>
+                        <p class="doc-p">小幫手最重要的任務是：<strong>幫你找出網站裡所有的連結（包含連到別人的、以及連到自己站內的），並檢查它們有沒有壞掉！</strong></p>
+                        <ul class="doc-ul">
+                            <li class="doc-li"><strong>抓出死結（內部與外部）</strong>： 幫你找出網頁上那些連不到東西、點了會出現「404
                                 找不到網頁」的失效連結，避免讀者點到錯誤畫面。</li>
-                            <li class="doc-li-mb-md"><strong>保護讀者安全（外部）</strong>：
+                            <li class="doc-li"><strong>保護讀者安全（外部）</strong>：
                                 有些外部網站可能已經倒閉、網域過期了。如果被壞人偷偷買下那個網址放病毒，你的讀者點過去就會受害！小幫手會提早揪出這些過期的連結讓你刪掉。</li>
-                            <li class="doc-li-mb-md"><strong>揪出沒加密的連結（外部）</strong>： 告訴你哪些連到外面的連結還在用不安全的
+                            <li class="doc-li"><strong>揪出沒加密的連結（外部）</strong>： 告訴你哪些連到外面的連結還在用不安全的
                                 <code>http://</code>，提醒你改成有加密保護的 <code>https://</code>。
                             </li>
                             <li><strong>整理出一目了然的清單</strong>： 最後會給你兩張大報表，分別列出「內部連結」和「外部連結」的健康狀況。</li>
@@ -74,7 +66,7 @@
                         <div class="doc-card-header">
                             <h2 class="doc-card-title">📖 三個一定要懂的重要名詞</h2>
                         </div>
-                        <p>在開始叫小幫手工作前，你必須先認識這三個詞：</p>
+                        <p class="doc-p">在開始叫小幫手工作前，你必須先認識這三個詞：</p>
                         <div class="doc-grid">
                             <div class="doc-grid-item">
                                 <div class="doc-grid-title">📍 出發點
@@ -102,26 +94,26 @@
                         <div class="doc-card-header">
                             <h2 class="doc-card-title">🚀 開始你的第一次掃描任務！</h2>
                         </div>
-                        <ol class="doc-ul-lg">
-                            <li class="doc-li-mb-md">
+                        <ol class="doc-ul">
+                            <li class="doc-li">
                                 <strong>新增任務</strong>：點擊左側導覽列的「新增任務」。
                             </li>
-                            <li class="doc-li-mb-md">
+                            <li class="doc-li">
                                 <strong>設定出發點與圍牆</strong>：貼上你要檢查的「起始
                                 URL」。系統通常很聰明，會自動幫你把「目標網域」填好。
                             </li>
-                            <li class="doc-li-mb-md">
+                            <li class="doc-li">
                                 <strong>設定煞車機制（很重要！必看！）</strong>：為了不讓小幫手跑到天荒地老，建議您要設定以下限制：
-                                <ul class="doc-ul-lg">
-                                    <li class="doc-li-mb-md">
+                                <ul class="doc-ul">
+                                    <li class="doc-li">
                                         <strong>最大抓取頁數</strong>：如果你的網站超大（有幾萬頁），請一定要設定一個上限（例如 500
                                         頁），不然掃描會花上好幾天。
                                     </li>
-                                    <li class="doc-li-mb-md"><strong>最大爬取深度</strong>：也就是小幫手能「連點幾層連結」。設定 2 或 3
+                                    <li class="doc-li"><strong>最大爬取深度</strong>：也就是小幫手能「連點幾層連結」。設定 2 或 3
                                         層，可以讓他只檢查比較表層、重要的頁面。</li>
                                 </ul>
                             </li>
-                            <li class="doc-li-mb-md">
+                            <li class="doc-li">
                                 <strong>建立並啟動</strong>：按下「建立任務並開始」，然後你就可以泡杯咖啡，看著進度條慢慢跑囉！
                             </li>
                             <li>
@@ -135,42 +127,42 @@
                         <div class="doc-card-header">
                             <h2 class="doc-card-title">⚙️ 參數設定大解密</h2>
                         </div>
-                        <p>建立任務時會看到很多設定欄位，別怕！把它們想像成你給小幫手出任務前下的「特別規定」就好：</p>
-                        <ul class="doc-ul-lg">
-                            <li class="doc-li-mb-md"><strong>起始 URL</strong>：
+                        <p class="doc-p">建立任務時會看到很多設定欄位，別怕！把它們想像成你給小幫手出任務前下的「特別規定」就好：</p>
+                        <ul class="doc-ul">
+                            <li class="doc-li"><strong>起始 URL</strong>：
                                 小幫手跳傘降落的「第一站」。他會從這個網頁開始，尋找並點擊其他連結。</li>
-                            <li class="doc-li-mb-md"><strong>目標網域</strong>：
+                            <li class="doc-li"><strong>目標網域</strong>：
                                 小幫手的「活動範圍（圍牆）」。只允許他在這幾個網域內四處逛，超過這個範圍就只會在門口看一眼，不會走進去。</li>
-                            <li class="doc-li-mb-md"><strong>信任網域</strong>：
+                            <li class="doc-li"><strong>信任網域</strong>：
                                 「自己人免檢名單」。如果連到的網站是自己信任的其他網站，就直接放行，不用當作「外部連結」來列管。
                             </li>
-                            <li class="doc-li-mb-md"><strong>忽略的路徑規則 (Regex)</strong>：
+                            <li class="doc-li"><strong>忽略的路徑規則 (Regex)</strong>：
                                 這是給高手的過濾器。你可以寫一段特殊的語法，讓小幫手只要看到符合規則的網址，就直接假裝沒看到跳過去。</li>
-                            <li class="doc-li-mb-md"><strong>忽略的副檔名</strong>： 告訴小幫手：「如果你看到是 <code>.pdf</code>
+                            <li class="doc-li"><strong>忽略的副檔名</strong>： 告訴小幫手：「如果你看到是 <code>.pdf</code>
                                 或是
                                 <code>.zip</code> 結尾的檔案，就不要理它！」（系統其實已經幫你預設好最常用的副檔名了）
                             </li>
-                            <li class="doc-li-mb-md"><strong>社群與反爬蟲網域</strong>： 告訴小幫手：「這幾個網站（像是
+                            <li class="doc-li"><strong>社群與反爬蟲網域</strong>： 告訴小幫手：「這幾個網站（像是
                                 Facebook）脾氣很差，防備心很重。如果遇到他們，記得放慢腳步、輕輕敲門。」這能大幅減少被對方當作惡意攻擊而擋在門外的機率。</li>
-                            <li class="doc-li-mb-md"><strong>自簽憑證豁免網域</strong>：
+                            <li class="doc-li"><strong>自簽憑證豁免網域</strong>：
                                 網站的安全憑證就像是「身分證」。有些公司內部測試用的網站，只有自己發的臨時身分證。把網址填在這，就是跟小幫手說：「雖然他沒有正式身分證，但他是我們自己人，直接放行，不要報錯！」
                             </li>
-                            <li class="doc-li-mb-md"><strong>特定網域延遲 (秒)</strong>：
+                            <li class="doc-li"><strong>特定網域延遲 (秒)</strong>：
                                 專門為某些「特別脆弱」的網站設計的專屬煞車。例如，你可以規定：「平常點其他網站只要休息
                                 2 秒，但如果點到
                                 <code>old.example.com</code> 這個老主機時，必須強制休息 10 秒」，以免把它操壞。
                             </li>
-                            <li class="doc-li-mb-md"><strong>最大爬取深度</strong>： 規定小幫手「最多只能連點幾層連結」。像是一層層打開的門，設定 2
+                            <li class="doc-li"><strong>最大爬取深度</strong>： 規定小幫手「最多只能連點幾層連結」。像是一層層打開的門，設定 2
                                 的話，他往內走兩層之後就不會再往下挖了。這能避免他迷失在無底洞裡。</li>
-                            <li class="doc-li-mb-md"><strong>最大抓取頁數</strong>： 給小幫手一個「業績上限」。例如設定 500，他看完 500
+                            <li class="doc-li"><strong>最大抓取頁數</strong>： 給小幫手一個「業績上限」。例如設定 500，他看完 500
                                 頁就會直接打卡下班。這是保護你的網站伺服器不要過勞死的最強煞車！</li>
-                            <li class="doc-li-mb-md"><strong>請求延遲</strong>：
+                            <li class="doc-li"><strong>請求延遲</strong>：
                                 規定小幫手每點擊下一個網頁前，必須「發呆喘口氣」幾秒鐘。這樣你的網站才不會因為被點太快而大塞車當機。</li>
-                            <li class="doc-li-mb-md"><strong>失敗重試次數</strong>：
+                            <li class="doc-li"><strong>失敗重試次數</strong>：
                                 給別人一次機會！如果第一次連線失敗，小幫手會再多試幾次，如果真的都不行才宣告放棄。</li>
-                            <li class="doc-li-mb-md"><strong>總連線逾時</strong>：
+                            <li class="doc-li"><strong>總連線逾時</strong>：
                                 小幫手看「一整個網頁」的總耐心上限。這包含了他下載圖片、讀取整個網頁內容的時間。如果等太久還沒跑完，他就會直接放棄。</li>
-                            <li class="doc-li-mb-md"><strong>TCP 連線逾時</strong>：
+                            <li class="doc-li"><strong>TCP 連線逾時</strong>：
                                 小幫手「按門鈴等對方開門」的耐心上限。按了門鈴後，如果對方連第一聲「歡迎光臨」都遲遲不說，小幫手就會認定這間店沒開。</li>
                             <li><strong>外連探測逾時</strong>：
                                 這是專門用來檢查「連到外面的網站」有沒有壞掉的耐心時間。因為他只是在門口確認這家店還在不在，不用走進去逛，所以這個時間通常可以設定短一點，讓他動作快一點。
@@ -183,16 +175,16 @@
                         <div class="doc-card-header">
                             <h2 class="doc-card-title">💡 進階小知識（讓你變得更厲害）</h2>
                         </div>
-                        <p>當你開始熟悉系統後，你一定會遇到以下這些狀況：</p>
-                        <ul class="doc-ul-lg">
-                            <li class="doc-li-mb-md"><strong>為什麼臉書 (Facebook)
+                        <p class="doc-p">當你開始熟悉系統後，你一定會遇到以下這些狀況：</p>
+                        <ul class="doc-ul">
+                            <li class="doc-li"><strong>為什麼臉書 (Facebook)
                                     等社群連結總是顯示壞掉或錯誤？</strong><br>因為這些大型社群網站有很強的防護機制，他們看到小幫手這種「機器人」來敲門，就會直接把他擋在門外（顯示 403
                                 錯誤或是遭到阻擋）。這<strong>不代表</strong>那個連結壞了，只是對方不歡迎機器人而已。</li>
-                            <li class="doc-li-mb-md">
+                            <li class="doc-li">
                                 <strong>覺得某個網址的錯誤很煩，不想再看到了？</strong><br>你可以在結果列表使用「<strong>排除指定網域</strong>」的功能，把不想看的網域（例如上述的
                                 Facebook）隱藏起來，眼不見為淨！
                             </li>
-                            <li class="doc-li-mb-md">
+                            <li class="doc-li">
                                 <strong>為什麼掃描速度有點慢？</strong><br>在進階設定裡有一個叫「<strong>請求延遲</strong>」的數值。為了不讓小幫手點太快、把你的網站伺服器搞到當機，系統規定他每看一頁就要「喘口氣（延遲幾秒）」。這是為了保護你的網站，所以稍微等一下是值得的喔！
                             </li>
                             <li><strong>可以不要檢查圖片或 PDF
@@ -202,11 +194,11 @@
                     </div>
 
                     <!-- ── GitHub 連結 ───────────────────────────────────────── -->
-                    <div class="card doc-card doc-text-center">
+                    <div class="card doc-card doc-center">
                         <div class="doc-card-header">
                             <h2 class="doc-card-title">⭐ 專案開源與支援</h2>
                         </div>
-                        <p>喜歡這個專案嗎？有任何問題或建議，歡迎到 GitHub 上看看！</p>
+                        <p class="doc-p">喜歡這個專案嗎？有任何問題或建議，歡迎到 GitHub 上看看！</p>
                         <a href="https://github.com/mfhsieh/link-checker" target="_blank" rel="noopener noreferrer"
                             class="btn btn-primary">
                             <span class="icon-github"></span> 前往 GitHub
@@ -221,6 +213,7 @@
     <!-- ── Scripts ───────────────────────────────────────────── -->
     <script type="module" src="/static/js/components/app-topbar.js"></script>
     <script type="module" src="/static/js/components/app-sidebar.js"></script>
+    <script type="module" src="/static/js/components/confirm-modal.js"></script>
     <script type="module">
         import * as api from '/static/js/api.js';
         import { toast } from '/static/js/components/toast.js';

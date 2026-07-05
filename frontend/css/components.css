@@ -5,12 +5,6 @@
 
 
 /* ── Tables ───────────────────────────────────────────────── */
-.table-wrapper {
-  overflow-x: auto;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--surface-border-subtle);
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -53,9 +47,6 @@
   color: var(--text-primary);
 }
 
-
-
-
 /* ── Empty State ──────────────────────────────────────────── */
 .empty-state {
   display: flex;
@@ -96,42 +87,6 @@
       var(--color-neutral-750) 50%,
       var(--surface-overlay) 75%);
   background-size: 200% 100%;
-}
-
-/* ── Divider ──────────────────────────────────────────────── */
-.divider {
-  height: 1px;
-  background: var(--surface-border-subtle);
-  margin: var(--space-6) 0;
-}
-
-.divider-text {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-
-.divider-text::before,
-.divider-text::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--surface-border-subtle);
-}
-
-/* ── Code Block ───────────────────────────────────────────── */
-.code-block {
-  background: var(--surface-bg);
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius);
-  padding: var(--space-3) var(--space-4);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-brand-200);
-  overflow-x: auto;
-  white-space: nowrap;
 }
 
 /* ── Tabs ─────────────────────────────────────────────────── */

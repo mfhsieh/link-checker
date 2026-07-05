@@ -123,13 +123,15 @@ class AppSidebar extends HTMLElement {
                     opacity: 0;
                     transition: opacity 0.3s;
                     pointer-events: none;
+                    background: color-mix(in srgb, var(--color-neutral-950) 80%, transparent);
+                    backdrop-filter: blur(4px);
                 }
                 .sidebar {
                     position: fixed;
                     top: 61px;
                     left: 0;
                     bottom: 0;
-                    width: 150px;
+                    width: 175px;
                     background: var(--surface-base);
                     z-index: 1001;
                     transform: translateX(-100%);

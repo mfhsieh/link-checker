@@ -1,20 +1,32 @@
+/* ==========================================================================
+   說明與教學 / 常見問答 專用樣式 (help.css)
+   
+   此樣式表專門用於前端說明頁面，包含：
+   - frontend/help.html (說明與教學)
+   - frontend/faq.html (常見問答)   
+   ========================================================================== */
+
+/* 文件主要容器：限制最大寬度並置中 */
 .doc-view {
     display: block;
     max-width: 800px;
     margin: 0 auto;
 }
 
+/* 內容區塊容器：設定各卡片/區塊間的垂直間距 */
 .doc-content {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
 }
 
+/* 文件卡片：設定行高與次要文字顏色 */
 .doc-card {
     line-height: 1.6;
     color: var(--text-secondary);
 }
 
+/* 卡片標題區：包含底部邊框與適當間距，用來區隔標題與內容 */
 .doc-card-header {
     display: flex;
     align-items: center;
@@ -23,6 +35,7 @@
     border-bottom: 1px solid var(--border-color);
 }
 
+/* 卡片主標題 (H2) */
 .doc-card h2.doc-card-title {
     margin: 0;
     font-size: 1.25rem;
@@ -30,24 +43,28 @@
     line-height: 1;
 }
 
+/* 說明網格容器：用於並排顯示多個名詞解釋或特點 */
 .doc-grid {
     display: grid;
     gap: 1rem;
     margin-top: 1rem;
 }
 
+/* 網格項目：帶有底色與圓角的小卡片 */
 .doc-grid-item {
     background: var(--surface-raised);
     padding: 1rem;
     border-radius: 0.5rem;
 }
 
+/* 網格項目標題 */
 .doc-grid-title {
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
 
+/* 問題標題 (Q:) */
 .doc-q-title {
     color: var(--text-primary);
     margin-bottom: 0.75rem;
@@ -55,51 +72,28 @@
     margin-top: 1.5rem;
 }
 
-.doc-p-mb-lg {
+/* ── 段落與列表間距工具 ──────────────────────────────────── */
+.doc-p {
     margin-top: 0;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
 }
 
-.doc-p-mb-sm {
-    margin-top: 0;
-    margin-bottom: 0.5rem;
+.doc-center {
+    text-align: center;
 }
 
-.doc-p-mb-0 {
+.doc-ul {
     margin-top: 0;
-    margin-bottom: 0;
-}
-
-.doc-ul-lg {
-    margin-top: 0;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
     padding-left: 1.5rem;
-    line-height: 1.6;
 }
 
-.doc-ol-lg {
-    margin-top: 0.5rem;
-    margin-bottom: 1.25rem;
-    padding-left: 1.5rem;
-    line-height: 1.6;
+.doc-li {
+    margin-top: 0;
+    margin-bottom: 1rem;
 }
 
-.doc-li-mb-md {
-    margin-bottom: 0.5rem;
-}
-
-.doc-li-mb-sm {
-    margin-bottom: 0.25rem;
-}
-
-.doc-btn-icon {
-    text-decoration: none;
-    display: inline-flex;
-    vertical-align: middle;
-    margin: 0 0.25rem;
-}
-
-.doc-code-block {
+.doc-code {
     background: var(--surface-base);
     padding: 0.75rem;
     border-radius: var(--radius-md);
@@ -109,6 +103,15 @@
     border: 1px solid var(--border-color);
 }
 
+/* 文件內的帶圖示按鈕 */
+.doc-btn {
+    text-decoration: none;
+    display: inline-flex;
+    vertical-align: middle;
+    margin: 0 0.25rem;
+}
+
+/* 設定圖示：用於「進階設定與規則」標題旁 */
 .icon-config {
     display: inline-block;
     width: 1.5rem;
@@ -120,6 +123,7 @@
     background-color: var(--text-primary);
 }
 
+/* 幫助圖示：用於「常見問題」標題旁 */
 .icon-help {
     display: inline-block;
     width: 1.5rem;
@@ -131,6 +135,7 @@
     background-color: var(--text-primary);
 }
 
+/* 外部連結圖示：用於按鈕或文字旁標示外連 */
 .icon-external {
     display: inline-block;
     width: 14px;
@@ -141,6 +146,7 @@
     vertical-align: middle;
 }
 
+/* GitHub 圖示：用於開源專案連結 */
 .icon-github {
     display: inline-block;
     width: 1.25rem;
