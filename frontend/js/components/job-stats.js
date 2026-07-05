@@ -92,8 +92,7 @@ export class JobStats extends HTMLElement {
      * @param {Object} stats - 從 API 取得的摘要統計資料物件
      */
     set stats(stats) {
-        if (!stats) return;
-        this.updateView(stats);
+        this.updateView(stats || null);
     }
 
     /**
@@ -261,17 +260,18 @@ export class JobStats extends HTMLElement {
      * @param {number} [stats.warning]                - 網頁截斷數（內部模式專用）
      */
     updateView(stats) {
-        if (this._statValues['all']) this._statValues['all'].textContent = stats.total_external_links ?? stats.total ?? 0;
-        if (!this._isInternal && this._statValues['healthy']) this._statValues['healthy'].textContent = stats.healthy_count ?? stats.healthy ?? 0;
-        if (this._statValues['dead']) this._statValues['dead'].textContent = stats.dns_failed_count ?? stats.dns_failed ?? 0;
-        if (this._statValues['not_found']) this._statValues['not_found'].textContent = stats.not_found_count ?? stats.not_found ?? 0;
-        if (this._statValues['server_error']) this._statValues['server_error'].textContent = stats.server_error_count ?? stats.server_error ?? 0;
-        if (this._statValues['connection_error']) this._statValues['connection_error'].textContent = stats.connection_error_count ?? stats.connection_error ?? 0;
-        if (this._statValues['other_error']) this._statValues['other_error'].textContent = stats.other_error_count ?? stats.other_error ?? 0;
-        if (this._statValues['blocked']) this._statValues['blocked'].textContent = stats.blocked_count ?? stats.blocked ?? 0;
-        if (this._statValues['timeout']) this._statValues['timeout'].textContent = stats.timeout ?? 0;
-        if (this._statValues['warning']) this._statValues['warning'].textContent = stats.warning ?? 0;
-        if (this._statValues['insecure']) this._statValues['insecure'].textContent = stats.insecure_count ?? stats.insecure ?? 0;
+        const s = stats || {};
+        if (this._statValues['all']) this._statValues['all'].textContent = s.total_external_links ?? s.total ?? 0;
+        if (!this._isInternal && this._statValues['healthy']) this._statValues['healthy'].textContent = s.healthy_count ?? s.healthy ?? 0;
+        if (this._statValues['dead']) this._statValues['dead'].textContent = s.dns_failed_count ?? s.dns_failed ?? 0;
+        if (this._statValues['not_found']) this._statValues['not_found'].textContent = s.not_found_count ?? s.not_found ?? 0;
+        if (this._statValues['server_error']) this._statValues['server_error'].textContent = s.server_error_count ?? s.server_error ?? 0;
+        if (this._statValues['connection_error']) this._statValues['connection_error'].textContent = s.connection_error_count ?? s.connection_error ?? 0;
+        if (this._statValues['other_error']) this._statValues['other_error'].textContent = s.other_error_count ?? s.other_error ?? 0;
+        if (this._statValues['blocked']) this._statValues['blocked'].textContent = s.blocked_count ?? s.blocked ?? 0;
+        if (this._statValues['timeout']) this._statValues['timeout'].textContent = s.timeout ?? 0;
+        if (this._statValues['warning']) this._statValues['warning'].textContent = s.warning ?? 0;
+        if (this._statValues['insecure']) this._statValues['insecure'].textContent = s.insecure_count ?? s.insecure ?? 0;
     }
 
     /**

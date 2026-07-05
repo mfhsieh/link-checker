@@ -78,9 +78,13 @@ export class JobControls extends HTMLElement {
      * @param {boolean}     job.is_running - 任務是否正在執行
      */
     set job(job) {
-        if (!job) return;
-        this._jobStatus = job.status;
-        this._jobIsRunning = job.is_running;
+        if (!job) {
+            this._jobStatus = null;
+            this._jobIsRunning = false;
+        } else {
+            this._jobStatus = job.status;
+            this._jobIsRunning = job.is_running;
+        }
         this.updateView();
     }
 
@@ -158,10 +162,10 @@ export class JobControls extends HTMLElement {
      * 並動態調整「啟動」按鈕的標籤（暫停中 → 顯示「恢復」，其他 → 顯示「啟動」）。
      */
     updateView() {
-        if (!this._jobStatus) return;
-
         // 先全部隱藏
         Object.values(this._buttons).forEach(btn => { btn.style.display = 'none'; });
+
+        if (!this._jobStatus) return;
 
         // 固定顯示：複製、移交、刪除
         this._buttons['btn-duplicate-job'].style.display = 'inline-flex';

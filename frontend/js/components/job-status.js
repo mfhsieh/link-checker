@@ -90,8 +90,7 @@ export class JobStatusCard extends HTMLElement {
      * @param {Object} [data.config]     - 任務完整設定物件（供 view-config 事件使用）
      */
     set job(data) {
-        if (!data) return;
-        this._job = data;
+        this._job = data || null;
         this.updateView();
     }
 
@@ -215,7 +214,15 @@ export class JobStatusCard extends HTMLElement {
      * 若任務資料或 DOM 尚未就緒則直接返回，不做任何操作。
      */
     updateView() {
-        if (!this._job || !this._startUrlEl) return;
+        if (!this._startUrlEl) return;
+
+        if (!this._job) {
+            this._startUrlEl.textContent = '-';
+            this._startUrlEl.removeAttribute('href');
+            this._createdAtEl.textContent = '-';
+            this._updatedAtEl.textContent = '-';
+            return;
+        }
 
         this._startUrlEl.textContent = this._job.start_url || '-';
         if (this._job.start_url) {

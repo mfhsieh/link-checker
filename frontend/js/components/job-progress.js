@@ -91,7 +91,7 @@ export class JobProgressCard extends HTMLElement {
      * @param {number}         [data.progress.pending]   - 等待中頁數
      */
     set job(data) {
-        this._job = data;
+        this._job = data || null;
         this.updateView();
     }
 
@@ -248,7 +248,19 @@ export class JobProgressCard extends HTMLElement {
      * 若任務資料或 DOM 尚未就緒則直接返回，不做任何操作。
      */
     updateView() {
-        if (!this._job || !this._progressFillEl) return;
+        if (!this._progressFillEl) return;
+
+        if (!this._job) {
+            this._progressFillEl.style.width = '0%';
+            this._progressTextEl.textContent = '0%';
+            this._statTotalEl.textContent = '-';
+            this._statCompletedEl.textContent = '-';
+            this._statWarningEl.textContent = '-';
+            this._statSkippedEl.textContent = '-';
+            this._statFailedEl.textContent = '-';
+            this._statPendingEl.textContent = '-';
+            return;
+        }
 
         const progress = this._job.progress || {};
         const total = progress.total || 0;
