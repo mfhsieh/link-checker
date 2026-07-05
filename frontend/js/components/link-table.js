@@ -136,6 +136,10 @@ export class LinkDataTable extends HTMLElement {
         if (config.rowClickable !== undefined) {
             this._rowClickable = config.rowClickable;
         }
+        if (config.disableRowSelection !== undefined) {
+            this._disableRowSelection = config.disableRowSelection;
+        }
+
         // 如果資料更新（例如換頁），我們選擇保留勾選狀態，讓使用者可跨頁勾選
         // 若外部需清空，可傳遞選取的 keys 或由外部重新實例化
 
@@ -345,8 +349,9 @@ export class LinkDataTable extends HTMLElement {
             cbAll.type = "checkbox";
             cbAll.style.cursor = "pointer";
 
-            // 計算目前頁面所有有效的 key
+            // 計算目前頁面所有有效的 key (排除 disabled 的列)
             const pageKeys = this._data
+                .filter((row) => !(this._disableRowSelection && this._disableRowSelection(row)))
                 .map((row) => this._getRowKey(row))
                 .filter((k) => k !== undefined);
 
@@ -355,19 +360,19 @@ export class LinkDataTable extends HTMLElement {
                 const someSelected = pageKeys.some((k) => this._selectedKeys.has(k));
                 cbAll.checked = allSelected;
                 cbAll.indeterminate = someSelected && !allSelected;
-            }
 
-            cbAll.addEventListener("change", (e) => {
-                const isChecked = e.target.checked;
-                pageKeys.forEach((k) => {
-                    if (isChecked) this._selectedKeys.add(k);
-                    else this._selectedKeys.delete(k);
+                cbAll.addEventListener("change", (e) => {
+                    const isChecked = e.target.checked;
+                    pageKeys.forEach((k) => {
+                        if (isChecked) this._selectedKeys.add(k);
+                        else this._selectedKeys.delete(k);
+                    });
+                    this._dispatchSelectionChange();
+                    this.updateView(); // 重新渲染更新勾選狀態
                 });
-                this._dispatchSelectionChange();
-                this.updateView(); // 重新渲染更新勾選狀態
-            });
 
-            thCb.appendChild(cbAll);
+                thCb.appendChild(cbAll);
+            }
             trEl.appendChild(thCb);
         }
 
@@ -494,10 +499,10 @@ export class LinkDataTable extends HTMLElement {
             if (this._selectable) {
                 const tdCb = document.createElement("td");
                 tdCb.style.textAlign = "center";
-                const cb = document.createElement("input");
-                cb.type = "checkbox";
-                cb.style.cursor = "pointer";
-                if (rKey !== undefined) {
+                if (rKey !== undefined && !(this._disableRowSelection && this._disableRowSelection(row))) {
+                    const cb = document.createElement("input");
+                    cb.type = "checkbox";
+                    cb.style.cursor = "pointer";
                     cb.checked = this._selectedKeys.has(rKey);
                     cb.addEventListener("change", (e) => {
                         if (e.target.checked) this._selectedKeys.add(rKey);
@@ -505,10 +510,8 @@ export class LinkDataTable extends HTMLElement {
                         this._dispatchSelectionChange();
                         this._renderHeaders(); // 僅更新表頭的 checkbox 狀態，避免重新渲染整個 body
                     });
-                } else {
-                    cb.disabled = true;
+                    tdCb.appendChild(cb);
                 }
-                tdCb.appendChild(cb);
                 trEl.appendChild(tdCb);
             }
 
@@ -647,6 +650,15 @@ export class LinkDataTable extends HTMLElement {
                 composed: true,
             }),
         );
+    }
+
+    /**
+     * 清空目前的選取狀態
+     */
+    clearSelection() {
+        this._selectedKeys.clear();
+        this._dispatchSelectionChange();
+        this.updateView();
     }
 
     /**

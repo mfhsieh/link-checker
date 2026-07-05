@@ -867,6 +867,7 @@ function renderAllJobsTable(container) {
 
     const statusMap = {
         pending: "等待中",
+        queued: "排隊中",
         starting: "啟動中",
         running: "執行中",
         paused: "已暫停",

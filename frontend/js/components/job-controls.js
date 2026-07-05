@@ -173,8 +173,8 @@ export class JobControls extends HTMLElement {
             this._buttons['btn-goto-compare'].style.display = 'inline-flex';
         }
 
-        if (this._jobIsRunning) {
-            // 執行中：僅顯示暫停
+        if (this._jobIsRunning || ['queued', 'starting'].includes(this._jobStatus)) {
+            // 執行中、排隊中或啟動中：顯示暫停
             this._buttons['btn-pause-job'].style.display = 'inline-flex';
         } else {
             // 非執行中：依狀態決定啟動、重置、重試

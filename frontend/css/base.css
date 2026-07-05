@@ -912,6 +912,13 @@ ol {
   border-color: var(--color-neutral-700);
 }
 
+.badge-queued {
+  color: var(--color-brand-400);
+  background: hsla(221, 83%, 53%, 0.1);
+  border-color: hsla(221, 83%, 53%, 0.3);
+}
+
+
 .badge-starting {
   color: var(--color-brand-400);
   background: hsla(221, 83%, 53%, 0.1);

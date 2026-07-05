@@ -444,7 +444,10 @@ function renderExtResultsTable(res) {
     }
 
     const isJobRunning = ['running', 'starting'].includes(_currentJobStatus);
-    const isExtSelectable = (_currentGroupBy === 'target' || _currentGroupBy === 'source') && !isJobRunning;
+    let isExtSelectable = (_currentGroupBy === 'target' || _currentGroupBy === 'source') && !isJobRunning;
+    if (_currentGroupBy === 'target' && _currentFilter === 'insecure') {
+        isExtSelectable = false;
+    }
 
     if (extDataTable) {
         extDataTable.config = {
@@ -455,7 +458,7 @@ function renderExtResultsTable(res) {
             pagination: { current: res.page, total: res.total_pages },
             loading: false,
             selectable: isExtSelectable,
-            rowKey: _currentGroupBy === 'target' ? 'target_url' : 'source_url'
+            rowKey: _currentGroupBy === 'source' ? 'source_url' : 'target_url'
         };
     }
 }
@@ -537,7 +540,10 @@ function renderInternalResultsTable(res) {
     }
 
     const isJobRunning = ['running', 'starting'].includes(_currentJobStatus);
-    const isIntSelectable = _internalGroupBy === 'none' && !isJobRunning;
+    let isIntSelectable = (_internalGroupBy === 'none' || _internalGroupBy === 'source') && !isJobRunning;
+    if (_internalGroupBy === 'none' && _internalFilter === 'insecure') {
+        isIntSelectable = false;
+    }
 
     if (intDataTable) {
         intDataTable.config = {
@@ -548,7 +554,7 @@ function renderInternalResultsTable(res) {
             pagination: { current: res.page, total: res.total_pages },
             loading: false,
             selectable: isIntSelectable,
-            rowKey: 'target_url'
+            rowKey: _internalGroupBy === 'source' ? 'source_url' : 'target_url'
         };
     }
 }
@@ -670,6 +676,8 @@ function bindWebComponentEvents() {
             _currentPage = 1;
             _detailSort = { key: null, asc: true };
             _detailColFilters = {};
+            _extSelectedUrls.clear();
+            if (extDataTable) extDataTable.clearSelection();
             loadResults(_currentJobId);
         });
     }
@@ -681,6 +689,8 @@ function bindWebComponentEvents() {
             _internalCurrentPage = 1;
             _internalSort = { key: null, asc: true };
             _internalColFilters = {};
+            _intSelectedUrls.clear();
+            if (intDataTable) intDataTable.clearSelection();
             loadResults(_currentJobId);
         });
     }
@@ -1036,6 +1046,8 @@ function bindWebComponentEvents() {
         jobExtStats.addEventListener('filter-change', (e) => {
             _currentFilter = e.detail.filter;
             _currentPage = 1;
+            _extSelectedUrls.clear();
+            if (extDataTable) extDataTable.clearSelection();
             loadExternalResultsPage(_currentJobId);
         });
     }
@@ -1044,6 +1056,8 @@ function bindWebComponentEvents() {
         jobIntStats.addEventListener('filter-change', (e) => {
             _internalFilter = e.detail.filter;
             _internalCurrentPage = 1;
+            _intSelectedUrls.clear();
+            if (intDataTable) intDataTable.clearSelection();
             loadInternalResultsPage(_currentJobId);
         });
     }
