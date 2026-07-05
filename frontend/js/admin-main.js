@@ -144,6 +144,7 @@ function renderUsersTable(container) {
           const btn = document.createElement("button");
           btn.className = `btn btn-sm ${btnClass}`;
           btn.textContent = text;
+          btn.dataset.action = action;
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
             if (action === "promote")

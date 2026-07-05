@@ -202,12 +202,12 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
 
         page.wait_for_selector("#btn-start-job", state="visible")
         page.click("#btn-start-job")
-        page.wait_for_selector("#confirm-modal-submit", state="visible")
+        page.wait_for_selector("#submit-btn", state="visible")
 
         with page.expect_response(f"**/api/jobs/{job_id}/start"):
-            page.click("#confirm-modal-submit")
+            page.click("#submit-btn")
 
-        expect(page.locator(".toast-container").last).to_contain_text(re.compile("啟動|成功"))
+        expect(page.locator(".toast").last).to_contain_text(re.compile("啟動|成功"))
 
         # 4. 測試【暫停任務】UI
         mock_state["status"] = "running"
@@ -218,12 +218,12 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
 
         page.wait_for_selector("#btn-pause-job", state="visible")
         page.click("#btn-pause-job")
-        page.wait_for_selector("#confirm-modal-submit", state="visible")
+        page.wait_for_selector("#submit-btn", state="visible")
 
         with page.expect_response(f"**/api/jobs/{job_id}/pause"):
-            page.click("#confirm-modal-submit")
+            page.click("#submit-btn")
 
-        expect(page.locator(".toast-container").last).to_contain_text(re.compile("暫停|指令"))
+        expect(page.locator(".toast").last).to_contain_text(re.compile("暫停|指令"))
 
         # 5. 測試【重置任務】UI
         mock_state["status"] = "completed"
@@ -234,12 +234,12 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
 
         page.wait_for_selector("#btn-reset-job", state="visible")
         page.click("#btn-reset-job")
-        page.wait_for_selector("#confirm-modal-submit", state="visible")
+        page.wait_for_selector("#submit-btn", state="visible")
 
         with page.expect_response(f"**/api/jobs/{job_id}/reset"):
-            page.click("#confirm-modal-submit")
+            page.click("#submit-btn")
 
-        expect(page.locator(".toast-container").last).to_contain_text(re.compile("重置"))
+        expect(page.locator(".toast").last).to_contain_text(re.compile("重置"))
 
         # 6. 測試【重試失敗項目】UI
         mock_state["status"] = "completed"
@@ -250,23 +250,23 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
 
         page.wait_for_selector("#btn-retry-failed-job", state="visible")
         page.click("#btn-retry-failed-job")
-        page.wait_for_selector("#confirm-modal-submit", state="visible")
+        page.wait_for_selector("#submit-btn", state="visible")
 
         with page.expect_response(f"**/api/jobs/{job_id}/retry-failed"):
-            page.click("#confirm-modal-submit")
+            page.click("#submit-btn")
 
-        expect(page.locator(".toast-container").last).to_contain_text(re.compile("重試|失敗項目"))
+        expect(page.locator(".toast").last).to_contain_text(re.compile("重試|失敗連結|失敗項目"))
 
         # 7. 測試【刪除任務】UI
         page.wait_for_selector("#btn-delete-job", state="visible")
         page.click("#btn-delete-job")
-        page.wait_for_selector("#confirm-modal-submit", state="visible")
+        page.wait_for_selector("#submit-btn", state="visible")
 
         with page.expect_response(lambda r: f"/api/jobs/{job_id}" in r.url and r.request.method == "DELETE"):
-            page.click("#confirm-modal-submit")
+            page.click("#submit-btn")
 
         expect(page).to_have_url(re.compile(r".*/app\.html#/jobs"))
-        expect(page.locator(".toast-container").last).to_contain_text(re.compile("刪除"))
+        expect(page.locator(".toast").last).to_contain_text(re.compile("刪除"))
     except Exception as e:
         raise AssertionError(
             f"Error during lifecycle UI test: {type(e).__name__} - {str(e)}\nConsole logs:\n" + "\n".join(console_msgs)

@@ -182,14 +182,14 @@ def export_internal_job_results(
                 d = format_crawl_queue_item(q)
                 items_list.append(
                     {
-                        "source_url": d["Source URL"],
-                        "url": d["URL"],
+                        "source_url": d["source_url"],
+                        "url": d["target_url"],
                         "status": d["Status"],
                         "status_category": d["Status Category"],
                         "depth": d["Depth"],
                         "retry_count": d["Retry Count"],
-                        "http_status_code": d["HTTP Status Code"],
-                        "error_message": d["Error Message"],
+                        "http_status_code": d["http_status_code"],
+                        "error_message": d["error_message"],
                         "created_at": d["Created At"],
                     }
                 )
@@ -241,14 +241,14 @@ def _export_crawl_records_to_zip(session: Session, job_id: str, zf: zipfile.ZipF
                 cq_writer.writerow(
                     _sanitize_csv_row(
                         [
-                            d["Source URL"],
-                            d["URL"],
+                            d["source_url"],
+                            d["target_url"],
                             d["Status"],
                             d["Status Category"],
                             d["Depth"],
                             d["Retry Count"],
-                            d["HTTP Status Code"],
-                            d["Error Message"],
+                            d["http_status_code"],
+                            d["error_message"],
                             d["Created At"],
                         ]
                     )

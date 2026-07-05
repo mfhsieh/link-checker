@@ -40,11 +40,13 @@ link-checker/
 │   ├── css/            # Vanilla CSS 樣式表
 │   ├── image/          # 靜態圖片與圖示資源
 │   ├── js/             # Vanilla JS (ESM) 邏輯模組
+│   │   ├── components/ # 原生 Web Components 元件庫 (例如 link-table, toast 等)
+│   │   ├── services/   # 前端服務與邏輯抽象層 (例如 API 操作封裝)
 │   │   ├── api.js, auth.js, auth-reset.js # API 與身分驗證
-│   │   ├── jobs.js, job-detail.js         # 任務列表與詳情
+│   │   ├── jobs.js, job-detail.js         # 任務列表與詳情 (組合 Component 並管理狀態)
 │   │   ├── compare.js, duplicate.js       # 任務比對與複製
 │   │   ├── transfer.js                    # 任務移交
-│   │   └── toast.js                       # 全域通知元件 (Toast UI 封裝)
+│   │   └── app-main.js, admin-main.js     # 前端應用主進入點腳本
 │   ├── index.html      # 登入與首頁
 │   ├── app.html        # 爬蟲任務管理主介面
 │   ├── admin.html      # 系統管理員後台介面

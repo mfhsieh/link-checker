@@ -175,6 +175,7 @@ python cli.py --help
 
 ## 版本更新日誌 (Release Notes)
 
+- **v1.9.3 (2026-07-05)**: 前端 (frontend/) 重構，並導入 Web Components 架構。
 - **v1.9.2 (2026-06-27)**: [爬蟲核心](crawler/core.py) 升級，詳 [網站爬蟲核心流程說明](doc/crawler_workflow.md)
 
 ---
