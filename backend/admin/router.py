@@ -791,7 +791,7 @@ class PaginationArgs:  # pylint: disable=too-few-public-methods
 class LogQueryArgs:  # pylint: disable=too-few-public-methods
     """日誌查詢參數封裝。"""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         event_type: str | None = Query(None),
         user_id: str | None = Query(None),

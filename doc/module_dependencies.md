@@ -24,7 +24,7 @@
 
 為落實進程隔離 (Subprocess Bridge)，避免爬蟲運算阻塞 Web 伺服器的非同步事件迴圈，後端以啟動子程序的方式呼叫 CLI 來達成目的。
 
-- **呼叫檔案**: [backend/jobs/services/management.py](../backend/jobs/services/management.py#L90-L99) 中的 `start_job` 函式。
+- **呼叫檔案**: [backend/jobs/services/management.py](../backend/jobs/services/management.py) 中的 `start_job` 函式。
 - **依賴形式**: 使用 Python 的 `subprocess.Popen`。
 - **具體呼叫指令**:
   ```bash
@@ -120,6 +120,7 @@
   - 直接依賴 SQLAlchemy 的 `create_engine` 與 `sessionmaker` 進行跨庫連線。
 - **`manage_job_data.py`** (被 `job_sync.sh` 呼叫):
   - 直接依賴 `crawler.models` 中的 `Job`, `CrawlQueue`, `ExternalLink` 進行資料的 JSONL 序列化與反序列化。
+  - 依賴 `crawler.utils` 中的狀態判斷函式 (`determine_external_link_status_category` 等) 來計算標準化分類。
   - 依賴 `backend.config` 以取得當前啟動環境的資料庫 URL。
 - **`backfill_status_category.py`**:
   - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `CrawlQueue` 並更新 `status_category` 欄位。
