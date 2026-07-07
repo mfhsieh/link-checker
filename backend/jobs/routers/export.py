@@ -356,11 +356,14 @@ def export_partial_results(
         writer = None
 
         if body.link_type == "external":
-            query = (
-                db.query(ExternalLink)
-                .filter(ExternalLink.job_id == job_id, ExternalLink.target_url.in_(body.urls))
-                .order_by(ExternalLink.created_at)
-            )
+            query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
+            if body.group_by == "source":
+                query = query.filter(ExternalLink.source_url.in_(body.urls))
+            elif body.group_by == "domain":
+                query = query.filter(ExternalLink.target_domain.in_(body.urls))
+            else:
+                query = query.filter(ExternalLink.target_url.in_(body.urls))
+            query = query.order_by(ExternalLink.created_at)
 
             for lnk in query.yield_per(2000):
                 row_data = {
@@ -380,11 +383,12 @@ def export_partial_results(
                 output.seek(0)
                 output.truncate(0)
         else:
-            query = (
-                db.query(CrawlQueue)
-                .filter(CrawlQueue.job_id == job_id, CrawlQueue.url.in_(body.urls))
-                .order_by(CrawlQueue.created_at)
-            )
+            query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id)
+            if body.group_by == "source":
+                query = query.filter(CrawlQueue.source_url.in_(body.urls))
+            else:
+                query = query.filter(CrawlQueue.url.in_(body.urls))
+            query = query.order_by(CrawlQueue.created_at)
 
             for lnk in query.yield_per(2000):
                 row_data = format_crawl_queue_item(lnk)

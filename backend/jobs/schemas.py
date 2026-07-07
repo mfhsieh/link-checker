@@ -466,11 +466,13 @@ class ReprobeRequest(BaseModel):
 
     Attributes:
         link_type (Literal["internal", "external"]): 欲探測的連結類型。
+        group_by (str): 分組模式。
         urls (list[str]): 欲重新探測的網址清單。
     """
 
     model_config = {"extra": "forbid"}
     link_type: Literal["internal", "external"]
+    group_by: str = "none"
     urls: list[str]
 
 
@@ -479,9 +481,11 @@ class PartialExportRequest(BaseModel):
 
     Attributes:
         link_type (Literal["internal", "external"]): 欲匯出的連結類型。
+        group_by (str): 分組模式。
         urls (list[str]): 欲匯出的網址清單。
     """
 
     model_config = {"extra": "forbid"}
     link_type: Literal["internal", "external"]
+    group_by: str = "none"
     urls: list[str]

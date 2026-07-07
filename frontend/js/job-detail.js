@@ -72,13 +72,16 @@ function startSseStream(jobId) {
     if (_eventSource) _eventSource.close();
     _eventSource = new EventSource(`/api/jobs/${jobId}/stream`);
     
-    // 每 30 秒定期拉取一次統計卡片與報表（如果還在跑的話）
+    // 每 30 秒定期拉取一次當前分頁的統計卡片與報表（如果還在跑的話）
     if (!_pollingInterval) {
         _pollingInterval = setInterval(() => {
-            _extSummaryCache.key = null; // 強制失效快取以獲取最新統計
-            _intSummaryCache.key = null;
-            loadExternalSummary(jobId);
-            loadInternalSummary(jobId);
+            if (_currentTab === 'external') {
+                _extSummaryCache.key = null; // 強制失效快取以獲取最新統計
+                loadExternalSummary(jobId);
+            } else if (_currentTab === 'internal') {
+                _intSummaryCache.key = null;
+                loadInternalSummary(jobId);
+            }
         }, 30000);
     }
 
@@ -754,8 +757,9 @@ function bindWebComponentEvents() {
             const ok = await showConfirm('重新探測', `確定要重新探測選取的 ${_extSelectedUrls.size} 個${typeLabel}嗎？`);
             if (!ok) return;
             try {
+                btnExtReprobe.classList.add('loading');
                 const linkType = isSourceGroup ? 'internal' : 'external';
-                await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: linkType, urls: Array.from(_extSelectedUrls) });
+                await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: linkType, urls: Array.from(_extSelectedUrls), group_by: _currentGroupBy });
                 if (isSourceGroup) {
                     toast.success('已將關聯的自家網頁加入重新探測佇列');
                     _intSummaryCache = { key: null, data: null };
@@ -764,12 +768,15 @@ function bindWebComponentEvents() {
                     toast.success('已將選取的外部連結設為待探測');
                 }
                 _extSelectedUrls.clear();
+                if (extDataTable) extDataTable.clearSelection();
                 updateExtToolbarButtons();
                 _extSummaryCache = { key: null, data: null };
                 loadExternalResultsPage(_currentJobId);
                 refreshJobDetail(_currentJobId);
             } catch (err) {
                 toast.error(err.message || '探測失敗');
+            } finally {
+                btnExtReprobe.classList.remove('loading');
             }
         });
     }
@@ -782,7 +789,7 @@ function bindWebComponentEvents() {
                 await api.download(`/api/jobs/${_currentJobId}/export/partial`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ link_type: 'external', urls: Array.from(_extSelectedUrls) })
+                    body: JSON.stringify({ link_type: 'external', urls: Array.from(_extSelectedUrls), group_by: _currentGroupBy })
                 });
                 toast.success('匯出成功');
             } catch (err) {
@@ -798,15 +805,19 @@ function bindWebComponentEvents() {
             const ok = await showConfirm('重新探測', `確定要將選取的 ${_intSelectedUrls.size} 個內部連結重新探測嗎？`);
             if (!ok) return;
             try {
-                const res = await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: 'internal', urls: Array.from(_intSelectedUrls) });
+                btnIntReprobe.classList.add('loading');
+                const res = await api.post(`/api/jobs/${_currentJobId}/reprobe`, { link_type: 'internal', urls: Array.from(_intSelectedUrls), group_by: _internalGroupBy });
                 toast.success(res.message || '重新探測已啟動');
                 _intSelectedUrls.clear();
+                if (intDataTable) intDataTable.clearSelection();
                 updateIntToolbarButtons();
                 _intSummaryCache = { key: null, data: null };
                 loadInternalResultsPage(_currentJobId);
                 refreshJobDetail(_currentJobId);
             } catch (err) {
                 toast.error(err.message || '探測失敗');
+            } finally {
+                btnIntReprobe.classList.remove('loading');
             }
         });
     }
@@ -819,7 +830,7 @@ function bindWebComponentEvents() {
                 await api.download(`/api/jobs/${_currentJobId}/export/partial`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ link_type: 'internal', urls: Array.from(_intSelectedUrls) })
+                    body: JSON.stringify({ link_type: 'internal', urls: Array.from(_intSelectedUrls), group_by: _internalGroupBy })
                 });
                 toast.success('匯出成功');
             } catch (err) {

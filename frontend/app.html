@@ -115,8 +115,8 @@
                         border-radius: 1rem;
                       ">
                                         <option value="none">平鋪列表 (預設)</option>
-                                        <option value="target">依外連目標聚合 (重複合併)</option>
-                                        <option value="source">依自家網頁聚合 (修補視角)</option>
+                                        <option value="target">依目標頁面聚合 (重複合併)</option>
+                                        <option value="source">依來源頁面聚合 (修補視角)</option>
                                         <option value="domain">依外部網域統計 (資安盤點)</option>
                                     </select>
                                     <button class="btn btn-secondary btn-icon" id="btn-open-exclude-modal"
@@ -200,7 +200,7 @@
                         border-radius: 1rem;
                       ">
                                         <option value="none">平鋪列表 (預設)</option>
-                                        <option value="source">依自家網頁聚合 (修補視角)</option>
+                                        <option value="source">依來源頁面聚合 (修補視角)</option>
                                     </select>
                                 </div>
                             </div>
@@ -628,6 +628,7 @@
                         <h1 class="page-title">比對任務</h1>
                         <p class="page-subtitle">
                             比對兩個不同時期的歷史任務，找出外連健康度與資安狀態變化。
+                            <span id="job-status" class="badge badge-error">施工中</span>
                         </p>
                     </div>
                 </div>

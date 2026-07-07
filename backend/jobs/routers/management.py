@@ -389,8 +389,8 @@ def reprobe_job_links(
 
     try:
         if body.link_type == "external":
-            return reprobe_external_links(db, manager, job_id, current_user.id, body.urls)
-        return reprobe_internal_links(db, manager, job_id, current_user.id, body.urls)
+            return reprobe_external_links(db, manager, job_id, current_user.id, body.urls, body.group_by)
+        return reprobe_internal_links(db, manager, job_id, current_user.id, body.urls, body.group_by)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 

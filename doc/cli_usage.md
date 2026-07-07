@@ -210,10 +210,10 @@ python cli.py --export-external <JOB_ID> --filter insecure
 # 匯出為 JSON 格式 (預設會輸出到 report/<JOB_ID>.json)
 python cli.py --export-external <JOB_ID> --json
 
-# 依外連目標聚合導出 (同個外連在不同頁面出現時會被合併)
+# 依目標頁面聚合導出 (同個外連在不同頁面出現時會被合併)
 python cli.py --export-external <JOB_ID> --group-by target
 
-# 依自家網頁修補視角導出 (顯示我的 A 網頁底下壞了哪些外連)
+# 依來源頁面修補視角導出 (顯示我的 A 網頁底下壞了哪些外連)
 python cli.py --export-external <JOB_ID> --group-by source
 
 # 依外部網域統計導出 (檢視對外部服務的依賴分佈與次數)
