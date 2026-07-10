@@ -190,7 +190,9 @@ function renderUrlArrayNode(urls, className = 'text-muted') {
     ul.style.paddingLeft = '0';
     ul.style.listStyle = 'none';
     ul.style.fontSize = '0.8125rem';
-    urls.forEach(u => {
+    const displayLimit = 5;
+    const displayList = urls.slice(0, displayLimit);
+    displayList.forEach(u => {
         const li = document.createElement('li');
         li.className = 'truncate ' + className;
         li.style.maxWidth = '250px';
@@ -206,11 +208,11 @@ function renderUrlArrayNode(urls, className = 'text-muted') {
         li.appendChild(a);
         ul.appendChild(li);
     });
-    if (urls.length >= 10) {
+    if (urls.length > displayLimit) {
         const truncLi = document.createElement('li');
         truncLi.className = 'text-xs text-muted';
         truncLi.style.marginTop = '0.25rem';
-        truncLi.textContent = '... (清單過長已截斷)';
+        truncLi.textContent = '及其它';
         ul.appendChild(truncLi);
     }
     div.appendChild(ul);

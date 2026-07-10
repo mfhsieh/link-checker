@@ -32,25 +32,46 @@ logger: logging.Logger = logging.getLogger(__name__)
 settings: Settings = get_settings()
 
 
+SCHEDULER_INTERVAL_SEC = 5
+MAX_BACKOFF_SEC = 640
+
+
 async def _run_scheduler_loop() -> None:
-    """背景排程器迴圈，每 5 秒喚醒一次 queued 任務"""
+    """背景排程器迴圈，喚醒 queued 任務"""
+    error_count = 0
     while True:
         try:
             # 任務操作包含資料庫讀寫與子程序啟動，應丟入 Thread Pool 避免阻塞 Event Loop
             await asyncio.to_thread(check_and_spawn_queued_jobs)
+            error_count = 0  # 執行成功，重置計數
         except asyncio.CancelledError:
             break
         except SQLAlchemyError as e:
+            error_count += 1
             logger.error("背景排程器存取資料庫時發生錯誤: %s", e)
         except RuntimeError as e:
+            error_count += 1
             logger.error("背景排程器建立執行緒或非同步執行時發生系統錯誤: %s", e)
         except ValueError as e:
+            error_count += 1
             logger.error("背景排程器資料狀態或參數錯誤: %s", e)
         except OSError as e:
+            error_count += 1
             logger.error("背景排程器子程序或系統資源錯誤: %s", e)
         except Exception as e:  # pylint: disable=broad-except
+            error_count += 1
             logger.exception("背景排程器執行時發生未預期錯誤: %s", e)
-        await asyncio.sleep(5)
+
+        if error_count > 0:
+            # 隨著錯誤次數增加，休眠時間成指數級延長 (Exponential Backoff)，直到達到 MAX_BACKOFF_SEC
+            sleep_time = min(SCHEDULER_INTERVAL_SEC * (2 ** (error_count - 1)), MAX_BACKOFF_SEC)
+            if error_count >= 5:
+                logger.critical(
+                    "背景排程器連續發生 %d 次錯誤，休眠時間延長為 %d 秒以避免癱瘓系統！", error_count, sleep_time
+                )
+            await asyncio.sleep(sleep_time)
+        else:
+            await asyncio.sleep(SCHEDULER_INTERVAL_SEC)
 
 
 @asynccontextmanager

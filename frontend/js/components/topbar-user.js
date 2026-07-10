@@ -1,5 +1,6 @@
 import { getCurrentUser } from '../auth.js';
 import { formatLocalTime } from '../api.js';
+import { showConfirm } from './confirm-modal.js';
 
 /**
  * 頂部導覽列使用者資訊元件
@@ -160,8 +161,8 @@ class TopbarUser extends HTMLElement {
 
             const msg = `電子郵件：${u.email}\n角色權限：${roleStr}\n帳號狀態：${statusStr}\n最後登入：${loginStr}`;
 
-            if (typeof window.showConfirm === 'function') {
-                window.showConfirm('帳號資訊', msg, '關閉', false, true);
+            if (typeof showConfirm === 'function') {
+                showConfirm('帳號資訊', msg, '關閉', false, true);
             }
         };
 

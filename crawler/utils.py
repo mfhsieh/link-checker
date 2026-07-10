@@ -147,6 +147,7 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
         "http_status_code": q.status_code if q.status_code is not None else "",
         "error_message": q.error_message if q.error_message else "",
         "Created At": q.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "Updated At": q.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
 

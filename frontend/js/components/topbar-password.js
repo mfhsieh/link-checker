@@ -1,5 +1,6 @@
 import * as api from "../api.js";
 import { logout, initPasswordStrength } from "../auth.js";
+import { showConfirm } from "./confirm-modal.js";
 
 /**
  * 頂部導覽列修改密碼元件
@@ -291,7 +292,7 @@ class TopbarPassword extends HTMLElement {
           new_password: newPwd,
         });
         closeModal();
-        await window.showConfirm(
+        await showConfirm(
           "密碼已修改",
           "密碼已修改，請使用新密碼重新登入。",
           "確定",

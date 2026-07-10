@@ -3157,6 +3157,11 @@
             ],
             "title": "Link Type"
           },
+          "group_by": {
+            "type": "string",
+            "title": "Group By",
+            "default": "none"
+          },
           "urls": {
             "items": {
               "type": "string"
@@ -3172,7 +3177,7 @@
           "urls"
         ],
         "title": "PartialExportRequest",
-        "description": "局部匯出請求的 Schema。\n\nAttributes:\n    link_type (Literal[\"internal\", \"external\"]): 欲匯出的連結類型。\n    urls (list[str]): 欲匯出的網址清單。"
+        "description": "局部匯出請求的 Schema。\n\nAttributes:\n    link_type (Literal[\"internal\", \"external\"]): 欲匯出的連結類型。\n    group_by (str): 分組模式。\n    urls (list[str]): 欲匯出的網址清單。"
       },
       "ReprobeRequest": {
         "properties": {
@@ -3183,6 +3188,11 @@
               "external"
             ],
             "title": "Link Type"
+          },
+          "group_by": {
+            "type": "string",
+            "title": "Group By",
+            "default": "none"
           },
           "urls": {
             "items": {
@@ -3199,7 +3209,7 @@
           "urls"
         ],
         "title": "ReprobeRequest",
-        "description": "局部重新探測請求的 Schema。\n\nAttributes:\n    link_type (Literal[\"internal\", \"external\"]): 欲探測的連結類型。\n    urls (list[str]): 欲重新探測的網址清單。"
+        "description": "局部重新探測請求的 Schema。\n\nAttributes:\n    link_type (Literal[\"internal\", \"external\"]): 欲探測的連結類型。\n    group_by (str): 分組模式。\n    urls (list[str]): 欲重新探測的網址清單。"
       },
       "ResetPasswordRequest": {
         "properties": {

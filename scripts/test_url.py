@@ -4,8 +4,10 @@
 此腳本用於在終端機中快速測試特定網址，並限定爬取深度與頁數為 1，
 直接印出爬取結果，方便開發除錯與驗證。
 """
+# pylint: disable=duplicate-code
 
 import argparse
+import logging
 import os
 import sys
 from urllib.parse import urlparse
@@ -91,7 +93,13 @@ def main() -> None:
     parser.add_argument(
         "-g", "--global-config", type=str, default="config/config_global.yaml", help="全域 YAML 設定檔的路徑"
     )
+    parser.add_argument("-d", "--debug", action="store_true", help="啟用除錯模式，顯示底層爬蟲的詳細處理日誌")
     args = parser.parse_args()
+
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+    else:
+        logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 
     # 1. 取得合併後的設定實例
     config = get_test_crawler_config(args.global_config)
@@ -112,9 +120,14 @@ def main() -> None:
         print(f"    - 內部連結數量: {len(internal_links)}")
         print(f"    - 外部連結數量: {len(external_links)}")
 
-        print("\n[外部連結預覽")
+        print("\n[內部連結預覽]")
+        for link in internal_links:
+            print(f"  - {link}")
+
+        print("\n[外部連結預覽]")
         for link in external_links:
             print(f"  - {link}")
+
     else:
         print(f"[-] 爬取失敗或異常。狀態: {status}, 狀態碼: {status_code}")
         if error_msg:

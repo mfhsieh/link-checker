@@ -136,19 +136,20 @@ def _cleanup_finished_processes() -> None:
             _is_job_running(job_id)
 
 
-def _cleanup_zombie_jobs(manager: JobManager) -> None:
+def _cleanup_zombie_jobs(manager: JobManager, caller: str = "unknown") -> None:
     """
     巡檢並清理假死任務 (Zombie Jobs)。
     若資料庫中狀態為 running，但本地已無對應的 PID 或進程，則將其標記為 error。
 
     Args:
         manager (JobManager): JobManager 實例。
+        caller (str): 觸發來源，用於日誌追蹤。
     """
     running_jobs = manager.get_all_jobs(status="running")
     for j in running_jobs:
         job_id = j["id"]
         if not _is_job_running(job_id):
-            logger.warning("偵測到任務 %s 假死 (進程已不存在)，將狀態標記為 error", job_id)
+            logger.warning("偵測到任務 %s 假死 (進程已不存在)，將狀態標記為 error (觸發來源: %s)", job_id, caller)
             manager.mark_job_error(job_id, "任務進程意外終止 (可能因系統 OOM 或伺服器重啟)")
 
     starting_jobs = manager.get_all_jobs(status="starting")
@@ -159,7 +160,9 @@ def _cleanup_zombie_jobs(manager: JobManager) -> None:
             updated_time = datetime.strptime(j["updated_at"], "%Y-%m-%d %H:%M:%S")
             if (now - updated_time).total_seconds() > 30:
                 if not _is_job_running(job_id):
-                    logger.warning("偵測到任務 %s 在啟動階段假死 (進程已不存在)，將狀態標記為 error", job_id)
+                    logger.warning(
+                        "偵測到任務 %s 在啟動階段假死 (進程已不存在)，將狀態標記為 error (觸發來源: %s)", job_id, caller
+                    )
                     manager.mark_job_error(job_id, "任務啟動失敗 (子進程意外終止)")
         except ValueError as e:
             logger.debug("檢查 starting 任務 %s 時發生日期格式錯誤: %s", job_id, e)

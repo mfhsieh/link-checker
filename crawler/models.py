@@ -206,8 +206,10 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
     is_secure: Mapped[bool] = mapped_column(default=True)
     http_status_code: Mapped[int | None] = mapped_column(nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status_category: Mapped[str] = mapped_column(String(30), default="healthy")
+    # 依 Code Review 修正預設語意，新建之外部連結尚未實際探測，應為 pending (修改前為 healthy)
+    status_category: Mapped[str] = mapped_column(String(30), default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
 
     job: Mapped["Job"] = relationship(back_populates="external_links")
 
@@ -231,15 +233,20 @@ def apply_job_result_filters(
         Query: 加上過濾條件後的 SQLAlchemy 查詢物件。
     """
     if search:
-        search_pattern = f"%{search}%"
+        # 防範 LIKE Injection：對 LIKE 語法的特殊字元 (%, _) 與跳脫字元 (\) 進行逸出處理
+        search_escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_pattern = f"%{search_escaped}%"
         query = query.filter(
-            ExternalLink.target_url.like(search_pattern) | ExternalLink.source_url.like(search_pattern)
+            ExternalLink.target_url.like(search_pattern, escape="\\")
+            | ExternalLink.source_url.like(search_pattern, escape="\\")
         )
 
     if exclude:
         excludes = [e.strip() for e in exclude.split(",") if e.strip()]
         for exc in excludes:
-            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
+            # 同樣防範 LIKE Injection，保護排除查詢的效能與正確性
+            exc_escaped = exc.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc_escaped}%", escape="\\"))
 
     if status_filter in ("dead", "dns_failed"):
         query = query.filter(ExternalLink.status_category == "dns_failed")

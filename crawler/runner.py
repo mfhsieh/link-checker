@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 import httpx
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from crawler.core import CrawlerCore
@@ -141,8 +140,8 @@ class JobRunner:
                 if job and job.status == "running":
                     job.status = "paused"
                     session.commit()
-            except (httpx.HTTPError, SQLAlchemyError, ValueError, TypeError) as e:
-                logger.error("任務 %s 發生例外: %s", self.job_id, e)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception("任務 %s 發生例外: %s", self.job_id, e)
                 session.rollback()
                 job = session.query(Job).filter(Job.id == self.job_id).first()
                 if job:
@@ -253,14 +252,13 @@ class JobRunner:
             .count()
         )
 
-        # 預熱快取
+        # 預熱快取修正：一併快取尚未完成探測的紀錄，標記為 None)
         for ext in session.query(ExternalLink).filter(ExternalLink.job_id == self.job_id).all():
-            if ext.http_status_code is not None or ext.error_message is not None:
-                self.state.checked_links_cache[ext.target_url] = (
-                    ext.ip_address,
-                    ext.http_status_code,
-                    ext.error_message,
-                )
+            self.state.checked_links_cache[ext.target_url] = (
+                ext.ip_address,
+                ext.http_status_code,
+                ext.error_message,
+            )
 
         return job
 
@@ -412,7 +410,7 @@ class JobRunner:
             queue_item.status_category = determine_internal_link_status_category(
                 queue_item.status, queue_item.status_code, queue_item.error_message
             )
-            session.commit()
+            # 依 Code Review 修正：移除此處的提早 commit，確保資料一致性
 
             self._handle_internal_links(session, queue_item, result[0])
             self._handle_external_links(session, current_url, result[1], crawler)
@@ -421,6 +419,7 @@ class JobRunner:
             queue_item.status_category = determine_internal_link_status_category(
                 queue_item.status, queue_item.status_code, queue_item.error_message
             )
+            # 依 Code Review 修正：統一在此做最後的 commit
             session.commit()
 
             should_delay = result[4]
@@ -429,6 +428,13 @@ class JobRunner:
 
         except httpx.HTTPError as e:
             self._handle_error(session, queue_item, e)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            session.rollback()
+            logger.error("抓取 %s 時發生未預期錯誤: %s", current_url, e, exc_info=True)
+            queue_item.status = "failed"
+            queue_item.error_message = f"未預期錯誤: {e}"
+            queue_item.status_category = "broken"
+            session.commit()
 
         if should_delay:
             current_domain_delay = _get_domain_delay(
@@ -460,27 +466,36 @@ class JobRunner:
         if self.crawler_config_dict.get("max_depth", None) is None or next_depth <= self.crawler_config_dict.get(
             "max_depth", None
         ):
-            for link in internal_links:
-                exists = (
-                    session.query(CrawlQueue)
+            if internal_links:
+                # 解決 N+1 查詢問題：改用 IN 語法進行批次查詢，找出已存在的內部連結，避免在迴圈內逐一查詢 DB
+                existing_urls = {
+                    u[0]
+                    for u in session.query(CrawlQueue.url)
                     .filter(
                         CrawlQueue.job_id == self.job_id,
-                        CrawlQueue.url == link,
+                        CrawlQueue.url.in_(internal_links),
                     )
-                    .first()
-                )
-                if not exists:
-                    new_item = CrawlQueue(
-                        job_id=self.job_id,
-                        url=link,
-                        source_url=queue_item.url,
-                        status="pending",
-                        status_category="pending",
-                        is_secure=link.startswith("https://"),
-                        depth=next_depth,
-                    )
-                    session.add(new_item)
-        session.commit()
+                    .all()
+                }
+                new_items = []
+                for link in internal_links:
+                    if link not in existing_urls:
+                        existing_urls.add(link)  # 防止同一頁有重複的內連被重複新增
+                        new_items.append(
+                            CrawlQueue(
+                                job_id=self.job_id,
+                                url=link,
+                                source_url=queue_item.url,
+                                status="pending",
+                                status_category="pending",
+                                is_secure=link.startswith("https://"),
+                                depth=next_depth,
+                            )
+                        )
+                if new_items:
+                    # 解決 N+1 查詢問題：改用 add_all 進行批次插入 (Batch Insert)
+                    session.add_all(new_items)
+        # 依 Code Review 修正：此處的 commit 已刪除，由上層 _process_item 統一 commit
 
     def _prepare_external_links(
         self,
@@ -499,17 +514,24 @@ class JobRunner:
             list[str]: 尚未被快取或處理過的外部連結清單，需進一步發送 HTTP 探測。
         """
         links_needing_http_check = []
-        for link in unique_external_links:
-            exists = (
-                session.query(ExternalLink)
-                .filter(
-                    ExternalLink.job_id == self.job_id,
-                    ExternalLink.source_url == current_url,
-                    ExternalLink.target_url == link,
-                )
-                .first()
+        if not unique_external_links:
+            return links_needing_http_check
+
+        # 解決 N+1 查詢問題：改用 IN 語法進行批次查詢，找出已存在的外部連結，避免在迴圈內逐一查詢 DB
+        existing_urls = {
+            u[0]
+            for u in session.query(ExternalLink.target_url)
+            .filter(
+                ExternalLink.job_id == self.job_id,
+                ExternalLink.source_url == current_url,
+                ExternalLink.target_url.in_(unique_external_links),
             )
-            if exists:
+            .all()
+        }
+
+        new_exts = []
+        for link in unique_external_links:
+            if link in existing_urls:
                 continue
 
             if link in self.state.checked_links_cache:
@@ -527,9 +549,15 @@ class JobRunner:
                     error_message=cached_data[2],
                     status_category=status_cat,
                 )
-                session.add(new_ext)
+                new_exts.append(new_ext)
+                existing_urls.add(link)  # 防止重複加入
             else:
                 links_needing_http_check.append(link)
+                existing_urls.add(link)  # 若需 HTTP check 也不要重複加入
+
+        if new_exts:
+            # 解決 N+1 查詢問題：改用 add_all 進行批次插入 (Batch Insert)
+            session.add_all(new_exts)
         return links_needing_http_check
 
     def _handle_external_links(

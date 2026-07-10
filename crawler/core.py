@@ -425,7 +425,7 @@ class CrawlerCore:
         status = "warning" if err_msg else "completed"
         return None, (text, response.status_code, status, current_url, True, err_msg)
 
-    def _fetch_single(  # pylint: disable=too-many-arguments,too-many-locals
+    def _fetch_single(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
         self,
         current_url: str,
         request_sent: bool,
@@ -485,14 +485,32 @@ class CrawlerCore:
                 headers["Cookie"] = "; ".join(f"{k}={v}" for k, v in applicable_cookies.items())
 
             with self._get_client(current_url).stream("GET", current_url, headers=headers) as response:
-                if accumulated_cookies is not None:
+                next_url, result = self._process_response(response, current_url, target_domains)
+
+                # 跨越安全邊界檢查：從未驗證網域跳轉至需驗證網域，存在 MITM Cookie 注入風險
+                mitm_risk = False
+                if next_url and next_url != current_url:
+                    current_domain = domain
+                    next_domain = get_domain(next_url)
+                    was_exempt = current_domain and is_in_domain_list(current_domain, self.config.ssl_exempt_domains)
+                    will_be_exempt = next_domain and is_in_domain_list(next_domain, self.config.ssl_exempt_domains)
+
+                    if was_exempt and not will_be_exempt:
+                        logger.warning(
+                            "【資安邊界警告】網址 %s (SSL 豁免) 重導向至非豁免網域 %s，"
+                            "為防止 Cookie 污染，已阻斷該次跳轉的狀態繼承。",
+                            current_url,
+                            next_url,
+                        )
+                        mitm_risk = True
+
+                if accumulated_cookies is not None and not mitm_risk:
                     for c in response.cookies.jar:
                         if c.value is not None:
                             c_dom = c.domain.lstrip(".") if c.domain else domain
                             if c_dom:
                                 accumulated_cookies.setdefault(c_dom, {})[c.name] = c.value
 
-                next_url, result = self._process_response(response, current_url, target_domains)
                 if result:
                     return True, current_url, result
                 return True, next_url or current_url, None
@@ -1220,7 +1238,7 @@ class CrawlerCore:
 
         return None, None, False
 
-    def check_external_link(self, url: str) -> tuple[int | None, str | None]:
+    def check_external_link(self, url: str, depth: int = 0) -> tuple[int | None, str | None]:
         """對外部連結進行存活檢查。
 
         優先使用 HEAD 請求以節省流量。若 HEAD 回傳任何重導向 (3xx)、特定阻擋狀態碼，
@@ -1239,6 +1257,7 @@ class CrawlerCore:
 
         Args:
             url (str): 準備進行探測的外部網址。
+            depth (int, optional): 內部遞迴深度計數器，預設為 0。用以確保 HTTP 自動升級至 HTTPS 的遞迴嘗試最多只執行一層，防止無限遞迴（Stack Overflow）。
 
         Returns:
             tuple[int | None, str | None]: 回傳 (HTTP 狀態碼, 錯誤訊息)。
@@ -1309,8 +1328,10 @@ class CrawlerCore:
                 current_url = next_url
                 continue
         # 正常跑完迴圈但仍未取得終端狀態
-        if url.startswith("http://"):
+        # 為了防止極端情況下的無限遞迴（例如伺服器在 HTTP/HTTPS 間惡意交替重導向），
+        # 透過 depth == 0 確保這個 HTTP 升級 HTTPS 的最後救援機制最多只會遞迴一次。
+        if url.startswith("http://") and depth == 0:
             https_url = url.replace("http://", "https://", 1)
             logger.info("外部探測網址 %s 發生無限重導向，嘗試升級為 HTTPS 進行最後驗證: %s", url, https_url)
-            return self.check_external_link(https_url)
+            return self.check_external_link(https_url, depth=1)
         return None, "超過最大重導向次數"

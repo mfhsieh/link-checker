@@ -2,6 +2,7 @@ import * as api from "/static/js/api.js";
 import { toast } from "/static/js/components/toast.js";
 import { getCurrentUser } from "/static/js/auth.js";
 import * as adminService from "/static/js/services/admin-service.js";
+import { showConfirm } from "/static/js/components/confirm-modal.js";
 
 // ── 權限驗證 ──────────────────────────────────────────────
 const user = await getCurrentUser();

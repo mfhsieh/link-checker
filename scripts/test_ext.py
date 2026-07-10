@@ -4,8 +4,10 @@
 此腳本用於在終端機中快速測試特定外部連結的存活狀態，
 直接印出 HTTP 狀態碼與錯誤訊息，方便開發除錯與驗證。
 """
+# pylint: disable=duplicate-code
 
 import argparse
+import logging
 import os
 import sys
 
@@ -35,7 +37,13 @@ def main() -> None:
     parser.add_argument(
         "-g", "--global-config", type=str, default="config/config_global.yaml", help="全域 YAML 設定檔的路徑"
     )
+    parser.add_argument("-d", "--debug", action="store_true", help="啟用除錯模式，顯示底層爬蟲的詳細處理日誌")
     args = parser.parse_args()
+
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+    else:
+        logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 
     # 1. 準備需要覆寫的個別參數
     user_config_overrides = {}

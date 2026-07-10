@@ -72,7 +72,7 @@ class JobManager:
         self.engine: Engine = create_optimized_engine(
             db_url=db_url,
             sqlite_timeout=int(os.environ.get("SQLITE_TIMEOUT", "30")),
-            pool_size=int(os.environ.get("DB_POOL_SIZE", "20")),
+            pool_size=int(os.environ.get("DB_POOL_SIZE", "40")),
             max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "20")),
             pool_pre_ping=os.environ.get("DB_POOL_PRE_PING", "true").lower() == "true",
             sqlite_cache_size=10000,

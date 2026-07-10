@@ -265,6 +265,7 @@ erDiagram
         String(30) status_category "統一狀態分類"
         Text error_message "錯誤訊息"
         DateTime created_at "紀錄時間"
+        DateTime updated_at "更新時間"
     }
 ```
 
@@ -337,6 +338,7 @@ erDiagram
 | `status_category` | `String(30)` | `Default: 'healthy'` | 統一狀態分類（例如：`dns_failed`, `connection_error`, `healthy` 等），可用於極速生成報表與統計。 |
 | `error_message` | `Text` | `Nullable` | 存活檢查失敗時的具體連線異常描述（如 ConnectionTimeout）。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 系統成功解析並紀錄該筆外部連結的時間。 |
+| `updated_at` | `DateTime` | `Default: 當下時間` | 此筆外部連結狀態最後更新的時間。 |
 
 ##### 索引與唯一約束資訊 (Indexes & Constraints)
 * **`uq_external_links_job_src_tgt`** (唯一約束): `(job_id, source_url, target_url)`。用於從資料庫層面防止在同一任務中重複記錄相同的來源母頁面與目標外部網址。

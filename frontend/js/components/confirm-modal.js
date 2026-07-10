@@ -157,7 +157,7 @@ customElements.define('confirm-modal', ConfirmModal);
  * @param {boolean} [hideCancel=false] - 是否隱藏取消按鈕
  * @returns {Promise<boolean>}
  */
-window.showConfirm = function (title, message, confirmText, isDanger, hideCancel) {
+export function showConfirm(title, message, confirmText, isDanger, hideCancel) {
     let modal = document.querySelector('confirm-modal');
     if (!modal) {
         modal = document.createElement('confirm-modal');

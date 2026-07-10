@@ -6,6 +6,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
+# Antigravity IDE
+.agents/
+
 # 虛擬環境 (Virtual Environments)
 .venv/
 

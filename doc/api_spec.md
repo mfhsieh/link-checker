@@ -1306,11 +1306,13 @@ MimeType 過濾設定。
 
 Attributes:
     link_type (Literal["internal", "external"]): 欲匯出的連結類型。
+    group_by (str): 分組模式。
     urls (list[str]): 欲匯出的網址清單。
 
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
 | `link_type` | string | 是 |  |
+| `group_by` | string | 否 |  |
 | `urls` | array | 是 |  |
 
 ---
@@ -1320,11 +1322,13 @@ Attributes:
 
 Attributes:
     link_type (Literal["internal", "external"]): 欲探測的連結類型。
+    group_by (str): 分組模式。
     urls (list[str]): 欲重新探測的網址清單。
 
 | 屬性名稱 | 類型 | 必填 | 說明 |
 |---|---|---|---|
 | `link_type` | string | 是 |  |
+| `group_by` | string | 否 |  |
 | `urls` | array | 是 |  |
 
 ---

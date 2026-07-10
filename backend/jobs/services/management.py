@@ -75,7 +75,7 @@ def start_job(manager: JobManager, job_id: str, user_id: str | None = None) -> b
         raise ValueError(f"任務目前狀態為 {job.status}，無法啟動。")
 
     _cleanup_finished_processes()
-    _cleanup_zombie_jobs(manager)
+    _cleanup_zombie_jobs(manager, caller="start_job")
     if _is_job_running(job_id):
         raise ValueError("任務已在執行中。")
 
@@ -88,20 +88,29 @@ def start_job(manager: JobManager, job_id: str, user_id: str | None = None) -> b
         if user_id is not None and max_concurrent > 0:
             active_count = session.query(Job).filter(Job.status.in_(["starting", "running"])).count()
             if active_count >= max_concurrent:
-                j = session.query(Job).filter(Job.id == job_id).first()
-                if j and j.status in ("pending", "paused", "error", "queued"):
-                    j.status = "queued"
-                    session.commit()
+                # 使用樂觀鎖（條件式 UPDATE）確保原子性更新
+                # 避免多個並發請求同時通過 PID 與狀態檢查，導致同一個任務被 Spawn 兩次
+                updated = (
+                    session.query(Job)
+                    .filter(Job.id == job_id, Job.status.in_(["pending", "paused", "error", "queued"]))
+                    .update({"status": "queued"}, synchronize_session=False)
+                )
+                session.commit()
+                if updated == 0:
+                    raise ValueError("任務狀態已被其他請求搶先修改，請重試。")
                 logger.info("任務 %s 進入排隊狀態 (目前執行中: %d, 上限: %d)", job_id, active_count, max_concurrent)
                 return True
 
         # 若未達上限或為排程器發起 (user_id=None)，則進入 starting
-        j = session.query(Job).filter(Job.id == job_id).first()
-        if j and j.status in ("pending", "paused", "error", "queued"):
-            j.status = "starting"
-            session.commit()
-        else:
-            raise ValueError(f"任務目前狀態為 {j.status if j else 'None'}，無法啟動。")
+        # 同樣使用樂觀鎖確保原子性，防止 Race Condition 導致雙重 Spawn
+        updated = (
+            session.query(Job)
+            .filter(Job.id == job_id, Job.status.in_(["pending", "paused", "error", "queued"]))
+            .update({"status": "starting"}, synchronize_session=False)
+        )
+        session.commit()
+        if updated == 0:
+            raise ValueError("任務狀態已被其他請求搶先修改，請重試。")
 
     cli_path = os.path.join(PROJECT_ROOT, "cli.py")
 
@@ -162,7 +171,7 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
         dict[str, object]: 任務詳情與進度。
     """
     _cleanup_finished_processes()
-    _cleanup_zombie_jobs(manager)
+    _cleanup_zombie_jobs(manager, caller="get_job_detail")
 
     job = manager.get_job(job_id)
     if not job:
@@ -222,7 +231,7 @@ def list_jobs(manager: JobManager, user_id: str, status: str | None = None) -> l
         list[dict[str, object]]: 任務摘要清單。
     """
     _cleanup_finished_processes()
-    _cleanup_zombie_jobs(manager)
+    _cleanup_zombie_jobs(manager, caller="list_jobs")
 
     return manager.get_all_jobs(user_id=user_id, status=status)
 

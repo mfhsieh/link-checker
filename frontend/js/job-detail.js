@@ -17,6 +17,7 @@ document.addEventListener('click', (e) => {
 
 import * as api from './api.js';
 import { toast } from './components/toast.js';
+import { showConfirm } from './components/confirm-modal.js';
 
 let _eventSource = null;
 let _currentJobId = null;
@@ -71,7 +72,7 @@ const intDataTable = document.getElementById('int-data-table');
 function startSseStream(jobId) {
     if (_eventSource) _eventSource.close();
     _eventSource = new EventSource(`/api/jobs/${jobId}/stream`);
-    
+
     // 每 30 秒定期拉取一次當前分頁的統計卡片與報表（如果還在跑的話）
     if (!_pollingInterval) {
         _pollingInterval = setInterval(() => {
@@ -113,15 +114,6 @@ function stopSseStream() {
 }
 
 /**
- * 顯示確認對話框
- * @param {string} title - 對話框標題
- * @param {string} message - 確認訊息內容
- * @param {string} [confirmText='確定'] - 確認按鈕的文字
- * @param {boolean} [isDanger=false] - 是否為危險操作（影響按鈕樣式）
- * @returns {Promise<boolean>} 使用者是否點擊確認
- */
-function showConfirm(title, message, confirmText = '確定', isDanger = false) {
-    return window.showConfirm(title, message, confirmText, isDanger);
 }
 
 /**
@@ -133,7 +125,7 @@ function clearJobDetailUI() {
     if (jobStatusCard) jobStatusCard.job = null;
     if (jobProgressCard) jobProgressCard.job = null;
     if (jobControls) jobControls.job = null;
-    
+
     // 清空統計卡片與報表，防止殘留上一個任務的舊資料
     if (jobExtStats) {
         jobExtStats.stats = null;
@@ -264,7 +256,7 @@ async function loadResults(jobId) {
         loadExternalResultsPage(jobId),
         loadInternalResultsPage(jobId)
     ]);
-    
+
     // 待表格加載完成後，才發送請求去拉取統計卡片摘要
     await Promise.all([
         loadExternalSummary(jobId),
@@ -398,7 +390,7 @@ const renderUrlArrayNode = (val, maxWidth = '300px', extractUrl = (x) => x) => {
         const badge = document.createElement('span');
         badge.className = 'badge';
         badge.style.alignSelf = 'flex-start';
-        badge.textContent = `及其它 ${val.length - displayLimit} 個`;
+        badge.textContent = `及其它`;
         wrapper.appendChild(badge);
     }
     return wrapper;

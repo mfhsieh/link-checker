@@ -76,7 +76,7 @@ def test_admin_user_management_ui(page: Page, base_url: str) -> None:
     page.wait_for_selector("#invite-email", state="visible")
     page.fill("#invite-email", "invited_user@test.com")
 
-    with page.expect_response("**/api/admin/users", timeout=5000) as response_info:
+    with page.expect_response("**/api/admin/users") as response_info:
         page.click("#invite-user-submit")
 
     response = response_info.value

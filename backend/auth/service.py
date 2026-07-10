@@ -622,7 +622,10 @@ def cleanup_deleted_user_task(user_id: str) -> None:
             if crawler_jobs:
                 logger.info("已背景清理使用者 %s 的 %d 個爬蟲任務", user_id, len(crawler_jobs))
     except SQLAlchemyError as e:
-        logger.error("背景清理 Crawler DB 時發生錯誤: %s", e)
+        logger.error("背景清理 Crawler DB 時發生錯誤，使用者 %s 的爬蟲資料可能成為孤兒資料: %s", user_id, e)
+        # 將錯誤寫入 AuthLog，讓管理員在後台能立刻看到，達成告警目的
+        with auth_session_factory() as auth_db:
+            _log_event(auth_db, "user_cleanup_failed", user_id=user_id, ip_address="system", detail=str(e))
         return
 
     # 2. 刪除 Auth DB 資料與實體使用者
@@ -705,7 +708,7 @@ def request_password_reset(db: DBSession, email: str, ip: str | None = None) -> 
             logger.warning("IP %s 申請重設密碼頻率過高", ip)
             raise ValueError("請求過於頻繁，請稍後再試。")
 
-    _log_event(db, "password_reset_requested", ip_address=ip, detail=email)
+    _log_event(db, "password_reset_requested", ip_address=ip, detail=f"anonymous_attempt_for: {email}")
 
     user = db.query(User).filter(User.email == email).first()
 

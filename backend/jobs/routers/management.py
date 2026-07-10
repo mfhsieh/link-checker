@@ -508,7 +508,8 @@ async def stream_job_updates(
                     logger.info("Job %s stopped (status: %s). Closing SSE stream.", job_id, job_detail["status"])
                     break
 
-                await asyncio.sleep(2)
+                # 短期解法：將輪詢間隔加長至 5 秒，以減緩同時大量連線造成的 Thread pool 壓力
+                await asyncio.sleep(5)
             except ValueError as e:
                 logger.warning("Job %s not found or permission error for SSE stream: %s. Closing.", job_id, e)
                 break

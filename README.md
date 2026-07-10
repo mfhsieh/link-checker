@@ -146,7 +146,8 @@ python cli.py --help
 ## 升級提醒 (Upgrading)
 
 > [!IMPORTANT]
-> 若您是從 **v1.8 或更低版本** 升級至 **v1.9 或更高版本**，因為 `crawl_queue` 新增 HTTPS 檢測欄位 (`is_secure`)，如使用 PostgreSQL，請務必手動執行以下指令（ `lc_user` 指  `crawler_db` 的 username）：
+> **從 v1.8.x 升級至 v1.9.0 或更高版本**
+> 因為 `crawl_queue` 新增 HTTPS 檢測欄位 (`is_secure`)，如使用 PostgreSQL，請務必手動執行以下指令（ `lc_user` 指 `crawler_db` 的 username）：
 > 
 > ```bash
 > sudo systemctl stop link-checker
@@ -155,8 +156,19 @@ python cli.py --help
 > psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crawl_queue_internal_issues ON crawl_queue (job_id) WHERE status IN ('failed', 'warning') OR is_secure = false;"
 > sudo systemctl start link-checker
 > ```
+
+> [!IMPORTANT]
+> **升級至 v1.9.4 或更高版本**
+> 為了讓外部連結也具備 `updated_at` 追蹤能力，如使用 PostgreSQL，請務必手動執行以下指令：
 > 
-> 若使用 SQLite，則可以刪除舊有的資料庫讓系統自動重建，或是參考上述 SQL 語法自行更新。
+> ```bash
+> sudo systemctl stop link-checker
+> psql -U lc_user -d crawler_db -c "ALTER TABLE external_links ADD COLUMN updated_at TIMESTAMP;"
+> psql -U lc_user -d crawler_db -c "UPDATE external_links SET updated_at = created_at WHERE updated_at IS NULL;"
+> sudo systemctl start link-checker
+> ```
+
+*(備註：若是在測試環境使用 SQLite，您可以刪除舊有資料庫讓系統自動重建，或是參考上述 SQL 語法自行更新。)*
 
 ---
 

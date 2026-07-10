@@ -185,7 +185,7 @@ export function renderJobList(jobs = null, containerEl = null) {
                 btn.textContent = '詳情';
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    window.viewJob(row.id);
+                    viewJob(row.id);
                 });
                 divActions.appendChild(btn);
 
@@ -219,10 +219,10 @@ export function renderJobList(jobs = null, containerEl = null) {
 }
 
 /**
- * 導覽至任務詳情頁面 (附加於 window 物件供行內點擊事件呼叫)
+ * 導覽至任務詳情頁面
  * @param {string} jobId - 任務 ID
  * @returns {void}
  */
-window.viewJob = (jobId) => {
+export const viewJob = (jobId) => {
     window.location.hash = `#/jobs/${jobId}`;
 };

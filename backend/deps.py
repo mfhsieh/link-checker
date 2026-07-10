@@ -85,11 +85,8 @@ def get_crawler_db() -> Generator[DBSession, None, None]:
         DBSession: Crawler DB SQLAlchemy Session。
     """
     manager = get_job_manager()
-    db = manager.session_factory()
-    try:
+    with manager.session_factory() as db:
         yield db
-    finally:
-        db.close()
 
 
 # ── Session / 使用者依賴 ────────────────────────────────────────────────────────

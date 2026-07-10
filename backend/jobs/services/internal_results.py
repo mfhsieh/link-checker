@@ -75,7 +75,12 @@ def stream_internal_errors(
             and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"),  # pylint: disable=singleton-comparison,line-too-long  # noqa: E712
         ),
     )
-    query = apply_internal_result_filters(query, query_args.status_filter)
+    query = apply_internal_result_filters(
+        query,
+        status_filter=query_args.status_filter,
+        search=getattr(query_args, "search", None),
+        exclude=getattr(query_args, "exclude", None),
+    )
 
     if query_args.group_by == "source":
         # 呼叫既有的分頁查詢函數，但直接索取所有匹配結果並利用它實作的聚合演算法
@@ -96,17 +101,39 @@ def stream_internal_errors(
             yield format_crawl_queue_item(q)
 
 
-def apply_internal_result_filters(query: Query, status_filter: str | None) -> Query:
+def apply_internal_result_filters(
+    query: Query,
+    status_filter: str | None = None,
+    search: str | None = None,
+    exclude: str | None = None,
+) -> Query:
     """
     套用內部失效連結的過濾條件。
 
     Args:
         query (Query): SQLAlchemy 查詢物件。
         status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。
+        search (str | None): 搜尋關鍵字。
+        exclude (str | None): 要排除的關鍵字 (以逗號分隔)。
 
     Returns:
         Query: 加上過濾條件後的 SQLAlchemy 查詢物件。
     """
+    if search:
+        # 防範 LIKE Injection：對特殊字元進行逸出，避免攻擊者利用萬用字元發動全表掃描
+        search_escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        search_pattern = f"%{search_escaped}%"
+        query = query.filter(
+            CrawlQueue.url.like(search_pattern, escape="\\") | CrawlQueue.source_url.like(search_pattern, escape="\\")
+        )
+
+    if exclude:
+        excludes = [e.strip() for e in exclude.split(",") if e.strip()]
+        for exc in excludes:
+            # 防範 LIKE Injection
+            exc_escaped = exc.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            query = query.filter(~CrawlQueue.url.ilike(f"%{exc_escaped}%", escape="\\"))
+
     if not status_filter or status_filter == "all":
         return query
 
@@ -307,7 +334,12 @@ def _get_internal_errors_grouped_by_source(
         ),
     )
 
-    main_q = apply_internal_result_filters(main_q, query_args.status_filter)
+    main_q = apply_internal_result_filters(
+        main_q,
+        status_filter=query_args.status_filter,
+        search=getattr(query_args, "search", None),
+        exclude=getattr(query_args, "exclude", None),
+    )
     main_q = main_q.group_by(CrawlQueue.source_url)
 
     # 3. 動態套用欄位過濾器
@@ -415,5 +447,10 @@ def get_internal_errors(
             and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"),  # pylint: disable=singleton-comparison  # noqa: E712
         ),
     )
-    query = apply_internal_result_filters(query, query_args.status_filter)
+    query = apply_internal_result_filters(
+        query,
+        status_filter=query_args.status_filter,
+        search=getattr(query_args, "search", None),
+        exclude=getattr(query_args, "exclude", None),
+    )
     return _get_internal_errors_no_grouping(query, query_args)

@@ -1,9 +1,10 @@
 import { logout } from "../auth.js";
+import { showConfirm } from "./confirm-modal.js";
 
 /**
  * 頂部導覽列登出按鈕元件
  *
- * 點擊後會彈出確認對話框（優先使用全域 `window.showConfirm`，降級使用原生的 `confirm()`）。
+ * 點擊後會彈出確認對話框（優先使用 `showConfirm`，降級使用原生的 `confirm()`）。
  * 確認後呼叫 `logout()` 執行登出並清除前端 Token。
  *
  * @property {boolean} [no-confirm] - 若有設定此屬性，點擊後不會彈出確認，直接登出。
@@ -65,7 +66,7 @@ class TopbarLogout extends HTMLElement {
     this.shadowRoot.appendChild(triggerBtn);
 
     triggerBtn.addEventListener("click", async () => {
-      // 判斷是否需要確認對話框，呼叫全域的 window.showConfirm
+      // 判斷是否需要確認對話框，呼叫 showConfirm
       let confirmed = false;
       const confirmMsg = "確定要登出系統嗎？";
 
@@ -73,7 +74,7 @@ class TopbarLogout extends HTMLElement {
       if (this.hasAttribute("no-confirm")) {
         confirmed = true;
       } else {
-        confirmed = await window.showConfirm("登出", confirmMsg, "登出");
+        confirmed = await showConfirm("登出", confirmMsg, "登出");
       }
 
       if (confirmed) {

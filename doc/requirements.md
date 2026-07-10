@@ -51,6 +51,7 @@
 * **網域 IP 解析優化**：解析外連 IP 時，系統需擷取目標主機網域進行 DNS 查詢，而非針對完整網址，以減少 DNS 伺服器查詢負擔。
 * **安全傳輸協定稽核 (is_secure)**：
   * **主動識別明文協定**：系統在探索並紀錄外部超連結與靜態資源時，必須主動分析其傳輸協定（Scheme）是否為安全傳輸協定（如 HTTPS）。
+  * **內部連結明文警示 (Mixed Content Detection)**：除了外部連結外，系統在探索「內部連結」時，若發現屬於同網域但使用了明文的 `http://` 傳輸協定（而非 HTTPS），系統必須對此類連結特別進行標記或記錄警示，協助管理員快速識別未加密的傳輸，防範 Mixed Content 資安風險。
   * **持久化與稽核匯出**：非安全傳輸協定（如明文 HTTP）必須被明確標記並儲存於資料庫中，且必須作為結果匯出（CSV/JSON）時的必要檢視欄位，以利資安管理員快速稽核傳輸安全。
 * **目標網域自動信任與邊界判定 (Target Domains Implicit Trust)**：
   * **隱式信任設計**：為了防止目標網域內的內部連結被重複判定為外部連結而送往存活探測引擎，系統在分類連結時，必須將「目標網域 (`target_domains`)」自動且強制視為「信任網域 (`trusted_domains`)」的一部分。
@@ -88,6 +89,7 @@
 * **高包容性雙層探測與重導向防誤判機制**：外部連結存活探測必須優先發送 HEAD 請求以節省頻寬。但因 HEAD 請求在許多伺服器上（無論是否涉及 Cookie-gate 防護）的重導向回應並不可靠，若直接信任 HEAD 給出的 Location 可能造成重導向迴圈或誤判。因此，若 HEAD 回傳**任何重導向 (3xx)**，或特定的阻擋狀態碼 (如 400, 403, 405)，或因伺服器轉址設定瑕疵回傳異常狀態 (如 404, 406, 501)，系統必須一律自動降級，改以標準的 GET 串流請求對同一網址重新確認。此機制能有效相容老舊或防護過度之伺服器（如 IIS），大幅降低「假死連結 (False Positives)」誤判率。為避免觸發 WAF 誤判，降級探測時不附加 `Range` 標頭，僅利用連線串流 (`stream`) 於讀取標頭後即主動中斷來節省頻寬。
 * **Cookie-gate 防護穿透與跨跳 Cookie 傳遞 (Domain-Bucketed Cookies & Subdomain Inheritance)**：
   * **分桶隔離儲存**：部分網站（如採用 Citrix NetScaler / Cookie-gate 防護的站台）會在重導向時設定驗證 Cookie，並要求後續請求必須攜帶該 Cookie 才能取得正式回應。系統必須在重導向迴圈中自動收集並傳遞跨跳的 `Set-Cookie`，並**依據 Cookie 自行宣告的網域 (c.domain) 分桶儲存**，確保不會跨無關網域洩漏，且滿足同源政策與安全機制。為避免底層網路套件（如 `httpx`）之不穩定行為，系統應強制採用手動組裝 `Cookie` 標頭的方式進行狀態傳遞。
+  * **無網域宣告之 Cookie 回退機制 (Domain-less Cookie Fallback)**：針對跨跳轉的 `Set-Cookie` 收集，當伺服器回傳 Cookie 卻未顯式宣告 `Domain` 屬性時，系統絕不可將其丟棄。必須嚴格遵循 RFC 6265 規範，將該 Cookie 視為僅對「發起請求之當前來源主機 (Origin Host)」有效之 Session Cookie，並正確綁定至該主機名稱進行分桶隔離儲存。
   * **子網域萬用字元繼承 (Subdomain Wildcard Match)**：為了防止在同體系不同子網域（如 `acs.elearn.hrd.gov.tw` 與 `elearn.hrd.gov.tw`）間跨跳發生 Cookie 遺失而導致無限重導向，系統在提取分桶 Cookie 時，必須支援**子網域繼承父網域萬用字元 Cookie** 的匹配機制（例如請求 `acs.elearn.hrd.gov.tw` 時，需自動繼承並攜帶來自父網域 `.elearn.hrd.gov.tw` 下的有效 Cookie），以確保 Cookie 穿透的完整性與相容性。
 * **社群平台自動降級探測 (Social Domains Fallback)**：專門針對 Facebook、Twitter 等嚴格防護的社群平台網域，當預設的 `HEAD` 請求回傳**任何大於等於 400 的異常狀態碼**時，系統會自動降級為抽離特徵的 `GET` 串流請求進行二次確認，徹底消弭「假死連結」的誤報率。此社群平台網域清單並非寫死，而是由配置參數 `social_domains` 提供，支援管理員依需求進行自訂與擴充。
 * **HTTP 明文連線之自動 HTTPS 升級重試機制**：外部連結探測亦適用於突破 HSTS 與 WAF 阻擋之 HTTPS 自動升級重試機制。若升級探測成功，資料庫中依然必須如實記錄來源所寫的原始 `http://` 網址，並將 `is_secure` 標記維持為 `False`，以維持精確的資安稽核功能。（詳細重試邏輯見 §2.6）
@@ -105,6 +107,8 @@
 * **錯誤分類處理與例外統一封裝**：遇到無可救藥的永久性錯誤時直接標記為失敗，避免無效的網路層級重試（僅針對特定連線或防火牆阻擋進行上述特殊重試）。此外，核心引擎的 HTTP 異常與連線例外（如 `HTTPStatusError` 或 `RequestError`）必須完全於底層封裝，統一轉化為結構化的失敗狀態回傳，確保上層調用端免於例外拋出而崩潰。
 * **畸形網域與解析容錯 (Malformed Domain Defense)**：當遇到因網頁撰寫瑕疵產生的畸形網址（例如包含連續點號 `..` 導致 DNS 標籤錯誤 `label empty or too long` 之 IDNA 解析例外）時，系統必須精確捕捉其底層例外（如 `UnicodeError`、`ValueError`），並將其優雅地標記為失敗 (`failed`) 且記錄詳細原因，嚴防單一畸形網址穿透防護網導致整個爬蟲任務中斷崩潰。
 * **指數退避機制**：重試時應引入退避等待機制，隨重試次數增加等待時間，避免連續請求加重目標伺服器負載。
+* **最外層防線與保底機制 (Top-level Exception Boundary)**：所有的背景常駐任務（如排程器迴圈）與爬蟲主程序的最外層，必須實作捕捉所有 `Exception` 的保底機制。若遭遇非預期例外，必須寫入日誌並觸發對應的錯誤狀態轉移（如標記任務為 `error`）或觸發錯誤計數告警，嚴禁任務因未捕捉例外而崩潰進入假死 (Zombie) 狀態或靜默的無窮迴圈。
+* **遞迴深度防護 (Recursion Depth Limit)**：任何涉及網路重試或狀態降級（如 HTTP 自動轉 HTTPS 再次探測）的遞迴邏輯，必須具備明確的深度計數器或次數上限，嚴防無限遞迴導致 Stack Overflow。
 
 ---
 
@@ -132,6 +136,7 @@
 
 ### 3.4 任務生命週期管理
 
+* **狀態轉換的原子性保護 (Atomic State Transitions)**：當進行狀態轉換（如啟動任務或檢查並發上限）時，嚴禁使用單純的「先讀取後寫入 (Read-then-Write)」模式。必須強制使用帶有條件的原子性更新 (Atomic UPDATE with Optimistic Locking) 或分散式鎖，防範雙重啟動或突破並發上限的 Race Condition。
 * **排隊機制與並發控制 (Queued & Concurrency Control)**：系統實作全域並發任務數限制 (`CRAWLER_MAX_CONCURRENT_JOBS`)。當使用者啟動任務時，若當前系統執行中 (`running` / `starting`) 的任務數量已達上限，新任務將進入 `queued` (排隊中) 狀態。背景排程器會定期輪詢，待資源有餘裕時自動依先進先出原則喚醒任務。
 * **暫停與恢復 (Pause/Resume)**：支援溫和的暫停信號，在完成當下網址爬取後安全暫停；並允許後續接續爬取未完成之佇列。針對因 OOM 或伺服器中斷被標記為 `error` 的異常任務，系統亦支援直接無縫恢復執行（CLI 需搭配強制參數），免去重新發起全站爬取的龐大時間成本。**注意：恢復執行時，同樣受系統並發數量上限管控，若資源滿載將先轉為 `queued` 狀態等候調度。**
 * **刪除任務 (Delete)**：支援徹底清理指定任務的所有佇列與外連結果，防止資料庫無限制膨脹。
@@ -200,7 +205,7 @@
 
 * **`user_id` 為 Auth DB 中 `users.id` 的值**，在任務建立時由 Web 服務層從已驗證的 Session 中取得後，寫入 Crawler DB 的 `jobs.user_id` 欄位。Crawler DB 不儲存 any 其他使用者資料（如 email、角色），僅儲存此 ID 以供任務歸屬識別。
 * **顯示層組合**：前台 / 後台需呈現「任務所屬使用者 email」時，由 Web 服務層分別查詢兩個資料庫後在應用層組合，禁止在資料庫層跨庫操作。
-* **帳號刪除的孤立資料處理 (軟刪除與最終一致性)**：管理員刪除帳號時，Web 服務層會先將 Auth DB 的帳號狀態標記為 `deleted` (軟刪除)，並使其所有 Session 失效。隨後透過背景任務 (`BackgroundTasks`) 或被動觸發的 Session GC 機制，非同步地先清除 Crawler DB 中該 `user_id` 的所有任務及結果資料，最後再實體刪除 Auth DB 中的帳號，以確保最終一致性且不產生孤立資料。
+* **帳號刪除的孤立資料處理 (軟刪除與最終一致性)**：管理員刪除帳號時，Web 服務層會先將 Auth DB 的帳號狀態標記為 `deleted` (軟刪除)，並使其所有 Session 失效。隨後透過背景任務 (`BackgroundTasks`) 或被動觸發的 Session GC 機制，非同步地先清除 Crawler DB 中該 `user_id` 的所有任務及結果資料，最後再實體刪除 Auth DB 中的帳號，以確保最終一致性且不產生孤立資料。跨庫刪除或同步作業若發生例外（如 `SQLAlchemyError`），必須實作明確的告警或日誌通知，嚴防靜默失敗（Silent Failure）。
 
 ### 4.3 任務執行觸發方式與程序模型
 
@@ -221,6 +226,7 @@
 * **跨站腳本攻擊防禦 (XSS Prevention)**：前端在渲染任何未受信任的動態資料（如來自資料庫的外部網址、錯誤訊息）時，嚴禁直接寫入 `innerHTML`。必須強制使用 `textContent` 或統一的 `escapeHtml()` 進行 HTML 實體跳脫，防止惡意腳本注入。
 * **匯出安全與注入防禦 (Export Security & Injection Defense)**：系統在匯出 CSV 報表時，必須強制對所有字串欄位進行跳脫處理 (Sanitization)，防止因惡意網址或內容以 `=`, `+`, `-`, `@` 等字元開頭，導致試算表軟體（如 Excel）將其作為公式執行的 CSV 注入攻擊 (CSV Injection / Formula Injection)。
 * **輸入驗證與零信任原則 (Zero Trust)**：落實「不信任前端傳入資料」原則。所有 API 端點的請求參數（包含密碼強度等業務邏輯）需於後端強制進行型別、範圍與規則驗證；接收設定參數時，必須採用 **白名單 (Whitelist)** 機制過濾未知參數，防範繞過前端介面的惡意 API 請求。
+* **模糊搜尋與萬用字元跳脫 (LIKE Injection 防禦)**：在使用 ORM 進行字串模糊搜尋（如 `LIKE` 語法）時，除了依賴 Driver 預設的參數綁定防禦 SQL Injection 外，必須強制對使用者輸入中的 `%` 與 `_` 萬用字元進行跳脫 (Escape)，防範攻擊者透過萬用字元構造高成本查詢，導致資料庫全表掃描與效能癱瘓。
 
 ### 5.2 跨站請求偽造與安全標頭
 
@@ -233,6 +239,7 @@
 * **SSRF 防禦與內網 IP 阻絕 (DNS Rebinding 防護)**：為了防止伺服器端請求偽造 (SSRF) 與 DNS 重綁定攻擊，系統必須實作嚴格的 IP 驗證。在發送 HTTP 請求前，必須先解析目標網域並驗證該 IP 是否為安全的公網 IP（明確過濾掉 Localhost、Private IP、Loopback 及 Link-Local 位址）。確認安全後，應實作 Socket 層級的 DNS 解析攔截或覆寫 (Monkey Patch) 機制，強制客戶端直接連線至已驗證之 IP（若為 IPv6，必須遵循底層引擎之括號包覆規範），確保絕對安全。在開發測試或受控之本機測試環境下，系統需支援透過設定環境變數 `CRAWLER_ALLOW_LOCAL_IPS=true` 來例外豁免此防禦限制，允許爬蟲探測或爬取 Localhost 與內部私人 IP。
 * **傳輸安全與憑證檢驗**：系統需具備識別並標記明文傳輸協定（如 HTTP 而非 HTTPS）之能力，以利傳輸安全性稽核；系統預設應對連線進行嚴格的 SSL/TLS 憑證鏈校驗，同時需保留針對特定信任之自簽憑證網域的配置豁免通道。
 * **安全審查與網域白名單**：系統應具備外部連結的安全稽核需求，支援網域白名單檢驗機制，以利發現並篩選出不在信任白名單內的超連結，防範潛在供應鏈資安風險。
+* **跨越安全邊界之 Cookie 阻斷與跳轉防護 (Cross-Boundary Redirect Mitigation)**：為防範中間人攻擊 (MITM) 與 Cookie 注入 (Cookie Injection) 風險，當爬蟲從「SSL/TLS 憑證豁免網域 (ssl_exempt_domains)」重導向跳轉至「非豁免網域（需嚴格驗證）」時，系統必須實作嚴格的安全邊界檢查。一旦偵測到此類跨越安全邊界的跳轉，除了下一跳必須強制恢復憑證驗證外，系統更應主動阻斷並丟棄該次不安全連線所獲取的 Cookie 狀態，嚴禁其繼承至下一跳，以徹底防禦 Session Fixation 攻擊。
 
 ### 5.4 機密保護與資訊洩漏防禦
 
@@ -244,6 +251,7 @@
 ### 5.5 資源耗盡防禦
 
 * **防呆與系統資源保護 (Resource Exhaustion Defense)**：爬蟲全域配置必須實作安全上下限 (Min/Max Thresholds) 驗證。當個別任務指定的請求延遲 (Delay) 過短，或重試次數 (Retries) 與逾時時間 (Timeout) 過長時，系統 API 層必須能自動攔截並強制將其收斂至全域安全範圍內，防止人為設定錯誤導致自身伺服器資源耗盡或對目標網站造成 DDoS。
+* **並發與資料庫連線池防護 (Concurrency & Connection Pool Protection)**：後端 API 由於遵守了將包含資料庫操作的端點宣告為 `def` (同步)，FastAPI 會將其分派至內部 Thread Pool 執行（預設最大 40 個 Thread）。為防止瞬間高併發請求導致 Thread Pool 內的執行緒卡在等待 DB Connection 而引發 503 超時錯誤，系統必須確保資料庫連線池配置（即 `DB_POOL_SIZE` 加上 `DB_MAX_OVERFLOW` 的總和）必定大於或等於 FastAPI 的預設 Thread Pool 數量（如總和 60），徹底消除高併發下的等待瓶頸。
 
 ---
 
@@ -589,10 +597,11 @@
 
 * **OOM Defense & Data Streaming**：系統在處理所有可能包含數十萬筆紀錄的資料表（如 `crawl_queue`, `external_links`）時，全面採用 SQLAlchemy 的 `yield_per()` 批次迭代技術。無論是進行資料庫遷移、任務備份匯出、或是產生線上報表，皆以固定大小的區塊 (Chunk) 串流讀取，確保即使面對巨量資料，伺服器的記憶體消耗依然維持在極低水平，徹底根絕 OOM (Out of Memory) 崩潰風險。
 * **巨量報表串流匯出 (Streaming Export)**：針對數十萬筆以上的巨量外連紀錄，匯出引擎必須實作基於生成器 (Generator) 與分批載入 (`yield_per`) 的串流寫入機制。無論是單純的 CSV 匯出或完整的 ZIP 壓縮包，均須採行低記憶體佔用的邊讀邊寫模式，將資料直接串流至 HTTP 回應或磁碟中，防範 OOM 例外。
-* **原生 SQL 聚合與前端渲染保護 (Native SQL Aggregation & UI Protection)**：處理一對多巢狀報表時，後端利用資料庫原生的 JSON 聚合與物件建構函數（如 SQLite 的 `json_group_array`/`json_object` 與 PostgreSQL 的 `json_agg`/`json_build_object`），將分組聚合運算下放給資料庫，以避免將巨量資料加載至 Python 記憶體中，並能恢復原生的 `LIMIT` 與 `OFFSET` 極速分頁。同時，為防前端 DOM 節點過載，UI 預覽強制截斷子清單至 10 筆，並提供繞過限制的 CSV/JSON 完整匯出 API，兼顧極速渲染與資料完整性。
+* **原生 SQL 聚合與前端渲染保護 (Native SQL Aggregation & UI Protection)**：處理一對多巢狀報表時，後端利用資料庫原生的 JSON 聚合與物件建構函數（如 SQLite 的 `json_group_array`/`json_object` 與 PostgreSQL 的 `json_agg`/`json_build_object`），將分組聚合運算下放給資料庫，以避免將巨量資料加載至 Python 記憶體中，並能恢復原生的 `LIMIT` 與 `OFFSET` 極速分頁。同時，為防前端 DOM 節點與傳輸過載，後端 API 會強制將子清單截斷至最多 10 筆，而前端 UI 預覽則進一步限制僅顯示前 n 筆（其餘以「及其它」標示）（目前設定 n 為 5），並提供繞過限制的 CSV/JSON 完整匯出 API，兼顧極速渲染與資料完整性。
 
 ### 10.2 資料庫併發與效能優化
 
+* **資料庫批次操作 (Batch Operations) 嚴禁 N+1 查詢**：在處理大量連結資料（如外連去重比對、內連狀態寫入）時，嚴禁在迴圈內逐一執行單筆查詢 (N+1 Query)。必須強制採用「批次查詢 (Batch Query)」與「批次寫入 (Bulk Insert/Update)」，將資料庫 I/O 往返成本降至最低。
 * **PostgreSQL 連線池效能調校 (Connection Pool Optimization)**：系統在初始化資料庫引擎時，會動態偵測連線字串。若為 PostgreSQL，將自動啟用進階連線池參數（如 `pool_size`, `max_overflow`），並可透過 `.env` 環境變數進行調校。同時，強制啟用 `pool_pre_ping` 機制，在每次從連線池取出連線前，主動發送輕量級 `SELECT 1` 測試連線是否存活，若已中斷則自動重連，徹底解決因網路波動或資料庫重啟導致的服務中斷問題，確保生產環境下的高併發穩定性。
 * **併發寫入優化**：針對頻繁的佇列狀態變更與結果寫入，資料庫連線需啟用高併發寫入優化，減少磁碟 I/O 頻率並避免寫入衝突。
   * **例外處理與事務回滾 (Exception Handling & Transaction Rollback)**：為應對高併發寫入時可能發生的各種衝突（如 SQLite 的 `database is locked` 或 PostgreSQL 的 Deadlock / 違反唯一約束等），系統必須：1. 針對 SQLite 提供可配置的鎖定等待逾時 (`timeout`) 以降低檔案鎖衝突機率。2. 無論使用何種資料庫，當捕捉到資料庫層級例外 (`SQLAlchemyError`) 時，必須強制執行事務回滾 (`rollback`)，防止 ORM Session 狀態失效導致後續操作引發級聯崩潰。
@@ -624,6 +633,7 @@
 
 ### 11.2 日誌管理
 
+* **防禦性日誌紀錄 (Defensive Logging)**：為了防禦帳號列舉，系統安全驗證（如密碼重設）即使帳號不存在也應維持相同行為。但在寫入系統日誌時，必須明確標記此類操作的真實語境（例如加註 `anonymous_attempt`），並確保背景清理任務（如 Zombie Job 清理）記錄觸發來源 (Caller)，避免維運人員或開發者在查閱日誌時缺乏上下文而造成誤判。
 * **日誌輪轉與限制 (Log Rotation)**：系統日誌需同時輸出至主控台與日誌檔案，且必須實作日誌檔案的自動輪轉機制 (Log Rotation)，明確限制單一日誌檔案的大小上限（如 10MB）與歷史保留份數，防止長期運行佔滿磁碟空間。
 * 日誌級別與路徑需支援動態配置。
 
