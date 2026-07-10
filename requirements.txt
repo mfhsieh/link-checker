@@ -11,17 +11,17 @@ curl-cffi==0.15.0
 
 # ── Web 後端依賴 ───────────────────────
 fastapi==0.115.12
-starlette==0.41.3
+starlette==0.41.3  # 指定版本，避免與 mcp 產生衝突
 uvicorn[standard]==0.34.3
 bcrypt==4.3.0
 email-validator==2.2.0
 python-dotenv==1.0.1
 
 # ── 開發與測試依賴 ─────────────────────
-pylint==3.2.2
-ruff==0.15.16
-pytest==8.2.0
-mypy==1.10.0
-pytest-playwright==0.8.0
-playwright==1.60.0
-mcp==1.28.1
+# pylint==3.2.2
+# ruff==0.15.16
+# pytest==8.2.0
+# mypy==1.10.0
+# pytest-playwright==0.8.0
+# playwright==1.60.0
+# mcp==1.28.1
