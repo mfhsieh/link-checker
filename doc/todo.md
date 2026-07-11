@@ -67,28 +67,6 @@
   2. **動態參數調整**：實作對應的後端 API 與前端介面，允許使用者在任務「執行中」動態修改該任務的 `max_depth` 與 `max_pages` 限制，並讓爬蟲核心引擎能在下一次迭代時即時套用新設定。
 * **狀態**：**待排程（Pending）**。
 
-
-#### 8. 將通知與信件發送系統解耦至事件驅動 (Event-driven Notification)
-* **問題描述**：目前 `backend/deps.py` 建立 `JobManager` 時，將 `send_job_status_notification` 當作 Callback 綁定，這讓任務管理核心與外部通知業務邏輯產生了高度耦合。
-* **規劃方案**：任務狀態改變時僅由核心發佈 `job_status_changed` 事件，由通知模組獨立訂閱該事件。不僅解除耦合，也確保發送信件的延遲或失敗不會影響主流程。
-* **狀態**：**待排程（Pending）**。
-
-#### 9. 引入管理員操作稽核日誌事件 (Audit Logging via Events)
-* **問題描述**：目前的管理員操作（例如 config_change, job_takeover, user_deleted）會在 API 路由中手動寫入 Log 資料，導致 API 職責過於龐雜。
-* **規劃方案**：API 只需負責執行業務邏輯，成功後發佈如 `user_deleted` 等事件。建立一個獨立的 `AuditLogService` 訂閱所有關鍵事件並統一寫入資料庫，提升 API 的整潔度與未來擴充性。
-* **狀態**：**待排程（Pending）**。
-
-#### 10. 透過事件機制實作全域設定與快取自動更新 (Cache Invalidation)
-* **問題描述**：當管理員修改全域設定（如 SMTP 設定）或使用者權限被停權時，目前的系統若引入 Memory Cache，將面臨資料不同步的風險。
-* **規劃方案**：發布 `config_updated` 或 `user_permission_changed` 等系統事件，讓具備 In-memory Cache 的元件訂閱並自動清除或重新載入最新資料，避免反覆查詢資料庫驗證。
-* **狀態**：**待排程（Pending）**。
-
-#### 11. 透過事件機制實作統計與報表聚合 (Metrics Aggregation)
-* **問題描述**：若未來需統計「系統每日執行任務數」、「平均爬蟲時間」等指標，若直接修改核心邏輯會增加系統複雜度與負擔。
-* **規劃方案**：建立獨立的報表服務，專門訂閱 `job_completed` 或 `job_created` 事件，在背景非同步地累加統計數字，完全不干擾核心 API 的運作。
-* **狀態**：**待排程（Pending）**。
-### 低優先（邊緣需求與周邊工具）
-
 #### 12. 支援對「被忽略的內部連結」進行 HEAD 存活探測
 * **問題描述**：目前系統對於符合「忽略副檔名」或「忽略路徑規則」的內部連結，會直接跳過不予處理。這導致使用者雖然不希望爬蟲深入抓取這些資源（如 PDF、圖片檔或特定目錄），但同時也無從得知這些連結「是否真的存在（避免死檔或斷鏈）」。
 * **規劃方案**：
@@ -122,6 +100,16 @@
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+#### 8. 將通知與信件發送系統解耦至事件驅動 (Event-driven Notification)
+* **問題描述**：目前 `backend/deps.py` 建立 `JobManager` 時，將 `send_job_status_notification` 當作 Callback 綁定，這讓任務管理核心與外部通知業務邏輯產生了高度耦合。
+* **規劃方案**：任務狀態改變時僅由核心發佈 `job_status_changed` 事件，由通知模組獨立訂閱該事件。不僅解除耦合，也確保發送信件的延遲或失敗不會影響主流程。
+* **狀態**：**已解決（Resolved）**。
+
+#### 9. [已完成] 引入管理員操作稽核日誌事件 (Audit Logging via Events)
+* **問題描述**：目前的管理員操作（例如 config_change, job_takeover, user_deleted）會在 API 路由中手動寫入 Log 資料，導致 API 職責過於龐雜。
+* **規劃方案**：API 只需負責執行業務邏輯，成功後發佈如 `user_deleted` 等事件。建立一個獨立的 `AuditLogService` 訂閱所有關鍵事件並統一寫入資料庫，提升 API 的整潔度與未來擴充性。
+* **狀態**：**已解決（Resolved）** - 已實作 AuditLogService 並於各 API 點觸發對應事件。
 
 #### 16. DNS 快取無過期機制（R7-04）
 * **問題描述**（來源：Code Review v3.0 R7-04）：爬蟲工具 `resolve_ip` 使用了 `@functools.lru_cache(maxsize=1024)` 進行 DNS 快取，但此內建快取缺乏過期時間 (TTL) 機制。若爬蟲任務執行時間過長，且目標網站使用了 CDN 並頻繁切換 IP，可能會因快取命中舊 IP 而導致連線失敗與誤判。
@@ -178,23 +166,34 @@
 
 以下項目經評估後認為過度設計或效益極低，已決定擱置不再實作。
 
+#### 10. 透過事件機制實作全域設定與快取自動更新 (Cache Invalidation)
+* **問題描述**：當管理員修改全域設定（如 SMTP 設定）或使用者權限被停權時，目前的系統若引入 Memory Cache，將面臨資料不同步的風險。
+* **規劃方案**：發布 `config_updated` 或 `user_permission_changed` 等系統事件，讓具備 In-memory Cache 的元件訂閱並自動清除或重新載入最新資料，避免反覆查詢資料庫驗證。
+* **狀態**：**已擱置（Dropped）** - 原因：目前快取僅針對靜態的歷史任務診斷結果，並不會因為全域設定或使用者權限異動而導致資料不同步，因此無需實作複雜的快取更新事件。
+
+#### 11. 透過事件機制實作統計與報表聚合 (Metrics Aggregation)
+* **問題描述**：若未來需統計「系統每日執行任務數」、「平均爬蟲時間」等指標，若直接修改核心邏輯會增加系統複雜度與負擔。
+* **規劃方案**：建立獨立的報表服務，專門訂閱 `job_completed` 或 `job_created` 事件，在背景非同步地累加統計數字，完全不干擾核心 API 的運作。
+* **狀態**：**已擱置（Dropped）** - 原因：系統目前主要需求為「針對單一任務的診斷報告」，並無跨任務的大型數據統計看板需求。直接修改核心或增加獨立報表服務屬過度設計。
+### 低優先（邊緣需求與周邊工具）
+
 #### 23. 實作全局 API 速率限制 (Global Rate Limiting)
 * **功能描述**：目前僅有登入鎖定和忘記密碼的個別限速保護，沒有全局 API Rate Limiting Middleware，若面臨大量異常請求可能會佔用過多伺服器資源。
 * **規劃方案**：在反向代理層 (如 Nginx) 或是應用層 (如引入 SlowApi 或客製化 FastAPI Middleware) 補充全局 API 速率限制機制，保護伺服器免於遭受 DoS 或高頻惡意請求。
-* **狀態**：**待後續優化（Pending Review）**。
+* **狀態**：**已擱置（Dropped）** - 原因：API 速率限制通常交由反向代理層（如 Nginx、Cloudflare）處理，在應用層實作會增加不必要的效能開銷與維護成本，對於內部使用的工具而言屬於過度設計。
 
 #### 24. 主爬行迴圈與健康診斷之非同步解耦架構 (Async Distributed Architecture)
 * **功能描述**：目前外部連結健康診斷是與主爬行迴圈同步進行（雖已採用 `ThreadPoolExecutor` 提升單頁內速度，但當外連高達數萬個時，仍會佔用主程序資源）。
 * **規劃方案**：將外部連結檢查徹底解耦為物理獨立的背景任務。主爬蟲專職遍歷，並將待探測外連丟入非同步工作佇列（如 Celery、Redis 或是 RabbitMQ），由背景的探測 worker 進程池獨立執行診斷並非同步寫入資料庫。此為未來 Web 後台架構擴充時的重要優化方向。
-* **狀態**：**待後續 Web 化開發階段評估（Pending Review）**。
+* **狀態**：**已擱置（Dropped）** - 原因：引入 Celery 或 Redis 等外部依賴會大幅增加專案的部署難度與架構複雜度。目前的 `ThreadPoolExecutor` 已經足夠應付單機環境下的效能需求，維持輕量級部署更符合本專案的定位。
 
 #### 25. CLI 支援匯出內部紀錄之狀態篩選 (export-internal filter)
 * **功能描述**：目前 CLI 的 `--export-internal` 參數不支援使用 `--filter` 進行精確狀態篩選，會無條件匯出全部的內部頁面（包含成功與各種失敗）。雖然 Web API 的 `InternalResultQuery` 已具備過濾能力，但尚未整合至命令列工具中。
 * **規劃方案**：擴充 `cli.py` 中關於 `--export-internal` 的參數解析邏輯，使其能夠接收與處理 `--filter` 參數（例如支援 `not_found`, `server_error` 等），並將此參數對接傳遞給底層的匯出服務 (`export_internal_job_results`)。
-* **狀態**：**待後續優化（Pending Review）**。
+* **狀態**：**已擱置（Dropped）** - 原因：CLI 主要用於自動化或 CI 環境，使用者通常會將完整結果輸出為 JSON 後再利用 `jq` 進行處理。將複雜的過濾邏輯重複實作在 CLI 參數中不但效益低，也會增加開發負擔。Web 介面已經提供完整的篩選功能。
 
 #### 26. CSRF Token 與 Session 綁定（R2-02）
 * **問題描述**（來源：Code Review v3.0 R2-02）：目前 CSRF 防護採用 Double Submit Cookie 模式（驗證 Cookie 與 Header 中的 Token 是否一致），並未將 Token 密碼學綁定至特定使用者的 Session。若發生子網域（Subdomain）遭攻破，駭客有可能偽造 Cookie，進而繞過 CSRF 驗證。
 * **規劃方案**：在生成 CSRF Token 時，引入 HMAC 機制，以使用者的 Session ID 作為金鑰對 Token 進行簽章。後端驗證時一併檢查該簽章是否合法，防止 Token 遭偽造。
 * **相關位置**：`backend/auth/router.py` L223-L228
-* **狀態**：**觀察中（Monitoring）** - 現有 SameSite=Strict 保護已足夠防禦絕大部分攻擊，因系統未涉及複雜子網域架構，此項目暫無立即實作之急迫性，留作未來進階安全強化參考。
+* **狀態**：**已擱置（Dropped）** - 原因：本專案並未牽涉到複雜的子網域架構。目前的 `SameSite=Strict` Cookie 加上標準的 Double Submit Cookie 模式已經足以防禦絕大部分的 CSRF 攻擊。HMAC 綁定實作複雜度高但帶來的實際安全效益邊際遞減。

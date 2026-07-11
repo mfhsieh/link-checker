@@ -30,11 +30,7 @@ from backend.jobs.services.exporter import (  # noqa: E402
     ExportOptions,
 )
 from backend.jobs.services.query_utils import ERROR_STATUS_FILTERS  # noqa: E402
-
-try:
-    from backend.jobs.services.notifier import send_job_status_notification as _send_notification
-except ImportError:
-    _send_notification = None
+from backend.jobs.services.notifier import subscribe_to_events  # noqa: E402
 
 from crawler.config_utils import merge_and_validate_crawler_config  # noqa: E402
 from crawler.manager import JobManager, JobCreateOptions, Job  # noqa: E402
@@ -662,8 +658,8 @@ def _handle_resume(manager: JobManager, args: argparse.Namespace) -> None:
     logging.info("正在恢復執行任務 %s...", args.resume)
     if args.config:
         logging.warning("--resume 模式下 --config 參數將被忽略，任務將使用資料庫中的原始設定快照繼續執行。")
-    cb = (lambda j_id, stat: _send_notification(manager.session_factory, j_id, stat)) if _send_notification else None
-    manager.run_job(job_id=args.resume, force=args.force, status_callback=cb)
+    logging.info("開始接續執行任務...")
+    manager.run_job(job_id=args.resume, force=args.force)
 
 
 def _handle_api_spawn(manager: JobManager, args: argparse.Namespace) -> None:
@@ -675,8 +671,8 @@ def _handle_api_spawn(manager: JobManager, args: argparse.Namespace) -> None:
         args (argparse.Namespace): 命令列參數，包含 API 啟動的任務 ID (args.api_spawn) 與強制選項。
     """
     logging.info("API 觸發任務啟動程序: %s", args.api_spawn)
-    cb = (lambda j_id, stat: _send_notification(manager.session_factory, j_id, stat)) if _send_notification else None
-    manager.run_job(job_id=args.api_spawn, force=args.force, is_api_spawn=True, status_callback=cb)
+    logging.info("接收到背景執行訊號，強制啟動任務...")
+    manager.run_job(job_id=args.api_spawn, force=args.force, is_api_spawn=True)
 
 
 def _load_job_config(config_path: str) -> dict[str, object]:
@@ -776,10 +772,8 @@ def _create_and_run_new_job(
             )
         )
         logging.info("成功建立任務 %s。爬蟲啟動中...", job_id)
-        cb = (
-            (lambda j_id, stat: _send_notification(manager.session_factory, j_id, stat)) if _send_notification else None
-        )
-        manager.run_job(job_id, crawler_config=crawler_config, status_callback=cb)
+        # --- Phase 4: Execution ---
+        manager.run_job(job_id, crawler_config=crawler_config)
     except (ValueError, RuntimeError, OSError, TypeError) as e:
         logging.error("啟動爬蟲時發生例外錯誤: %s", e)
         sys.exit(1)
@@ -922,6 +916,11 @@ def main() -> None:
         return
 
     manager: JobManager = JobManager(db_url=db_url)
+    try:
+        subscribe_to_events(manager.session_factory)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logging.error("註冊事件監聽失敗: %s", e)
+
     if args.api_spawn:
         _handle_api_spawn(manager, args)
         return

@@ -63,14 +63,8 @@ def get_job_manager() -> JobManager:
             if _JOB_MANAGER is None:
                 settings = get_settings()
 
-                # pylint: disable=import-outside-toplevel
-                from backend.jobs.services.notifier import send_job_status_notification
-
                 _JOB_MANAGER = JobManager(
                     db_url=settings.CRAWLER_DB_URL,
-                    status_callback=lambda j_id, stat: (
-                        send_job_status_notification(_JOB_MANAGER.session_factory, j_id, stat) if _JOB_MANAGER else None
-                    ),
                 )
     return _JOB_MANAGER
 

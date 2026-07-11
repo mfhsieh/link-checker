@@ -87,6 +87,18 @@ async def app_lifespan(_app: FastAPI):  # pylint: disable=unused-argument
     logger.info("初始化系統事件監聽器...")
     register_auth_events()
     register_job_events()
+    # pylint: disable=import-outside-toplevel
+    from backend.admin.services.audit import subscribe_to_audit_events
+
+    subscribe_to_audit_events()
+
+    # 在此加入 Notifier 事件監聽
+    # pylint: disable=import-outside-toplevel
+    from backend.deps import get_job_manager
+    from backend.jobs.services.notifier import subscribe_to_events
+
+    manager = get_job_manager()
+    subscribe_to_events(manager.session_factory)
 
     logger.info("啟動背景排程器任務...")
     scheduler_task = asyncio.create_task(_run_scheduler_loop())

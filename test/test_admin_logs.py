@@ -199,6 +199,10 @@ class TestAdminLogs(unittest.TestCase):
         db.commit()
         db.close()
 
+        from backend.auth.service import register_auth_events
+        from backend.admin.services.audit import subscribe_to_audit_events
+        register_auth_events()
+        subscribe_to_audit_events()
         cls.client = TestClient(app)
 
     @classmethod

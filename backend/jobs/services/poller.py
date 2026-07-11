@@ -30,7 +30,7 @@ class JobProgressPoller:
     def __init__(self) -> None:
         """
         初始化任務進度輪詢器。
-        
+
         建立用來追蹤活躍任務的集合、快取最近一次的任務資料，
         並準備好非同步任務與事件中止控制。
         """
@@ -42,7 +42,7 @@ class JobProgressPoller:
     def add_job(self, job_id: str) -> None:
         """
         加入欲監控的任務 ID（支援參考計數）。
-        
+
         當前端透過 SSE 建立連線時呼叫。如果同一個任務有多個連線，
         只會增加參考計數，以確保單一任務只需輪詢一次。
 
@@ -54,7 +54,7 @@ class JobProgressPoller:
     def remove_job(self, job_id: str) -> None:
         """
         移除不再監控的任務 ID（支援參考計數）。
-        
+
         當前端 SSE 連線斷開時呼叫。會減少該任務的參考計數，
         當計數歸零時，正式停止對該任務的資料庫輪詢並清理快取。
 
@@ -70,7 +70,7 @@ class JobProgressPoller:
     async def start(self) -> None:
         """
         啟動背景輪詢任務。
-        
+
         通常在 FastAPI 應用程式的 lifespan 啟動時被呼叫。
         會建立一個非同步背景工作執行 `_poll_loop`。
         """
@@ -82,7 +82,7 @@ class JobProgressPoller:
     async def stop(self) -> None:
         """
         停止背景輪詢任務。
-        
+
         通常在 FastAPI 應用程式的 lifespan 關閉時被呼叫。
         會設定中止事件並優雅地等待背景工作結束。
         """

@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 import httpx
 from sqlalchemy.orm import Session
 
+from backend.events import publish
 from crawler.core import CrawlerCore
 from crawler.models import CrawlerConfig, CrawlQueue, ExternalLink, Job
 from crawler.utils import (
@@ -88,7 +89,6 @@ class JobRunner:
         self,
         session_factory: Callable[[], Session],
         job_id: str,
-        status_callback: Callable[[str, str], None] | None = None,
     ) -> None:
         """
         初始化 JobRunner。
@@ -96,11 +96,9 @@ class JobRunner:
         Args:
             session_factory (Callable[[], Session]): SQLAlchemy Session 工廠。
             job_id (str): 目標任務 ID。
-            status_callback (Callable[[str, str], None] | None): 任務狀態變更時的回呼函式。
         """
         self.session_factory = session_factory
         self.job_id = job_id
-        self.status_callback = status_callback
 
         # 以下狀態於 _initialize 中初始化
         self.config: CrawlerConfig | None = None
@@ -147,8 +145,7 @@ class JobRunner:
                 if job:
                     job.status = "error"
                     session.commit()
-                    if self.status_callback:
-                        self.status_callback(self.job_id, "error")
+                    publish("job_status_changed", job_id=self.job_id, status="error")
             finally:
                 if self.executor:
                     self.executor.shutdown(wait=True, cancel_futures=True)
@@ -318,8 +315,7 @@ class JobRunner:
         """
         job.status = "completed"
         session.commit()
-        if self.status_callback:
-            self.status_callback(self.job_id, "completed")
+        publish("job_status_changed", job_id=self.job_id, status="completed")
 
     def _process_pending_external_links(self, session: Session, crawler: CrawlerCore) -> bool:
         """

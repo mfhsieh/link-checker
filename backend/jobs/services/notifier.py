@@ -8,6 +8,7 @@ import logging
 import smtplib
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from sqlalchemy import case
 from sqlalchemy.orm import Session
@@ -18,6 +19,7 @@ from backend.auth.db import get_auth_session_local
 from backend.auth.models import User
 from backend.config import get_settings
 from backend.email_sender import send_notification_email
+from backend.events import subscribe
 from crawler.models import CrawlQueue, ExternalLink, Job
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -322,3 +324,19 @@ def send_job_status_notification(session_factory: Callable[[], Session], job_id:
         )
 
         _build_and_send_email(to_email, job, status, stats)
+
+
+def subscribe_to_events(session_factory: Callable[[], Session]) -> None:
+    """
+    註冊事件監聽，當任務狀態變更為 completed 或 error 時發送 Email 通知。
+
+    Args:
+        session_factory (Callable[[], Session]): Crawler 資料庫的 Session 工廠。
+    """
+
+    def _handle_job_status_changed(job_id: str, status: str, **kwargs: Any) -> None:  # pylint: disable=unused-argument
+        if status in ("completed", "error"):
+            send_job_status_notification(session_factory, job_id, status)
+
+    subscribe("job_status_changed", _handle_job_status_changed)
+    logger.info("[Email Notification] 已成功註冊 job_status_changed 事件監聽。")

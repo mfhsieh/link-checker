@@ -31,6 +31,7 @@ from backend.deps import (
     require_csrf,
 )
 from backend.email_sender import send_test_email
+from backend.events import publish
 from backend.jobs.services.backup import export_job, import_job
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
@@ -367,13 +368,12 @@ def update_user(
             "target_email": user.email,
             "changes": changes,
         }
-        auth_log = AuthLog(
+        publish(
+            "user_status_changed",
             user_id=current_admin.id,
-            event_type="user_status_changed",
             ip_address=request.client.host if request.client else None,
             detail=json.dumps(log_detail, ensure_ascii=False),
         )
-        auth_db.add(auth_log)
 
     auth_db.commit()
     return {"message": f"帳號 {user.email} 已更新。"}
@@ -431,13 +431,12 @@ def delete_user(
         "deleted_email": user.email,
         "action": "soft_delete_and_schedule_cleanup",
     }
-    auth_log = AuthLog(
+    publish(
+        "user_deleted",
         user_id=current_admin.id,
-        event_type="user_deleted",
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
     )
-    auth_db.add(auth_log)
 
     # 1. 將 Auth DB 帳號標記為軟刪除 (Soft Delete)，以保證跨庫刪除的最終一致性。
     # 並且使所有 Session 立即失效。
@@ -545,13 +544,12 @@ def takeover_job(
         "action": "takeover",
         "before_status": job.status,
     }
-    auth_log = AuthLog(
+    publish(
+        "job_force_action",
         user_id=_admin.id,
-        event_type="job_force_action",
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
     )
-    auth_db.add(auth_log)
     auth_db.commit()
 
     manager.pause_job(job_id)
@@ -579,13 +577,12 @@ def admin_transfer_job(
         "action": "transfer",
         "new_user_id": _admin.id,
     }
-    auth_log = AuthLog(
+    publish(
+        "job_force_action",
         user_id=_admin.id,
-        event_type="job_force_action",
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
     )
-    auth_db.add(auth_log)
     auth_db.commit()
 
     if not manager.transfer_job(job_id, _admin.id):
@@ -622,13 +619,12 @@ def admin_delete_job(
         "job_id": job_id,
         "action": "delete",
     }
-    auth_log = AuthLog(
+    publish(
+        "job_force_action",
         user_id=_admin.id,
-        event_type="job_force_action",
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
     )
-    auth_db.add(auth_log)
     auth_db.commit()
 
     if not manager.delete_job(job_id):
@@ -792,13 +788,12 @@ def update_config(
             "before": existing_crawler_before,
             "after": existing["crawler"],
         }
-        auth_log = AuthLog(
+        publish(
+            "config_change",
             user_id=_admin.id,
-            event_type="config_change",
             ip_address=request.client.host if request.client else None,
             detail=json.dumps(log_detail, ensure_ascii=False),
         )
-        auth_db.add(auth_log)
         auth_db.commit()
 
         return {"message": "全域配置已更新。"}
