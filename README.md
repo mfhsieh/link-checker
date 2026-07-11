@@ -41,7 +41,7 @@
 * **[python-dotenv](https://github.com/theskumar/python-dotenv)** (`1.0.1`)：負責從 `.env` 檔案載入環境變數，確保配置與程式碼分離。
 * **[fake-useragent](https://github.com/fake-useragent/fake-useragent)** (`1.5.1`)：自動隨機產生模仿瀏覽器的 User-Agent，藉以規避基礎防爬蟲機制。
 * **[email-validator](https://github.com/JoshData/python-email-validator)** (`2.2.0`)：提供符合 RFC 標準的 Email 格式與 DNS 深度驗證。
-
+* **[cachetools](https://github.com/tkem/cachetools/)** (`7.1.4`)：提供具備自動到期 (TTL) 能力的記憶體快取，減輕後端 API 的重複聚合運算壓力。
 ### 開發與測試環境 (Development & Testing)
 * **[pytest](https://docs.pytest.org/)** (`8.2.0`)：自動化單元與整合測試框架。
 * **[Playwright](https://playwright.dev/)** (`1.60.0`)：無頭 (Headless) 瀏覽器測試框架，負責執行前端 UI 的端到端 (E2E) 互動測試。

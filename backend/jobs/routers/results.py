@@ -14,9 +14,11 @@ from fastapi import (
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
+from backend.cache_utils import get_cached_job_result
 from backend.deps import get_crawler_db, get_current_user
 from backend.jobs.schemas import InternalResultQuery, JobResultQuery, ResultsQueryArgs
 from backend.jobs.services import external_results, internal_results
+from crawler.models import Job
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -77,7 +79,21 @@ def get_results_summary(
         HTTPException 404: 找不到任務時拋出。
     """
     try:
-        return external_results.get_results_summary(db, job_id, current_user.id, exclude, group_by)
+        job = db.get(Job, job_id)
+        if not job or (job.user_id != current_user.id and current_user.role != "admin"):
+            raise ValueError(f"Job not found: {job_id}")
+
+        def compute():
+            return external_results.get_results_summary(db, job_id, current_user.id, exclude, group_by)
+
+        return get_cached_job_result(
+            job_status=job.status,
+            job_updated_at=job.updated_at.timestamp(),
+            job_id=job_id,
+            endpoint_name="results_summary",
+            params={"exclude": exclude, "group_by": group_by},
+            compute_func=compute,
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -109,12 +125,26 @@ def get_job_diff(
         HTTPException 404: 找不到任務時拋出。
     """
     try:
-        return external_results.get_job_diff(
-            db,
-            base_job_id=job_id,
-            compare_job_id=compare_with,
-            user_id=current_user.id,
-            exclude=exclude,
+        job = db.get(Job, job_id)
+        if not job or (job.user_id != current_user.id and current_user.role != "admin"):
+            raise ValueError(f"Job not found: {job_id}")
+
+        def compute():
+            return external_results.get_job_diff(
+                db,
+                base_job_id=job_id,
+                compare_job_id=compare_with,
+                user_id=current_user.id,
+                exclude=exclude,
+            )
+
+        return get_cached_job_result(
+            job_status=job.status,
+            job_updated_at=job.updated_at.timestamp(),
+            job_id=job_id,
+            endpoint_name="job_diff",
+            params={"compare_with": compare_with, "exclude": exclude},
+            compute_func=compute,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
@@ -143,7 +173,21 @@ def get_internal_results_summary(
         HTTPException 404: 找不到任務或無權限存取時拋出。
     """
     try:
-        return internal_results.get_internal_results_summary(db, job_id, current_user.id, group_by)
+        job = db.get(Job, job_id)
+        if not job or (job.user_id != current_user.id and current_user.role != "admin"):
+            raise ValueError(f"Job not found: {job_id}")
+
+        def compute():
+            return internal_results.get_internal_results_summary(db, job_id, current_user.id, group_by)
+
+        return get_cached_job_result(
+            job_status=job.status,
+            job_updated_at=job.updated_at.timestamp(),
+            job_id=job_id,
+            endpoint_name="internal_results_summary",
+            params={"group_by": group_by},
+            compute_func=compute,
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 

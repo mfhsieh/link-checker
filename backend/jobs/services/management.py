@@ -158,14 +158,15 @@ def pause_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     return result
 
 
-def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None) -> dict[str, object]:
+def get_job_detail(manager: JobManager, job_id: str, user_id: str, *, bypass_auth: bool = False) -> dict[str, object]:
     """
     取得任務詳情（含進度統計）。
 
     Args:
         manager (JobManager): JobManager 實例。
         job_id (str): 任務 ID。
-        user_id (str | None): 若提供，驗證任務歸屬。
+        user_id (str): 驗證任務歸屬。若為系統內部輪詢，可傳入任意字串配合 bypass_auth=True。
+        bypass_auth (bool): 若為 True 則略過歸屬驗證（僅限系統內部背景服務使用）。
 
     Returns:
         dict[str, object]: 任務詳情與進度。
@@ -176,7 +177,7 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str | None = None)
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if user_id is not None and job.user_id != user_id:
+    if not bypass_auth and job.user_id != user_id:
         raise ValueError("無權限存取此任務。")
 
     report = manager.get_job_report(job_id)

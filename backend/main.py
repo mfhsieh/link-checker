@@ -23,8 +23,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.admin.router import router as admin_router
 from backend.auth.router import router as auth_router
+from backend.auth.service import register_auth_events
 from backend.config import Settings, get_settings
 from backend.jobs.router import router as jobs_router
+from backend.jobs.services.events import register_job_events
+from backend.jobs.services.poller import job_progress_poller
 from backend.jobs.services.scheduler import check_and_spawn_queued_jobs
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -81,10 +84,19 @@ async def app_lifespan(_app: FastAPI):  # pylint: disable=unused-argument
     Yields:
         None
     """
+    logger.info("初始化系統事件監聽器...")
+    register_auth_events()
+    register_job_events()
+
     logger.info("啟動背景排程器任務...")
     scheduler_task = asyncio.create_task(_run_scheduler_loop())
+
+    await job_progress_poller.start()
+
     yield
-    logger.info("關閉背景排程器任務...")
+
+    logger.info("關閉背景輪詢器與排程器任務...")
+    await job_progress_poller.stop()
     scheduler_task.cancel()
     try:
         await scheduler_task

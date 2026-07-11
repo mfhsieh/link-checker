@@ -36,6 +36,10 @@ async function request(path, options = {}) {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
   };
+  
+  if (headers['Content-Type'] === undefined) {
+    delete headers['Content-Type'];
+  }
 
   // CSRF Token（POST / PATCH / PUT / DELETE 需要）
   if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) {
@@ -118,6 +122,24 @@ export function post(path, body) {
   return request(path, {
     method: 'POST',
     body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
+/**
+ * 檔案上傳請求 (multipart/form-data)
+ * @param {string} path - API 路徑
+ * @param {FormData} formData - 表單資料
+ * @returns {Promise<any>} 解析後的 JSON 回應
+ */
+export function upload(path, formData) {
+  // 對於 FormData，必須讓瀏覽器自己設定 Content-Type 以包含 boundary
+  // 透過在 headers 覆蓋 Content-Type 為 undefined 來避免預設的 application/json
+  return request(path, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'Content-Type': undefined
+    }
   });
 }
 

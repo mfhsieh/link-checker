@@ -602,31 +602,12 @@ def cleanup_deleted_user_task(user_id: str) -> None:
     """
     # pylint: disable=import-outside-toplevel
     from backend.auth.db import get_auth_session_local
-
-    # 延遲載入以避免與 router / deps 產生循環依賴
-    # pylint: disable=import-outside-toplevel, cyclic-import
-    from backend.deps import get_job_manager
-    from crawler.models import Job
+    from backend.events import publish
 
     auth_session_factory = get_auth_session_local()
-    manager = get_job_manager()
-    crawler_session_factory = manager.session_factory
 
-    # 1. 刪除 Crawler DB 資料
-    try:
-        with crawler_session_factory() as crawler_db:
-            crawler_jobs = crawler_db.query(Job).filter(Job.user_id == user_id).all()
-            for job in crawler_jobs:
-                crawler_db.delete(job)
-            crawler_db.commit()
-            if crawler_jobs:
-                logger.info("已背景清理使用者 %s 的 %d 個爬蟲任務", user_id, len(crawler_jobs))
-    except SQLAlchemyError as e:
-        logger.error("背景清理 Crawler DB 時發生錯誤，使用者 %s 的爬蟲資料可能成為孤兒資料: %s", user_id, e)
-        # 將錯誤寫入 AuthLog，讓管理員在後台能立刻看到，達成告警目的
-        with auth_session_factory() as auth_db:
-            _log_event(auth_db, "user_cleanup_failed", user_id=user_id, ip_address="system", detail=str(e))
-        return
+    # 1. 發布事件，通知其他模組該使用者即將被徹底刪除
+    publish("user_permanently_deleted", user_id=user_id)
 
     # 2. 刪除 Auth DB 資料與實體使用者
     try:
@@ -640,6 +621,29 @@ def cleanup_deleted_user_task(user_id: str) -> None:
                 logger.info("已背景實體刪除使用者 %s (%s)", user.email, user_id)
     except SQLAlchemyError as e:
         logger.error("背景清理 Auth DB 時發生錯誤: %s", e)
+
+
+def on_user_cleanup_failed(user_id: str, detail: str) -> None:
+    """
+    當其他模組（如 Crawler）清理使用者資料失敗時觸發，寫入 AuthLog 記錄錯誤。
+    """
+    from backend.auth.db import get_auth_session_local  # pylint: disable=import-outside-toplevel
+
+    try:
+        session_factory = get_auth_session_local()
+        with session_factory() as auth_db:
+            _log_event(auth_db, "user_cleanup_failed", user_id=user_id, ip_address="system", detail=detail)
+    except SQLAlchemyError as e:
+        logger.error("寫入 user_cleanup_failed 日誌時發生錯誤: %s", e)
+
+
+def register_auth_events() -> None:
+    """
+    註冊 Auth 模組的內部事件監聽器。
+    """
+    from backend.events import subscribe  # pylint: disable=import-outside-toplevel
+
+    subscribe("user_cleanup_failed", on_user_cleanup_failed)
 
 
 def run_session_gc_task() -> None:

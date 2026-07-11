@@ -4,13 +4,13 @@
 此模組提供網域擷取、網域驗證、IP 位址解析以及網址正規化等輔助函式。
 """
 
-import functools
 import ipaddress
 import logging
 import os
 import socket
 import urllib.parse
 
+import cachetools
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.functions import FunctionElement
@@ -19,6 +19,10 @@ from sqlalchemy.types import JSON
 from crawler.models import CrawlQueue
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+# DNS 快取常數設定
+DNS_CACHE_MAXSIZE = 1024
+DNS_CACHE_TTL = 300
 
 
 def get_domain(url: str) -> str:
@@ -60,10 +64,10 @@ def is_in_domain_list(domain: str, domain_list: list[str]) -> bool:
     return False
 
 
-@functools.lru_cache(maxsize=1024)
+@cachetools.cached(cachetools.TTLCache(maxsize=DNS_CACHE_MAXSIZE, ttl=DNS_CACHE_TTL))
 def resolve_ip(domain: str) -> str | None:
     """
-    針對給定的網域解析其 IP 位址。
+    針對給定的網域解析其 IP 位址（具備 5 分鐘 DNS 快取）。
 
     Args:
         domain (str): 欲解析的網域名稱。

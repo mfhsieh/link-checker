@@ -995,6 +995,31 @@ function renderAllJobsTable(container) {
                     });
                     divActions.appendChild(btnTakeover);
                 }
+                if (j.user_id !== user.id) {
+                    const btnRetrieve = document.createElement("button");
+                    btnRetrieve.className = "btn btn-sm btn-secondary";
+                    btnRetrieve.textContent = "強制取回";
+                    btnRetrieve.addEventListener("click", async (e) => {
+                        e.stopPropagation();
+                        try {
+                            await api.post(`/api/admin/jobs/${j.id}/transfer`);
+                            toast.success("任務轉移成功");
+                            await loadAllJobs();
+                        } catch (err) {
+                            toast.error("轉移失敗：" + err.message);
+                        }
+                    });
+                    divActions.appendChild(btnRetrieve);
+                }
+                const btnExport = document.createElement("button");
+                btnExport.className = "btn btn-sm btn-secondary";
+                btnExport.textContent = "匯出備份";
+                btnExport.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    window.location.href = `/api/admin/jobs/${j.id}/export`;
+                });
+                divActions.appendChild(btnExport);
+
                 const btnDel = document.createElement("button");
                 btnDel.className = "btn btn-sm btn-danger";
                 btnDel.textContent = "刪除";
@@ -1080,7 +1105,7 @@ async function takeoverJob(jobId) {
  */
 async function deleteJob(jobId) {
     const confirmed = await showConfirm(
-        "🚨 強制刪除任務",
+        "強制刪除任務",
         "確定要強制刪除該任務？此操作將清除所有關聯之佇列與外連資料，且無法復原。",
         "永久刪除",
         true,
@@ -1138,6 +1163,73 @@ async function adminRoute() {
     }
 
     if (loaders[view]) await loaders[view]();
+}
+
+const btnImportJob = document.getElementById("btn-import-job");
+const importInput = document.getElementById("import-job-input");
+
+if (btnImportJob && importInput) {
+    btnImportJob.addEventListener("click", () => {
+        importInput.click();
+    });
+}
+
+if (importInput) {
+    importInput.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const originalText = btnImportJob.textContent;
+        btnImportJob.disabled = true;
+        btnImportJob.textContent = "匯入中...";
+
+        const warnUnload = (event) => {
+            event.preventDefault();
+            event.returnValue = "上傳作業仍在進行中，離開此頁面將會中斷上傳。確定要離開嗎？";
+            return event.returnValue;
+        };
+        window.addEventListener("beforeunload", warnUnload);
+
+        const linkInterceptor = async (event) => {
+            const path = event.composedPath ? event.composedPath() : [];
+            const a = path.find(el => el.tagName === "A") || event.target.closest("a");
+            if (!a || !a.href) return;
+            // 判斷是否為換頁導航 (如果只是切換 # hash，則不攔截)
+            const currentPath = window.location.origin + window.location.pathname;
+            if (!a.href.startsWith(currentPath + '#') && a.href !== currentPath) {
+                event.preventDefault();
+                event.stopPropagation();
+                const confirmed = await showConfirm(
+                    "確定要離開嗎？",
+                    "上傳作業仍在進行中，離開此頁面將會中斷上傳。",
+                    "強制離開",
+                    true
+                );
+                if (confirmed) {
+                    window.removeEventListener("beforeunload", warnUnload);
+                    document.removeEventListener("click", linkInterceptor, { capture: true });
+                    window.location.href = a.href;
+                }
+            }
+        };
+        document.addEventListener("click", linkInterceptor, { capture: true });
+
+        const formData = new FormData();
+        formData.append("file", file);
+        try {
+            await api.upload("/api/admin/jobs/import", formData);
+            toast.success("任務匯入成功");
+            await loadAllJobs();
+        } catch (err) {
+            toast.error("任務匯入失敗：" + err.message);
+        } finally {
+            importInput.value = "";
+            btnImportJob.disabled = false;
+            btnImportJob.textContent = originalText;
+            window.removeEventListener("beforeunload", warnUnload);
+            document.removeEventListener("click", linkInterceptor, { capture: true });
+        }
+    });
 }
 
 window.addEventListener("hashchange", adminRoute);

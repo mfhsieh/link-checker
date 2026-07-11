@@ -240,7 +240,6 @@ function renderJobInfo(job) {
     if (['completed', 'error', 'paused'].includes(job.status) && !isJobRunning) {
         _extSummaryCache.key = null;
         _intSummaryCache.key = null;
-        loadResults(job.id);
     }
 }
 
@@ -505,7 +504,8 @@ async function loadInternalSummary(jobId) {
         return;
     }
     try {
-        const params = { group_by: _internalGroupBy };
+        const params = {};
+        if (_internalGroupBy !== 'none') params.group_by = _internalGroupBy;
         const res = await api.get(`/api/jobs/${jobId}/internal-results/summary`, params);
         if (jobId !== _currentJobId || reqId !== _currentIntSummaryReqId) return;
 
@@ -525,7 +525,8 @@ async function loadInternalResultsPage(jobId) {
     const reqId = ++_currentIntReqId;
     if (intDataTable) intDataTable.config = { loading: true };
     try {
-        const params = { group_by: _internalGroupBy, page: _internalCurrentPage, page_size: 50, sort_by: _internalSort.key || undefined, sort_asc: _internalSort.asc };
+        const params = { page: _internalCurrentPage, page_size: 50, sort_by: _internalSort.key || undefined, sort_asc: _internalSort.asc };
+        if (_internalGroupBy !== 'none') params.group_by = _internalGroupBy;
         if (_internalFilter && _internalFilter !== 'all') params.filter = _internalFilter;
 
         const activeFilters = Object.fromEntries(Object.entries(_internalColFilters).filter(([_, v]) => v.trim() !== ''));
@@ -764,6 +765,7 @@ function bindWebComponentEvents() {
                 updateExtToolbarButtons();
                 _extSummaryCache = { key: null, data: null };
                 loadExternalResultsPage(_currentJobId);
+                loadExternalSummary(_currentJobId);
                 refreshJobDetail(_currentJobId);
             } catch (err) {
                 toast.error(err.message || '探測失敗');
@@ -805,6 +807,7 @@ function bindWebComponentEvents() {
                 updateIntToolbarButtons();
                 _intSummaryCache = { key: null, data: null };
                 loadInternalResultsPage(_currentJobId);
+                loadInternalSummary(_currentJobId);
                 refreshJobDetail(_currentJobId);
             } catch (err) {
                 toast.error(err.message || '探測失敗');
@@ -1034,6 +1037,7 @@ function bindWebComponentEvents() {
                     await api.post(`/api/jobs/${_currentJobId}/pause`);
                     toast.info('暫停指令已送出，任務將在完成當前頁面後停止。');
                     refreshJobDetail(_currentJobId);
+                    loadResults(_currentJobId);
                 } catch (err) { toast.error(err.message); }
             }
         });

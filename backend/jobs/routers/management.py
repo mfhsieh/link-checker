@@ -490,28 +490,59 @@ async def stream_job_updates(
         Yields:
             str: 格式化後的 SSE 資料區塊。
         """
-        last_data_str = None
-        while True:
-            if await request.is_disconnected():
-                logger.info("SSE client for job %s disconnected.", job_id)
-                break
+        # 1. 初始嚴格權限驗證與首筆資料發送
+        try:
+            # 這裡一定會使用 current_user.id 進行驗證
+            initial_detail = await run_in_threadpool(job_management.get_job_detail, manager, job_id, current_user.id)
+            yield f"data: {json.dumps(initial_detail)}\n\n"
+            if (
+                initial_detail["status"] in ["completed", "error", "paused", "pending"]
+                and not initial_detail["is_running"]
+            ):
+                logger.info("Job %s stopped. Closing SSE stream immediately.", job_id)
+                return
+        except ValueError as e:
+            logger.warning("Job %s not found or permission error for SSE stream: %s. Closing.", job_id, e)
+            return
 
-            try:
-                job_detail = await run_in_threadpool(job_management.get_job_detail, manager, job_id, current_user.id)
-                current_data_str = json.dumps(job_detail)
+        # 2. 建立 Queue 並訂閱事件
+        queue: asyncio.Queue[str] = asyncio.Queue()
 
-                if current_data_str != last_data_str:
-                    yield f"data: {current_data_str}\n\n"
-                    last_data_str = current_data_str
+        def on_update(detail_str: str) -> None:
+            queue.put_nowait(detail_str)
 
-                if job_detail["status"] in ["completed", "error", "paused", "pending"] and not job_detail["is_running"]:
-                    logger.info("Job %s stopped (status: %s). Closing SSE stream.", job_id, job_detail["status"])
+        event_name = f"job_progress_updated_{job_id}"
+        from backend.events import subscribe, unsubscribe  # pylint: disable=import-outside-toplevel
+
+        subscribe(event_name, on_update)
+
+        # 3. 通知背景輪詢器開始關注此任務
+        from backend.jobs.services.poller import job_progress_poller  # pylint: disable=import-outside-toplevel
+
+        job_progress_poller.add_job(job_id)
+
+        try:
+            while True:
+                if await request.is_disconnected():
+                    logger.info("SSE client for job %s disconnected.", job_id)
                     break
 
-                # 短期解法：將輪詢間隔加長至 5 秒，以減緩同時大量連線造成的 Thread pool 壓力
-                await asyncio.sleep(5)
-            except ValueError as e:
-                logger.warning("Job %s not found or permission error for SSE stream: %s. Closing.", job_id, e)
-                break
+                try:
+                    # 使用 wait_for 以便定期檢查連線是否中斷
+                    current_data_str = await asyncio.wait_for(queue.get(), timeout=2.0)
+                    yield f"data: {current_data_str}\n\n"
+
+                    detail = json.loads(current_data_str)
+                    if detail.get("status") in ["completed", "error", "paused", "pending"] and not detail.get(
+                        "is_running"
+                    ):
+                        logger.info("Job %s stopped. Closing SSE stream.", job_id)
+                        break
+                except asyncio.TimeoutError:
+                    continue
+        finally:
+            # 4. 確保斷線時清理資源
+            unsubscribe(event_name, on_update)
+            job_progress_poller.remove_job(job_id)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

@@ -5,14 +5,18 @@
 使用者管理、任務監控、全域配置、SMTP 測試、操作日誌查閱。
 """
 
+# pylint: disable=too-many-lines
+
 import copy
 import json
 import logging
 import os
+import tempfile
 from datetime import datetime
 
 import yaml
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy.orm import Session as DBSession
 
@@ -21,11 +25,13 @@ from backend.auth.models import AuthLog, User
 from backend.config import get_settings
 from backend.deps import (
     get_auth_db,
+    get_crawler_db,
     get_job_manager,
     require_admin,
     require_csrf,
 )
 from backend.email_sender import send_test_email
+from backend.jobs.services.backup import export_job, import_job
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
     validate_domain_delays,
@@ -552,6 +558,41 @@ def takeover_job(
     return {"message": f"任務 {job_id} 已強制接管並設為 paused。"}
 
 
+@router.post("/jobs/{job_id}/transfer", status_code=status.HTTP_200_OK)
+def admin_transfer_job(
+    job_id: str,
+    request: Request,
+    manager: JobManager = Depends(get_job_manager),
+    auth_db: DBSession = Depends(get_auth_db),
+    _admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """
+    強制將任務轉移給當前管理員（強制取回）。
+    """
+    if not manager.get_job(job_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
+
+    # 記錄任務強制轉移的操作日誌
+    log_detail = {
+        "job_id": job_id,
+        "action": "transfer",
+        "new_user_id": _admin.id,
+    }
+    auth_log = AuthLog(
+        user_id=_admin.id,
+        event_type="job_force_action",
+        ip_address=request.client.host if request.client else None,
+        detail=json.dumps(log_detail, ensure_ascii=False),
+    )
+    auth_db.add(auth_log)
+    auth_db.commit()
+
+    if not manager.transfer_job(job_id, _admin.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
+    return {"message": f"任務 {job_id} 已成功轉移給您。"}
+
+
 @router.delete("/jobs/{job_id}", status_code=status.HTTP_200_OK)
 def admin_delete_job(
     job_id: str,
@@ -593,6 +634,78 @@ def admin_delete_job(
     if not manager.delete_job(job_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
     return {"message": f"任務 {job_id} 已刪除。"}
+
+
+@router.get("/jobs/{job_id}/export")
+def export_job_backup(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    manager: JobManager = Depends(get_job_manager),
+    crawler_db: DBSession = Depends(get_crawler_db),
+    _admin: User = Depends(require_admin),
+) -> FileResponse:
+    """
+    匯出任務備份為 ZIP 壓縮檔。
+    """
+    job = manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
+
+    # 建立一個暫存目錄並將 ZIP 存於其中
+    fd, temp_zip_path = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+
+    try:
+        # 直接在此呼叫 export_job，因底層使用 yield_per 會阻塞，FastAPI 針對 def 端點會自動放入 threadpool 執行
+        export_job(crawler_db, job_id, temp_zip_path)
+    except ValueError as e:
+        if os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    except Exception as e:
+        if os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="匯出失敗") from e
+
+    # 排定背景任務在回應結束後刪除該暫存檔
+    background_tasks.add_task(os.remove, temp_zip_path)
+    return FileResponse(
+        path=temp_zip_path,
+        media_type="application/zip",
+        filename=f"job_{job_id}_backup.zip",
+    )
+
+
+@router.post("/jobs/import", status_code=status.HTTP_200_OK)
+def import_job_backup(
+    file: UploadFile = File(...),
+    crawler_db: DBSession = Depends(get_crawler_db),
+    current_admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """
+    上傳 ZIP 檔匯入任務備份，並將任務預設指派給當前管理員。
+    """
+    if not file.filename or not file.filename.endswith(".zip"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="僅支援匯入 .zip 格式的備份檔案。")
+
+    fd, temp_zip_path = tempfile.mkstemp(suffix=".zip")
+    os.close(fd)
+
+    try:
+        with open(temp_zip_path, "wb") as f:
+            f.write(file.file.read())
+
+        import_job(crawler_db, temp_zip_path, current_admin.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="匯入失敗：" + str(e)) from e
+    finally:
+        if os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+
+    return {"message": "任務匯入成功。"}
 
 
 # ── 全域配置管理 ───────────────────────────────────────────────────────────────

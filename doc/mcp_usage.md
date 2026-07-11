@@ -5,14 +5,26 @@
 ## 架構說明
 
 MCP Server 採用 **Standalone Stdio Transport** 架構：
-- **獨立運行**：透過 `scripts/mcp_server.py` 直接啟動，不需要透過 FastAPI。
+- **獨立運行**：透過 `scripts/mcp_server.py` 直接啟動。
 - **直接讀取**：程式會透過現有設定 (`config.py` 與 `deps.py`) 直接連接 `crawler.db`。
 - **標準通訊**：採用 `stdio`（標準輸出入）進行 JSON-RPC 通訊，這代表你可以直接透過 SSH 在遠端主機上執行它，並將結果回傳至本地。
 
 ## 開發者本地 (Client) 設定教學
 
 假設您的專案佈署在遠端伺服器上（如 `myserver.com`），且您的專案路徑為 `/opt/link-checker`。
-若要在本地端的開發工具中連接此伺服器，請將以下設定加入至該工具的 MCP 設定檔中（例如 Claude Desktop 的 `claude_desktop_config.json`，或是 Antigravity IDE (Gemini) 的 `~/.gemini/config/mcp_config.json`）：
+若要在本地端的開發工具中連接此伺服器，請將以下設定加入至該工具的 MCP 設定檔中（例如 Claude Desktop 的 `claude_desktop_config.json`，或是 Antigravity IDE (Gemini) 的 `~/.gemini/config/mcp_config.json`）。
+
+有兩種常見的 ssh 連線設定方式：
+
+**方法 1：使用 `.ssh/config` (推薦)**
+在您的電腦上編輯 `~/.ssh/config`，事先定義好連線資訊：
+```text
+Host myserver-prod
+    HostName myserver.com
+    User user
+    IdentityFile ~/.ssh/id_rsa_production
+```
+然後在 MCP 設定檔中，將 `ssh` 目標設定為 `myserver-prod` 即可，這樣配置會更加整潔：
 
 ```json
 {
@@ -20,7 +32,7 @@ MCP Server 採用 **Standalone Stdio Transport** 架構：
     "link-checker-production": {
       "command": "ssh",
       "args": [
-        "user@myserver.com",
+        "myserver-prod",
         "cd /opt/link-checker && .venv/bin/python scripts/mcp_server.py"
       ]
     }
@@ -28,10 +40,7 @@ MCP Server 採用 **Standalone Stdio Transport** 架構：
 }
 ```
 
-### 如何指定 SSH Private Key (金鑰)
-如果您的伺服器需要使用特定的 SSH 金鑰才能登入，您有兩種常見的設定方式：
-
-**方法 1：直接在設定檔加入 `-i` 參數**
+**方法 2：直接在設定檔加入 `-i` 參數**
 將您的私鑰絕對路徑加到 `args` 的最前面：
 ```json
 {
@@ -48,16 +57,6 @@ MCP Server 採用 **Standalone Stdio Transport** 架構：
   }
 }
 ```
-
-**方法 2：使用 `.ssh/config` (推薦)**
-在您的電腦上編輯 `~/.ssh/config`，事先定義好連線資訊：
-```text
-Host myserver-prod
-    HostName myserver.com
-    User user
-    IdentityFile ~/.ssh/id_rsa_production
-```
-然後在 MCP 設定檔中，只要把 `user@myserver.com` 改成 `myserver-prod` 即可，這樣配置會更加整潔。
 
 ## 提供的 Tools
 

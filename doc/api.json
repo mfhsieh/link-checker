@@ -1994,6 +1994,53 @@
         }
       }
     },
+    "/api/admin/jobs/{job_id}/transfer": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Transfer Job",
+        "description": "強制將任務轉移給當前管理員（強制取回）。",
+        "operationId": "admin_transfer_job_api_admin_jobs__job_id__transfer_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Admin Transfer Job Api Admin Jobs  Job Id  Transfer Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/jobs/{job_id}": {
       "delete": {
         "tags": [
@@ -2024,6 +2071,93 @@
                     "type": "string"
                   },
                   "title": "Response Admin Delete Job Api Admin Jobs  Job Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/jobs/{job_id}/export": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Export Job Backup",
+        "description": "匯出任務備份為 ZIP 壓縮檔。",
+        "operationId": "export_job_backup_api_admin_jobs__job_id__export_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/jobs/import": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Import Job Backup",
+        "description": "上傳 ZIP 檔匯入任務備份，並將任務預設指派給當前管理員。",
+        "operationId": "import_job_backup_api_admin_jobs_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_job_backup_api_admin_jobs_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Import Job Backup Api Admin Jobs Import Post"
                 }
               }
             }
@@ -2351,6 +2485,20 @@
   },
   "components": {
     "schemas": {
+      "Body_import_job_backup_api_admin_jobs_import_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_job_backup_api_admin_jobs_import_post"
+      },
       "ChangePasswordRequest": {
         "properties": {
           "current_password": {

@@ -953,6 +953,18 @@
 - **422**: Validation Error
 ---
 
+## POST /api/admin/jobs/{job_id}/transfer
+**摘要**: Admin Transfer Job
+
+**說明**: 強制將任務轉移給當前管理員（強制取回）。
+
+**標籤**: admin
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
 ## DELETE /api/admin/jobs/{job_id}
 **摘要**: Admin Delete Job
 
@@ -970,6 +982,34 @@
 - `dict[str, str]`: 操作成功訊息。
 
 **標籤**: admin
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
+## GET /api/admin/jobs/{job_id}/export
+**摘要**: Export Job Backup
+
+**說明**: 匯出任務備份為 ZIP 壓縮檔。
+
+**標籤**: admin
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
+## POST /api/admin/jobs/import
+**摘要**: Import Job Backup
+
+**說明**: 上傳 ZIP 檔匯入任務備份，並將任務預設指派給當前管理員。
+
+**標籤**: admin
+
+### 請求內容 (Request Body)
+- **Content-Type**: `multipart/form-data`
+- **Schema**: `Body_import_job_backup_api_admin_jobs_import_post` (參考下方 Schema 定義)
 
 ### 回應 (Responses)
 - **200**: Successful Response
@@ -1097,6 +1137,13 @@
 
 ### 回應 (Responses)
 - **200**: Successful Response
+---
+
+## Body_import_job_backup_api_admin_jobs_import_post
+| 屬性名稱 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `file` | string | 是 |  |
+
 ---
 
 ## ChangePasswordRequest
