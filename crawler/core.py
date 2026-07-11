@@ -13,7 +13,6 @@ import socket
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
-from typing import Any, cast
 from urllib.parse import ParseResult, urljoin, urlparse
 
 import httpx
@@ -53,7 +52,7 @@ _FETCH_SAFE_EXCEPTIONS: tuple[type[BaseException], ...] = (
 )
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
-_original_getaddrinfo: Any = socket.getaddrinfo
+_original_getaddrinfo = socket.getaddrinfo
 _dns_override: threading.local = threading.local()
 
 
@@ -75,13 +74,13 @@ def _patched_getaddrinfo(
         list[tuple[int, int, int, str, object]]: 原始或被替換的位址資訊列表。
     """
     if host is None:
-        return _original_getaddrinfo(host, port, *args, **kwargs)
+        return _original_getaddrinfo(host, port, *args, **kwargs)  # type: ignore
 
     overrides = getattr(_dns_override, "overrides", {})
     host_str = host.decode("utf-8") if isinstance(host, bytes) else host
     if host_str in overrides:
-        return _original_getaddrinfo(overrides[host_str], port, *args, **kwargs)
-    return _original_getaddrinfo(host, port, *args, **kwargs)
+        return _original_getaddrinfo(overrides[host_str], port, *args, **kwargs)  # type: ignore
+    return _original_getaddrinfo(host, port, *args, **kwargs)  # type: ignore
 
 
 socket.getaddrinfo = _patched_getaddrinfo  # type: ignore[assignment]
@@ -368,8 +367,11 @@ class CrawlerCore:
         """
         content_type: str = response.headers.get("Content-Type", "").lower()
         if self.config.mime_type_filter.get("enabled", True):
-            allowed_types: list[str] = cast(list[str], self.config.mime_type_filter.get("allowed_types", ["text/html"]))
-            if not any(allowed.lower() in content_type for allowed in allowed_types):
+            allowed_types: list[str] = self.config.mime_type_filter.get(
+                "allowed_types",
+                ["text/html"],
+            )  # type: ignore[assignment]
+            if not any(allowed.lower() in content_type for allowed in allowed_types):  # type: ignore[attr-defined] # pylint: disable=line-too-long
                 logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
                 return f"略過非目標 MIME 類型 ({content_type})"
         return None
@@ -863,10 +865,10 @@ class CrawlerCore:
 
                             resp = cffi_requests.get(
                                 current_url,
-                                impersonate=cast(Any, impersonate),
+                                impersonate=impersonate,  # type: ignore[arg-type]
                                 timeout=self.config.external_check_timeout,
                                 allow_redirects=False,  # 手動處理以確保 SSRF 安全與 target_domains 檢查
-                                proxies=cast(Any, proxies),
+                                proxies=proxies,  # type: ignore[arg-type]
                                 stream=stream,
                                 verify=verify_ssl,
                                 curl_options=cffi_curl_options,
@@ -924,10 +926,11 @@ class CrawlerCore:
 
                     content_type = resp.headers.get("Content-Type", "").lower()
                     if self.config.mime_type_filter.get("enabled", True):
-                        allowed_types = cast(
-                            list[str], self.config.mime_type_filter.get("allowed_types", ["text/html"])
-                        )
-                        if not any(allowed.lower() in content_type for allowed in allowed_types):
+                        allowed_types = self.config.mime_type_filter.get(
+                            "allowed_types",
+                            ["text/html"],
+                        )  # type: ignore[assignment]
+                        if not any(allowed.lower() in content_type for allowed in allowed_types):  # type: ignore[attr-defined] # pylint: disable=line-too-long
                             return status_code, f"略過非目標 MIME 類型 ({content_type})", None, current_url
 
                     content_bytes = bytearray()

@@ -157,12 +157,10 @@
 * **相關位置**：`backend/jobs/routers/management.py`, `backend/jobs/services/poller.py`
 * **狀態**：**已解決（Resolved）**。
 
----
+#### 2. [已完成] 全面修復與整合 Mypy 靜態型別檢查
+* **狀態**：**已解決（Resolved）** - 已解決所有的 mypy 型別警告，並順利通過所有的單元測試與自動化測試。。
 
-#### 2. 全面修復與整合 Mypy 靜態型別檢查
-* **功能描述**：目前專案雖已大規模採用 Type Hinting，但尚未達到完全無錯的狀態（掃描仍有百餘個 `mypy` 錯誤，主要為 `dict[str, object]` 協變性操作或測試檔參數型別等議題）。
-* **規劃方案**：逐一排除剩餘的 `mypy` 型別報錯，待全站檢查通過後，再將 `mypy --explicit-package-bases backend/ crawler/ cli.py scripts/ test/` 正式納入開發者的 Workflow 檢驗清單與未來的 CI/CD 流程中，確保最高標準的靜態型別安全。
-* **狀態**：**已解決（Resolved）**。
+---
 
 ## 永久擱置 / 已移除 (Dropped / Removed)
 

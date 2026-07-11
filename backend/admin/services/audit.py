@@ -6,6 +6,7 @@
 """
 
 import logging
+from collections.abc import Callable
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -64,7 +65,7 @@ def subscribe_to_audit_events() -> None:
 
     for event_name in audit_events:
         # 使用 closure 捕捉 event_name，避免迴圈變數延遲綁定問題
-        def make_handler(evt: str):  # type: ignore
+        def make_handler(evt: str) -> Callable[..., None]:
             return lambda **kwargs: _handle_audit_event(event_type=evt, **kwargs)
 
         subscribe(event_name, make_handler(event_name))

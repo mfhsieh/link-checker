@@ -11,7 +11,6 @@ import sys
 import unittest
 from collections.abc import Generator
 from datetime import datetime, timedelta
-from typing import Any
 
 # 將專案路徑加入 path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -32,7 +31,7 @@ TEST_AUTH_DB_URL: str = "sqlite:///db/test_auth_admin.db"
 
 # 延後建立 Engine，在 setUpClass 中依據正確的環境變數初始化
 engine: Engine | None = None
-TestingSessionLocal: Any = None
+TESTING_SESSION_LOCAL = None  # type: ignore
 
 
 # 覆寫 get_auth_db 依賴
@@ -43,9 +42,9 @@ def override_get_auth_db() -> Generator[Session, None, None]:
     Yields:
         Session: 測試用的 Auth DB Session。
     """
-    assert TestingSessionLocal is not None
+    assert TESTING_SESSION_LOCAL is not None
     try:
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         yield db
     except Exception:
         db.rollback()
@@ -67,7 +66,7 @@ def override_get_crawler_db() -> Generator[Session, None, None]:
         Session: 測試用的 Crawler DB Session。
     """
     try:
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         yield db
     except Exception:
         db.rollback()
@@ -152,7 +151,7 @@ class TestAdminLogs(unittest.TestCase):
 
         設定環境變數、建立測試資料表、寫入初始使用者，並備份全域設定檔。
         """
-        global engine, TestingSessionLocal  # pylint: disable=global-statement
+        global engine, TESTING_SESSION_LOCAL  # pylint: disable=global-statement
 
         # 設定測試用環境變數（避免模組級設定被其他模組覆蓋）
         os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_admin.db"
@@ -177,7 +176,7 @@ class TestAdminLogs(unittest.TestCase):
         # 建立 Engine（此時環境變數已正確設定）
         os.makedirs("db", exist_ok=True)
         engine = create_engine(TEST_AUTH_DB_URL, connect_args={"check_same_thread": False})
-        TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        TESTING_SESSION_LOCAL = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
         # 建立所有資料表
         AuthBase.metadata.create_all(bind=engine)
@@ -191,7 +190,7 @@ class TestAdminLogs(unittest.TestCase):
         app.dependency_overrides[require_csrf] = lambda: None
 
         # 建立一些測試資料
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         # 確保 mock admin 存在
         if not db.query(User).filter(User.id == "admin-id").first():
             db.add(User(id="admin-id", email="admin@test.com", role="admin", status="active"))
@@ -247,7 +246,7 @@ class TestAdminLogs(unittest.TestCase):
         在每個測試方法執行前清空操作日誌。
         """
         # 每次測試前清空 AuthLog，確保測試獨立性
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         db.query(AuthLog).delete()
         db.commit()
         db.close()
@@ -267,7 +266,7 @@ class TestAdminLogs(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         # 驗證 AuthLog 是否寫入
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         log = db.query(AuthLog).filter(AuthLog.event_type == "config_change").first()
         self.assertIsNotNone(log)
         if log:
@@ -288,7 +287,7 @@ class TestAdminLogs(unittest.TestCase):
         response = self.client.patch("/api/admin/users/test-user-id", json=payload)
         self.assertEqual(response.status_code, 200)
 
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         log = db.query(AuthLog).filter(AuthLog.event_type == "user_status_changed").first()
         self.assertIsNotNone(log)
         if log:
@@ -302,7 +301,7 @@ class TestAdminLogs(unittest.TestCase):
         """
         測試操作日誌的日期區間篩選功能。
         """
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         # 建立幾個不同時間點的日誌
         now = datetime.now()
         log1 = AuthLog(user_id="admin-id", event_type="test_event", created_at=now - timedelta(days=5))
@@ -339,7 +338,7 @@ class TestAdminLogs(unittest.TestCase):
         測試管理員刪除使用者帳號時，是否正確記錄操作日誌。
         """
         # 建立測試用的待刪除使用者
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         db.add(User(id="delete-user-id", email="delete@test.com", role="user", status="active"))
         db.commit()
         db.close()
@@ -347,7 +346,7 @@ class TestAdminLogs(unittest.TestCase):
         response = self.client.delete("/api/admin/users/delete-user-id")
         self.assertEqual(response.status_code, 200)
 
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         log = (
             db.query(AuthLog)
             .filter(AuthLog.event_type == "user_deleted", AuthLog.user_id == "admin-id")
@@ -367,7 +366,7 @@ class TestAdminLogs(unittest.TestCase):
         response = self.client.post("/api/admin/jobs/test-job-id/takeover")
         self.assertEqual(response.status_code, 200)
 
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         log = (
             db.query(AuthLog)
             .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")
@@ -388,7 +387,7 @@ class TestAdminLogs(unittest.TestCase):
         response = self.client.delete("/api/admin/jobs/test-job-id-delete")
         self.assertEqual(response.status_code, 200)
 
-        db = TestingSessionLocal()
+        db = TESTING_SESSION_LOCAL()  # type: ignore
         log = (
             db.query(AuthLog)
             .filter(AuthLog.event_type == "job_force_action", AuthLog.user_id == "admin-id")

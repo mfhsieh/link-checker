@@ -10,7 +10,6 @@ import logging
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 from sqlalchemy import Engine, case
 from sqlalchemy.orm import Session, sessionmaker
@@ -195,7 +194,7 @@ class JobManager:
                 for job in jobs
             ]
 
-    def get_job_report(self, job_id: str) -> dict[str, Any] | None:
+    def get_job_report(self, job_id: str) -> dict[str, object] | None:
         """
         取得指定任務的詳細統計報告。
 
@@ -203,7 +202,7 @@ class JobManager:
             job_id (str): 欲查詢報告的任務 ID。
 
         Returns:
-            dict[str, Any] | None: 任務的詳細統計資料。若任務不存在則回傳 None。
+            dict[str, object] | None: 任務的詳細統計資料。若任務不存在則回傳 None。
 
         Raises:
             SQLAlchemyError: 當資料庫查詢失敗時拋出。

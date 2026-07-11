@@ -10,6 +10,7 @@ from collections.abc import Iterator, Mapping
 from sqlalchemy import Integer, String, and_, case, cast, desc
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session as DBSession
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.expression import Subquery
 from sqlalchemy.sql.functions import count
 from sqlalchemy.sql.functions import max as sql_max
@@ -387,7 +388,7 @@ def get_job_results(
     job = db.query(Job).filter(Job.id == query_args.job_id).first()
     if not job:
         raise ValueError(f"找不到任務 ID: {query_args.job_id}")
-    if job.user_id != query_args.user_id:
+    if (job.user_id or "") != (query_args.user_id or ""):
         raise ValueError("無權限存取此任務。")
 
     if query_args.group_by == "target":
@@ -427,13 +428,13 @@ def get_results_summary(  # pylint: disable=too-many-locals
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+    if (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限存取此任務。")
 
     is_grouped = group_by and group_by not in ("none", "")
 
     if group_by == "target":
-        key_col: object = ExternalLink.target_url
+        key_col: InstrumentedAttribute = ExternalLink.target_url
     elif group_by == "source":
         key_col = ExternalLink.source_url
     elif group_by == "domain":
@@ -441,7 +442,7 @@ def get_results_summary(  # pylint: disable=too-many-locals
     else:
         key_col = ExternalLink.id
 
-    count_expr = count(key_col.distinct()) if is_grouped else count(key_col)  # type: ignore[attr-defined, arg-type]
+    count_expr = count(key_col.distinct()) if is_grouped else count(key_col)
     insecure_expr = case(
         (and_(ExternalLink.is_secure == False, ExternalLink.status_category != "pending"), key_col),  # pylint: disable=singleton-comparison,line-too-long  # noqa: E712
         else_=None,
@@ -563,6 +564,14 @@ def _is_bad_link(item: dict[str, object]) -> bool:
     return False
 
 
+def _get_top_10_sources(item: dict[str, object]) -> list[str]:
+    """取得最多 10 個排序後的來源網址。"""
+    sources = item["sources"]
+    if isinstance(sources, (set, list)):
+        return sorted([str(s) for s in sources])[:10]
+    return []
+
+
 def _process_diff_common_url(
     url: str, item_a: dict[str, object], item_b: dict[str, object], diff_lists: dict[str, list[dict[str, object]]]
 ) -> None:
@@ -581,14 +590,14 @@ def _process_diff_common_url(
                 "target_url": url,
                 "old_ip": item_a["ip"],
                 "new_ip": item_b["ip"],
-                "sources": sorted(list(item_b["sources"]) if isinstance(item_b["sources"], (set, list)) else [])[:10],
+                "sources": _get_top_10_sources(item_b),
             }
         )
     if item_a["is_secure"] and not item_b["is_secure"]:
         diff_lists["security_downgraded"].append(
             {
                 "target_url": url,
-                "sources": sorted(list(item_b["sources"]) if isinstance(item_b["sources"], (set, list)) else [])[:10],
+                "sources": _get_top_10_sources(item_b),
             }
         )
 
@@ -603,7 +612,7 @@ def _process_diff_common_url(
                 "old_error": item_a["error"],
                 "new_status": item_b["status_code"],
                 "new_error": item_b["error"],
-                "sources": sorted(list(item_b["sources"]) if isinstance(item_b["sources"], (set, list)) else [])[:10],
+                "sources": _get_top_10_sources(item_b),
             }
         )
     elif a_bad and not b_bad:
@@ -614,7 +623,7 @@ def _process_diff_common_url(
                 "old_error": item_a["error"],
                 "new_status": item_b["status_code"],
                 "new_error": item_b["error"],
-                "sources": sorted(list(item_b["sources"]) if isinstance(item_b["sources"], (set, list)) else [])[:10],
+                "sources": _get_top_10_sources(item_b),
             }
         )
 
@@ -645,9 +654,9 @@ def get_job_diff(  # pylint: disable=too-many-locals
     job_a = db.query(Job).filter(Job.id == base_job_id).first()
     job_b = db.query(Job).filter(Job.id == compare_job_id).first()
 
-    if not job_a or job_a.user_id != user_id:
+    if not job_a or (job_a.user_id or "") != (user_id or ""):
         raise ValueError(f"找不到基準任務 ID: {base_job_id}")
-    if not job_b or job_b.user_id != user_id:
+    if not job_b or (job_b.user_id or "") != (user_id or ""):
         raise ValueError(f"找不到對照任務 ID: {compare_job_id}")
 
     dict_a = _build_target_dict_for_diff(db, base_job_id, exclude)
@@ -672,9 +681,7 @@ def get_job_diff(  # pylint: disable=too-many-locals
             "ip": dict_b[url]["ip"],
             "status_code": dict_b[url]["status_code"],
             "error": dict_b[url]["error"],
-            "sources": sorted(
-                list(s for s in dict_b[url]["sources"] if isinstance(dict_b[url]["sources"], (set, list)))
-            )[:10],  # type: ignore[attr-defined]
+            "sources": _get_top_10_sources(dict_b[url]),
         }
         for url in (set_b - set_a)
     ]
@@ -685,9 +692,7 @@ def get_job_diff(  # pylint: disable=too-many-locals
             "old_ip": dict_a[url]["ip"],
             "old_status_code": dict_a[url]["status_code"],
             "old_error": dict_a[url]["error"],
-            "sources": sorted(
-                list(s for s in dict_a[url]["sources"] if isinstance(dict_a[url]["sources"], (set, list)))
-            )[:10],  # type: ignore[attr-defined]
+            "sources": _get_top_10_sources(dict_a[url]),
         }
         for url in (set_a - set_b)
     ]
@@ -880,7 +885,7 @@ def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[Ma
     """
     # pylint: disable=duplicate-code
     job = db.query(Job).filter(Job.id == query_args.job_id).first()
-    if not job or job.user_id != query_args.user_id:
+    if not job or (job.user_id or "") != (query_args.user_id or ""):
         raise ValueError("無權限存取此任務。")
 
     query = db.query(ExternalLink).filter(ExternalLink.job_id == query_args.job_id)

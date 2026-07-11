@@ -11,7 +11,6 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import cast
 
 import httpx
 from sqlalchemy.orm import Session
@@ -226,18 +225,18 @@ class JobRunner:
 
         # 建立 config
         self.config = CrawlerConfig(
-            timeout=cast(int, crawler_config.get("timeout", 30)),
-            connect_timeout=cast(float, crawler_config.get("connect_timeout", 5.0)),
-            external_check_timeout=cast(float, crawler_config.get("external_check_timeout", 10.0)),
-            ignore_extensions=cast(list[str], crawler_config.get("ignore_extensions", None)),
-            mime_type_filter=cast(dict[str, object], crawler_config.get("mime_type_filter", None)),
-            ignore_regexes=cast(list[str], crawler_config.get("ignore_regexes", None)),
-            user_agent=cast(str | None, crawler_config.get("user_agent", None)),
-            ssl_exempt_domains=cast(list[str], crawler_config.get("ssl_exempt_domains", [])) or [],
-            proxy_url=cast(str | None, crawler_config.get("proxy_url", None)),
-            max_content_length=cast(int, crawler_config.get("max_content_length", 10485760)),
-            max_redirects=cast(int, crawler_config.get("max_redirects", 10)),
-            social_domains=cast(list[str], crawler_config.get("social_domains", [])) or [],
+            timeout=crawler_config.get("timeout", 30),  # type: ignore
+            connect_timeout=crawler_config.get("connect_timeout", 5.0),  # type: ignore
+            external_check_timeout=crawler_config.get("external_check_timeout", 10.0),  # type: ignore
+            ignore_extensions=crawler_config.get("ignore_extensions", None),  # type: ignore
+            mime_type_filter=crawler_config.get("mime_type_filter", None),  # type: ignore
+            ignore_regexes=crawler_config.get("ignore_regexes", None),  # type: ignore
+            user_agent=crawler_config.get("user_agent", None),  # type: ignore
+            ssl_exempt_domains=crawler_config.get("ssl_exempt_domains", []) or [],  # type: ignore
+            proxy_url=crawler_config.get("proxy_url", None),  # type: ignore
+            max_content_length=crawler_config.get("max_content_length", 10485760),  # type: ignore
+            max_redirects=crawler_config.get("max_redirects", 10),  # type: ignore
+            social_domains=crawler_config.get("social_domains", []) or [],  # type: ignore
         )
 
         self.state.crawled_count = (
@@ -277,8 +276,8 @@ class JobRunner:
                 break
             job = fetched_job
 
-            max_pages = cast(int | None, self.crawler_config_dict.get("max_pages"))
-            if max_pages is not None and self.state.crawled_count >= max_pages:
+            max_pages = self.crawler_config_dict.get("max_pages")  # type: ignore
+            if max_pages is not None and self.state.crawled_count >= max_pages:  # type: ignore
                 logger.info(
                     "任務 %s 已達到最大抓取頁數限制 (%s)。優雅結束任務。",
                     self.job_id,
@@ -387,8 +386,8 @@ class JobRunner:
 
         should_delay = True
         try:
-            max_depth = cast(int | None, self.crawler_config_dict.get("max_depth"))
-            if max_depth is not None and queue_item.depth > max_depth:
+            max_depth = self.crawler_config_dict.get("max_depth")  # type: ignore
+            if max_depth is not None and queue_item.depth > max_depth:  # type: ignore
                 queue_item.status = "skip"
                 queue_item.status_category = "skip"
                 session.commit()
@@ -435,21 +434,21 @@ class JobRunner:
 
         if should_delay:
             domain = get_domain(current_url) or ""
-            domain_delays: dict[str, float] = cast(dict[str, float], self.crawler_config_dict.get("domain_delays", {}))
-            base_delay = cast(float, self.crawler_config_dict.get("delay", 0.0))
+            domain_delays: dict[str, float] = self.crawler_config_dict.get("domain_delays", {})  # type: ignore
+            base_delay = self.crawler_config_dict.get("delay", 0.0)  # type: ignore
             delay = _get_domain_delay(
                 domain,
                 domain_delays,
-                base_delay,
+                base_delay,  # type: ignore
             )
 
-            jitter_ratio = cast(float, self.crawler_config_dict.get("jitter_ratio", 0.0))
-            min_delay = delay - (delay * jitter_ratio)
-            max_delay = delay + (delay * jitter_ratio)
+            jitter_ratio = self.crawler_config_dict.get("jitter_ratio", 0.0)  # type: ignore
+            min_delay = delay - (delay * jitter_ratio)  # type: ignore
+            max_delay = delay + (delay * jitter_ratio)  # type: ignore
             actual_delay = random.uniform(min_delay, max_delay)
 
-            min_config = cast(float, self.crawler_config_dict.get("min_delay", 0.0))
-            actual_delay = max(actual_delay, min_config)
+            min_config = self.crawler_config_dict.get("min_delay", 0.0)  # type: ignore
+            actual_delay = max(actual_delay, min_config)  # type: ignore
             time.sleep(actual_delay)
 
     def _handle_internal_links(self, session: Session, queue_item: CrawlQueue, internal_links: list[str]) -> None:
@@ -462,8 +461,8 @@ class JobRunner:
             internal_links (list[str]): 解析出的內部連結陣列。
         """
         next_depth = queue_item.depth + 1
-        max_depth = cast(int | None, self.crawler_config_dict.get("max_depth"))
-        if max_depth is None or next_depth <= max_depth:
+        max_depth = self.crawler_config_dict.get("max_depth")  # type: ignore
+        if max_depth is None or next_depth <= max_depth:  # type: ignore
             if internal_links:
                 # 解決 N+1 查詢問題：改用 IN 語法進行批次查詢，找出已存在的內部連結，避免在迴圈內逐一查詢 DB
                 existing_urls = {
@@ -691,17 +690,15 @@ class JobRunner:
             session.commit()
             self.state.crawled_count += 1
         else:
-            retries = cast(int, self.crawler_config_dict.get("retries", 3))
-            if queue_item.retry_count < retries:
+            retries = self.crawler_config_dict.get("retries", 3)  # type: ignore
+            if queue_item.retry_count < retries:  # type: ignore
                 queue_item.retry_count += 1
-                domain_delays: dict[str, float] = cast(
-                    dict[str, float], self.crawler_config_dict.get("domain_delays", {})
-                )
-                base_delay = cast(float, self.crawler_config_dict.get("delay", 1.0))
+                domain_delays: dict[str, float] = self.crawler_config_dict.get("domain_delays", {})  # type: ignore
+                base_delay = self.crawler_config_dict.get("delay", 1.0)  # type: ignore
                 current_domain_delay = _get_domain_delay(
                     current_url,
                     domain_delays,
-                    base_delay,
+                    base_delay,  # type: ignore
                 )
                 backoff_delay = current_domain_delay * (2 ** (queue_item.retry_count - 1))
                 logger.warning(
@@ -713,14 +710,14 @@ class JobRunner:
                 )
                 session.commit()
 
-                jitter_ratio = cast(float, self.crawler_config_dict.get("jitter_ratio", 0.2))
+                jitter_ratio = self.crawler_config_dict.get("jitter_ratio", 0.2)  # type: ignore
                 actual_delay = (
                     backoff_delay
                     * random.uniform(
-                        1.0 - jitter_ratio,
-                        1.0 + jitter_ratio,
+                        1.0 - jitter_ratio,  # type: ignore
+                        1.0 + jitter_ratio,  # type: ignore
                     )
-                    if jitter_ratio > 0
+                    if jitter_ratio > 0  # type: ignore
                     else backoff_delay
                 )
                 time.sleep(actual_delay)

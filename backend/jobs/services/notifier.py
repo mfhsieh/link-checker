@@ -8,7 +8,6 @@ import logging
 import smtplib
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 from sqlalchemy import case
 from sqlalchemy.orm import Session
@@ -334,7 +333,7 @@ def subscribe_to_events(session_factory: Callable[[], Session]) -> None:
         session_factory (Callable[[], Session]): Crawler 資料庫的 Session 工廠。
     """
 
-    def _handle_job_status_changed(job_id: str, status: str, **kwargs: Any) -> None:  # pylint: disable=unused-argument
+    def _handle_job_status_changed(job_id: str, status: str, **kwargs: object) -> None:  # pylint: disable=unused-argument
         if status in ("completed", "error"):
             send_job_status_notification(session_factory, job_id, status)
 

@@ -69,7 +69,7 @@ def start_job(manager: JobManager, job_id: str, user_id: str | None = None) -> b
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if user_id is not None and job.user_id != user_id:
+    if user_id is not None and (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限操作此任務。")
     if job.status not in ("pending", "paused", "error", "queued"):
         raise ValueError(f"任務目前狀態為 {job.status}，無法啟動。")
@@ -149,7 +149,7 @@ def pause_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+    if (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限操作此任務。")
 
     result = manager.pause_job(job_id)
@@ -177,7 +177,7 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str, *, bypass_aut
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if not bypass_auth and job.user_id != user_id:
+    if not bypass_auth and (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限存取此任務。")
 
     report = manager.get_job_report(job_id)
@@ -252,7 +252,7 @@ def delete_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+    if (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限刪除此任務。")
 
     return manager.delete_job(job_id)
@@ -277,7 +277,7 @@ def transfer_job(manager: JobManager, job_id: str, user_id: str, target_user_id:
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+    if (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限操作此任務。")
     if job.status in ("running", "starting"):
         raise ValueError("任務正在執行中，無法移交。請先暫停任務。")
@@ -305,7 +305,7 @@ def reset_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+    if (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限重置此任務。")
     if job.status in ("running", "starting", "queued"):
         raise ValueError("任務正在執行或排隊中，無法直接重置，請先暫停任務。")
@@ -333,7 +333,7 @@ def retry_failed_job(manager: JobManager, job_id: str, user_id: str) -> bool:
     job = manager.get_job(job_id)
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+    if (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限操作此任務。")
     if job.status in ("running", "starting", "queued"):
         raise ValueError("任務正在執行或排隊中，無法直接重試，請先暫停任務。")

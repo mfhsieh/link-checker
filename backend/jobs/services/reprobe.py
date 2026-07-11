@@ -45,7 +45,7 @@ def reprobe_external_links(
         ValueError: 若找不到指定的任務 ID，或當前使用者無權限操作該任務時拋出。
     """
     job = manager.get_job(job_id)
-    if not job or job.user_id != user_id:
+    if not job or (job.user_id or "") != (user_id or ""):
         raise ValueError("找不到任務或無權限操作")
 
     query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
@@ -103,7 +103,7 @@ def reprobe_internal_links(
         ValueError: 若找不到指定的任務 ID，或當前使用者無權限操作該任務時拋出。
     """
     job = manager.get_job(job_id)
-    if not job or job.user_id != user_id:
+    if not job or (job.user_id or "") != (user_id or ""):
         raise ValueError("找不到任務或無權限操作")
 
     if group_by == "source":

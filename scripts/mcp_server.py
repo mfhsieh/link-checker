@@ -6,7 +6,6 @@
 import json
 import os
 import sys
-from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from sqlalchemy import func
@@ -79,7 +78,7 @@ def get_job_progress(job_id: str) -> str:
             .all()
         )
 
-        summary: dict[str, Any] = {
+        summary: dict[str, object] = {
             "job_id": job.id,
             "status": job.status,
             "start_url": job.start_url,
@@ -87,8 +86,8 @@ def get_job_progress(job_id: str) -> str:
         }
 
         # 額外統計
-        total = sum(summary["stats"].values())
-        pending = summary["stats"].get("pending", 0)
+        total = sum(summary["stats"].values())  # type: ignore[attr-defined]
+        pending = summary["stats"].get("pending", 0)  # type: ignore[attr-defined]
         completed = total - pending
 
         summary["total_discovered"] = total

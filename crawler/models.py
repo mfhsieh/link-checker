@@ -10,14 +10,13 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, cast
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Query, mapped_column, relationship
 
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 
-_DEF: dict[str, Any] = cast(dict[str, Any], DEFAULT_GLOBAL_CONFIG.get("crawler", {}))
+_DEF: dict[str, object] = DEFAULT_GLOBAL_CONFIG.get("crawler", {})  # type: ignore[assignment]
 
 
 class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
@@ -56,18 +55,18 @@ class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
         social_domains (list[str]): 社群與反爬蟲網域清單。
     """
 
-    timeout: int = _DEF["timeout"]
-    connect_timeout: float = _DEF["connect_timeout"]
-    external_check_timeout: float = _DEF["external_check_timeout"]
-    ignore_extensions: list[str] = field(default_factory=lambda: list(_DEF["ignore_extensions"]))
-    mime_type_filter: dict[str, object] = field(default_factory=lambda: dict(_DEF["mime_type_filter"]))
-    ignore_regexes: list[str] = field(default_factory=lambda: list(_DEF["ignore_regexes"]))
-    user_agent: str | None = _DEF["user_agent"]
-    ssl_exempt_domains: list[str] = field(default_factory=lambda: list(_DEF["ssl_exempt_domains"]))
-    proxy_url: str | None = _DEF["proxy_url"]
-    max_content_length: int = _DEF["max_content_length"]
-    max_redirects: int = _DEF["max_redirects"]
-    social_domains: list[str] = field(default_factory=lambda: list(_DEF["social_domains"]))
+    timeout: int = _DEF["timeout"]  # type: ignore
+    connect_timeout: float = _DEF["connect_timeout"]  # type: ignore
+    external_check_timeout: float = _DEF["external_check_timeout"]  # type: ignore
+    ignore_extensions: list[str] = field(default_factory=lambda: list(_DEF["ignore_extensions"]))  # type: ignore
+    mime_type_filter: dict[str, object] = field(default_factory=lambda: dict(_DEF["mime_type_filter"]))  # type: ignore
+    ignore_regexes: list[str] = field(default_factory=lambda: list(_DEF["ignore_regexes"]))  # type: ignore
+    user_agent: str | None = _DEF["user_agent"]  # type: ignore
+    ssl_exempt_domains: list[str] = field(default_factory=lambda: list(_DEF["ssl_exempt_domains"]))  # type: ignore
+    proxy_url: str | None = _DEF["proxy_url"]  # type: ignore
+    max_content_length: int = _DEF["max_content_length"]  # type: ignore
+    max_redirects: int = _DEF["max_redirects"]  # type: ignore
+    social_domains: list[str] = field(default_factory=lambda: list(_DEF["social_domains"]))  # type: ignore
 
     def __post_init__(self) -> None:
         """

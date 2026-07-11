@@ -8,7 +8,7 @@ import json
 import logging
 from collections.abc import Callable, Iterable, Mapping
 
-from sqlalchemy import asc, desc
+from sqlalchemy import ColumnElement, asc, desc
 from sqlalchemy.orm import Query
 
 from backend.jobs.schemas import InternalResultQuery, JobResultQuery
@@ -80,8 +80,8 @@ def _apply_sorting(
     query: Query,
     sort_by: str | None,
     sort_asc: bool,
-    sort_map: Mapping[str, object],
-    default_sort: object,
+    sort_map: Mapping[str, ColumnElement],
+    default_sort: ColumnElement,
 ) -> Query:
     """
     動態套用排序規則，減少主函式的區域變數與複雜度。
@@ -98,8 +98,8 @@ def _apply_sorting(
     """
     if sort_by and sort_by in sort_map:
         order_func = asc if sort_asc else desc
-        return query.order_by(order_func(sort_map[sort_by]))  # type: ignore[arg-type]
-    return query.order_by(default_sort)  # type: ignore[arg-type]
+        return query.order_by(order_func(sort_map[sort_by]))
+    return query.order_by(default_sort)
 
 
 # pylint: disable=too-many-arguments
@@ -107,8 +107,8 @@ def execute_paginated_query(
     query: Query,
     query_args: _PaginatedQuery,
     filter_map: Mapping[str, Callable],
-    sort_map: Mapping[str, object],
-    default_sort: object,
+    sort_map: Mapping[str, ColumnElement],
+    default_sort: ColumnElement,
     row_mapper: Callable[..., dict[str, object]],
     is_having: bool = False,
 ) -> dict[str, object]:

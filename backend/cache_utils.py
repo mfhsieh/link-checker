@@ -6,7 +6,7 @@
 import hashlib
 import json
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import TypeVar, cast
 
 from cachetools import TTLCache
 
@@ -15,7 +15,10 @@ API_CACHE_MAXSIZE = 500
 API_CACHE_TTL = 300
 
 # 建立全域的任務查詢結果快取
-job_results_cache: Any = TTLCache(maxsize=API_CACHE_MAXSIZE, ttl=API_CACHE_TTL)
+job_results_cache = cast(
+    TTLCache[str, object],
+    TTLCache(maxsize=API_CACHE_MAXSIZE, ttl=API_CACHE_TTL),
+)
 T = TypeVar("T")
 
 
@@ -38,7 +41,7 @@ def get_cached_job_result(
         job_updated_at (float): 任務最後更新的時間戳記，確保任務重新探測後快取能立即失效。
         job_id (str): 任務 ID。
         endpoint_name (str): 區分不同 API 端點的名稱 (例如 'results_summary', 'job_diff')。
-        params (dict[str, Any]): 影響查詢結果的參數字典。
+        params (dict[str, object]): 影響查詢結果的參數字典。
         compute_func (Callable[[], T]): 若未命中快取時，用來產生結果的函式。
 
     Returns:
@@ -55,7 +58,7 @@ def get_cached_job_result(
     cache_key = hashlib.md5(key_str.encode("utf-8")).hexdigest()
 
     if cache_key in job_results_cache:
-        return job_results_cache[cache_key]
+        return cast(T, job_results_cache[cache_key])
 
     result = compute_func()
     job_results_cache[cache_key] = result

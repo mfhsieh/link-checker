@@ -9,7 +9,6 @@ import subprocess
 import sys
 import time
 import zipfile
-from typing import Any, cast
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -195,11 +194,11 @@ def test_cli_full_flow() -> None:
     }
 
     test_crawler_config = merge_and_validate_crawler_config(
-        cast(dict[str, Any], {"crawler": {"ignore_extensions": [".pdf", ".jpg"], "max_depth": 3}}),
-        cast(dict[str, Any], global_cfg),
+        {"crawler": {"ignore_extensions": [".pdf", ".jpg"], "max_depth": 3}},  # type: ignore[arg-type]
+        global_cfg,  # type: ignore[arg-type]
     )
-    assert set(cast(list[str], test_crawler_config["ignore_extensions"])) == {".pdf", ".jpg"}
-    merged = merge_and_validate_crawler_config(cast(dict[str, Any], local_cfg), cast(dict[str, Any], global_cfg))
+    assert set(list(test_crawler_config["ignore_extensions"])) == {".pdf", ".jpg"}  # type: ignore
+    merged = merge_and_validate_crawler_config(local_cfg, global_cfg)  # type: ignore[arg-type]
 
     # 斷言環境變數正確覆寫
     assert merged["proxy_url"] == "http://env-proxy:8080", (
@@ -207,7 +206,7 @@ def test_cli_full_flow() -> None:
     )
 
     # 斷言 ssl_exempt_domains 包含全域、個別與環境變數之聯集
-    exempt_set = set(cast(list[str], merged["ssl_exempt_domains"]))
+    exempt_set = set(list(merged["ssl_exempt_domains"]))  # type: ignore
     assert "global-exempt.com" in exempt_set, "global-exempt.com should be in exempt domains"
     assert "local-exempt.com" in exempt_set, "local-exempt.com should be in exempt domains"
     assert "env-exempt.com" in exempt_set, "env-exempt.com should be in exempt domains"

@@ -14,6 +14,7 @@ import secrets
 import string
 import sys
 from logging.handlers import RotatingFileHandler
+from typing import cast
 
 import yaml
 from dotenv import load_dotenv
@@ -426,7 +427,7 @@ def _handle_report(manager: JobManager, args: argparse.Namespace) -> None:
         print(f"最後更新: {report['updated_at']}")
         print("-" * 20)
         print("【佇列進度統計】")
-        queue_stats = report["queue"]
+        queue_stats = cast(dict[str, object], report["queue"])
         print(f"  總計網址數: {queue_stats['total']}")
         print(f"  已完成 (Completed): {queue_stats['completed']}")
         print(f"  已略過 (Skipped):   {queue_stats['skipped']}")

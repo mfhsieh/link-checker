@@ -38,7 +38,7 @@ def stream_internal_results(db: DBSession, job_id: str, user_id: str) -> Iterato
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise ValueError(f"找不到任務 ID: {job_id}")
-    if job.user_id != user_id:
+    if (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限存取此任務。")
 
     cursor = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).yield_per(2000)
@@ -65,7 +65,7 @@ def stream_internal_errors(
     """
     # pylint: disable=duplicate-code
     job = db.query(Job).filter(Job.id == query_args.job_id).first()
-    if not job or job.user_id != query_args.user_id:
+    if not job or (job.user_id or "") != (query_args.user_id or ""):
         raise ValueError("無權限存取此任務。")
 
     query = db.query(CrawlQueue).filter(
@@ -216,13 +216,10 @@ def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: 
     Returns:
         object: 包含 items, total, page, page_size 等分頁資訊與資料的字典物件。
     """
-    if group_by == "source":
-        key_col: object = coalesce(CrawlQueue.source_url, "")
-    else:
-        key_col = CrawlQueue.id
+    key_col = coalesce(CrawlQueue.source_url, "") if group_by == "source" else CrawlQueue.id
 
     query = db.query(
-        count(key_col.distinct()).label("total"),  # type: ignore[union-attr, arg-type]
+        count(key_col.distinct()).label("total"),
         count(case((CrawlQueue.status_category == "not_found", key_col), else_=None).distinct()).label("not_found"),
         count(case((CrawlQueue.status_category == "server_error", key_col), else_=None).distinct()).label(
             "server_error"
@@ -288,7 +285,7 @@ def get_internal_results_summary(db: DBSession, job_id: str, user_id: str, group
     """
     # pylint: disable=duplicate-code
     job = db.query(Job).filter(Job.id == job_id).first()
-    if not job or job.user_id != user_id:
+    if not job or (job.user_id or "") != (user_id or ""):
         raise ValueError("無權限存取此任務。")
 
     if group_by == "none":
@@ -436,7 +433,7 @@ def get_internal_errors(
     """
     # pylint: disable=duplicate-code
     job = db.query(Job).filter(Job.id == query_args.job_id).first()
-    if not job or job.user_id != query_args.user_id:
+    if not job or (job.user_id or "") != (query_args.user_id or ""):
         raise ValueError("無權限存取此任務。")
 
     if query_args.group_by == "source":
