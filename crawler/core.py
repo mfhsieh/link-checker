@@ -56,31 +56,23 @@ _original_getaddrinfo = socket.getaddrinfo
 _dns_override: threading.local = threading.local()
 
 
-def _patched_getaddrinfo(
+def _patched_getaddrinfo(  # pylint: disable=too-many-arguments
     host: str | bytes | None,
     port: str | int | None,
-    *args: object,
-    **kwargs: object,
-) -> list[tuple[int, int, int, str, object]]:
-    """攔截 socket.getaddrinfo 以支援自訂 DNS 解析。
-
-    Args:
-        host (str | bytes | None): 目標主機。
-        port (str | int | None): 目標通訊埠。
-        *args (object): 傳遞給原始 getaddrinfo 的額外位置參數 (例如 family, type, proto, flags)。
-        **kwargs (object): 傳遞給原始 getaddrinfo 的額外關鍵字參數。
-
-    Returns:
-        list[tuple[int, int, int, str, object]]: 原始或被替換的位址資訊列表。
-    """
+    family: int = 0,
+    type_attr: int = 0,  # pylint: disable=redefined-builtin
+    proto: int = 0,
+    flags: int = 0,
+) -> list[tuple[socket.AddressFamily, socket.SocketKind, int, str, tuple[str, int] | tuple[str, int, int, int]]]:  # pylint: disable=no-member
+    """攔截 socket.getaddrinfo 以支援自訂 DNS 解析。"""
     if host is None:
-        return _original_getaddrinfo(host, port, *args, **kwargs)  # type: ignore
+        return _original_getaddrinfo(host, port, family, type_attr, proto, flags)
 
     overrides = getattr(_dns_override, "overrides", {})
     host_str = host.decode("utf-8") if isinstance(host, bytes) else host
     if host_str in overrides:
-        return _original_getaddrinfo(overrides[host_str], port, *args, **kwargs)  # type: ignore
-    return _original_getaddrinfo(host, port, *args, **kwargs)  # type: ignore
+        return _original_getaddrinfo(overrides[host_str], port, family, type_attr, proto, flags)
+    return _original_getaddrinfo(host, port, family, type_attr, proto, flags)
 
 
 socket.getaddrinfo = _patched_getaddrinfo  # type: ignore[assignment]
@@ -367,11 +359,9 @@ class CrawlerCore:
         """
         content_type: str = response.headers.get("Content-Type", "").lower()
         if self.config.mime_type_filter.get("enabled", True):
-            allowed_types: list[str] = self.config.mime_type_filter.get(
-                "allowed_types",
-                ["text/html"],
-            )  # type: ignore[assignment]
-            if not any(allowed.lower() in content_type for allowed in allowed_types):  # type: ignore[attr-defined] # pylint: disable=line-too-long
+            allowed_types_raw = self.config.mime_type_filter.get("allowed_types", ["text/html"])
+            allowed_types: list[str] = allowed_types_raw if isinstance(allowed_types_raw, list) else ["text/html"]
+            if not any(str(allowed).lower() in content_type for allowed in allowed_types):
                 logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
                 return f"略過非目標 MIME 類型 ({content_type})"
         return None
@@ -867,7 +857,7 @@ class CrawlerCore:
                                 current_url,
                                 impersonate=impersonate,  # type: ignore[arg-type]
                                 timeout=self.config.external_check_timeout,
-                                allow_redirects=False,  # 手動處理以確保 SSRF 安全與 target_domains 檢查
+                                allow_redirects=False,
                                 proxies=proxies,  # type: ignore[arg-type]
                                 stream=stream,
                                 verify=verify_ssl,
@@ -926,11 +916,11 @@ class CrawlerCore:
 
                     content_type = resp.headers.get("Content-Type", "").lower()
                     if self.config.mime_type_filter.get("enabled", True):
-                        allowed_types = self.config.mime_type_filter.get(
-                            "allowed_types",
-                            ["text/html"],
-                        )  # type: ignore[assignment]
-                        if not any(allowed.lower() in content_type for allowed in allowed_types):  # type: ignore[attr-defined] # pylint: disable=line-too-long
+                        allowed_types_raw = self.config.mime_type_filter.get("allowed_types", ["text/html"])
+                        allowed_types: list[str] = (
+                            allowed_types_raw if isinstance(allowed_types_raw, list) else ["text/html"]
+                        )
+                        if not any(str(a).lower() in content_type for a in allowed_types):
                             return status_code, f"略過非目標 MIME 類型 ({content_type})", None, current_url
 
                     content_bytes = bytearray()

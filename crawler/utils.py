@@ -8,11 +8,13 @@ import ipaddress
 import logging
 import os
 import socket
+import sqlite3
 import urllib.parse
 
 import cachetools
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import JSON
 
@@ -167,7 +169,7 @@ class JSONGroupArray(FunctionElement):
 
 
 @compiles(JSONGroupArray, "sqlite")
-def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler: object, **kw: object) -> str:
+def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler: SQLCompiler, **kw: object) -> str:
     """
     編譯 JSONGroupArray 函式至 SQLite 相容的 SQL。
 
@@ -179,11 +181,11 @@ def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler: object, 
     Returns:
         str: 編譯後的 SQLite SQL 字串。
     """
-    return f"json_group_array({compiler.process(element.clauses, **kw)})"  # type: ignore[attr-defined]
+    return f"json_group_array({compiler.process(element.clauses, **kw)})"
 
 
 @compiles(JSONGroupArray, "postgresql")
-def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler: object, **kw: object) -> str:
+def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler: SQLCompiler, **kw: object) -> str:
     """
     編譯 JSONGroupArray 函式至 PostgreSQL 相容的 SQL。
 
@@ -195,7 +197,7 @@ def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler: obje
     Returns:
         str: 編譯後的 PostgreSQL SQL 字串。
     """
-    return f"json_agg({compiler.process(element.clauses, **kw)})"  # type: ignore[attr-defined]
+    return f"json_agg({compiler.process(element.clauses, **kw)})"
 
 
 class JSONObject(FunctionElement):
@@ -210,7 +212,7 @@ class JSONObject(FunctionElement):
 
 
 @compiles(JSONObject, "sqlite")
-def _compile_json_object_sqlite(element: JSONObject, compiler: object, **kw: object) -> str:
+def _compile_json_object_sqlite(element: JSONObject, compiler: SQLCompiler, **kw: object) -> str:
     """
     編譯 JSONObject 函式至 SQLite 相容的 SQL。
 
@@ -222,11 +224,11 @@ def _compile_json_object_sqlite(element: JSONObject, compiler: object, **kw: obj
     Returns:
         str: 編譯後的 SQLite SQL 字串。
     """
-    return f"json_object({compiler.process(element.clauses, **kw)})"  # type: ignore[attr-defined]
+    return f"json_object({compiler.process(element.clauses, **kw)})"
 
 
 @compiles(JSONObject, "postgresql")
-def _compile_json_object_postgresql(element: JSONObject, compiler: object, **kw: object) -> str:
+def _compile_json_object_postgresql(element: JSONObject, compiler: SQLCompiler, **kw: object) -> str:
     """
     編譯 JSONObject 函式至 PostgreSQL 相容的 SQL。
 
@@ -238,7 +240,7 @@ def _compile_json_object_postgresql(element: JSONObject, compiler: object, **kw:
     Returns:
         str: 編譯後的 PostgreSQL SQL 字串。
     """
-    return f"json_build_object({compiler.process(element.clauses, **kw)})"  # type: ignore[attr-defined]
+    return f"json_build_object({compiler.process(element.clauses, **kw)})"
 
 
 def create_optimized_engine(  # pylint: disable=too-many-arguments
@@ -284,14 +286,14 @@ def create_optimized_engine(  # pylint: disable=too-many-arguments
     if db_url.startswith("sqlite"):
 
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
+        def set_sqlite_pragma(dbapi_connection: sqlite3.Connection, _connection_record: object) -> None:
             """
             設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。
 
             Args:
                 dbapi_connection (object): SQLite 資料庫連線物件。
             """
-            cursor = dbapi_connection.cursor()  # type: ignore[attr-defined]
+            cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
             cursor.execute(f"PRAGMA cache_size={sqlite_cache_size}")

@@ -118,7 +118,7 @@ def _get_job_results_grouped_by_target(
         query=main_q,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,
+        sort_map=sort_map,  # type: ignore[arg-type]
         default_sort=desc(target_stats.c.occurrence_count),
         row_mapper=row_mapper,
     )
@@ -199,7 +199,7 @@ def _get_job_results_grouped_by_source(
         query=main_q,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,
+        sort_map=sort_map,  # type: ignore[arg-type]
         default_sort=desc(count(ExternalLink.id)),
         row_mapper=row_mapper,
         is_having=True,
@@ -305,7 +305,7 @@ def _get_job_results_grouped_by_domain(
         query=main_q,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,
+        sort_map=sort_map,  # type: ignore[arg-type]
         default_sort=desc(domain_stats.c.occurrence_count),
         row_mapper=row_mapper,
     )
@@ -361,7 +361,7 @@ def _get_job_results_no_grouping(
         query=query,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,
+        sort_map=sort_map,  # type: ignore[arg-type]
         default_sort=ExternalLink.id + 0,
         row_mapper=row_mapper,
     )

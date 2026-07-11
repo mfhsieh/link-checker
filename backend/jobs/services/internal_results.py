@@ -367,7 +367,7 @@ def _get_internal_errors_grouped_by_source(
         query=main_q,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,
+        sort_map=sort_map,  # type: ignore[arg-type]
         default_sort=desc(count(CrawlQueue.id)),
         row_mapper=row_mapper,
         is_having=True,
@@ -408,7 +408,7 @@ def _get_internal_errors_no_grouping(
         query=query,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,
+        sort_map=sort_map,  # type: ignore[arg-type]
         default_sort=CrawlQueue.id + 0,
         row_mapper=format_crawl_queue_item,
     )

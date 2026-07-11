@@ -78,16 +78,18 @@ def get_job_progress(job_id: str) -> str:
             .all()
         )
 
+        stats_dict: dict[str, int] = {row[0] or "unknown": row[1] for row in stats}
+
         summary: dict[str, object] = {
             "job_id": job.id,
             "status": job.status,
             "start_url": job.start_url,
-            "stats": {row.status_category or "unknown": row.count for row in stats},
+            "stats": stats_dict,
         }
 
         # 額外統計
-        total = sum(summary["stats"].values())  # type: ignore[attr-defined]
-        pending = summary["stats"].get("pending", 0)  # type: ignore[attr-defined]
+        total = sum(stats_dict.values())
+        pending = stats_dict.get("pending", 0)
         completed = total - pending
 
         summary["total_discovered"] = total
