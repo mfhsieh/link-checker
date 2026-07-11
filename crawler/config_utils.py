@@ -5,6 +5,7 @@
 import logging
 import os
 import re
+from typing import Any, cast
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -131,7 +132,7 @@ def _sanitize_numeric_type(k: str, v: object, exp: type | tuple[type, ...], conf
         config[k] = None
     elif not isinstance(v, exp):
         try:
-            config[k] = float(v) if exp == (int, float) else int(v)
+            config[k] = float(cast(Any, v)) if exp == (int, float) else int(cast(Any, v))
         except (ValueError, TypeError):
             logging.warning("設定 '%s' 無法轉換為數字，將被忽略。", k)
             config[k] = None
@@ -216,7 +217,7 @@ def _sanitize_list_type(k: str, v: object, config: dict[str, object]) -> None:
         config[k] = [v]
     elif not isinstance(v, list):
         try:
-            config[k] = list(v)
+            config[k] = list(cast(Any, v))
         except TypeError:
             logging.warning("設定 '%s' 必須為陣列清單格式，將被忽略。", k)
             config[k] = []
@@ -270,7 +271,7 @@ def _sanitize_crawler_types(config: dict[str, object]) -> None:
             continue
 
         if k in numeric_types:
-            _sanitize_numeric_type(k, v, numeric_types[k], config)
+            _sanitize_numeric_type(k, v, cast(type | tuple[type, ...], numeric_types[k]), config)
         elif k in string_types:
             _sanitize_string_type(k, v, config)
         elif k in dict_types:
@@ -356,13 +357,15 @@ def _merge_crawler_lists(crawler_config: dict[str, object], global_crawler_confi
         "social_domains",
     ]
     for key in list_keys:
-        g_list: list[str] = global_crawler_config.get(key) or []
-        l_list: list[str] = crawler_config.get(key) or []
+        g_raw = global_crawler_config.get(key)
+        l_raw = crawler_config.get(key)
 
-        if isinstance(g_list, str):
-            g_list = [g_list]
-        if isinstance(l_list, str):
-            l_list = [l_list]
+        g_list: list[str] = (
+            cast(list[str], g_raw) if isinstance(g_raw, list) else ([str(g_raw)] if isinstance(g_raw, str) else [])
+        )
+        l_list: list[str] = (
+            cast(list[str], l_raw) if isinstance(l_raw, list) else ([str(l_raw)] if isinstance(l_raw, str) else [])
+        )
 
         if key == "ignore_extensions":
             g_exts = [str(e).strip().lower() for e in g_list if str(e).strip()]
@@ -381,9 +384,21 @@ def _merge_crawler_lists(crawler_config: dict[str, object], global_crawler_confi
         elif key in ["ssl_exempt_domains", "social_domains"]:
             crawler_config[key] = []
 
-    global_domain_delays: dict[str, object] = global_crawler_config.get("domain_delays") or {}
-    local_domain_delays: dict[str, object] = crawler_config.get("domain_delays") or {}
-    crawler_config["domain_delays"] = {**global_domain_delays, **local_domain_delays}
+    g_delays = (
+        cast(dict[str, object], global_crawler_config.get("domain_delays"))
+        if isinstance(global_crawler_config.get("domain_delays"), dict)
+        else {}
+    )
+    l_delays = (
+        cast(dict[str, object], crawler_config.get("domain_delays"))
+        if isinstance(crawler_config.get("domain_delays"), dict)
+        else {}
+    )
+
+    if g_delays or l_delays:
+        merged_delays = dict(g_delays)
+        merged_delays.update(l_delays)
+        crawler_config["domain_delays"] = merged_delays
 
 
 def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_config: dict[str, object]) -> None:
@@ -424,10 +439,14 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
         if val is None:
             return
 
-        if val < min_val:
+        val_float = float(cast(Any, val))
+        min_val_float = float(cast(Any, min_val))
+        max_val_float = float(cast(Any, max_val))
+
+        if val_float < min_val_float:
             logging.warning("個別設定的 %s (%s) 小於最小值 (%s)，強制套用。", key, val, min_val)
             crawler_config[key] = min_val
-        elif val > max_val:
+        elif val_float > max_val_float:
             logging.warning("個別設定的 %s (%s) 大於最大值 (%s)，強制套用。", key, val, max_val)
             crawler_config[key] = max_val
 
@@ -454,10 +473,11 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
                 logging.warning("個別設定的 %s 為無限制，但全域最大限制為 %s，強制套用。", key, max_val)
                 crawler_config[key] = max_val
         else:
-            if val < 1:
+            val_int = int(cast(Any, val))
+            if val_int < 1:
                 logging.warning("個別設定的 %s (%s) 小於最小值 1，強制套用 1。", key, val)
                 crawler_config[key] = 1
-            elif max_val is not None and val > max_val:
+            elif max_val is not None and val_int > int(cast(Any, max_val)):
                 logging.warning("個別設定的 %s (%s) 大於最大值 (%s)，強制套用。", key, val, max_val)
                 crawler_config[key] = max_val
 
@@ -500,14 +520,18 @@ def merge_and_validate_crawler_config(config: dict[str, object], global_config: 
         dict[str, object]: 經過過濾、合併與驗證後的最終爬蟲設定，可直接寫入資料庫並供 CrawlerCore 建立使用。
     """
     # 1. 取得個別任務的 crawler 區塊設定，並過濾掉不在白名單內的非法或敏感欄位
-    crawler_config: dict[str, object] = config.get("crawler", {})
+    crawler_raw = config.get("crawler")
+    crawler_config: dict[str, object] = cast(dict[str, object], crawler_raw) if isinstance(crawler_raw, dict) else {}
     for key in list(crawler_config.keys()):
         if key not in ALLOWED_CRAWLER_KEYS:
             logging.warning("個別設定 config.yaml 不允許覆寫 crawler.%s，此設定將被忽略。", key)
             del crawler_config[key]
 
     # 2. 取得全域的 crawler 區塊設定
-    global_crawler_config: dict[str, object] = global_config.get("crawler", {})
+    global_crawler_raw = global_config.get("crawler")
+    global_crawler_config: dict[str, object] = (
+        cast(dict[str, object], global_crawler_raw) if isinstance(global_crawler_raw, dict) else {}
+    )
 
     # 3. 進行型別容錯與防呆轉換，避免手寫 YAML 造成系統崩潰
     _sanitize_crawler_types(crawler_config)
@@ -528,7 +552,7 @@ def merge_and_validate_crawler_config(config: dict[str, object], global_config: 
     if env_ssl_exempt:
         crawler_config["ssl_exempt_domains"] = list(
             set(
-                crawler_config.get("ssl_exempt_domains", [])
+                cast(list[str], crawler_config.get("ssl_exempt_domains", []))
                 + [d.strip() for d in env_ssl_exempt.split(",") if d.strip()]
             )
         )

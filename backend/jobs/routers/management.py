@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import os
-import typing
+from collections.abc import AsyncGenerator
 
 import yaml
 from fastapi import (
@@ -57,13 +57,14 @@ def get_default_config(
     """
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
-    crawler_config = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
+    raw_crawler = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
+    crawler_config: dict[str, object] = raw_crawler if isinstance(raw_crawler, dict) else {}
 
     if os.path.exists(config_path):
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
-                if data and "crawler" in data:
+                if isinstance(data, dict) and isinstance(data.get("crawler"), dict):
                     crawler_config = data["crawler"]
         except (OSError, yaml.YAMLError) as e:
             logger.warning("讀取全域設定檔失敗: %s", e)
@@ -164,11 +165,13 @@ def create_job(
 
     # 根據規格書 §4：將全域設定與個別任務設定合併，產生「最終執行配置快照」
     settings = get_settings()
-    global_config = {}
+    global_config: dict[str, object] = {}
     if os.path.exists(settings.GLOBAL_CONFIG_PATH):
         try:
             with open(settings.GLOBAL_CONFIG_PATH, "r", encoding="utf-8") as f:
-                global_config = yaml.safe_load(f) or {}
+                global_config = yaml.safe_load(f)
+                if not isinstance(global_config, dict):
+                    global_config = {}
         except (OSError, yaml.YAMLError) as e:
             logger.warning("建立快照時讀取全域設定檔失敗: %s", e)
 
@@ -209,7 +212,7 @@ def get_job(
         HTTPException 404: 找不到任務或無權限時拋出。
     """
     try:
-        return JobDetailResponse(**job_management.get_job_detail(manager, job_id, current_user.id))
+        return JobDetailResponse.model_validate(job_management.get_job_detail(manager, job_id, current_user.id))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -483,7 +486,7 @@ async def stream_job_updates(
         StreamingResponse: SSE 事件串流回應。
     """
 
-    async def event_generator() -> typing.AsyncGenerator[str, None]:
+    async def event_generator() -> AsyncGenerator[str, None]:
         """
         產生 SSE 事件的非同步產生器。
 

@@ -11,6 +11,7 @@ import sys
 import unittest
 from collections.abc import Generator
 from datetime import datetime, timedelta
+from typing import Any
 
 # 將專案路徑加入 path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -31,7 +32,7 @@ TEST_AUTH_DB_URL: str = "sqlite:///db/test_auth_admin.db"
 
 # 延後建立 Engine，在 setUpClass 中依據正確的環境變數初始化
 engine: Engine | None = None
-TestingSessionLocal: sessionmaker | None = None
+TestingSessionLocal: Any = None
 
 
 # 覆寫 get_auth_db 依賴
@@ -42,6 +43,7 @@ def override_get_auth_db() -> Generator[Session, None, None]:
     Yields:
         Session: 測試用的 Auth DB Session。
     """
+    assert TestingSessionLocal is not None
     try:
         db = TestingSessionLocal()
         yield db
@@ -199,8 +201,10 @@ class TestAdminLogs(unittest.TestCase):
         db.commit()
         db.close()
 
-        from backend.auth.service import register_auth_events
+        # pylint: disable=import-outside-toplevel
         from backend.admin.services.audit import subscribe_to_audit_events
+        from backend.auth.service import register_auth_events
+
         register_auth_events()
         subscribe_to_audit_events()
         cls.client = TestClient(app)

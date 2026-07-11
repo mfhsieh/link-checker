@@ -764,7 +764,6 @@ def update_config(
 
     # 僅提取有更新的 crawler 欄位 (exclude_unset=True)
     crawler_updates = body.crawler.model_dump(exclude_unset=True)
-    safe_body = {"crawler": crawler_updates}
 
     try:
         existing: dict[str, object] = {}
@@ -773,9 +772,10 @@ def update_config(
                 existing = yaml.safe_load(f) or {}
 
         # 深度合併 crawler 區塊（不覆蓋其他頂層欄位）
-        existing_crawler = existing.get("crawler", {})
+        raw_crawler = existing.get("crawler", {})
+        existing_crawler: dict[str, object] = raw_crawler if isinstance(raw_crawler, dict) else {}
         existing_crawler_before = copy.deepcopy(existing_crawler)
-        existing_crawler.update(safe_body["crawler"])
+        existing_crawler.update(crawler_updates)
         existing["crawler"] = existing_crawler
 
         os.makedirs(os.path.dirname(config_path) or ".", exist_ok=True)

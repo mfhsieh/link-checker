@@ -5,7 +5,8 @@
 
 import hashlib
 import json
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from cachetools import TTLCache
 
@@ -14,8 +15,7 @@ API_CACHE_MAXSIZE = 500
 API_CACHE_TTL = 300
 
 # 建立全域的任務查詢結果快取
-job_results_cache = TTLCache(maxsize=API_CACHE_MAXSIZE, ttl=API_CACHE_TTL)
-
+job_results_cache: Any = TTLCache(maxsize=API_CACHE_MAXSIZE, ttl=API_CACHE_TTL)
 T = TypeVar("T")
 
 
@@ -25,7 +25,7 @@ def get_cached_job_result(
     job_updated_at: float,
     job_id: str,
     endpoint_name: str,
-    params: dict[str, Any],
+    params: dict[str, object],
     compute_func: Callable[[], T],
 ) -> T:
     """

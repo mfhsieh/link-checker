@@ -223,7 +223,7 @@ def login(
     session_token = result["session_token"]
     csrf_token = secrets.token_urlsafe(32)
 
-    _set_session_cookie(response, session_token)
+    _set_session_cookie(response, str(session_token))
     _set_csrf_cookie(response, csrf_token)
 
     # 觸發背景 GC 清理過期 Session

@@ -5,6 +5,7 @@
 import logging
 import os
 from datetime import datetime, timezone
+from typing import cast
 
 from backend.jobs.constants import _ACTIVE_PROCESSES, PID_DIR
 from crawler.manager import JobManager
@@ -147,7 +148,7 @@ def _cleanup_zombie_jobs(manager: JobManager, caller: str = "unknown") -> None:
     """
     running_jobs = manager.get_all_jobs(status="running")
     for j in running_jobs:
-        job_id = j["id"]
+        job_id = cast(str, j["id"])
         if not _is_job_running(job_id):
             logger.warning("偵測到任務 %s 假死 (進程已不存在)，將狀態標記為 error (觸發來源: %s)", job_id, caller)
             manager.mark_job_error(job_id, "任務進程意外終止 (可能因系統 OOM 或伺服器重啟)")
@@ -155,9 +156,9 @@ def _cleanup_zombie_jobs(manager: JobManager, caller: str = "unknown") -> None:
     starting_jobs = manager.get_all_jobs(status="starting")
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for j in starting_jobs:
-        job_id = j["id"]
+        job_id = cast(str, j["id"])
         try:
-            updated_time = datetime.strptime(j["updated_at"], "%Y-%m-%d %H:%M:%S")
+            updated_time = datetime.strptime(cast(str, j["updated_at"]), "%Y-%m-%d %H:%M:%S")
             if (now - updated_time).total_seconds() > 30:
                 if not _is_job_running(job_id):
                     logger.warning(

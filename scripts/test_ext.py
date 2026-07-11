@@ -10,6 +10,7 @@ import argparse
 import logging
 import os
 import sys
+from typing import Any
 
 # 加入專案根目錄到 sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -46,7 +47,7 @@ def main() -> None:
         logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 
     # 1. 準備需要覆寫的個別參數
-    user_config_overrides = {}
+    user_config_overrides: dict[str, Any] = {}
     if args.disable_social:
         user_config_overrides["social_domains"] = []
 

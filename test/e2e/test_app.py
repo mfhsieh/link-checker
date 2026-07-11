@@ -87,7 +87,7 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
 
     # 配置 API 攔截器狀態與攔截邏輯（必須在第一次 page.goto 之前註冊以保證 reload 時不失效）
     mock_state = {"status": "pending", "is_running": False}
-    context_data = {"job_id": None}
+    context_data: dict[str, str | None] = {"job_id": None}
 
     def handle_jobs_api(route):
         url = route.request.url

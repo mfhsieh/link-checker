@@ -5,11 +5,12 @@
 import json
 import logging
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 
 from sqlalchemy import Integer, String, and_, case, cast, desc
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session as DBSession
+from sqlalchemy.sql.expression import Subquery
 from sqlalchemy.sql.functions import count
 from sqlalchemy.sql.functions import max as sql_max
 from sqlalchemy.sql.functions import min as sql_min
@@ -40,22 +41,24 @@ def _get_job_results_grouped_by_target(
         object: 包含 items, total, page, page_size 等分頁資訊與資料的字典物件。
     """
     # 1. 建立基礎查詢，取得目標網址與來源網址的對應關係
-    base_q = db.query(ExternalLink.target_url, ExternalLink.source_url).filter(ExternalLink.job_id == query_args.job_id)
+    base_q: Query = db.query(ExternalLink.target_url, ExternalLink.source_url).filter(
+        ExternalLink.job_id == query_args.job_id
+    )
     base_q = apply_job_result_filters(
         base_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
     )
     # 2. 建立子查詢，過濾出不重複的目標與來源網址組合
-    distinct_sources = base_q.distinct().subquery("distinct_sources")
+    distinct_sources: Subquery = base_q.distinct().subquery("distinct_sources")
 
     # 3. 建立子查詢，將不重複的來源網址按目標網址聚合成 JSON 陣列
-    sources_agg = (
+    sources_agg: Subquery = (
         db.query(distinct_sources.c.target_url, JSONGroupArray(distinct_sources.c.source_url).label("source_urls"))
         .group_by(distinct_sources.c.target_url)
         .subquery("sources_agg")
     )
 
     # 4. 建立子查詢，計算各目標網址的統計數據（如 IP、HTTP 狀態、發生次數等）
-    target_stats = db.query(
+    target_stats_q: Query = db.query(
         ExternalLink.target_url,
         sql_max(ExternalLink.ip_address).label("ip_address"),
         sql_min(cast(ExternalLink.is_secure, Integer)).label("is_secure"),
@@ -63,10 +66,10 @@ def _get_job_results_grouped_by_target(
         sql_max(ExternalLink.error_message).label("error_message"),
         count(ExternalLink.id).label("occurrence_count"),
     ).filter(ExternalLink.job_id == query_args.job_id)
-    target_stats = apply_job_result_filters(
-        target_stats, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
+    target_stats_q = apply_job_result_filters(
+        target_stats_q, search=query_args.search, exclude=query_args.exclude, status_filter=query_args.status_filter
     )
-    target_stats = target_stats.group_by(ExternalLink.target_url).subquery("target_stats")
+    target_stats: Subquery = target_stats_q.group_by(ExternalLink.target_url).subquery("target_stats")
 
     main_q = db.query(
         target_stats.c.target_url,
@@ -217,7 +220,7 @@ def _get_job_results_grouped_by_domain(
         object: 包含 items, total, page, page_size 等分頁資訊與資料的字典物件。
     """
     # 1. 建立基礎查詢，提取目標網域、目標網址與來源網址的關係
-    base_q = db.query(ExternalLink.target_domain, ExternalLink.target_url, ExternalLink.source_url).filter(
+    base_q: Query = db.query(ExternalLink.target_domain, ExternalLink.target_url, ExternalLink.source_url).filter(
         ExternalLink.job_id == query_args.job_id
     )
     base_q = apply_job_result_filters(
@@ -430,7 +433,7 @@ def get_results_summary(  # pylint: disable=too-many-locals
     is_grouped = group_by and group_by not in ("none", "")
 
     if group_by == "target":
-        key_col = ExternalLink.target_url
+        key_col: object = ExternalLink.target_url
     elif group_by == "source":
         key_col = ExternalLink.source_url
     elif group_by == "domain":
@@ -438,14 +441,14 @@ def get_results_summary(  # pylint: disable=too-many-locals
     else:
         key_col = ExternalLink.id
 
-    count_expr = count(key_col.distinct()) if is_grouped else count(key_col)
+    count_expr = count(key_col.distinct()) if is_grouped else count(key_col)  # type: ignore[attr-defined, arg-type]
     insecure_expr = case(
         (and_(ExternalLink.is_secure == False, ExternalLink.status_category != "pending"), key_col),  # pylint: disable=singleton-comparison,line-too-long  # noqa: E712
         else_=None,
     )
     insecure_count_expr = count(insecure_expr.distinct()) if is_grouped else count(insecure_expr)
 
-    query = db.query(
+    query: Query = db.query(
         ExternalLink.status_category,
         count_expr.label("cnt"),
         insecure_count_expr.label("insecure_cnt"),
@@ -471,7 +474,7 @@ def get_results_summary(  # pylint: disable=too-many-locals
             stats[cat] = cnt
 
     if is_grouped:
-        total_query = db.query(
+        total_query: Query = db.query(
             count_expr.label("total"),
             insecure_count_expr.label("insecure_cnt"),
         ).filter(ExternalLink.job_id == job_id)
@@ -507,7 +510,8 @@ def _build_target_dict_for_diff(db: DBSession, job_id: str, exclude: str | None 
     Returns:
         dict[str, dict[str, object]]: 聚合後的外連字典。
     """
-    agg: dict[str, dict[str, object]] = defaultdict(
+    _SetStr = set[str]
+    agg: dict[str, dict[str, str | bool | int | _SetStr | None]] = defaultdict(
         lambda: {
             "ip": None,
             "is_secure": True,
@@ -526,7 +530,9 @@ def _build_target_dict_for_diff(db: DBSession, job_id: str, exclude: str | None 
     cursor = query.yield_per(2000)
     for lnk in cursor:
         d = agg[lnk.target_url]
-        d["sources"].add(lnk.source_url)
+        sources = d["sources"]
+        if isinstance(sources, set):
+            sources.add(lnk.source_url)
         d["is_secure"] = d["is_secure"] and lnk.is_secure
         if not d["ip"] and lnk.ip_address:
             d["ip"] = lnk.ip_address
@@ -534,7 +540,7 @@ def _build_target_dict_for_diff(db: DBSession, job_id: str, exclude: str | None 
             d["status_code"] = lnk.http_status_code
         if not d["error"] and lnk.error_message:
             d["error"] = lnk.error_message
-    return dict(agg)
+    return {k: dict(v) for k, v in agg.items()}
 
 
 def _is_bad_link(item: dict[str, object]) -> bool:
@@ -575,11 +581,16 @@ def _process_diff_common_url(
                 "target_url": url,
                 "old_ip": item_a["ip"],
                 "new_ip": item_b["ip"],
-                "sources": sorted(list(item_b["sources"])[:10]),
+                "sources": sorted(list(item_b["sources"]) if isinstance(item_b["sources"], (set, list)) else [])[:10],
             }
         )
     if item_a["is_secure"] and not item_b["is_secure"]:
-        diff_lists["security_downgraded"].append({"target_url": url, "sources": sorted(list(item_b["sources"])[:10])})
+        diff_lists["security_downgraded"].append(
+            {
+                "target_url": url,
+                "sources": sorted(list(item_b["sources"]) if isinstance(item_b["sources"], (set, list)) else [])[:10],
+            }
+        )
 
     a_bad = _is_bad_link(item_a)
     b_bad = _is_bad_link(item_b)
@@ -592,7 +603,7 @@ def _process_diff_common_url(
                 "old_error": item_a["error"],
                 "new_status": item_b["status_code"],
                 "new_error": item_b["error"],
-                "sources": sorted(list(item_b["sources"])[:10]),
+                "sources": sorted(list(item_b["sources"]) if isinstance(item_b["sources"], (set, list)) else [])[:10],
             }
         )
     elif a_bad and not b_bad:
@@ -603,7 +614,7 @@ def _process_diff_common_url(
                 "old_error": item_a["error"],
                 "new_status": item_b["status_code"],
                 "new_error": item_b["error"],
-                "sources": sorted(list(item_b["sources"])[:10]),
+                "sources": sorted(list(item_b["sources"]) if isinstance(item_b["sources"], (set, list)) else [])[:10],
             }
         )
 
@@ -661,7 +672,9 @@ def get_job_diff(  # pylint: disable=too-many-locals
             "ip": dict_b[url]["ip"],
             "status_code": dict_b[url]["status_code"],
             "error": dict_b[url]["error"],
-            "sources": sorted(list(dict_b[url]["sources"])[:10]),
+            "sources": sorted(
+                list(s for s in dict_b[url]["sources"] if isinstance(dict_b[url]["sources"], (set, list)))
+            )[:10],  # type: ignore[attr-defined]
         }
         for url in (set_b - set_a)
     ]
@@ -672,7 +685,9 @@ def get_job_diff(  # pylint: disable=too-many-locals
             "old_ip": dict_a[url]["ip"],
             "old_status_code": dict_a[url]["status_code"],
             "old_error": dict_a[url]["error"],
-            "sources": sorted(list(dict_a[url]["sources"])[:10]),
+            "sources": sorted(
+                list(s for s in dict_a[url]["sources"] if isinstance(dict_a[url]["sources"], (set, list)))
+            )[:10],  # type: ignore[attr-defined]
         }
         for url in (set_a - set_b)
     ]
@@ -721,7 +736,7 @@ def _stream_no_grouping(cursor) -> Iterator[dict[str, object]]:
         }
 
 
-def _stream_group_by_target(cursor) -> Iterator[dict[str, object]]:
+def _stream_group_by_target(cursor) -> Iterator[Mapping[str, object]]:
     """
     依照目標網址進行分組，將結果串流輸出。
 
@@ -731,7 +746,8 @@ def _stream_group_by_target(cursor) -> Iterator[dict[str, object]]:
     Yields:
         dict[str, object]: 單筆結果資料字典。
     """
-    agg = defaultdict(
+    _SetStr2 = set[str]
+    agg: defaultdict[str, dict[str, str | bool | int | _SetStr2 | None]] = defaultdict(
         lambda: {
             "target_url": "",
             "ip_address": None,
@@ -745,8 +761,11 @@ def _stream_group_by_target(cursor) -> Iterator[dict[str, object]]:
     for lnk in cursor:
         d = agg[lnk.target_url]
         d["target_url"] = lnk.target_url
-        d["occurrence_count"] += 1
-        d["source_urls"].add(lnk.source_url)
+        cnt = d["occurrence_count"]
+        d["occurrence_count"] = (cnt if isinstance(cnt, int) else 0) + 1
+        src_urls = d["source_urls"]
+        if isinstance(src_urls, set):
+            src_urls.add(lnk.source_url)
         d["is_secure"] = d["is_secure"] and lnk.is_secure
         if not d["ip_address"] and lnk.ip_address:
             d["ip_address"] = lnk.ip_address
@@ -762,11 +781,11 @@ def _stream_group_by_target(cursor) -> Iterator[dict[str, object]]:
             "http_status_code": v["http_status_code"],
             "error_message": v["error_message"],
             "occurrence_count": v["occurrence_count"],
-            "source_urls": sorted(list(v["source_urls"])),
+            "source_urls": sorted(list(v["source_urls"]) if isinstance(v["source_urls"], set) else []),
         }
 
 
-def _stream_group_by_domain(cursor) -> Iterator[dict[str, object]]:
+def _stream_group_by_domain(cursor) -> Iterator[Mapping[str, object]]:
     """
     依照目標網域進行分組，將結果串流輸出。
 
@@ -776,14 +795,22 @@ def _stream_group_by_domain(cursor) -> Iterator[dict[str, object]]:
     Yields:
         dict[str, object]: 單筆結果資料字典。
     """
-    agg = defaultdict(lambda: {"domain": "", "occurrence_count": 0, "unique_urls": set(), "source_urls": set()})
+    _SetStr3 = set[str]
+    agg: defaultdict[str, dict[str, str | int | _SetStr3]] = defaultdict(
+        lambda: {"domain": "", "occurrence_count": 0, "unique_urls": set(), "source_urls": set()}
+    )
     for lnk in cursor:
         dom = get_domain(lnk.target_url) or "unknown"
         d = agg[dom]
         d["domain"] = dom
-        d["occurrence_count"] += 1
-        d["unique_urls"].add(lnk.target_url)
-        d["source_urls"].add(lnk.source_url)
+        cnt2 = d["occurrence_count"]
+        d["occurrence_count"] = (cnt2 if isinstance(cnt2, int) else 0) + 1
+        unique_urls = d["unique_urls"]
+        if isinstance(unique_urls, set):
+            unique_urls.add(lnk.target_url)
+        src_urls2 = d["source_urls"]
+        if isinstance(src_urls2, set):
+            src_urls2.add(lnk.source_url)
 
     result = []
     for v in agg.values():
@@ -791,16 +818,16 @@ def _stream_group_by_domain(cursor) -> Iterator[dict[str, object]]:
             {
                 "domain": v["domain"],
                 "occurrence_count": v["occurrence_count"],
-                "unique_urls_count": len(v["unique_urls"]),
-                "unique_urls": sorted(list(v["unique_urls"])),
-                "source_urls": sorted(list(v["source_urls"])),
+                "unique_urls_count": len(v["unique_urls"]) if isinstance(v["unique_urls"], set) else 0,
+                "unique_urls": sorted(list(v["unique_urls"]) if isinstance(v["unique_urls"], set) else []),
+                "source_urls": sorted(list(v["source_urls"]) if isinstance(v["source_urls"], set) else []),
             }
         )
-    result.sort(key=lambda x: x["occurrence_count"], reverse=True)
+    result.sort(key=lambda x: x["occurrence_count"] if isinstance(x["occurrence_count"], int) else 0, reverse=True)
     yield from result
 
 
-def _stream_group_by_source(cursor) -> Iterator[dict[str, object]]:
+def _stream_group_by_source(cursor) -> Iterator[Mapping[str, object]]:
     """
     依照來源網址進行分組，將結果串流輸出。
 
@@ -810,28 +837,34 @@ def _stream_group_by_source(cursor) -> Iterator[dict[str, object]]:
     Yields:
         dict[str, object]: 單筆結果資料字典。
     """
-    agg = defaultdict(lambda: {"source_url": "", "occurrence_count": 0, "targets": []})
+    _ListDict = list[dict[str, object]]
+    agg: defaultdict[str, dict[str, str | int | _ListDict]] = defaultdict(
+        lambda: {"source_url": "", "occurrence_count": 0, "targets": []}
+    )
     for lnk in cursor:
         d = agg[lnk.source_url]
         d["source_url"] = lnk.source_url
-        d["occurrence_count"] += 1
+        cnt3 = d["occurrence_count"]
+        d["occurrence_count"] = (cnt3 if isinstance(cnt3, int) else 0) + 1
         status_str = (
             str(lnk.http_status_code)
             if lnk.http_status_code is not None
             else ("DNS Failed" if not lnk.ip_address else "Error")
         )
-        d["targets"].append(
-            {
-                "url": lnk.target_url,
-                "status": status_str,
-                "is_secure": lnk.is_secure,
-                "error_message": lnk.error_message,
-            }
-        )
+        targets = d["targets"]
+        if isinstance(targets, list):
+            targets.append(
+                {
+                    "url": lnk.target_url,
+                    "status": status_str,
+                    "is_secure": lnk.is_secure,
+                    "error_message": lnk.error_message,
+                }
+            )
     yield from agg.values()
 
 
-def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[dict[str, object]]:
+def stream_job_results(db: DBSession, query_args: JobResultQuery) -> Iterator[Mapping[str, object]]:
     """
     查詢任務的外連結果，並以 yield 串流回傳以節省記憶體。
 

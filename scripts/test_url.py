@@ -10,6 +10,7 @@ import argparse
 import logging
 import os
 import sys
+from typing import cast
 from urllib.parse import urlparse
 
 import yaml
@@ -58,21 +59,21 @@ def get_test_crawler_config(
         timeout=int(float(str(final_cfg.get("timeout", 10)))),
         connect_timeout=float(str(final_cfg.get("connect_timeout", 5.0))),
         external_check_timeout=float(str(final_cfg.get("external_check_timeout", 10.0))),
-        social_domains=list(final_cfg.get("social_domains", []))
+        social_domains=cast(list[str], final_cfg.get("social_domains", []))
         if isinstance(final_cfg.get("social_domains"), list)
         else [],
         user_agent=str(final_cfg["user_agent"]) if final_cfg.get("user_agent") else None,
         proxy_url=str(final_cfg["proxy_url"]) if final_cfg.get("proxy_url") else None,
-        ssl_exempt_domains=list(final_cfg.get("ssl_exempt_domains", []))
+        ssl_exempt_domains=cast(list[str], final_cfg.get("ssl_exempt_domains", []))
         if isinstance(final_cfg.get("ssl_exempt_domains"), list)
         else [],
-        ignore_extensions=list(final_cfg.get("ignore_extensions", []))
+        ignore_extensions=cast(list[str], final_cfg.get("ignore_extensions", []))
         if isinstance(final_cfg.get("ignore_extensions"), list)
         else [],
-        ignore_regexes=list(final_cfg.get("ignore_regexes", []))
+        ignore_regexes=cast(list[str], final_cfg.get("ignore_regexes", []))
         if isinstance(final_cfg.get("ignore_regexes"), list)
         else [],
-        mime_type_filter=dict(final_cfg.get("mime_type_filter", {}))
+        mime_type_filter=cast(dict[str, object], final_cfg.get("mime_type_filter", {}))
         if isinstance(final_cfg.get("mime_type_filter"), dict)
         else {"enabled": True, "allowed_types": ["text/html", "application/xhtml+xml"]},
     )

@@ -4,7 +4,6 @@
 """
 
 from dataclasses import dataclass
-from typing import Literal
 
 from fastapi import (
     Depends,
@@ -123,7 +122,7 @@ class CreateJobRequest(BaseModel):
         Raises:
             ValueError: 若有任何正則表達式編譯失敗時拋出。
         """
-        return validate_ignore_regexes(v)
+        return validate_ignore_regexes(v) or []
 
     @field_validator("domain_delays")
     @classmethod
@@ -471,7 +470,7 @@ class ReprobeRequest(BaseModel):
     """
 
     model_config = {"extra": "forbid"}
-    link_type: Literal["internal", "external"]
+    link_type: str = Field(..., pattern="^(internal|external)$")
     group_by: str = "none"
     urls: list[str]
 
@@ -486,6 +485,6 @@ class PartialExportRequest(BaseModel):
     """
 
     model_config = {"extra": "forbid"}
-    link_type: Literal["internal", "external"]
+    link_type: str = Field(..., pattern="^(internal|external)$")
     group_by: str = "none"
     urls: list[str]

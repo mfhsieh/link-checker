@@ -9,6 +9,7 @@ import logging
 import os
 import socket
 import urllib.parse
+from typing import Any
 
 import cachetools
 from sqlalchemy import Engine, create_engine, event
@@ -167,7 +168,7 @@ class JSONGroupArray(FunctionElement):
 
 
 @compiles(JSONGroupArray, "sqlite")
-def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler: object, **kw: object) -> str:
+def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler: Any, **kw: Any) -> str:
     """
     編譯 JSONGroupArray 函式至 SQLite 相容的 SQL。
 
@@ -183,7 +184,7 @@ def _compile_json_group_array_sqlite(element: JSONGroupArray, compiler: object, 
 
 
 @compiles(JSONGroupArray, "postgresql")
-def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler: object, **kw: object) -> str:
+def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler: Any, **kw: Any) -> str:
     """
     編譯 JSONGroupArray 函式至 PostgreSQL 相容的 SQL。
 
@@ -210,7 +211,7 @@ class JSONObject(FunctionElement):
 
 
 @compiles(JSONObject, "sqlite")
-def _compile_json_object_sqlite(element: JSONObject, compiler: object, **kw: object) -> str:
+def _compile_json_object_sqlite(element: JSONObject, compiler: Any, **kw: Any) -> str:
     """
     編譯 JSONObject 函式至 SQLite 相容的 SQL。
 
@@ -226,7 +227,7 @@ def _compile_json_object_sqlite(element: JSONObject, compiler: object, **kw: obj
 
 
 @compiles(JSONObject, "postgresql")
-def _compile_json_object_postgresql(element: JSONObject, compiler: object, **kw: object) -> str:
+def _compile_json_object_postgresql(element: JSONObject, compiler: Any, **kw: Any) -> str:
     """
     編譯 JSONObject 函式至 PostgreSQL 相容的 SQL。
 
@@ -284,12 +285,12 @@ def create_optimized_engine(  # pylint: disable=too-many-arguments
     if db_url.startswith("sqlite"):
 
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection: object, _connection_record: object) -> None:
+        def set_sqlite_pragma(dbapi_connection: Any, _connection_record: Any) -> None:
             """
             設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。
 
             Args:
-                dbapi_connection (object): SQLite 資料庫連線物件。
+                dbapi_connection (Any): SQLite 資料庫連線物件。
             """
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")

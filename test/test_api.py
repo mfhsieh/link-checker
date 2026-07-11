@@ -175,7 +175,7 @@ def get_csrf_token(response: httpx.Response, current_token: str = "") -> str:
     """
     for cookie in response.cookies.jar:
         if cookie.name == "csrf_token":
-            return cookie.value
+            return cookie.value or ""
     return current_token
 
 

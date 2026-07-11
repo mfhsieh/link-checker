@@ -94,7 +94,9 @@ def stream_internal_errors(
             truncate_lists=False,
         )
         results = get_internal_errors(db, fetch_args)
-        yield from results["items"]
+        items = results["items"]
+        if isinstance(items, list):
+            yield from items
     else:
         cursor = query.order_by(CrawlQueue.id).yield_per(2000)
         for q in cursor:
@@ -147,7 +149,7 @@ def apply_internal_result_filters(
     return query
 
 
-def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, int]:
+def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, object]:
     """
     計算無分組下的內部網頁失敗統計結果。
 
@@ -202,7 +204,7 @@ def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, 
     }
 
 
-def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: str) -> dict[str, int]:
+def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: str) -> dict[str, object]:
     """
     計算分組後的內部網頁失敗統計結果。
 
@@ -215,12 +217,12 @@ def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: 
         object: 包含 items, total, page, page_size 等分頁資訊與資料的字典物件。
     """
     if group_by == "source":
-        key_col = coalesce(CrawlQueue.source_url, "")
+        key_col: object = coalesce(CrawlQueue.source_url, "")
     else:
         key_col = CrawlQueue.id
 
     query = db.query(
-        count(key_col.distinct()).label("total"),
+        count(key_col.distinct()).label("total"),  # type: ignore[union-attr, arg-type]
         count(case((CrawlQueue.status_category == "not_found", key_col), else_=None).distinct()).label("not_found"),
         count(case((CrawlQueue.status_category == "server_error", key_col), else_=None).distinct()).label(
             "server_error"

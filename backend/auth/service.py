@@ -329,7 +329,7 @@ def authenticate_with_password(
         _log_event(db, "login_failed", user_id=user.id, ip_address=ip, detail="帳號已被刪除")
         raise ValueError("此帳號已被刪除。")
 
-    if _is_account_locked(user):
+    if _is_account_locked(user) and user.locked_until is not None:
         remaining = int((user.locked_until - _utc_now()).total_seconds() / 60)
         raise ValueError(f"帳號因多次登入失敗已暫時鎖定，請 {remaining} 分鐘後再試。")
 

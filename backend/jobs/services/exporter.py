@@ -126,7 +126,7 @@ def export_external_job_results(
         try:
             query_obj = JobResultQuery(
                 job_id=job_id,
-                user_id=job.user_id,
+                user_id=job.user_id or "",
                 status_filter=options.status_filter,
                 exclude=options.exclude,
                 group_by=options.group_by,
@@ -134,7 +134,8 @@ def export_external_job_results(
                 page_size=9999999,  # 匯出時一次取回所有資料
             )
             results = external_results.get_job_results(session, query_obj)
-            items = results.get("items", [])
+            raw_items = results.get("items", [])
+            items: list[dict[str, object]] = raw_items if isinstance(raw_items, list) else []
             if not items:
                 logger.warning("任務 %s 無任何符合條件的結果可匯出。", job_id)
                 return True

@@ -9,7 +9,7 @@ import logging
 import os
 import tempfile
 import zipfile
-from collections.abc import Generator, Iterator
+from collections.abc import Generator, Iterator, Mapping
 
 from fastapi import (
     APIRouter,
@@ -41,7 +41,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
-def _sanitize_csv_dict(row: dict[str, object]) -> dict[str, object]:
+def _sanitize_csv_dict(row: Mapping[str, object]) -> dict[str, object]:
     """
     對 CSV 字典資料進行跳脫。
 
@@ -54,7 +54,7 @@ def _sanitize_csv_dict(row: dict[str, object]) -> dict[str, object]:
     return {k: _sanitize_csv_value(v) for k, v in row.items()}
 
 
-def _write_iterator_to_zip(zf: zipfile.ZipFile, csv_filename: str, iterator: Iterator[dict[str, object]]) -> None:
+def _write_iterator_to_zip(zf: zipfile.ZipFile, csv_filename: str, iterator: Iterator[Mapping[str, object]]) -> None:
     """
     從 iterator 讀取資料並寫入 ZIP 中的 CSV 檔。
 
@@ -163,23 +163,29 @@ def export_results(
                     "Unique URLs",
                     "Source URLs",
                 ]
+                unique_urls = item["unique_urls"]
+                source_urls = item["source_urls"]
                 row_data = {
                     "Domain": item["domain"],
                     "Occurrence Count": item["occurrence_count"],
                     "Unique URLs Count": item["unique_urls_count"],
-                    "Unique URLs": "\n".join(item["unique_urls"]),
-                    "Source URLs": "\n".join(item["source_urls"]),
+                    "Unique URLs": "\n".join(unique_urls if isinstance(unique_urls, list) else []),
+                    "Source URLs": "\n".join(source_urls if isinstance(source_urls, list) else []),
                 }
             elif query_args.group_by == "source":
                 fieldnames = ["Source URL", "External Link Count", "Target URLs"]
+                targets_raw = item["targets"]
+                targets_list = targets_raw if isinstance(targets_raw, list) else []
                 row_data = {
                     "Source URL": item["source_url"],
                     "External Link Count": item["occurrence_count"],
-                    "Target URLs": "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]]),
+                    "Target URLs": "\n".join(
+                        [f"[{t['status']}] {t['url']}" for t in targets_list if isinstance(t, dict)]
+                    ),
                 }
             else:
                 fieldnames = list(item.keys())
-                row_data = item
+                row_data = dict(item)
 
             if writer is None:
                 writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -286,14 +292,18 @@ def export_internal_results(
         for item in internal_results.stream_internal_errors(db, query_args):
             if group_by == "source":
                 fieldnames = ["Source URL", "Failure Count", "Target URLs"]
+                targets_raw2 = item["targets"]
+                targets_list2 = targets_raw2 if isinstance(targets_raw2, list) else []
                 row_data = {
                     "Source URL": item["source_url"],
                     "Failure Count": item["occurrence_count"],
-                    "Target URLs": "\n".join([f"[{t['status']}] {t['url']}" for t in item["targets"]]),
+                    "Target URLs": "\n".join(
+                        [f"[{t['status']}] {t['url']}" for t in targets_list2 if isinstance(t, dict)]
+                    ),
                 }
             else:
                 fieldnames = list(item.keys())
-                row_data = item
+                row_data = dict(item)
             if writer is None:
                 writer = csv.DictWriter(output, fieldnames=fieldnames)
                 writer.writeheader()
@@ -383,19 +393,19 @@ def export_partial_results(
                 output.seek(0)
                 output.truncate(0)
         else:
-            query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id)
+            internal_query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id)
             if body.group_by == "source":
-                query = query.filter(CrawlQueue.source_url.in_(body.urls))
+                internal_query = internal_query.filter(CrawlQueue.source_url.in_(body.urls))
             else:
-                query = query.filter(CrawlQueue.url.in_(body.urls))
-            query = query.order_by(CrawlQueue.created_at)
+                internal_query = internal_query.filter(CrawlQueue.url.in_(body.urls))
+            internal_query = internal_query.order_by(CrawlQueue.created_at)
 
-            for lnk in query.yield_per(2000):
-                row_data = format_crawl_queue_item(lnk)
+            for internal_lnk in internal_query.yield_per(2000):
+                internal_row_data = format_crawl_queue_item(internal_lnk)
                 if writer is None:
-                    writer = csv.DictWriter(output, fieldnames=list(row_data.keys()))
+                    writer = csv.DictWriter(output, fieldnames=list(internal_row_data.keys()))
                     writer.writeheader()
-                writer.writerow(_sanitize_csv_dict(row_data))
+                writer.writerow(_sanitize_csv_dict(internal_row_data))
                 yield output.getvalue()
                 output.seek(0)
                 output.truncate(0)

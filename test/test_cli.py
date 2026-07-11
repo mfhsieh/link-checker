@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import zipfile
+from typing import Any, cast
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -193,7 +194,12 @@ def test_cli_full_flow() -> None:
         }
     }
 
-    merged = merge_and_validate_crawler_config(local_cfg, global_cfg)
+    test_crawler_config = merge_and_validate_crawler_config(
+        cast(dict[str, Any], {"crawler": {"ignore_extensions": [".pdf", ".jpg"], "max_depth": 3}}),
+        cast(dict[str, Any], global_cfg),
+    )
+    assert set(cast(list[str], test_crawler_config["ignore_extensions"])) == {".pdf", ".jpg"}
+    merged = merge_and_validate_crawler_config(cast(dict[str, Any], local_cfg), cast(dict[str, Any], global_cfg))
 
     # 斷言環境變數正確覆寫
     assert merged["proxy_url"] == "http://env-proxy:8080", (
@@ -201,7 +207,7 @@ def test_cli_full_flow() -> None:
     )
 
     # 斷言 ssl_exempt_domains 包含全域、個別與環境變數之聯集
-    exempt_set = set(merged["ssl_exempt_domains"])
+    exempt_set = set(cast(list[str], merged["ssl_exempt_domains"]))
     assert "global-exempt.com" in exempt_set, "global-exempt.com should be in exempt domains"
     assert "local-exempt.com" in exempt_set, "local-exempt.com should be in exempt domains"
     assert "env-exempt.com" in exempt_set, "env-exempt.com should be in exempt domains"
@@ -447,6 +453,7 @@ crawler:
         export_res = subprocess.run(export_cmd, capture_output=True, text=True)
         if export_res.returncode != 0:
             print(f"Error: Export CLI failed with code {export_res.returncode}")
+            print(f"Export stderr: {export_res.stderr}")
             sys.exit(1)
 
         with open(export_file, "r") as f:

@@ -13,7 +13,6 @@ import re
 import secrets
 import string
 import sys
-import typing
 from logging.handlers import RotatingFileHandler
 
 import yaml
@@ -427,7 +426,7 @@ def _handle_report(manager: JobManager, args: argparse.Namespace) -> None:
         print(f"最後更新: {report['updated_at']}")
         print("-" * 20)
         print("【佇列進度統計】")
-        queue_stats = typing.cast(dict[str, int], report["queue"])
+        queue_stats = report["queue"]
         print(f"  總計網址數: {queue_stats['total']}")
         print(f"  已完成 (Completed): {queue_stats['completed']}")
         print(f"  已略過 (Skipped):   {queue_stats['skipped']}")

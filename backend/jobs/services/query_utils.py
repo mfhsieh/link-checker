@@ -6,10 +6,14 @@
 
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 
 from sqlalchemy import asc, desc
 from sqlalchemy.orm import Query
+
+from backend.jobs.schemas import InternalResultQuery, JobResultQuery
+
+_PaginatedQuery = JobResultQuery | InternalResultQuery
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -38,13 +42,13 @@ def _parse_json_list(val: object) -> list:
             return json.loads(val) or []
         except json.JSONDecodeError:
             return []
-    return list(val) if val else []
+    return list(val) if isinstance(val, Iterable) and val else []
 
 
 def _apply_col_filters(
     query: Query,
     col_filters_str: str | None,
-    filter_map: dict[str, object],
+    filter_map: Mapping[str, Callable],
     is_having: bool = False,
 ) -> Query:
     """
@@ -76,7 +80,7 @@ def _apply_sorting(
     query: Query,
     sort_by: str | None,
     sort_asc: bool,
-    sort_map: dict[str, object],
+    sort_map: Mapping[str, object],
     default_sort: object,
 ) -> Query:
     """
@@ -94,18 +98,18 @@ def _apply_sorting(
     """
     if sort_by and sort_by in sort_map:
         order_func = asc if sort_asc else desc
-        return query.order_by(order_func(sort_map[sort_by]))
-    return query.order_by(default_sort)
+        return query.order_by(order_func(sort_map[sort_by]))  # type: ignore[arg-type]
+    return query.order_by(default_sort)  # type: ignore[arg-type]
 
 
 # pylint: disable=too-many-arguments
 def execute_paginated_query(
     query: Query,
-    query_args: object,
-    filter_map: dict[str, Callable],
-    sort_map: dict[str, object],
+    query_args: _PaginatedQuery,
+    filter_map: Mapping[str, Callable],
+    sort_map: Mapping[str, object],
     default_sort: object,
-    row_mapper: Callable[[object], dict[str, object]],
+    row_mapper: Callable[..., dict[str, object]],
     is_having: bool = False,
 ) -> dict[str, object]:
     """

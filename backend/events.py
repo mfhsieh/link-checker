@@ -5,15 +5,15 @@
 """
 
 import logging
-from typing import Any, Callable, Dict, List
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
 # 註冊表：事件名稱 -> 處理函式列表
-_subscribers: Dict[str, List[Callable[..., Any]]] = {}
+_subscribers: dict[str, list[Callable[..., object]]] = {}
 
 
-def subscribe(event_name: str, fn: Callable[..., Any]) -> None:
+def subscribe(event_name: str, fn: Callable[..., object]) -> None:
     """
     訂閱特定的系統內部事件。
 
@@ -22,14 +22,14 @@ def subscribe(event_name: str, fn: Callable[..., Any]) -> None:
 
     Args:
         event_name (str): 欲訂閱的事件名稱。
-        fn (Callable[..., Any]): 當事件觸發時要執行的回呼函式。
+        fn (Callable[..., object]): 當事件觸發時要執行的回呼函式。
     """
     if event_name not in _subscribers:
         _subscribers[event_name] = []
     _subscribers[event_name].append(fn)
 
 
-def unsubscribe(event_name: str, fn: Callable[..., Any]) -> None:
+def unsubscribe(event_name: str, fn: Callable[..., object]) -> None:
     """
     取消訂閱特定的系統內部事件。
 
@@ -38,7 +38,7 @@ def unsubscribe(event_name: str, fn: Callable[..., Any]) -> None:
 
     Args:
         event_name (str): 欲取消訂閱的事件名稱。
-        fn (Callable[..., Any]): 欲移除的回呼函式。
+        fn (Callable[..., object]): 欲移除的回呼函式。
     """
     if event_name in _subscribers:
         try:
@@ -49,7 +49,7 @@ def unsubscribe(event_name: str, fn: Callable[..., Any]) -> None:
             del _subscribers[event_name]
 
 
-def publish(event_name: str, **kwargs: Any) -> None:
+def publish(event_name: str, **kwargs: object) -> None:
     """
     同步發布系統內部事件，並將 kwargs 參數傳遞給所有訂閱者。
 
@@ -59,7 +59,7 @@ def publish(event_name: str, **kwargs: Any) -> None:
 
     Args:
         event_name (str): 欲發布的事件名稱。
-        **kwargs (Any): 傳遞給所有訂閱者的關鍵字參數。
+        **kwargs (object): 傳遞給所有訂閱者的關鍵字參數。
     """
     logger.debug("發布事件: %s, 參數: %s", event_name, kwargs)
     for fn in _subscribers.get(event_name, []):

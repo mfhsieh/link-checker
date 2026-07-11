@@ -11,8 +11,9 @@ import logging
 import re
 import socket
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
+from typing import Any, cast
 from urllib.parse import ParseResult, urljoin, urlparse
 
 import httpx
@@ -27,7 +28,7 @@ try:
 
     _HTTP2_SUPPORTED: bool = True
 except ImportError:
-    _HTTP2_SUPPORTED: bool = False
+    _HTTP2_SUPPORTED = False
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ _FETCH_SAFE_EXCEPTIONS: tuple[type[BaseException], ...] = (
 )
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
-_original_getaddrinfo: Callable[..., list[tuple[int, int, int, str, object]]] = socket.getaddrinfo
+_original_getaddrinfo: Any = socket.getaddrinfo
 _dns_override: threading.local = threading.local()
 
 
@@ -83,7 +84,7 @@ def _patched_getaddrinfo(
     return _original_getaddrinfo(host, port, *args, **kwargs)
 
 
-socket.getaddrinfo = _patched_getaddrinfo
+socket.getaddrinfo = _patched_getaddrinfo  # type: ignore[assignment]
 
 
 @contextmanager
@@ -367,7 +368,7 @@ class CrawlerCore:
         """
         content_type: str = response.headers.get("Content-Type", "").lower()
         if self.config.mime_type_filter.get("enabled", True):
-            allowed_types: list[str] = self.config.mime_type_filter.get("allowed_types", ["text/html"])
+            allowed_types: list[str] = cast(list[str], self.config.mime_type_filter.get("allowed_types", ["text/html"]))
             if not any(allowed.lower() in content_type for allowed in allowed_types):
                 logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
                 return f"略過非目標 MIME 類型 ({content_type})"
@@ -684,7 +685,7 @@ class CrawlerCore:
             # 針對 <link> 標籤，忽略 dns-prefetch, preconnect, preload 與 alternate。
             # 這些標籤通常只指向網域根目錄或非必要的備用資源，並非實際需探測的連結。
             if tag.name == "link":
-                rel_attr = tag.get("rel", [])
+                rel_attr: str | list[str] = tag.get("rel") or []
                 rel_list = [rel_attr] if isinstance(rel_attr, str) else (rel_attr or [])
                 if any(r.lower() in ("preconnect", "dns-prefetch", "preload", "alternate") for r in rel_list):
                     continue
@@ -862,10 +863,10 @@ class CrawlerCore:
 
                             resp = cffi_requests.get(
                                 current_url,
-                                impersonate=impersonate,
+                                impersonate=cast(Any, impersonate),
                                 timeout=self.config.external_check_timeout,
                                 allow_redirects=False,  # 手動處理以確保 SSRF 安全與 target_domains 檢查
-                                proxies=proxies,
+                                proxies=cast(Any, proxies),
                                 stream=stream,
                                 verify=verify_ssl,
                                 curl_options=cffi_curl_options,
@@ -918,12 +919,14 @@ class CrawlerCore:
                     if not is_internal:
                         return status_code, None, None, current_url
 
-                    if status_code >= 400:
+                    if status_code is not None and status_code >= 400:
                         return status_code, f"HTTP 狀態異常: {status_code}", None, current_url
 
                     content_type = resp.headers.get("Content-Type", "").lower()
                     if self.config.mime_type_filter.get("enabled", True):
-                        allowed_types = self.config.mime_type_filter.get("allowed_types", ["text/html"])
+                        allowed_types = cast(
+                            list[str], self.config.mime_type_filter.get("allowed_types", ["text/html"])
+                        )
                         if not any(allowed.lower() in content_type for allowed in allowed_types):
                             return status_code, f"略過非目標 MIME 類型 ({content_type})", None, current_url
 

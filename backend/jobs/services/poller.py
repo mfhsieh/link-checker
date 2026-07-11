@@ -8,7 +8,6 @@
 import asyncio
 import json
 import logging
-from typing import Dict
 
 from fastapi.concurrency import run_in_threadpool
 
@@ -34,8 +33,8 @@ class JobProgressPoller:
         建立用來追蹤活躍任務的集合、快取最近一次的任務資料，
         並準備好非同步任務與事件中止控制。
         """
-        self.active_jobs: Dict[str, int] = {}
-        self.last_data: Dict[str, str] = {}
+        self.active_jobs: dict[str, int] = {}
+        self.last_data: dict[str, str] = {}
         self._task: asyncio.Task[None] | None = None
         self._stop_event = asyncio.Event()
 

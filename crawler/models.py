@@ -10,13 +10,14 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any, cast
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Query, mapped_column, relationship
 
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 
-_DEF: dict[str, object] = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
+_DEF: dict[str, Any] = cast(dict[str, Any], DEFAULT_GLOBAL_CONFIG.get("crawler", {}))
 
 
 class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods

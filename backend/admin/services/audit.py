@@ -6,7 +6,6 @@
 """
 
 import logging
-from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -22,7 +21,7 @@ def _handle_audit_event(
     user_id: str | None = None,
     ip_address: str | None = None,
     detail: str | None = None,
-    **kwargs: Any,  # pylint: disable=unused-argument
+    **kwargs: object,  # pylint: disable=unused-argument
 ) -> None:
     """
     內部處理函式：接收事件並寫入 AuthLog。

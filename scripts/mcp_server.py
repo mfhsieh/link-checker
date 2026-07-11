@@ -6,6 +6,7 @@
 import json
 import os
 import sys
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from sqlalchemy import func
@@ -78,7 +79,7 @@ def get_job_progress(job_id: str) -> str:
             .all()
         )
 
-        summary = {
+        summary: dict[str, Any] = {
             "job_id": job.id,
             "status": job.status,
             "start_url": job.start_url,
