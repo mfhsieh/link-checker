@@ -341,11 +341,13 @@ erDiagram
 | `updated_at` | `DateTime` | `Default: 當下時間` | 此筆外部連結狀態最後更新的時間。 |
 
 ##### 索引與唯一約束資訊 (Indexes & Constraints)
-* **`uq_external_links_job_src_tgt`** (唯一約束): `(job_id, source_url, target_url)`。用於從資料庫層面防止在同一任務中重複記錄相同的來源母頁面與目標外部網址。
-* **`ix_external_links_job_created`** (複合索引): `(job_id, created_at)`。用於加速巨量資料的分頁與排序。
-* **`ix_external_links_job_category`** (複合索引): `(job_id, status_category)`。用於加速統計摘要與分類篩選。
-* **`ix_external_links_job_domain`** (複合索引): `(job_id, target_domain)`。用於加速依網域群組統計 (`group_by=domain`)。
-* **`ix_external_links_insecure_issues`** (部分索引 / Partial Index): 僅針對 `(job_id)` 建立，並過濾條件 `WHERE is_secure = false` (或 SQLite 的 `= 0`)。此索引專門設計用來避開數百萬筆安全協定的正常外部連結，以毫秒級速度極速撈出非 HTTPS 的外部連結報表，並同樣完美配合 `id + 0` 數學表達式規避分頁排序的效能陷阱。
+* **`uq_external_links_job_src_tgt`** (唯一約束): `(job_id, source_url, target_url)`。防止在同一任務中重複記錄相同的來源與目標組合。
+  > **索引說明**：根據**最左前綴原則 (Leftmost Prefix Rule)**，此約束產生的複合索引已包含 `(job_id, source_url)` 前綴。因此在進行 `group_by=source` 查詢時，資料庫可直接使用此索引，不需額外建立 `source_url` 的專屬索引。
+* **`ix_external_links_job_created`** (複合索引): `(job_id, created_at)`。用於分頁與依時間排序。
+* **`ix_external_links_job_category`** (複合索引): `(job_id, status_category)`。用於分類篩選與統計摘要。
+* **`ix_external_links_job_domain`** (複合索引): `(job_id, target_domain)`。用於 `group_by=domain` 的群組統計。
+* **`ix_external_links_job_target`** (複合索引): `(job_id, target_url)`。用於加速 `group_by=target` 查詢，避免全表掃描。
+* **`ix_external_links_insecure_issues`** (部分索引 / Partial Index): 僅針對 `(job_id)` 建立，過濾條件為 `WHERE is_secure = false` (或 SQLite 的 `= 0`)。用於快速查詢非 HTTPS 的外部連結，並可搭配 `id + 0` 數學表達式來規避 PostgreSQL 的分頁排序效能問題。
 
 ---
 

@@ -165,6 +165,7 @@ python cli.py --help
 > sudo systemctl stop link-checker
 > psql -U lc_user -d crawler_db -c "ALTER TABLE external_links ADD COLUMN updated_at TIMESTAMP;"
 > psql -U lc_user -d crawler_db -c "UPDATE external_links SET updated_at = created_at WHERE updated_at IS NULL;"
+> psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_external_links_job_target ON external_links (job_id, target_url);"
 > sudo systemctl start link-checker
 > ```
 
