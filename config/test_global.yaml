@@ -1,5 +1,0 @@
-crawler:
-  min_timeout: 1
-  min_connect_timeout: 0.1
-  min_external_check_timeout: 0.1
-  min_delay: 0.0

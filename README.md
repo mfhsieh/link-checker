@@ -189,10 +189,12 @@ python cli.py --help
 ## 版本更新日誌 (Release Notes)
 
 - **v1.9.4 (2026-07-12)**: 
-  - 導入事件驅動架構 (`events.py`) 與 `JobProgressPoller`，解決模組耦合與 SSE 阻塞問題。
-  - 後台任務監控新增「強制取回」與「備份匯入/匯出」功能。
-  - 引入 `cachetools` 實作 API 報表與 DNS 解析快取，完善 HTML 標籤解析邏輯。
-  - 全面整合 Mypy 靜態型別檢查。
+  - 新增 `scripts/mcp_server.py`，提供對外部 MCP 系統的任務監控與控制指令 (待持續擴充)。
+  - 建立 `events.py` 與 `JobProgressPoller`，調整內部事件驅動機制。
+  - 於後台管理端加入 `backup.py` 等模組，實作資料備份與匯出匯入。
+  - 實作多層次快取機制 (包含 DNS 解析、後端 API、爬蟲核心與前端摘要)，大幅降低重複計算與網路請求。
+  - 加入 `.agents/` 目錄，提供 AI 開發輔助設定與工具。
+  - 全面整合 mypy 靜態型別檢查，及其它。
 - **v1.9.3 (2026-07-05)**: 前端 (frontend/) 重構，並導入 Web Components 架構。
 - **v1.9.2 (2026-06-27)**: [爬蟲核心](crawler/core.py) 升級，詳 [網站爬蟲核心流程說明](doc/crawler_workflow.md)
 
