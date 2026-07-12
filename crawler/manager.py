@@ -219,6 +219,26 @@ class JobManager:
             if not job:
                 return None
 
+            # 若有 Crawler 寫入的快取，則直接 O(1) 回傳，避免全表掃描
+            if job.progress_stats:
+                try:
+                    stats = json.loads(job.progress_stats)
+                    return {
+                        "id": job.id,
+                        "start_url": job.start_url,
+                        "status": job.status,
+                        "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                        "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+                        "queue": stats.get(
+                            "queue", {"total": 0, "completed": 0, "warning": 0, "skipped": 0, "pending": 0, "failed": 0}
+                        ),
+                        "external_links": stats.get("external_links", 0),
+                    }
+                except json.JSONDecodeError:
+                    pass
+
+            # Fallback：若無快取，則執行 O(N) 全表查詢 (例如初始化階段)
+            # pylint: disable=duplicate-code
             queue_stats = (
                 session.query(
                     sql_count(CrawlQueue.id).label("total"),
@@ -382,6 +402,7 @@ class JobManager:
                 return False
 
             job.status = "pending"
+            job.progress_stats = None
 
             # 清除外連記錄
             session.query(ExternalLink).filter(ExternalLink.job_id == job_id).delete(synchronize_session=False)
@@ -431,6 +452,7 @@ class JobManager:
                 return False
 
             job.status = "pending"
+            job.progress_stats = None
 
             # 1. 將本身爬取失敗的內部網頁改回 pending
             session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed").update(

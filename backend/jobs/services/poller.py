@@ -13,6 +13,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from backend.deps import get_job_manager
 from backend.events import publish
+from backend.jobs.constants import SSE_POLL_INTERVAL_SEC
 from backend.jobs.services import management as job_management
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -96,13 +97,13 @@ class JobProgressPoller:
 
     async def _poll_loop(self) -> None:
         """
-        輪詢迴圈。每 2 秒向資料庫查詢一次所有活躍任務的最新進度，
+        輪詢迴圈。依設定間隔向資料庫查詢一次所有活躍任務的最新進度，
         並利用事件機制廣播。
         """
         manager = get_job_manager()
         while not self._stop_event.is_set():
             if not self.active_jobs:
-                await asyncio.sleep(2)
+                await asyncio.sleep(SSE_POLL_INTERVAL_SEC)
                 continue
 
             # 複製一份 active_jobs，避免在迭代過程中因為 add_job / remove_job 而改變
@@ -133,7 +134,7 @@ class JobProgressPoller:
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     logger.debug("Poller polling job %s failed: %s", job_id, e)
 
-            await asyncio.sleep(2)
+            await asyncio.sleep(SSE_POLL_INTERVAL_SEC)
 
 
 # 全域單一實例

@@ -43,7 +43,7 @@ STATUS_CHECK_INTERVAL: float = 10.0
 
 
 @dataclass
-class JobRunnerState:
+class JobRunnerState:  # pylint: disable=too-many-instance-attributes
     """
     爬蟲任務狀態追蹤資料類別。
 
@@ -58,6 +58,16 @@ class JobRunnerState:
     checked_links_cache: LRUCache = field(default_factory=lambda: LRUCache(maxsize=DEFAULT_LRU_CACHE_MAXSIZE))
     target_domains_list: list[str] = field(default_factory=list)
     trusted_domains_list: list[str] = field(default_factory=list)
+
+    # 用於在記憶體中追蹤任務進度，避免反覆 O(N) 查詢資料庫
+    queue_total: int = 0
+    queue_completed: int = 0
+    queue_warning: int = 0
+    queue_pending: int = 0
+    queue_failed: int = 0
+    queue_skipped: int = 0
+    external_links_total: int = 0
+    last_flush_time: float = 0.0
 
 
 def _get_domain_delay(domain: str, domain_delays: dict[str, float], default_delay: float) -> float:
@@ -262,15 +272,37 @@ class JobRunner:
             social_domains=cast(list[str], crawler_config.get("social_domains", _DEF.get("social_domains", []))),
         )
 
-        self.state.crawled_count = (
-            session.query(CrawlQueue)
-            .filter(
-                CrawlQueue.job_id == self.job_id,
-                (CrawlQueue.status.in_(["completed", "failed", "warning"]))
-                | ((CrawlQueue.status == "skip") & (CrawlQueue.status_code.isnot(None))),
+        # pylint: disable=import-outside-toplevel
+        from sqlalchemy import case
+        from sqlalchemy.sql.functions import count as sql_count
+        from sqlalchemy.sql.functions import sum as sql_sum
+        # pylint: enable=import-outside-toplevel
+
+        # pylint: disable=duplicate-code
+        queue_stats = (
+            session.query(
+                sql_count(CrawlQueue.id).label("total"),
+                sql_sum(case((CrawlQueue.status == "completed", 1), else_=0)).label("completed"),
+                sql_sum(case((CrawlQueue.status == "warning", 1), else_=0)).label("warning"),
+                sql_sum(case((CrawlQueue.status == "pending", 1), else_=0)).label("pending"),
+                sql_sum(case((CrawlQueue.status == "failed", 1), else_=0)).label("failed"),
+                sql_sum(case((CrawlQueue.status == "skip", 1), else_=0)).label("skipped"),
             )
-            .count()
+            .filter(CrawlQueue.job_id == self.job_id)
+            .first()
         )
+
+        self.state.queue_total = int(queue_stats.total) if queue_stats and queue_stats.total else 0
+        self.state.queue_completed = int(queue_stats.completed) if queue_stats and queue_stats.completed else 0
+        self.state.queue_warning = int(queue_stats.warning) if queue_stats and queue_stats.warning else 0
+        self.state.queue_pending = int(queue_stats.pending) if queue_stats and queue_stats.pending else 0
+        self.state.queue_failed = int(queue_stats.failed) if queue_stats and queue_stats.failed else 0
+        self.state.queue_skipped = int(queue_stats.skipped) if queue_stats and queue_stats.skipped else 0
+
+        self.state.external_links_total = session.query(ExternalLink).filter(ExternalLink.job_id == self.job_id).count()
+
+        self.state.crawled_count = self.state.queue_completed + self.state.queue_failed + self.state.queue_warning
+        self.state.last_flush_time = time.time()
 
         # 已移除預熱快取修正：不再全量查詢 ExternalLink 並快取，改於 _prepare_external_links 延遲載入以防 OOM。
 
@@ -286,6 +318,7 @@ class JobRunner:
             crawler (CrawlerCore): 初始化的爬蟲核心引擎。
         """
         last_status_check_time = time.time()
+        self.state.last_flush_time = time.time()
 
         while True:
             current_time = time.time()
@@ -298,6 +331,10 @@ class JobRunner:
                     break
                 job = fetched_job
                 last_status_check_time = current_time
+
+            if current_time - self.state.last_flush_time >= 3.0:
+                self._flush_progress(session, job)
+                self.state.last_flush_time = current_time
 
             max_pages = cast(int | None, self.crawler_config_dict.get("max_pages"))
             if max_pages is not None and self.state.crawled_count >= max_pages:
@@ -328,6 +365,22 @@ class JobRunner:
             self._mark_job_completed(session, job)
             break
 
+    def _flush_progress(self, session: Session, job: Job) -> None:
+        """將記憶體中的進度狀態轉為 JSON 寫入資料庫，供 Web API 讀取。"""
+        progress_dict = {
+            "queue": {
+                "total": self.state.queue_total,
+                "completed": self.state.queue_completed,
+                "warning": self.state.queue_warning,
+                "skipped": self.state.queue_skipped,
+                "pending": self.state.queue_pending,
+                "failed": self.state.queue_failed,
+            },
+            "external_links": self.state.external_links_total,
+        }
+        job.progress_stats = json.dumps(progress_dict)
+        session.commit()
+
     def _mark_job_completed(self, session: Session, job: Job) -> None:
         """
         將任務狀態標記為已完成並送出通知。
@@ -336,6 +389,7 @@ class JobRunner:
             session (Session): SQLAlchemy Session 實例。
             job (Job): 當前的爬蟲任務物件。
         """
+        self._flush_progress(session, job)
         job.status = "completed"
         session.commit()
         if self.on_event_callback:
@@ -390,7 +444,7 @@ class JobRunner:
 
         return False
 
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals, too-many-statements
     def _process_item(
         self,
         session: Session,
@@ -415,6 +469,8 @@ class JobRunner:
                 queue_item.status = "skip"
                 queue_item.status_category = "skip"
                 session.commit()
+                self.state.queue_pending -= 1
+                self.state.queue_skipped += 1
                 return
 
             # 呼叫爬蟲核心取得結果 (回傳：internal_links, external_target_links, status_code, status, request_sent, err_msg)
@@ -432,8 +488,8 @@ class JobRunner:
             )
             # 依 Code Review 修正：移除此處的提早 commit，確保資料一致性
 
-            self._handle_internal_links(session, queue_item, result[0])
-            self._handle_external_links(session, current_url, result[1], crawler)
+            delta_pending, delta_total = self._handle_internal_links(session, queue_item, result[0])
+            delta_ext = self._handle_external_links(session, current_url, result[1], crawler)
 
             queue_item.status = result[3]
             queue_item.status_category = determine_internal_link_status_category(
@@ -441,6 +497,21 @@ class JobRunner:
             )
             # 依 Code Review 修正：統一在此做最後的 commit
             session.commit()
+
+            # 在 commit 成功後才更新 In-Memory 進度，避免 rollback 導致數字失真
+            self.state.queue_pending -= 1
+            if result[3] == "completed":
+                self.state.queue_completed += 1
+            elif result[3] == "warning":
+                self.state.queue_warning += 1
+            elif result[3] == "failed":
+                self.state.queue_failed += 1
+            elif result[3] == "skip":
+                self.state.queue_skipped += 1
+
+            self.state.queue_pending += delta_pending
+            self.state.queue_total += delta_total
+            self.state.external_links_total += delta_ext
 
             should_delay = result[4]
             if result[4]:
@@ -455,6 +526,9 @@ class JobRunner:
             queue_item.error_message = f"未預期錯誤: {e}"
             queue_item.status_category = "broken"
             session.commit()
+
+            self.state.queue_pending -= 1
+            self.state.queue_failed += 1
 
         if should_delay:
             domain = get_domain(current_url) or ""
@@ -475,7 +549,9 @@ class JobRunner:
             actual_delay = max(actual_delay, min_config)
             time.sleep(actual_delay)
 
-    def _handle_internal_links(self, session: Session, queue_item: CrawlQueue, internal_links: list[str]) -> None:
+    def _handle_internal_links(
+        self, session: Session, queue_item: CrawlQueue, internal_links: list[str]
+    ) -> tuple[int, int]:
         """
         將收集到的內部連結寫入資料庫佇列。
 
@@ -483,6 +559,9 @@ class JobRunner:
             session (Session): SQLAlchemy Session 實例。
             queue_item (CrawlQueue): 當前處理的佇列來源網址物件。
             internal_links (list[str]): 解析出的內部連結陣列。
+
+        Returns:
+            tuple[int, int]: (新增的待處理數量, 新增的總數量)
         """
         next_depth = queue_item.depth + 1
         max_depth = cast(int | None, self.crawler_config_dict.get("max_depth"))
@@ -517,13 +596,15 @@ class JobRunner:
                     # 解決 N+1 查詢問題：改用 add_all 進行批次插入 (Batch Insert)
                     session.add_all(new_items)
         # 依 Code Review 修正：此處的 commit 已刪除，由上層 _process_item 統一 commit
+        new_items_count = len(new_items) if "new_items" in locals() and new_items else 0
+        return new_items_count, new_items_count
 
     def _prepare_external_links(
         self,
         session: Session,
         current_url: str,
         unique_external_links: list[str],
-    ) -> list[str]:
+    ) -> tuple[list[str], int]:
         """過濾出需要進行存活探測的全新外部連結（利用快取去重）。
 
         Args:
@@ -532,11 +613,11 @@ class JobRunner:
             unique_external_links (list[str]): 本頁取得的獨立外部連結清單。
 
         Returns:
-            list[str]: 尚未被快取或處理過的外部連結清單，需進一步發送 HTTP 探測。
+            tuple[list[str], int]: (需進一步發送 HTTP 探測的網址清單, 本次新增的外部連結總數)
         """
         links_needing_http_check: list[str] = []
         if not unique_external_links:
-            return links_needing_http_check
+            return links_needing_http_check, 0
 
         # 解決 N+1 查詢問題：改用 IN 語法進行批次查詢，找出已存在的外部連結，避免在迴圈內逐一查詢 DB
         existing_urls_for_page = {
@@ -601,7 +682,7 @@ class JobRunner:
         if new_exts:
             # 解決 N+1 查詢問題：改用 add_all 進行批次插入 (Batch Insert)
             session.add_all(new_exts)
-        return links_needing_http_check
+        return links_needing_http_check, len(new_exts)
 
     def _handle_external_links(
         self,
@@ -609,7 +690,7 @@ class JobRunner:
         current_url: str,
         external_target_links: list[str],
         crawler: CrawlerCore,
-    ) -> None:
+    ) -> int:
         """
         併發處理外部連結存活探測，並將結果寫入資料庫與快取。
 
@@ -618,9 +699,12 @@ class JobRunner:
             current_url (str): 當前來源網址。
             external_target_links (list[str]): 待處理的外部連結陣列。
             crawler (CrawlerCore): 爬蟲核心引擎。
+
+        Returns:
+            int: 本次新增的外部連結總數
         """
         unique_links = list(set(external_target_links))
-        needs_check = self._prepare_external_links(session, current_url, unique_links)
+        needs_check, new_exts_count = self._prepare_external_links(session, current_url, unique_links)
 
         if needs_check and self.executor:
 
@@ -640,6 +724,8 @@ class JobRunner:
 
             results = list(self.executor.map(check_single, needs_check))
             self._save_checked_links(session, current_url, results)
+
+        return new_exts_count
 
     def _save_checked_links(
         self,
@@ -739,6 +825,9 @@ class JobRunner:
                 queue_item.status, queue_item.status_code, queue_item.error_message
             )
             session.commit()
+
+            self.state.queue_pending -= 1
+            self.state.queue_failed += 1
             self.state.crawled_count += 1
         else:
             retries = cast(int, self.crawler_config_dict.get("retries", 3))
@@ -782,4 +871,7 @@ class JobRunner:
                     queue_item.status, queue_item.status_code, queue_item.error_message
                 )
                 session.commit()
+
+                self.state.queue_pending -= 1
+                self.state.queue_failed += 1
                 self.state.crawled_count += 1

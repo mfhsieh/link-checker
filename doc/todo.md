@@ -28,7 +28,6 @@
 
 ### 高優先（效能優化、核心精準度與程式品質）
 
-無
 
 ### 中優先（架構重構與中大型功能擴充）
 
@@ -65,7 +64,10 @@
 
 ### 低優先（邊緣需求與周邊工具）
 
-無
+1. **前端 CSS 樣式清理 (Clean up unused CSS styles)**
+   * **問題描述**：隨著專案演進與 UI 元件重構，前端可能殘留了許多不再使用的 Vanilla CSS 樣式與 Class。這些冗餘代碼會無謂地增加檔案體積，並降低樣式表的可維護性。
+   * **規劃方案**：盤點前端目錄下的 HTML 與 CSS 檔案，找出從未被引用或已被廢棄的 CSS class 並予以移除，確保前端資源保持極致輕量與乾淨。
+   * **狀態**：**待排程（Pending）**。
 
 ---
 
@@ -96,7 +98,12 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
-無
+1. **優化 SSE 串流與進度輪詢效能 (Payload 瘦身與 DB 查詢精簡)**
+   * **問題描述**：目前 `/api/jobs/{job_id}/stream` 每 2 秒輪詢一次。這不僅會廣播包含 `config_json` 的完整靜態大物件造成網路頻寬浪費，其底層的 `get_job_report` 每次輪詢都會對 `CrawlQueue` 與 `ExternalLink` 執行 `O(N)` 的全表聚合查詢 (`COUNT`, `SUM(CASE...)`)，在資料量龐大時會導致資料庫嚴重的效能瓶頸。
+   * **規劃方案**：
+     1. **Payload 瘦身**：在 `poller.py` 廣播前僅傳遞動態欄位（如 `status`, `is_running`, `completed_count` 等），靜態資料改由前端初始載入時獲取一次。
+     2. **DB 查詢精簡**：取消高頻的 `COUNT` 與 `SUM` 查詢。改採用「快取 (In-Memory) 累加」或是在 `Job` 資料表內正規化維護各狀態計數器欄位 (Denormalization)，讓每 2 秒的輪詢只需 `O(1)` 讀取。
+   * **狀態**：**已解決（Resolved）** - 藉由 `progress_stats` JSON 欄位與 Memory 節流寫入達成。
 
 ---
 

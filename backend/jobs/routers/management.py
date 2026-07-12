@@ -497,7 +497,14 @@ async def stream_job_updates(
         try:
             # 這裡一定會使用 current_user.id 進行驗證
             initial_detail = await run_in_threadpool(job_management.get_job_detail, manager, job_id, current_user.id)
-            yield f"data: {json.dumps(initial_detail)}\n\n"
+            slim_initial = {
+                "id": initial_detail.get("id"),
+                "status": initial_detail.get("status"),
+                "is_running": initial_detail.get("is_running"),
+                "progress": initial_detail.get("progress"),
+                "external_link_count": initial_detail.get("external_link_count"),
+            }
+            yield f"data: {json.dumps(slim_initial)}\n\n"
             if (
                 initial_detail["status"] in ["completed", "error", "paused", "pending"]
                 and not initial_detail["is_running"]
@@ -533,9 +540,18 @@ async def stream_job_updates(
                 try:
                     # 使用 wait_for 以便定期檢查連線是否中斷
                     current_data_str = await asyncio.wait_for(queue.get(), timeout=2.0)
-                    yield f"data: {current_data_str}\n\n"
-
                     detail = json.loads(current_data_str)
+
+                    slim_detail = {
+                        "id": detail.get("id"),
+                        "status": detail.get("status"),
+                        "is_running": detail.get("is_running"),
+                        "progress": detail.get("progress"),
+                        "external_link_count": detail.get("external_link_count"),
+                    }
+
+                    yield f"data: {json.dumps(slim_detail)}\n\n"
+
                     if detail.get("status") in ["completed", "error", "paused", "pending"] and not detail.get(
                         "is_running"
                     ):

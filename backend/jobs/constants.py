@@ -26,3 +26,5 @@ ALLOWED_CRAWLER_CONFIG_KEYS: list[str] = [
     "social_domains",
     "domain_delays",
 ]
+
+SSE_POLL_INTERVAL_SEC: int = 10

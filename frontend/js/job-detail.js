@@ -22,6 +22,7 @@ import { showConfirm } from './components/confirm-modal.js';
 let _eventSource = null;
 let _currentJobId = null;
 let _currentJobStatus = null;
+let _currentJobData = null;
 
 let _currentFilter = null;
 let _currentExclude = '';
@@ -88,9 +89,15 @@ function startSseStream(jobId) {
 
     _eventSource.onmessage = (event) => {
         try {
-            const job = JSON.parse(event.data);
-            renderJobInfo(job);
-            if (['completed', 'error', 'paused', 'pending'].includes(job.status) && !job.is_running) {
+            const jobUpdate = JSON.parse(event.data);
+            if (_currentJobData) {
+                Object.assign(_currentJobData, jobUpdate);
+                renderJobInfo(_currentJobData);
+            } else {
+                _currentJobData = jobUpdate;
+                renderJobInfo(_currentJobData);
+            }
+            if (['completed', 'error', 'paused', 'pending'].includes(jobUpdate.status) && !jobUpdate.is_running) {
                 stopSseStream();
             }
         } catch (e) {
@@ -120,6 +127,7 @@ function stopSseStream() {
  * 清空任務詳情頁面的 UI 狀態
  */
 function clearJobDetailUI() {
+    _currentJobData = null;
     document.getElementById('job-status').textContent = '載入中...';
     document.getElementById('job-status').className = 'badge badge-pending';
     if (jobStatusCard) jobStatusCard.job = null;
@@ -201,7 +209,8 @@ async function refreshJobDetail(jobId) {
     try {
         const job = await api.get(`/api/jobs/${jobId}`);
         if (jobId !== _currentJobId) return;
-        renderJobInfo(job);
+        _currentJobData = job;
+        renderJobInfo(_currentJobData);
 
         const isActuallyRunning = ['running', 'starting'].includes(job.status) || job.is_running;
         if (isActuallyRunning) {

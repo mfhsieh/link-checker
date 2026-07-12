@@ -236,6 +236,7 @@ erDiagram
         Text trusted_domains "視為信任的網域清單"
         Text config_json "最終爬蟲設定快照 (JSON)"
         String(50) status "任務狀態"
+        Text progress_stats "進度統計快照 (JSON)"
         DateTime created_at "建立時間"
         DateTime updated_at "更新時間"
     }
@@ -284,6 +285,7 @@ erDiagram
 | `trusted_domains` | `Text` | `NOT NULL` | 視為信任系統的網域清單，以逗號 (`,`) 分隔。 |
 | `config_json` | `Text` | `Nullable` | 任務建立當下，已與全域設定合併之最終爬蟲參數快照 (JSON 格式)。註：為落實最小權限，後端 API 提取此快照時會主動進行機密遮蔽 (如 Proxy 密碼)。 |
 | `status` | `String(50)` | `Default: 'pending'` | 任務狀態，包含：`pending` (等待中), `running` (執行中), `paused` (已暫停), `completed` (已完成), `error` (發生嚴重例外)。 |
+| `progress_stats` | `Text` | `Nullable` | 任務的進度統計快取 (JSON 格式)。包含已處理/成功/失敗數量等，降低輪詢時的 DB 聚合查詢壓力。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 任務建立的 UTC 時間戳記。 |
 | `updated_at` | `DateTime` | `Default: 當下時間` | 任務最後狀態被更新的 UTC 時間戳記。 |
 

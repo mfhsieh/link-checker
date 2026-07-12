@@ -50,20 +50,23 @@ class AppTopbar extends HTMLElement {
             }
             .menu-toggle {
                 display: none;
-                background: transparent;
+                background: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-600));
+                width: 2rem;
+                height: 2rem;
+                border-radius: .375rem;
                 border: none;
                 cursor: pointer;
                 padding: 0;
                 margin-left: 0.5rem;
                 margin-right: 0.5rem;
-                color: var(--text-primary);
+                color: #ffffff;
                 align-items: center;
                 justify-content: center;
             }
             .menu-toggle-icon {
                 display: inline-block;
-                width: 24px;
-                height: 24px;
+                width: 18px;
+                height: 18px;
                 -webkit-mask: url(/static/image/icon-menu.svg) no-repeat center / contain;
                 mask: url(/static/image/icon-menu.svg) no-repeat center / contain;
                 background-color: currentColor;

@@ -115,6 +115,7 @@ class Job(Base):  # pylint: disable=too-few-public-methods
     trusted_domains: Mapped[str] = mapped_column(Text, nullable=False)
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending")
+    progress_stats: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now, onupdate=get_utc_now)
 
