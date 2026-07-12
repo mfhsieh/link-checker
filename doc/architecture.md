@@ -89,15 +89,12 @@ link-checker/
 │   └── crawler.log     # 系統主日誌檔
 ├── report/             # 外部連結分析與內部網頁診斷報告之預設匯出目錄
 ├── scripts/            # 系統維運與自動化腳本
-│   ├── backfill_status_category.py # 補填舊任務 status_category 欄位腳本
-│   ├── backfill_target_domain.py # 補填舊任務 target_domains 腳本
 │   ├── check_db_schema.py      # DB Schema 檢查腳本
 │   ├── gen_api_doc.py          # 自動產生 API 規格與路由清單
 │   ├── job_sync.sh             # 跨環境任務備份與還原工具便利包
 │   ├── manage_job_data.py      # 任務資料跨庫 JSONL 匯出匯入核心 (含外連與內連狀態)
 │   ├── mcp_server.py           # Model Context Protocol (MCP) 伺服器，提供 AI 代理存取介面
 │   ├── migrate_sqlite_to_pg.py # PostgreSQL 平滑升級全自動遷移腳本
-│   ├── run_all_tests.sh        # 全域自動化測試套件啟動腳本
 │   ├── test_ext.py             # 單一外部連結存活測試腳本
 │   └── test_url.py             # 單一頁面爬取測試腳本
 ├── test/               # 一鍵式自動化整合測試套件 (基於 Pytest)
@@ -136,7 +133,7 @@ graph TD
     CLI -->|呼叫通知/匯出服務| Backend
     
     %% 消除反向耦合
-    Crawler -.->|完全不引入| Backend
+    Crawler -.->|僅引入事件定義| Backend
     Crawler -.->|Callback 回呼狀態| CLI
 ```
 
@@ -170,6 +167,7 @@ graph TD
 * [網站爬蟲核心流程說明](crawler_workflow.md)
 * [模組間詳細依賴說明文件](module_dependencies.md)
 * [命令列 (CLI) 操作指南](cli_usage.md)
+* [MCP Server 使用指南](mcp_usage.md)
 * [API 規格與路由清單](api_routes.md) 及 [API 詳細規格](api_spec.md)
 * [爬蟲參數詳細說明](crawler_parameters.md)
 * [資料庫 Schema 說明](db_schema.md)

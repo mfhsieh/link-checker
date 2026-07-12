@@ -1,4 +1,10 @@
-"""E2E 測試：複製任務時過濾與全域預設相同的配置參數，僅回填自訂覆寫值。"""
+"""
+E2E 測試：複製任務時的參數過濾與回填邏輯。
+
+此模組驗證當使用者執行「複製任務」時，前端表單是否能正確處理參數回填：
+1. 確保與全域預設值不同的自訂覆寫值（如 delay）能正確回填至新表單。
+2. 驗證特定欄位（如 timeout, retries）即使與預設值相同，亦能正確回填實體值，確保新任務配置的一致性。
+"""
 
 # pylint: disable=duplicate-code
 
@@ -9,11 +15,17 @@ from playwright.sync_api import Page, expect
 
 def test_duplicate_job_filters_defaults(page: Page, base_url: str) -> None:
     """
-    測試複製任務時，是否正確過濾掉與全域預設相同的設定值（留空），
-    並僅回填與全域預設不同的自訂覆寫值（回填實體值）。
+    測試複製任務時，驗證表單欄位回填邏輯是否正確處理自訂覆寫值。
+
+    此測試會執行以下流程：
+    1. 建立一個包含自訂 `delay` 值（與預設不同）的任務。
+    2. 點擊該任務詳情頁面的「複製」按鈕。
+    3. 驗證複製後的表單中，`delay` 是否保留了自訂值，且其餘欄位（如 `timeout`, `retries`）
+       亦能正確顯示預期數值。
+    4. 修改 URL 並提交，驗證新任務能否成功建立。
 
     Args:
-        page (Page): Playwright 的網頁操作物件。
+        page (Page): Playwright 的網頁操作物件，用於與瀏覽器互動。
         base_url (str): 測試伺服器的根網址。
     """
     # 1. 登入系統

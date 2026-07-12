@@ -32,12 +32,16 @@ def get_test_crawler_config(
     """
     讀取全域設定檔並合併個別任務設定，產生測試用的 CrawlerConfig 實例。
 
+    此函式會嘗試讀取指定路徑的 YAML 全域設定，並與預設的測試參數以及使用者提供的
+    覆寫參數進行合併，最後透過 `merge_and_validate_crawler_config` 驗證後轉換為
+    強型別的 `CrawlerConfig` 物件。
+
     Args:
-        global_config_path (str): 全域設定檔的路徑。
-        user_config_overrides (dict[str, object] | None): 欲覆寫的個別任務設定。
+        global_config_path (str): 全域設定檔 (.yaml) 的檔案路徑。
+        user_config_overrides (dict[str, object] | None): 欲額外覆寫或新增的爬蟲設定項目。
 
     Returns:
-        CrawlerConfig: 最終合併後的爬蟲配置實例。
+        CrawlerConfig: 最終用於測試的爬蟲配置實例。
     """
     global_config: dict[str, object] = {}
     if os.path.exists(global_config_path):
@@ -86,7 +90,7 @@ def main() -> None:
     解析命令列參數，並針對目標網址進行單次頁面爬取測試。
 
     利用 argparse 接收指定的 URL 與選填參數，實例化 CrawlerCore 並進行單頁解析，
-    最終將內部連結、外部連結與 HTTP 狀態印出至終端機。
+    最終將內部連結、外部連結與 HTTP 狀態印出至終端機，用於快速驗證爬蟲解析邏輯。
 
     Raises:
         SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。

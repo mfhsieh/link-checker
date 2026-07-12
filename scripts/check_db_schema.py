@@ -1,4 +1,5 @@
-"""資料庫架構檢驗工具。.
+"""
+資料庫架構檢驗工具。
 
 此腳本讀取 `.env` 中的 `AUTH_DB_URL` 與 `CRAWLER_DB_URL` 設定，
 利用 SQLAlchemy Inspection 機制反射資料庫結構，
@@ -153,6 +154,9 @@ def main() -> None:
     讀取環境變數設定的資料庫連線字串，建立 SQLAlchemy Engine，
     並依序檢驗 Auth DB 與 Crawler DB 的 Schema。若檢查全數通過，
     程式會以 Exit Code 0 結束；若有任何不一致，則以 Exit Code 1 結束。
+
+    Raises:
+        SystemExit: 若結構相符則拋出 Exit Code 0，否則拋出 Exit Code 1 結束腳本。
     """
     settings = get_settings()
 

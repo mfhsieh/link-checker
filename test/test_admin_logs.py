@@ -114,6 +114,9 @@ class MockJobManager:
 
         Args:
             job_id (str): 任務 ID。
+
+        Returns:
+            None
         """
 
     def delete_job(self, job_id: str) -> bool:  # pylint: disable=unused-argument
@@ -250,6 +253,8 @@ class TestAdminLogs(unittest.TestCase):
     def setUp(self) -> None:
         """
         在每個測試方法執行前清空操作日誌。
+
+        每次測試前皆會清空 `AuthLog`，以確保各個測試案例之間的獨立性。
         """
         # 每次測試前清空 AuthLog，確保測試獨立性
         assert TESTING_SESSION_LOCAL is not None
@@ -261,6 +266,9 @@ class TestAdminLogs(unittest.TestCase):
     def test_config_change_logging(self) -> None:
         """
         測試全域配置修改時，是否正確記錄操作日誌。
+
+        驗證當管理員透過 API 修改全域爬蟲設定後，稽核系統是否能確實攔截此變更事件，
+        並在 `AuthLog` 中記錄一筆類型為 `config_change` 的日誌與修改前後的詳細資訊。
         """
         # 先做一次配置更新
         payload = {
@@ -288,6 +296,9 @@ class TestAdminLogs(unittest.TestCase):
     def test_user_status_changed_logging(self) -> None:
         """
         測試使用者狀態與角色變更時，是否正確記錄操作日誌。
+
+        驗證當管理員修改特定使用者的狀態（如停用帳號）後，稽核系統是否會寫入
+        `user_status_changed` 日誌，且日誌詳細內容應包含目標使用者 ID 與變更項目。
         """
         payload = {
             "status": "suspended",
@@ -309,6 +320,9 @@ class TestAdminLogs(unittest.TestCase):
     def test_logs_date_filtering(self) -> None:
         """
         測試操作日誌的日期區間篩選功能。
+
+        寫入多筆不同時間點的虛擬日誌，透過 API 的 `start_date` 與 `end_date` 參數
+        進行查詢，驗證後端是否能精確過濾出指定日期範圍內的稽核紀錄。
         """
         assert TESTING_SESSION_LOCAL is not None
         db = TESTING_SESSION_LOCAL()
@@ -346,6 +360,9 @@ class TestAdminLogs(unittest.TestCase):
     def test_user_deleted_logging(self) -> None:
         """
         測試管理員刪除使用者帳號時，是否正確記錄操作日誌。
+
+        驗證管理員執行刪除使用者 API 後，稽核系統是否會記錄 `user_deleted` 事件，
+        並在日誌詳細欄位中正確標註被刪除的使用者 ID。
         """
         # 建立測試用的待刪除使用者
         assert TESTING_SESSION_LOCAL is not None
@@ -374,6 +391,9 @@ class TestAdminLogs(unittest.TestCase):
     def test_job_takeover_logging(self) -> None:
         """
         測試管理員強制接管任務時，是否正確記錄操作日誌。
+
+        驗證當管理員強制接管特定使用者的爬蟲任務時，系統是否會產生 `job_force_action`
+        類型的日誌，並正確記錄被接管的任務 ID 與 action 為 `takeover`。
         """
         response = self.client.post("/api/admin/jobs/test-job-id/takeover")
         self.assertEqual(response.status_code, 200)
@@ -396,6 +416,9 @@ class TestAdminLogs(unittest.TestCase):
     def test_job_deleted_logging(self) -> None:
         """
         測試管理員強制刪除任務時，是否正確記錄操作日誌。
+
+        驗證當管理員強制刪除特定任務時，系統是否會產生 `job_force_action` 類型的日誌，
+        並正確記錄被刪除的任務 ID 與 action 為 `delete`。
         """
         response = self.client.delete("/api/admin/jobs/test-job-id-delete")
         self.assertEqual(response.status_code, 200)

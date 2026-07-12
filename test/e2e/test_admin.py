@@ -7,10 +7,13 @@ from playwright.sync_api import Page, expect
 
 def test_admin_config(page: Page, base_url: str) -> None:
     """
-    測試管理員登入後修改全域設定。
+    測試管理員登入後修改全域設定的完整流程。
+
+    包含模擬管理員登入、導航至管理後台、進入配置頁面、修改特定設定值（如逾時時間）、
+    提交儲存並驗證 UI 是否彈出成功提示訊息。
 
     Args:
-        page (Page): Playwright 的網頁操作物件。
+        page (Page): Playwright 的網頁操作物件，用於與瀏覽器互動。
         base_url (str): 測試伺服器的根網址。
     """
     page.goto(f"{base_url}/index.html")
@@ -53,8 +56,16 @@ def test_admin_user_management_ui(page: Page, base_url: str) -> None:
     """
     測試管理員在後台管理使用者的 UI 互動，包含邀請、重寄邀請、停用/啟用、權限提降、刪除。
 
+    此測試會完整模擬以下操作：
+    1. 管理員登入並導航至使用者管理介面。
+    2. 邀請新使用者並驗證列表更新。
+    3. 針對未啟用的使用者執行重新寄送邀請操作。
+    4. 變更使用者角色（提升至管理員後再降回一般使用者）。
+    5. 執行帳號停用與啟用操作並驗證狀態標籤。
+    6. 刪除使用者並驗證從列表中消失。
+
     Args:
-        page (Page): Playwright 的網頁操作物件。
+        page (Page): Playwright 的網頁操作物件，用於與瀏覽器互動。
         base_url (str): 測試伺服器的根網址。
 
     Raises:

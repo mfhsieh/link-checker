@@ -101,11 +101,11 @@
 
 ---
 
-## 6. 爬蟲核心 (Crawler) 的依賴狀況 (完全解耦)
+## 6. 爬蟲核心 (Crawler) 的依賴狀況 (高度解耦)
 
-在重構完成後，`crawler` 模組（包含 `manager.py`, `runner.py`, `core.py`, `utils.py`）**完全去除了對 `backend` 與 `cli.py` 的任何直接程式碼引入**。
+在重構完成後，`crawler` 模組（包含 `manager.py`, `runner.py`, `core.py`, `utils.py`）**幾乎完全去除了對 `backend` 與 `cli.py` 的直接業務邏輯引入**，僅保留對輕量級內部事件定義 (`StrEnum`) 的依賴。
 
-- **狀態通知**: 不再自行 import 後端的 `send_job_status_notification` 函式，而是依賴執行期外部注入的 `status_callback: Callable[[str, str], None]`。
+- **狀態通知**: 改由外部注入 `on_event_callback`。內部僅引入 `SystemEvent` 確保事件強型別；若未傳入 callback 亦能無錯執行（優雅降級）。
 - **報表匯出**: 移除所有報表產生邏輯，將產出 CSV/ZIP 的職責完全交給外部（如 `backend` 的 exporter 服務）。
 - **資料庫訪問**: 完全依賴自有的 `crawler.models` 中宣告的 SQLite/PostgreSQL schema 映射，與後端 Auth DB 保持完全的庫級分離與物理隔離。
 
@@ -122,16 +122,18 @@
   - 直接依賴 `crawler.models` 中的 `Job`, `CrawlQueue`, `ExternalLink` 進行資料的 JSONL 序列化與反序列化。
   - 依賴 `crawler.utils` 中的狀態判斷函式 (`determine_external_link_status_category` 等) 來計算標準化分類。
   - 依賴 `backend.config` 以取得當前啟動環境的資料庫 URL。
-- **`backfill_status_category.py`**:
-  - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `CrawlQueue` 並更新 `status_category` 欄位。
-  - 直接依賴 `crawler.utils` 內部與外部連結的狀態判斷函式 (`determine_external_link_status_category` 等) 來計算標準化分類。
-  - 依賴 `backend.config` 獲取 Crawler DB 連線字串。
-- **`backfill_target_domain.py`**:
-  - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `Job` 並更新 `target_domain` 欄位。
-  - 依賴 `backend.config` 獲取 Crawler DB 連線字串。
 - **`gen_api_doc.py`**:
   - 直接依賴 `backend.main` 匯入 FastAPI `app` 實例，以動態萃取 OpenAPI Schema。
 - **`mcp_server.py`**:
   - 依賴第三方套件 `mcp.server.fastmcp` 來建立供 AI 代理存取的 Model Context Protocol 介面。
   - 直接依賴 `backend.deps` 取得 `get_job_manager` 實例，作為資料存取的主要入口。
   - 直接依賴 `crawler.models` 中的 `CrawlQueue`, `Job` 以支援原生的 SQLAlchemy 查詢與聚合統計。
+- **`old/backfill_status_category.py`**:
+  - 為舊版腳本，早期資料庫欄位擴展時使用
+  - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `CrawlQueue` 並更新 `status_category` 欄位。
+  - 直接依賴 `crawler.utils` 內部與外部連結的狀態判斷函式 (`determine_external_link_status_category` 等) 來計算標準化分類。
+  - 依賴 `backend.config` 獲取 Crawler DB 連線字串。
+- **`old/backfill_target_domain.py`**:
+  - 為舊版腳本，早期資料庫欄位擴展時使用
+  - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `Job` 並更新 `target_domain` 欄位。
+  - 依賴 `backend.config` 獲取 Crawler DB 連線字串。

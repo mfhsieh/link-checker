@@ -19,7 +19,13 @@ counter_lock: threading.Lock = threading.Lock()
 
 
 class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
-    """自訂 Mock HTTP 伺服器，模擬爬蟲在真實環境中會遭遇的各種複雜情境。"""
+    """
+    自訂 Mock HTTP 請求處理器。
+
+    此處理器繼承自 `http.server.BaseHTTPRequestHandler`，專為測試環境設計，
+    用以模擬爬蟲在真實網路環境中可能遭遇的各種複雜情境，包含暫時性服務中斷 (503)、
+    回應緩慢、重定向、特定的 MIME-Type 攔截、User-Agent 驗證以及社群網域模擬等。
+    """
 
     # pylint: disable=arguments-differ, redefined-builtin
     def log_message(self, format: str, *args: object) -> None:
@@ -36,7 +42,20 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     # pylint: disable=too-many-branches,too-many-statements
     def do_GET(self) -> None:
         """
-        處理所有的 HTTP GET 請求，模擬指數退避重試、網路超時、重定向、特定 MIME 類型等多種情境。
+        處理 HTTP GET 請求，模擬多種網路邊際案例。
+
+        根據請求路徑 (path) 執行不同的模擬邏輯：
+        - `/temporary-error`: 模擬前兩次失敗 (503)，第三次成功的指數退避情境。
+        - `/slow-response`: 模擬回應延遲（阻塞 1 秒）。
+        - `/redirect`: 執行 302 重新導向至特定子目錄。
+        - `/infinite-stream`: 模擬無限二進位流以測試爬蟲的 MIME 攔截機制。
+        - `/protected-area`: 驗證 User-Agent 是否符合瀏覽器特徵。
+        - `/flaky_internal`: 模擬具備失敗重試特性的內部頁面。
+        - `/tarpit`: 模擬極慢連線以觸發連線逾時設定。
+        - 其他路徑則嘗試搜尋並回傳對應的本地靜態檔案 (HTML, PDF 等)。
+
+        Returns:
+            None
         """
         # 1. 測試：指數退避重試（前 2 次返回 503 暫時性錯誤，第 3 次返回 200）
         if self.path == "/temporary-error":
@@ -215,7 +234,11 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         """
         處理 HTTP HEAD 請求。
 
-        模擬 Tarpit 超時，其餘路徑回傳 501 以符合 mock-social-media 測試期待。
+        主要用於模擬針對社群網域或特定端點的探測行為。針對 `/tarpit` 會模擬延遲，
+        而針對 `/mock-social-media` 等路徑則會回傳 520 錯誤以模擬特定 WAF 行為。
+
+        Returns:
+            None
         """
         if self.path == "/tarpit":
             time.sleep(2)

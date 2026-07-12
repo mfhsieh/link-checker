@@ -76,7 +76,4 @@
 ```bash
 # 於專案根目錄執行
 pytest test/ -v
-```
-
-為求便利，專案也提供了 `scripts/run_all_tests.sh` 腳本，其內容即為上述指令。
-    
+``` 

@@ -7,14 +7,17 @@ from playwright.sync_api import Page, expect
 
 def test_create_job(page: Page, base_url: str) -> None:
     """
-    測試登入後建立一個爬蟲任務。
+    測試登入後建立一個爬蟲任務的完整流程。
+
+    包含模擬使用者登入、進入建立任務頁面、填寫目標網址與網域、提交任務、
+    並驗證系統是否正確跳轉至任務詳情頁面且顯示正確的任務資訊。
 
     Args:
-        page (Page): Playwright 的網頁操作物件.
-        base_url (str): 測試伺服器的根網址.
+        page (Page): Playwright 的網頁操作物件，用於與瀏覽器互動。
+        base_url (str): 測試伺服器的根網址。
 
     Raises:
-        AssertionError: 任務建立失敗或發生非預期錯誤時拋出.
+        AssertionError: 任務建立失敗、頁面跳轉逾時或發生非預期錯誤時拋出。
     """
     # 必須先登入
     page.goto(f"{base_url}/index.html")
@@ -71,15 +74,16 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
     """
     測試任務控制按鈕（啟動、暫停、重置、重試、刪除）的 UI 互動與確認 Modal 流程。
 
-    此測試使用 page.route 攔截並模擬 API 回應，以確保測試在各種任務狀態下的穩定度，
-    並避免受後端進程狀態或假死清理機制的影響。
+    此測試採用 `page.route` 攔截並模擬 API 回應（Mocking），以確保測試能穩定地在不同任務狀態
+    （如 pending, running, completed）之間切換，並驗證 UI 元件（按鈕可見性、彈窗提示、Toast）
+    是否正確反應狀態變更。
 
     Args:
-        page (Page): Playwright 的網頁操作物件.
-        base_url (str): 測試伺服器的根網址.
+        page (Page): Playwright 的網頁操作物件，用於與瀏覽器互動。
+        base_url (str): 測試伺服器的根網址。
 
     Raises:
-        AssertionError: 測試流程中發生非預期結果或驗證失敗.
+        AssertionError: 測試流程中發生非預期結果、驗證失敗或 API 攔截邏輯異常。
     """
     # 紀錄 console.log 與攔截日誌方便除錯
     console_msgs = []

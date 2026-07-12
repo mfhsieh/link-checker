@@ -336,7 +336,7 @@ erDiagram
 | `ip_address` | `String(45)` | `Nullable` | 透過 DNS 解析該 `target_url` 之網域所取得的 IPv4/IPv6 位址。若解析失敗則為 `NULL`。 |
 | `is_secure` | `Boolean` | `Default: True` | 標記此外部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若為 HTTPS 則為 `True`，若為 HTTP 則為 `False`。 |
 | `http_status_code` | `Integer` | `Nullable` | 對外部連結進行 HTTP 存活檢查後取得的 HTTP 狀態碼。若為 `NULL` 代表未探測或連線失敗。 |
-| `status_category` | `String(30)` | `Default: 'healthy'` | 統一狀態分類（例如：`dns_failed`, `connection_error`, `healthy` 等），可用於極速生成報表與統計。 |
+| `status_category` | `String(30)` | `Default: 'pending'` | 統一狀態分類（例如：`pending`, `dns_failed`, `connection_error`, `healthy` 等），可用於極速生成報表與統計。 |
 | `error_message` | `Text` | `Nullable` | 存活檢查失敗時的具體連線異常描述（如 ConnectionTimeout）。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 系統成功解析並紀錄該筆外部連結的時間。 |
 | `updated_at` | `DateTime` | `Default: 當下時間` | 此筆外部連結狀態最後更新的時間。 |

@@ -1,4 +1,9 @@
-"""E2E 測試：使用者身分驗證與登入流程。"""
+"""
+E2E 測試：使用者身分驗證與登入流程。
+
+此模組包含針對使用者認證機制的端到端整合測試，利用 Playwright 模擬真實瀏覽器行為，
+驗證管理員與一般使用者的登入成功與失敗情境，確保身分驗證流程的正確性與安全性。
+"""
 
 import re
 
@@ -9,8 +14,11 @@ def test_login_success(page: Page, base_url: str) -> None:
     """
     測試正常登入流程，應導向至 app.html。
 
+    驗證當使用者輸入正確的帳號與密碼時，系統能否正確驗證身分並自動跳轉至
+    應用程式主頁面，且頁面上應出現預期的功能文字。
+
     Args:
-        page (Page): Playwright 的網頁操作物件。
+        page (Page): Playwright 的網頁操作物件，用於與瀏覽器互動。
         base_url (str): 測試伺服器的根網址。
     """
     page.goto(f"{base_url}/index.html")
@@ -31,10 +39,13 @@ def test_login_success(page: Page, base_url: str) -> None:
 
 def test_login_failure(page: Page, base_url: str) -> None:
     """
-    測試錯誤的登入，應顯示錯誤訊息且停留在登入頁。
+    測試錯誤的登入流程，應顯示錯誤訊息且停留在登入頁面。
+
+    驗證當使用者輸入錯誤的密碼時，系統應拒絕登入請求，且頁面不應發生跳轉，
+    確保使用者仍停留在登入介面以便重新嘗試。
 
     Args:
-        page (Page): Playwright 的網頁操作物件。
+        page (Page): Playwright 的網頁操作物件，用於與瀏覽器互動。
         base_url (str): 測試伺服器的根網址。
     """
     page.goto(f"{base_url}/index.html")

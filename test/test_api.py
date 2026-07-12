@@ -37,8 +37,11 @@ def _set_api_test_env() -> None:
     """
     設定 API 測試專用的環境變數。
 
-    在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
-    避免被其他測試模組的模組級設定覆蓋。
+    在每次 `setup_databases()` 前呼叫，確保環境變數指向正確的測試資料庫與設定檔，
+    避免被其他測試模組的模組級設定覆蓋。此函式也會強制更新 Settings 類別的快取。
+
+    Returns:
+        None
     """
     os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_api.db"
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_api.db"
@@ -101,6 +104,9 @@ def setup_databases() -> None:
 def teardown_databases() -> None:
     """
     清理測試所產生的資料庫檔案。
+
+    此函式負責關閉並釋放 SQLAlchemy Engine 連線池，移除測試期間產生的 SQLite 主檔案
+    及其暫存檔（-shm, -wal），並清除測試用的全域設定檔，確保測試環境的完整清理。
     """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
@@ -195,18 +201,40 @@ def test_api_full_flow() -> None:
 
     透過 `TestClient` 模擬真實 HTTP 請求，並驗證每個端點的 HTTP 狀態碼與部分回傳結構，
     以確保整個 FastAPI 後端系統運作正常。
+
+    Returns:
+        None
     """
     from unittest.mock import patch  # pylint: disable=import-outside-toplevel
 
     class MockPopen:  # pylint: disable=too-few-public-methods
-        """模擬的 subprocess.Popen，用於避免測試中產生背景程序。"""
+        """
+        模擬的 `subprocess.Popen` 類別，用於避免在測試中實際產生背景程序。
+
+        此 Mock 物件會提供假的 PID 並模擬 `poll` 方法，使其立即回傳程序已結束，
+        以確保測試流程的快速與隔離性。
+        """
 
         def __init__(self, *args: object, **kwargs: object) -> None:  # pylint: disable=unused-argument
-            """初始化模擬的 Popen，給定假的 PID。"""
+            """
+            初始化模擬的 Popen 實例。
+
+            Args:
+                *args (object): 傳遞給原始 `Popen` 的位置參數。
+                **kwargs (object): 傳遞給原始 `Popen` 的關鍵字參數。
+
+            Returns:
+                None
+            """
             self.pid: int = 99999
 
         def poll(self) -> int | None:
-            """模擬 poll 方法，回傳 0 表示程序已結束。"""
+            """
+            模擬 `poll` 方法，回傳 0 表示程序已結束。
+
+            Returns:
+                int | None: 固定回傳 0，表示模擬程序已完成。
+            """
             return 0
 
     with patch("subprocess.Popen", MockPopen):
@@ -223,10 +251,14 @@ def _run_api_full_flow() -> None:
     """
     執行所有的 API 整合測試流程。
 
-    包含所有的 API 端點存取與斷言檢查。
+    此函式內部包含對所有核心 API 端點的存取與斷言檢查，但不負責環境的建立與清理。
+    它應在 `test_api_full_flow` 的 Setup / Teardown 區塊內呼叫。
+
+    Returns:
+        None
 
     Raises:
-        AssertionError: 當 API 測試未達預期結果時拋出。
+        AssertionError: 當 API 請求的回應狀態碼不符合預期，或返回資料結構異常時拋出。
     """
     print("--- Starting API Tests ---")
     client = TestClient(app)
@@ -464,19 +496,20 @@ def _run_api_full_flow() -> None:
 
 # pylint: disable=too-many-statements, too-many-locals, consider-using-with
 def test_api_real_scenario_flow() -> None:
-    """執行真實劇本情境 (Real Scenario Flow) 測試。.
+    """
+    執行真實劇本情境 (Real Scenario Flow) 測試。
 
-    此測試模擬真實使用者透過 API 的完整操作行為：
-    1. 背景啟動 Mock HTTP Server 作為爬蟲的靶機。
-    2. 透過 API 登入並取得授權。
-    3. 透過 API 建立一筆爬行任務，目標為靶機的首頁。
+    此測試模擬真實使用者透過 API 的完整操作行為，包含：
+    1. 在背景啟動 Mock HTTP Server 作為爬蟲的靶機，以模擬各種網路情境。
+    2. 透過 API 登入系統並取得有效的授權 (CSRF Token)。
+    3. 透過 API 建立一筆爬行任務，目標設定為靶機的首頁。
     4. 透過 API 啟動該爬蟲任務。
-    5. 透過 API 輪詢 (Polling) 任務狀態，直到爬行結束。
-    6. 透過 API 讀取最終報表，並驗證系統是否確實爬取了靶機上各種特殊情境的外部連結。
+    5. 持續透過 API 輪詢任務狀態，直到爬行任務完成。
+    6. 透過 API 讀取最終的爬蟲報告，並驗證系統是否確實爬取了靶機上各種特殊情境
+       （例如 HTTPS, 404, 無 SSL）的外部連結，確保爬蟲功能的核心正確性。
 
     Raises:
-        AssertionError: 測試中任何檢查未通過或發生非預期結果時拋出。
-
+        AssertionError: 測試中任何檢查未通過、Mock Server 啟動失敗或發生非預期結果時拋出。
     """
     port = 8081
     if is_port_in_use(port):

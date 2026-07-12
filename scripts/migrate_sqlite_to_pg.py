@@ -224,13 +224,14 @@ def migrate_crawler_db(sqlite_url: str, pg_url: str) -> None:
 
 def main() -> None:
     """
-    主控流程，從環境設定中讀取 DSN 並驅動遷移邏輯。
+    主控流程，從環境設定中讀取資料庫連線字串 (DSN) 並驅動遷移邏輯。
 
-    驗證設定的連線字串是否確實為 PostgreSQL，若通過則依序執行 Auth DB
-    與 Crawler DB 的資料庫遷移，成功後結束。
+    此函數會首先驗證 `.env` 中設定的 `AUTH_DB_URL` 與 `CRAWLER_DB_URL` 是否已配置為 PostgreSQL 連線字串。
+    若驗證通過，則依序執行 Auth DB 與 Crawler DB 的資料庫遷移。
+    遷移成功後，程式將正常結束；若設定不正確或遷移過程中發生嚴重錯誤，則會拋出 `SystemExit`。
 
     Raises:
-        SystemExit: 當資料庫設定非 PostgreSQL 或遷移過程發生嚴重錯誤時。
+        SystemExit: 當資料庫設定非 PostgreSQL 或遷移過程發生 `SQLAlchemyError` 或 `OSError` 時。
     """
     settings = get_settings()
 

@@ -31,14 +31,29 @@ def test_scheduler_queuing(monkeypatch: pytest.MonkeyPatch) -> None:
     import subprocess  # pylint: disable=import-outside-toplevel
 
     class MockPopen:  # pylint: disable=too-few-public-methods
-        """模擬的 subprocess.Popen，用於避免測試中產生背景程序。"""
+        """
+        模擬的 subprocess.Popen，用於避免測試中產生背景程序。
+
+        此類別僅實作測試所需的最小介面。
+        """
 
         def __init__(self, *args: object, **kwargs: object) -> None:  # pylint: disable=unused-argument
-            """初始化模擬的 Popen，給定假的 PID。"""
+            """
+            初始化模擬的 Popen 物件。
+
+            Args:
+                *args (object): 位置參數（模擬 Popen 接收的所有參數）。
+                **kwargs (object): 關鍵字參數（模擬 Popen 接收的所有參數）。
+            """
             self.pid: int = 99999
 
         def poll(self) -> int | None:
-            """模擬 poll 方法，回傳 0 表示程序已結束。"""
+            """
+            模擬 subprocess.Popen.poll 方法。
+
+            Returns:
+                int | None: 固定回傳 0，表示程序已立即結束。
+            """
             return 0
 
     monkeypatch.setattr(subprocess, "Popen", MockPopen)

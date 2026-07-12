@@ -1,10 +1,9 @@
 """
 測試頂層 Pytest Fixture 配置模組。
 
-提供跨測試模組的隔離性保證：
-- 每個測試模組執行前重設 backend singleton（Engine / SessionLocal / JobManager）
-- 每個測試模組執行後清空 FastAPI dependency_overrides
-- 清除 get_settings() 的 lru_cache，確保各模組能使用正確的 DB URL
+此模組提供跨測試模組的隔離性保證。透過在每個測試模組執行前後重設全域單例 (Singleton)
+物件、清空 FastAPI 的相依注入覆寫 (dependency_overrides) 以及清除設定快取，
+確保測試環境的純淨，防止不同測試模組之間的資料庫連線或配置狀態互相干擾。
 """
 
 import os
@@ -15,11 +14,11 @@ import pytest
 
 def refresh_settings_cache() -> None:
     """
-    清除 get_settings() 的 lru_cache 並強制更新 Settings class 的 DB URL。
+    清除 get_settings() 的 lru_cache 並強制更新 Settings 類別的資料庫連線屬性。
 
-    由於 Settings 使用 class-level 屬性（在 class 定義時求值），
-    即使環境變數已更新，重新建立 Settings() 也不會讀取新值。
-    因此需要手動將 os.environ 的最新值覆寫到 Settings class 屬性上。
+    由於 `Settings` 類別使用類別層級屬性（在類別定義時即完成求值），因此即使環境變數
+    已變動，單純重新實例化 `Settings()` 仍會取得舊值。本函式透過手動將最新的環境變數
+    覆寫回類別屬性，確保測試能切換至正確的資料庫 URL。
     """
     # pylint: disable=import-outside-toplevel
     from backend.config import Settings, get_settings
@@ -36,13 +35,17 @@ def refresh_settings_cache() -> None:
 @pytest.fixture(autouse=True, scope="module")
 def _reset_singletons_and_overrides() -> Generator[None, None, None]:
     """
-    在每個測試模組執行前，重設所有 backend singleton 並清空 dependency overrides。
+    在每個測試模組執行前與執行後，重設所有後端單例物件並清空相依覆寫。
 
-    這確保各測試模組在乾淨的環境下啟動，不會受到前一個模組殘留的
-    Engine / SessionLocal / JobManager / dependency_overrides 影響。
+    此 Fixture 採取自動執行模式 (autouse)，確保每個測試模組在啟動時：
+    1. 關閉並清理 Auth DB 與 Crawler DB 的舊有連線池 (SQLAlchemy Engine)。
+    2. 清空 FastAPI 應用程式的 `dependency_overrides` 以移除先前模組的 Mock。
+    3. 強制刷新環境設定快取。
+
+    在模組測試結束後 (Teardown)，會再次執行相同的清理程序，確保不污染下一個測試模組。
 
     Yields:
-        None: 在模組執行完畢後進行清理。
+        None: 在測試模組執行期間暫停，等待結束後執行 Teardown。
     """
     # pylint: disable=import-outside-toplevel, protected-access
     from sqlalchemy.exc import SQLAlchemyError

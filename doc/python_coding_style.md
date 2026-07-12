@@ -24,7 +24,8 @@ def process_data(items: list[str], max_limit: int | None = None) -> bool: ...
 ## 2. Pydoc / Docstring 註釋規範
 
 專案內所有的模組 (Module)、類別 (Class) 與函式 (Function) 都必須撰寫符合 PEP 257 規範的 Docstring。
-* **格式**：推薦採用 Google Style，必須包含明確的功能描述，以及 `Args:`、`Returns:`、`Raises:`、`Yields:` 等區塊（若適用）。
+* **格式**：推薦採用 Google Style，必須包含明確的功能描述，以及 `Args:`、`Raises:`、`Yields:` 等區塊（若適用）。
+* **關於 `Returns:` 區塊**：若函式回傳 `None`，應省略 `Returns:` 區塊；若有實際回傳值，則必須包含 `Returns:` 區塊並說明型別與含義。
 * **模組層級**：每個 `.py` 檔案開頭必須有說明該模組用途的 Docstring。
 * **清晰簡潔**：首行必須是簡短的總結說明，空一行後再補上詳細的邏輯描述。
 
@@ -62,6 +63,20 @@ def stream_pages(urls: list[str]) -> Generator[str, None, None]:
 
     Yields:
         str: 各個網頁的 HTML 原始碼。
+    """
+    ...
+
+
+def process_data(items: list[str], max_limit: int | None = None) -> None:
+    """
+    處理資料清單，不回傳任何值。
+
+    Args:
+        items (list[str]): 待處理的字串清單。
+        max_limit (int | None): 最大處理筆數限制，預設為 None 表示不限制。
+
+    Raises:
+        ValueError: 當 items 為空清單時拋出。
     """
     ...
 ```

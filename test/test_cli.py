@@ -1,4 +1,9 @@
-"""E2E integration test script for external link checker."""
+"""
+提供端到端 (E2E) 整合測試腳本，用於驗證連結檢查器 CLI 工具的各項功能與行為。
+
+此模組包含了啟動 Mock 測試伺服器、執行爬行任務、驗證資料庫結果、
+測試匯出與篩選功能，以及任務生命週期管理（暫停、重設、恢復、刪除）等一系列測試步驟。
+"""
 
 # pylint: disable=duplicate-code
 
@@ -24,10 +29,12 @@ YAML_CONFIG: str = "job/test_job.yaml"
 
 def _set_cli_test_env() -> None:
     """
-    設定 CLI 測試專用的環境變數。
+    設定 CLI 測試專用的環境變數與配置快取。
 
-    在每次 setup_databases() 前呼叫，確保環境變數指向正確的測試資料庫，
-    避免被其他測試模組的模組級設定覆蓋。
+    此函式會在每次 `setup_databases()` 前被呼叫，確保：
+    1. `AUTH_DB_URL` 指向測試用的認證資料庫。
+    2. `CRAWLER_DB_URL` 指向測試用的爬蟲資料庫。
+    3. 清除並重整 `Settings` 類別的快取，避免被其他測試模組的模組級設定覆蓋。
     """
     os.environ["AUTH_DB_URL"] = "sqlite:///db/test_auth_cli.db"
     os.environ["CRAWLER_DB_URL"] = "sqlite:///db/test_crawler_cli.db"
@@ -40,6 +47,12 @@ def _set_cli_test_env() -> None:
 def setup_databases() -> None:
     """
     建立並初始化全新的測試用資料庫。
+
+    此函式會執行以下步驟：
+    1. 呼叫 `_set_cli_test_env()` 確保環境變數指向正確的測試資料庫路徑。
+    2. 強制關閉並釋放所有現有的 SQLAlchemy Engine 連線池與 SQLite 檔案描述符，以清除舊連線。
+    3. 清除舊的資料庫主檔案 (`.db`) 與其相關的暫存檔 (`-shm`, `-wal`)。
+    4. 重新初始化認證 (Auth) 與爬蟲 (Crawler) 的資料庫引擎和會話。
     """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db
@@ -84,6 +97,10 @@ def setup_databases() -> None:
 def teardown_databases() -> None:
     """
     清理測試所產生的資料庫檔案。
+
+    此函式會執行以下步驟：
+    1. 強制關閉並釋放所有現有的 SQLAlchemy Engine 連線池與 SQLite 檔案描述符。
+    2. 清除測試過程中產生的資料庫主檔案 (`.db`) 與其相關的暫存檔 (`-shm`, `-wal`)。
     """
     # pylint: disable=import-outside-toplevel, protected-access
     import backend.auth.db as auth_db

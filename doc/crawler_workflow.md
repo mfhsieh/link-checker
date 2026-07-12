@@ -28,10 +28,10 @@ flowchart TD
     CheckRedirect -->|"是"| HasLocation{"有 Location 標頭 ?"}
     HasLocation -->|"無"| SkipRedirect["略過 (異常重導向)"]
     HasLocation -->|"有"| CheckCrossDomain{"跨域重導向 ?"}
-    CheckCrossDomain -->|"是"| FakeHTML["停止跟隨並轉為假 HTML 標籤"]
+    CheckCrossDomain -->|"是"| ReturnList["停止跟隨並直接回傳網址清單"]
     CheckCrossDomain -->|"否"| FollowRedirect["更新網址並收集 Cookie (continue)"]
     FollowRedirect --> Fetch
-    FakeHTML --> Extract["extract_links: 萃取連結 (保留原始順序)"]
+    ReturnList --> Extract["extract_links: 接收清單或解析 HTML"]
     
     CheckMime -->|"否"| SkipContent["略過下載 (節省頻寬)"]
     CheckMime -->|"是"| Download["串流下載 HTML (防 LookupError)"]
@@ -131,7 +131,7 @@ flowchart TD
 為嚴格控制爬取範圍與防範安全性問題，爬蟲核心關閉了自動重導向機制 (`follow_redirects=False`)，並在 `_handle_redirect` 中實作手動的 3xx 攔截處理流程：
 - **檢查 Location 標頭**：若回應為 3xx 但缺少 Location，則標記為異常並略過。
 - **內部 Cookie-gate 穿透與重導向追蹤**：對於內部的同域跳轉，`fetch()` 如今會收集伺服器的 `Set-Cookie` 並傳遞給下一次跳轉 (`accumulated_cookies`)。這使得爬蟲也能順暢通過需要 SSO 或 Cookie-gate 保護的企業內部網站。
-- **跨域外流攔截**：若新的目標網址跨出了指定的目標網域，爬蟲會**立即停止深入抓取**，並在記憶體中動態生成包含該外部網址的**「假 HTML 標籤」** (`<a href="{next_url}"></a>`)，交由後續的解析模組當作一般的外部連結來接手處理。
+- **跨域外流攔截**：若新的目標網址跨出了指定的目標網域，爬蟲會**立即停止深入抓取**，並直接回傳包含該外部網址的**「網址清單」** (`[next_url]`)，交由後續的解析模組當作一般的外部連結來接手處理，免除無謂的字串生成與解析。
 
 ### 2.4 回應處理與串流下載
 - **`_process_response`**：統整 HTTP 回應的各項檢查。

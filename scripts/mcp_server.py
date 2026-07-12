@@ -55,10 +55,11 @@ def list_active_jobs() -> str:
 @mcp.tool()
 def get_job_progress(job_id: str) -> str:
     """
-    取得指定任務的執行進度與各種狀態的統計數量。
+    取得指定任務的內部網頁探索進度與各狀態統計。
 
-    透過分析資料庫中的佇列 (CrawlQueue)，彙整特定任務中各個狀態
-    （例如：ok, pending, not_found, blocked 等）的連結數量，並計算整體探索進度百分比。
+    專注於查詢資料庫中的內部網頁佇列 (CrawlQueue)，彙整各個狀態
+    （如：ok, pending, not_found 等）的數量，並計算整體進度百分比。
+    注意：此工具「不包含」外部連結的統計，適合在任務「執行中」高頻輪詢以即時取得探索進度。
 
     Args:
         job_id (str): 欲查詢進度的爬蟲任務 UUID。
@@ -152,10 +153,11 @@ def get_job_errors(job_id: str, limit: int = 10) -> str:
 @mcp.tool()
 def get_job_report(job_id: str) -> str:
     """
-    取得指定任務的詳細統計報告 (Job Report)。
+    取得指定任務的全方位綜合統計報告 (Job Report)。
 
-    透過核心管理員 (JobManager) 取得該任務在資料庫中的各項狀態數量，
-    包含佇列中的已完成、錯誤、跳過、等待中，以及外部連結數量等。
+    相較於 get_job_progress，此工具不僅提供內部網頁佇列的狀態，
+    還會跨表聚合「外部連結 (ExternalLink)」的各項存活狀態總數與網域統計。
+    適合在「任務完成後」呼叫，作為 AI 撰寫最終健檢總結與分析的依據。
 
     Args:
         job_id (str): 欲查詢報告的任務 UUID。

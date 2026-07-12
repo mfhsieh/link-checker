@@ -131,6 +131,7 @@ python cli.py --help
 * **[系統架構說明](doc/architecture.md)**：了解系統目錄結構與核心技術選型。
 * **[模組依賴說明](doc/module_dependencies.md)**：詳細條列本專案各核心模組（前端、後端、爬蟲核心與 CLI）間的依賴關係與隔離邊界。
 * **[命令列 (CLI) 操作指南](doc/cli_usage.md)**：完整的 CLI 參數、功能介紹與全域設定檔說明。
+* **[MCP Server 使用指南](doc/mcp_usage.md)**：提供 AI 助理與開發者遠端查詢任務狀態的 Model Context Protocol 介面說明。
 * **[API 路由清單](doc/api_routes.md)** 與 **[API 完整規格書](doc/api_spec.md)**：後端 RESTful API 規格與傳輸 Schema。
 * **[系統需求規格書](doc/requirements.md)**：詳細的功能需求、資安防護與業務邏輯邊界。
 * **[網站爬蟲核心流程說明](doc/crawler_workflow.md)**：詳細說明爬蟲抓取、解析、與錯誤重試的完整生命週期與驗證機制。
