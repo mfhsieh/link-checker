@@ -21,7 +21,7 @@ from test.utils import is_port_in_use, wait_for_server  # pylint: disable=wrong-
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# pylint: disable=wrong-import-position, duplicate-code, protected-access
+# pylint: disable=wrong-import-position, duplicate-code
 from fastapi.testclient import TestClient
 
 from backend.auth.db import get_auth_engine, get_auth_session_local
@@ -29,6 +29,8 @@ from backend.auth.models import User
 from backend.auth.password import hash_password
 from backend.deps import get_job_manager
 from backend.main import app
+
+# pylint: enable=wrong-import-position
 
 
 def _set_api_test_env() -> None:
@@ -460,7 +462,7 @@ def _run_api_full_flow() -> None:
     print("--- API Tests Passed Successfully ---")
 
 
-# pylint: disable=too-many-statements, too-many-locals, consider-using-with, unused-variable
+# pylint: disable=too-many-statements, too-many-locals, consider-using-with
 def test_api_real_scenario_flow() -> None:
     """執行真實劇本情境 (Real Scenario Flow) 測試。.
 

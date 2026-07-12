@@ -17,6 +17,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from backend.deps import get_job_manager
 from crawler.models import CrawlQueue, Job
 
+# pylint: enable=wrong-import-position
+
 mcp = FastMCP("LinkCheckerProductionMCP")
 manager = get_job_manager()
 

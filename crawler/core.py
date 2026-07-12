@@ -64,7 +64,7 @@ def _patched_getaddrinfo(  # pylint: disable=too-many-arguments
     host: str | bytes | None,
     port: str | int | None,
     family: int = 0,
-    type_attr: int = 0,  # pylint: disable=redefined-builtin
+    type_attr: int = 0,
     proto: int = 0,
     flags: int = 0,
 ) -> list[tuple[socket.AddressFamily, socket.SocketKind, int, str, tuple[str, int] | tuple[str, int, int, int]]]:  # pylint: disable=no-member

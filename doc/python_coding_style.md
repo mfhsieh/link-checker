@@ -95,12 +95,12 @@ def stream_pages(urls: list[str]) -> Generator[str, None, None]:
 開發者在完成功能實作後，請依序執行以下指令進行自我檢查：
 
 ```bash
-# 1. 自動排版程式碼與匯入排序
-ruff check --select I --fix .
+# 1. 自動排版程式碼、匯入排序與清理無效 noqa
+ruff check --extend-select I,RUF100 --fix .
 ruff format .
 
 # 2. 執行 Pylint 進行靜態分析 (包含主程式與測試腳本)
-pylint --load-plugins=pylint.extensions.docparams backend/ crawler/ cli.py scripts/ test/
+pylint --load-plugins=pylint.extensions.docparams --enable=useless-suppression backend/ crawler/ cli.py scripts/ test/
 
 # 3. 執行 Mypy 靜態型別檢查
 mypy --explicit-package-bases backend/ crawler/ cli.py scripts/ test/

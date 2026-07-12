@@ -309,7 +309,7 @@ class ExportQueryArgs:  # pylint: disable=too-few-public-methods
 
 
 @dataclass
-class JobCreateConfig:  # pylint: disable=too-few-public-methods
+class JobCreateConfig:
     """建立任務的設定封裝。
 
     Attributes:
@@ -326,7 +326,7 @@ class JobCreateConfig:  # pylint: disable=too-few-public-methods
 
 
 @dataclass
-class JobResultQuery:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
+class JobResultQuery:  # pylint: disable=too-many-instance-attributes
     """查詢任務結果的參數封裝。
 
     Attributes:
@@ -432,7 +432,7 @@ class JobDetailResponse(BaseModel):
 
 
 @dataclass
-class InternalResultQuery:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
+class InternalResultQuery:  # pylint: disable=too-many-instance-attributes
     """查詢內部失效結果的參數封裝。
 
     Attributes:

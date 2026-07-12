@@ -18,10 +18,12 @@ import yaml
 # 加入專案根目錄到 sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# pylint: disable=wrong-import-position,import-error
+# pylint: disable=wrong-import-position
 from crawler.config_utils import merge_and_validate_crawler_config
 from crawler.core import CrawlerCore
 from crawler.models import CrawlerConfig
+
+# pylint: enable=wrong-import-position
 
 
 def get_test_crawler_config(

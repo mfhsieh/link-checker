@@ -22,10 +22,12 @@ from sqlalchemy.orm import sessionmaker
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-# pylint: disable=wrong-import-position, import-error
+# pylint: disable=wrong-import-position
 from backend.config import get_settings  # noqa: E402
 from crawler.models import ExternalLink  # noqa: E402
 from crawler.utils import get_domain  # noqa: E402
+
+# pylint: enable=wrong-import-position
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler(sys.stdout)]

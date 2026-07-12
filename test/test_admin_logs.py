@@ -28,6 +28,8 @@ from backend.main import app
 from crawler.models import Base as CrawlerBase
 from test.conftest import refresh_settings_cache  # pylint: disable=wrong-import-order
 
+# pylint: enable=wrong-import-position
+
 # 測試用 SQLite DSN
 TEST_AUTH_DB_URL: str = "sqlite:///db/test_auth_admin.db"
 
@@ -106,7 +108,7 @@ class MockJobManager:
             return None
         return MockJob()
 
-    def pause_job(self, job_id: str) -> None:  # pylint: disable=unused-argument
+    def pause_job(self, job_id: str) -> None:
         """
         模擬暫停任務。
 

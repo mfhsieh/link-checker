@@ -4,7 +4,7 @@ E2E 自動化整合測試的 Pytest Fixture 配置模組。
 提供測試伺服器生命週期管理、資料庫初始化，以及 Playwright 相關設定。
 """
 
-# pylint: disable=protected-access, duplicate-code, consider-using-with
+# pylint: disable=protected-access, duplicate-code
 
 import os
 import shutil
@@ -189,25 +189,24 @@ def test_server() -> Generator[str, None, None]:
     create_admin_user()
 
     env = os.environ.copy()
-    server_proc = subprocess.Popen(
+    with subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
         env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         text=True,
-    )
+    ) as server_proc:
+        if not wait_for_server(PORT):
+            server_proc.terminate()
+            raise RuntimeError("FastAPI Server failed to start.")
 
-    if not wait_for_server(PORT):
+        yield BASE_URL
+
         server_proc.terminate()
-        raise RuntimeError("FastAPI Server failed to start.")
-
-    yield BASE_URL
-
-    server_proc.terminate()
-    try:
-        server_proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        server_proc.kill()
+        try:
+            server_proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            server_proc.kill()
     teardown_databases()
 
 

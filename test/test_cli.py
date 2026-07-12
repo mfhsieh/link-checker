@@ -1,6 +1,6 @@
 """E2E integration test script for external link checker."""
 
-# pylint: disable=protected-access, duplicate-code
+# pylint: disable=duplicate-code
 
 import json
 import os
@@ -117,9 +117,9 @@ def teardown_databases() -> None:
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-# pylint: disable=import-outside-toplevel, import-error, protected-access
-# pylint: disable=subprocess-run-check, unspecified-encoding, multiple-statements
-# pylint: disable=consider-using-with, unused-variable
+# pylint: disable=import-outside-toplevel, protected-access
+# pylint: disable=subprocess-run-check
+# pylint: disable=consider-using-with
 def test_cli_full_flow() -> None:
     """
     執行端到端 (E2E) 整合測試與各核心組件的單元測試。
@@ -456,7 +456,7 @@ crawler:
             print(f"Export stderr: {export_res.stderr}")
             sys.exit(1)
 
-        with open(export_file, "r") as f:
+        with open(export_file, "r", encoding="utf-8") as f:
             export_data = json.load(f)
 
         # 尋找 httpbin 404 與 google
@@ -512,7 +512,7 @@ crawler:
         ]
         res_dead = subprocess.run(export_dead_cmd, capture_output=True, text=True)
         assert res_dead.returncode == 0, "Export with --filter dead failed"
-        with open(dead_file, "r") as f:
+        with open(dead_file, "r", encoding="utf-8") as f:
             dead_data = json.load(f)
         assert len(dead_data) == 1, f"Expected 1 dead link, got {len(dead_data)}"
         assert dead_data[0]["target_url"] == "https://this-dns-does-not-exist.invalid", "Dead link target mismatch"
@@ -535,7 +535,7 @@ crawler:
         ]
         res_broken = subprocess.run(export_broken_cmd, capture_output=True, text=True)
         assert res_broken.returncode == 0, "Export with --filter broken failed"
-        with open(broken_file, "r") as f:
+        with open(broken_file, "r", encoding="utf-8") as f:
             broken_data = json.load(f)
 
         # DEBUG: 印出所有 broken 網址
@@ -580,7 +580,7 @@ crawler:
         ]
         res_insecure = subprocess.run(export_insecure_cmd, capture_output=True, text=True)
         assert res_insecure.returncode == 0, "Export with --filter insecure failed"
-        with open(insecure_file, "r") as f:
+        with open(insecure_file, "r", encoding="utf-8") as f:
             insecure_data = json.load(f)
         assert len(insecure_data) >= 2, f"Expected at least 2 insecure links, got {len(insecure_data)}"
         assert all(item.get("is_secure") is False for item in insecure_data), (
@@ -605,7 +605,7 @@ crawler:
         ]
         res_exclude = subprocess.run(export_exclude_cmd, capture_output=True, text=True)
         assert res_exclude.returncode == 0, "Export with --exclude failed"
-        with open(exclude_file, "r") as f:
+        with open(exclude_file, "r", encoding="utf-8") as f:
             exclude_data = json.load(f)
         assert not any("google.com" in item.get("target_url") for item in exclude_data), (
             "Excluded domain should not be in export"
@@ -628,7 +628,7 @@ crawler:
         ]
         res_internal = subprocess.run(export_internal_cmd, capture_output=True, text=True)
         assert res_internal.returncode == 0, "Export internal report failed"
-        with open(internal_export_file, "r") as f:
+        with open(internal_export_file, "r", encoding="utf-8") as f:
             internal_data = json.load(f)
         assert len(internal_data) > 0, "Internal export data should not be empty"
         assert "url" in internal_data[0], "Internal export data should contain 'url' field"

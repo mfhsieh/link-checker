@@ -23,6 +23,8 @@ from backend.auth.models import AuthBase  # noqa: E402
 from backend.config import get_settings  # noqa: E402
 from crawler.models import Base  # noqa: E402
 
+# pylint: enable=wrong-import-position
+
 # 初始化日誌
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", handlers=[logging.StreamHandler(sys.stdout)]

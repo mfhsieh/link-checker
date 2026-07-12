@@ -14,9 +14,11 @@ import sys
 # 加入專案根目錄到 sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# pylint: disable=wrong-import-position,import-error
+# pylint: disable=wrong-import-position
 from crawler.core import CrawlerCore
 from scripts.test_url import get_test_crawler_config
+
+# pylint: enable=wrong-import-position
 
 
 def main() -> None:

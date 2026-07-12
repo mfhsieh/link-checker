@@ -19,11 +19,13 @@ from sqlalchemy.orm import sessionmaker
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-# pylint: disable=wrong-import-position, import-error
+# pylint: disable=wrong-import-position
 from backend.auth.models import AuthBase, AuthLog, Invitation, PasswordResetToken, User  # noqa: E402
 from backend.auth.models import Session as AuthSession  # noqa: E402
 from backend.config import get_settings  # noqa: E402
 from crawler.models import Base, CrawlQueue, ExternalLink, Job  # noqa: E402
+
+# pylint: enable=wrong-import-position
 
 # 初始化日誌
 logging.basicConfig(

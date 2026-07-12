@@ -635,7 +635,7 @@ def _process_diff_common_url(
         )
 
 
-def get_job_diff(  # pylint: disable=too-many-locals
+def get_job_diff(
     db: DBSession,
     base_job_id: str,
     compare_job_id: str,

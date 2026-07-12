@@ -603,6 +603,7 @@ def cleanup_deleted_user_task(user_id: str) -> None:
     # pylint: disable=import-outside-toplevel
     from backend.auth.db import get_auth_session_local
     from backend.events import publish
+    # pylint: enable=import-outside-toplevel
 
     auth_session_factory = get_auth_session_local()
 

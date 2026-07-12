@@ -13,8 +13,10 @@ import sys
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-# pylint: disable=wrong-import-position, import-error
+# pylint: disable=wrong-import-position
 from backend.main import app  # noqa: E402
+
+# pylint: enable=wrong-import-position
 
 
 def _format_description_markdown(desc: str) -> str:

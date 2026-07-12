@@ -78,7 +78,7 @@ async def _run_scheduler_loop() -> None:
 
 
 @asynccontextmanager
-async def app_lifespan(_app: FastAPI):  # pylint: disable=unused-argument
+async def app_lifespan(_app: FastAPI):
     """管理 FastAPI 生命週期（啟動與關閉）
 
     Yields:

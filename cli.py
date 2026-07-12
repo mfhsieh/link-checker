@@ -35,6 +35,7 @@ from backend.jobs.services.notifier import subscribe_to_events  # noqa: E402
 from crawler.config_utils import merge_and_validate_crawler_config  # noqa: E402
 from crawler.manager import JobManager, JobCreateOptions, Job  # noqa: E402
 # isort: on
+# pylint: enable=wrong-import-position
 
 # 設定初始的 logging，只輸出到畫面，確保 setup_logging 呼叫前的錯誤能被顯示
 logging.basicConfig(
