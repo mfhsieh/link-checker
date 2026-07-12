@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from backend.auth.db import get_auth_session_local
 from backend.auth.models import AuthLog
-from backend.events import subscribe
+from backend.events import SystemEvent, subscribe
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -46,9 +46,9 @@ def _handle_audit_event(
             auth_db.add(auth_log)
             auth_db.commit()
     except SQLAlchemyError as e:
-        logger.error("寫入稽核日誌失敗 [%s]: %s", event_type, e)
+        logger.critical("[AUDIT_LOG_FAILURE] 寫入稽核日誌失敗 [%s]: %s", event_type, e, exc_info=True)
     except Exception as e:  # pylint: disable=broad-except
-        logger.error("處理稽核日誌事件時發生未預期錯誤 [%s]: %s", event_type, e)
+        logger.critical("[AUDIT_LOG_FAILURE] 處理稽核日誌事件時發生未預期錯誤 [%s]: %s", event_type, e, exc_info=True)
 
 
 def subscribe_to_audit_events() -> None:
@@ -56,11 +56,11 @@ def subscribe_to_audit_events() -> None:
     註冊稽核日誌的事件監聽。
     """
     audit_events = [
-        "user_deleted",
-        "config_change",
-        "job_force_action",
-        "user_status_changed",
-        "user_role_changed",
+        SystemEvent.USER_DELETED,
+        SystemEvent.CONFIG_CHANGE,
+        SystemEvent.JOB_FORCE_ACTION,
+        SystemEvent.USER_STATUS_CHANGED,
+        SystemEvent.USER_ROLE_CHANGED,
     ]
 
     for event_name in audit_events:

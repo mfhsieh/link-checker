@@ -14,13 +14,16 @@ from dataclasses import dataclass, field
 from typing import cast
 
 import httpx
+from cachetools import LRUCache
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from backend.events import publish
+from backend.events import SystemEvent
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 from crawler.core import CrawlerCore
 from crawler.models import CrawlerConfig, CrawlQueue, ExternalLink, Job
 from crawler.utils import (
+    bulk_insert_ignore,
     determine_external_link_status_category,
     determine_internal_link_status_category,
     get_domain,
@@ -31,6 +34,12 @@ _crawler_def = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
 _DEF = _crawler_def if isinstance(_crawler_def, dict) else {}
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+# 外部連結狀態快取的最大數量限制，避免發生 OOM (Out Of Memory)
+DEFAULT_LRU_CACHE_MAXSIZE: int = 1000
+
+# 爬蟲主迴圈查詢資料庫任務狀態（如：是否被暫停）的間隔時間 (秒)
+STATUS_CHECK_INTERVAL: float = 10.0
 
 
 @dataclass
@@ -46,19 +55,19 @@ class JobRunnerState:
     """
 
     crawled_count: int = 0
-    checked_links_cache: dict[str, tuple[str | None, int | None, str | None]] = field(default_factory=dict)
+    checked_links_cache: LRUCache = field(default_factory=lambda: LRUCache(maxsize=DEFAULT_LRU_CACHE_MAXSIZE))
     target_domains_list: list[str] = field(default_factory=list)
     trusted_domains_list: list[str] = field(default_factory=list)
 
 
-def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: float) -> float:
+def _get_domain_delay(domain: str, domain_delays: dict[str, float], default_delay: float) -> float:
     """
     從 domain_delays 中尋找符合目前網域的 delay 數值，若無則回傳預設的 delay。
 
     支援以子網域完全匹配。
 
     Args:
-        url (str): 當前網址。
+        domain (str): 當前網域。
         domain_delays (dict[str, float]): 網域為 key、延遲秒數為 value 的字典。
         default_delay (float): 全域預設延遲秒數。
 
@@ -68,7 +77,6 @@ def _get_domain_delay(url: str, domain_delays: dict[str, float], default_delay: 
     if not domain_delays:
         return default_delay
 
-    domain = get_domain(url)
     if not domain:
         return default_delay
 
@@ -94,6 +102,7 @@ class JobRunner:
         self,
         session_factory: Callable[[], Session],
         job_id: str,
+        on_event_callback: Callable[..., None] | None = None,
     ) -> None:
         """
         初始化 JobRunner。
@@ -101,9 +110,11 @@ class JobRunner:
         Args:
             session_factory (Callable[[], Session]): SQLAlchemy Session 工廠。
             job_id (str): 目標任務 ID。
+            on_event_callback (Callable[..., None] | None): 事件回呼函式。
         """
         self.session_factory = session_factory
         self.job_id = job_id
+        self.on_event_callback = on_event_callback
 
         # 以下狀態於 _initialize 中初始化
         self.config: CrawlerConfig | None = None
@@ -144,13 +155,14 @@ class JobRunner:
                     job.status = "paused"
                     session.commit()
             except Exception as e:  # pylint: disable=broad-except
-                logger.exception("任務 %s 發生例外: %s", self.job_id, e)
+                logger.critical("[JOB_CRASH_ALERT] 任務 %s 發生例外: %s", self.job_id, e, exc_info=True)
                 session.rollback()
                 job = session.query(Job).filter(Job.id == self.job_id).first()
                 if job:
                     job.status = "error"
                     session.commit()
-                    publish("job_status_changed", job_id=self.job_id, status="error")
+                    if self.on_event_callback:
+                        self.on_event_callback(SystemEvent.JOB_STATUS_CHANGED, job_id=self.job_id, status="error")
             finally:
                 if self.executor:
                     self.executor.shutdown(wait=True, cancel_futures=True)
@@ -260,13 +272,7 @@ class JobRunner:
             .count()
         )
 
-        # 預熱快取修正：一併快取尚未完成探測的紀錄，標記為 None)
-        for ext in session.query(ExternalLink).filter(ExternalLink.job_id == self.job_id).all():
-            self.state.checked_links_cache[ext.target_url] = (
-                ext.ip_address,
-                ext.http_status_code,
-                ext.error_message,
-            )
+        # 已移除預熱快取修正：不再全量查詢 ExternalLink 並快取，改於 _prepare_external_links 延遲載入以防 OOM。
 
         return job
 
@@ -279,13 +285,19 @@ class JobRunner:
             job (Job): 當前的爬蟲任務物件。
             crawler (CrawlerCore): 初始化的爬蟲核心引擎。
         """
+        last_status_check_time = time.time()
+
         while True:
-            session.expire(job)
-            fetched_job = session.query(Job).filter(Job.id == self.job_id).first()
-            if not fetched_job or fetched_job.status != "running":
-                logger.info("偵測到任務狀態變更為 %s，中斷爬取。", fetched_job.status if fetched_job else "None")
-                break
-            job = fetched_job
+            current_time = time.time()
+            # 節流機制：每隔 N 秒才真正向資料庫查詢一次狀態，避免產生大量不必要的 SELECT 查詢開銷
+            if current_time - last_status_check_time >= STATUS_CHECK_INTERVAL:
+                session.expire(job)
+                fetched_job = session.query(Job).filter(Job.id == self.job_id).first()
+                if not fetched_job or fetched_job.status != "running":
+                    logger.info("偵測到任務狀態變更為 %s，中斷爬取。", fetched_job.status if fetched_job else "None")
+                    break
+                job = fetched_job
+                last_status_check_time = current_time
 
             max_pages = cast(int | None, self.crawler_config_dict.get("max_pages"))
             if max_pages is not None and self.state.crawled_count >= max_pages:
@@ -326,7 +338,8 @@ class JobRunner:
         """
         job.status = "completed"
         session.commit()
-        publish("job_status_changed", job_id=self.job_id, status="completed")
+        if self.on_event_callback:
+            self.on_event_callback(SystemEvent.JOB_STATUS_CHANGED, job_id=self.job_id, status="completed")
 
     def _process_pending_external_links(self, session: Session, crawler: CrawlerCore) -> bool:
         """
@@ -526,7 +539,7 @@ class JobRunner:
             return links_needing_http_check
 
         # 解決 N+1 查詢問題：改用 IN 語法進行批次查詢，找出已存在的外部連結，避免在迴圈內逐一查詢 DB
-        existing_urls = {
+        existing_urls_for_page = {
             u[0]
             for u in session.query(ExternalLink.target_url)
             .filter(
@@ -537,9 +550,31 @@ class JobRunner:
             .all()
         }
 
+        links_to_process = [link for link in unique_external_links if link not in existing_urls_for_page]
+        links_not_in_cache = [link for link in links_to_process if link not in self.state.checked_links_cache]
+
+        if links_not_in_cache:
+            db_checked_links = (
+                session.query(
+                    ExternalLink.target_url,
+                    ExternalLink.ip_address,
+                    ExternalLink.http_status_code,
+                    ExternalLink.error_message,
+                )
+                .filter(
+                    ExternalLink.job_id == self.job_id,
+                    ExternalLink.target_url.in_(links_not_in_cache),
+                )
+                .all()
+            )
+            for target_url, ip, status_code, err_msg in db_checked_links:
+                self.state.checked_links_cache[target_url] = (ip, status_code, err_msg)
+
         new_exts = []
-        for link in unique_external_links:
-            if link in existing_urls:
+        existing_urls_set = set()
+
+        for link in links_to_process:
+            if link in existing_urls_set:
                 continue
 
             if link in self.state.checked_links_cache:
@@ -558,10 +593,10 @@ class JobRunner:
                     status_category=status_cat,
                 )
                 new_exts.append(new_ext)
-                existing_urls.add(link)  # 防止重複加入
+                existing_urls_set.add(link)
             else:
                 links_needing_http_check.append(link)
-                existing_urls.add(link)  # 若需 HTTP check 也不要重複加入
+                existing_urls_set.add(link)
 
         if new_exts:
             # 解決 N+1 查詢問題：改用 add_all 進行批次插入 (Batch Insert)
@@ -621,32 +656,37 @@ class JobRunner:
             results (list[tuple[str, str | None, int | None, str | None]]):
                 (目標網址, IP, HTTP狀態碼, 錯誤訊息) 構成的結果陣列。
         """
+        mappings: list[dict[str, object]] = []
         for res_link, res_ip, res_code, res_err in results:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
-            exists = (
-                session.query(ExternalLink)
-                .filter(
-                    ExternalLink.job_id == self.job_id,
-                    ExternalLink.source_url == current_url,
-                    ExternalLink.target_url == res_link,
-                )
-                .first()
+            is_sec = res_link.startswith("https://")
+            status_cat = determine_external_link_status_category(res_ip, res_code)
+            mappings.append(
+                {
+                    "job_id": self.job_id,
+                    "source_url": current_url,
+                    "target_url": res_link,
+                    "target_domain": get_domain(res_link) or "",
+                    "ip_address": res_ip,
+                    "is_secure": is_sec,
+                    "http_status_code": res_code,
+                    "error_message": res_err,
+                    "status_category": status_cat,
+                }
             )
-            if not exists:
-                is_sec = res_link.startswith("https://")
-                status_cat = determine_external_link_status_category(res_ip, res_code)
-                new_ext = ExternalLink(
-                    job_id=self.job_id,
-                    source_url=current_url,
-                    target_url=res_link,
-                    target_domain=get_domain(res_link) or "",
-                    ip_address=res_ip,
-                    is_secure=is_sec,
-                    http_status_code=res_code,
-                    error_message=res_err,
-                    status_category=status_cat,
+
+        if mappings:
+            try:
+                bulk_insert_ignore(
+                    session=session,
+                    model=ExternalLink,
+                    mappings=mappings,
+                    index_elements=["job_id", "source_url", "target_url"],
                 )
-                session.add(new_ext)
+            except SQLAlchemyError as e:
+                logger.critical(
+                    "[DATA_LOSS_ALERT] 批次儲存外部連結失敗 (batch save external links): %s", e, exc_info=True
+                )
 
     def _check_single_link(self, link: str, crawler: CrawlerCore) -> tuple[str, str | None, int | None, str | None]:
         """呼叫爬蟲引擎對單一外部連結進行存活探測。
@@ -709,7 +749,7 @@ class JobRunner:
                 )
                 base_delay = cast(float, self.crawler_config_dict.get("delay", 1.0))
                 current_domain_delay = _get_domain_delay(
-                    current_url,
+                    get_domain(current_url) or "",
                     domain_delays,
                     base_delay,
                 )

@@ -22,6 +22,7 @@ from backend.auth.db import get_auth_session_local
 from backend.auth.models import Session as AuthSession
 from backend.auth.models import User
 from backend.config import get_settings
+from backend.events import publish
 from crawler.manager import JobManager
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ def get_job_manager() -> JobManager:
 
                 _JOB_MANAGER = JobManager(
                     db_url=settings.CRAWLER_DB_URL,
+                    on_event_callback=publish,
                 )
     return _JOB_MANAGER
 

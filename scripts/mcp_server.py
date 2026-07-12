@@ -149,5 +149,74 @@ def get_job_errors(job_id: str, limit: int = 10) -> str:
         return json.dumps(result, ensure_ascii=False, indent=2)
 
 
+@mcp.tool()
+def get_job_report(job_id: str) -> str:
+    """
+    取得指定任務的詳細統計報告 (Job Report)。
+
+    透過核心管理員 (JobManager) 取得該任務在資料庫中的各項狀態數量，
+    包含佇列中的已完成、錯誤、跳過、等待中，以及外部連結數量等。
+
+    Args:
+        job_id (str): 欲查詢報告的任務 UUID。
+
+    Returns:
+        str: 包含該任務詳細統計報表的 JSON 字串。若找不到該任務則回傳錯誤訊息。
+    """
+    report = manager.get_job_report(job_id)
+    if not report:
+        return f"找不到指定的任務或產生報告失敗: {job_id}"
+    return json.dumps(report, ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def get_job_config(job_id: str) -> str:
+    """
+    取得指定任務的執行配置快照 (Config Snapshot)。
+
+    幫助開發者或 AI 助理診斷該任務啟動時所合併的各項參數，
+    例如延遲秒數、重試次數、信任網域、自訂 Header 等。
+
+    Args:
+        job_id (str): 欲查詢設定的任務 UUID。
+
+    Returns:
+        str: 該任務的執行配置 (JSON 格式字串)。若找不到該任務或沒有配置快照，則回傳錯誤訊息。
+    """
+    with manager.session_factory() as db:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            return f"找不到指定的任務: {job_id}"
+        if not job.config_json:
+            return f"任務 {job_id} 沒有儲存配置快照 (config_json 為空)。"
+
+        try:
+            config_dict = json.loads(job.config_json)
+            return json.dumps(config_dict, ensure_ascii=False, indent=2)
+        except json.JSONDecodeError:
+            return job.config_json
+
+
+@mcp.tool()
+def pause_job(job_id: str) -> str:
+    """
+    對執行中的任務發送暫停指令 (Pause Signal)。
+
+    透過核心管理員將任務狀態標記為 'paused'，爬蟲核心會在完成當前處理的網址後，
+    進行安全的溫和暫停 (Cooperative Cancellation)。
+
+    Args:
+        job_id (str): 欲暫停的任務 UUID。
+
+    Returns:
+        str: 暫停指令是否成功發送的結果訊息。
+    """
+    success = manager.pause_job(job_id)
+    if success:
+        return f"任務 {job_id} 的暫停信號已成功發出。爬蟲核心將在目前網址處理完畢後停止。"
+
+    return f"暫停任務 {job_id} 失敗 (任務可能不存在，或狀態不允許暫停)。"
+
+
 if __name__ == "__main__":
     mcp.run()

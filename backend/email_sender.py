@@ -205,7 +205,7 @@ def send_invitation_email(to_email: str, invitation_token: str) -> bool:
         logger.info("邀請郵件已成功寄送至 %s", to_email)
         return True
     except (smtplib.SMTPException, OSError) as e:
-        logger.error("寄送邀請郵件至 %s 時發生錯誤: %s", to_email, e)
+        logger.critical("[NOTIFICATION_FAILURE] 寄送邀請郵件至 %s 時發生錯誤: %s", to_email, e, exc_info=True)
         return False
 
 
@@ -238,7 +238,7 @@ def send_password_reset_email(to_email: str, reset_token: str) -> bool:
         logger.info("重設密碼郵件已成功寄送至 %s", to_email)
         return True
     except (smtplib.SMTPException, OSError) as e:
-        logger.error("寄送重設密碼郵件至 %s 時發生錯誤: %s", to_email, e)
+        logger.critical("[NOTIFICATION_FAILURE] 寄送重設密碼郵件至 %s 時發生錯誤: %s", to_email, e, exc_info=True)
         return False
 
 
@@ -271,7 +271,7 @@ def send_test_email(to_email: str) -> bool:
         logger.info("SMTP 測試郵件已成功寄送至 %s", to_email)
         return True
     except (smtplib.SMTPException, OSError) as e:
-        logger.error("SMTP 測試郵件寄送失敗: %s", e)
+        logger.critical("[NOTIFICATION_FAILURE] SMTP 測試郵件寄送失敗: %s", e, exc_info=True)
         return False
 
 
@@ -317,5 +317,5 @@ def send_notification_email(
         logger.info("通知郵件已成功寄送至 %s", to_email)
         return True
     except (smtplib.SMTPException, OSError) as e:
-        logger.error("寄送通知郵件至 %s 時發生錯誤: %s", to_email, e)
+        logger.critical("[NOTIFICATION_FAILURE] 寄送通知郵件至 %s 時發生錯誤: %s", to_email, e, exc_info=True)
         return False

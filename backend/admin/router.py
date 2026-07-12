@@ -31,7 +31,7 @@ from backend.deps import (
     require_csrf,
 )
 from backend.email_sender import send_test_email
-from backend.events import publish
+from backend.events import SystemEvent, publish
 from backend.jobs.services.backup import export_job, import_job
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
@@ -369,7 +369,7 @@ def update_user(
             "changes": changes,
         }
         publish(
-            "user_status_changed",
+            SystemEvent.USER_STATUS_CHANGED,
             user_id=current_admin.id,
             ip_address=request.client.host if request.client else None,
             detail=json.dumps(log_detail, ensure_ascii=False),
@@ -432,7 +432,7 @@ def delete_user(
         "action": "soft_delete_and_schedule_cleanup",
     }
     publish(
-        "user_deleted",
+        SystemEvent.USER_DELETED,
         user_id=current_admin.id,
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
@@ -545,7 +545,7 @@ def takeover_job(
         "before_status": job.status,
     }
     publish(
-        "job_force_action",
+        SystemEvent.JOB_FORCE_ACTION,
         user_id=_admin.id,
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
@@ -578,7 +578,7 @@ def admin_transfer_job(
         "new_user_id": _admin.id,
     }
     publish(
-        "job_force_action",
+        SystemEvent.JOB_FORCE_ACTION,
         user_id=_admin.id,
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
@@ -620,7 +620,7 @@ def admin_delete_job(
         "action": "delete",
     }
     publish(
-        "job_force_action",
+        SystemEvent.JOB_FORCE_ACTION,
         user_id=_admin.id,
         ip_address=request.client.host if request.client else None,
         detail=json.dumps(log_detail, ensure_ascii=False),
@@ -789,7 +789,7 @@ def update_config(
             "after": existing["crawler"],
         }
         publish(
-            "config_change",
+            SystemEvent.CONFIG_CHANGE,
             user_id=_admin.id,
             ip_address=request.client.host if request.client else None,
             detail=json.dumps(log_detail, ensure_ascii=False),

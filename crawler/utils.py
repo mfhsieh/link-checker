@@ -9,11 +9,15 @@ import logging
 import os
 import socket
 import sqlite3
+import threading
 import urllib.parse
 
 import cachetools
 from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import JSON
@@ -66,7 +70,7 @@ def is_in_domain_list(domain: str, domain_list: list[str]) -> bool:
     return False
 
 
-@cachetools.cached(cachetools.TTLCache(maxsize=DNS_CACHE_MAXSIZE, ttl=DNS_CACHE_TTL))
+@cachetools.cached(cachetools.TTLCache(maxsize=DNS_CACHE_MAXSIZE, ttl=DNS_CACHE_TTL), lock=threading.Lock())
 def resolve_ip(domain: str) -> str | None:
     """
     針對給定的網域解析其 IP 位址（具備 5 分鐘 DNS 快取）。
@@ -372,3 +376,37 @@ def determine_internal_link_status_category(status: str, status_code: int | None
         return "blocked"
 
     return "other_error"
+
+
+def bulk_insert_ignore(
+    session: Session,
+    model: type,
+    mappings: list[dict[str, object]],
+    index_elements: list[str],
+) -> None:
+    """
+    跨資料庫的批次 Upsert (Insert Ignore) 函式。
+    利用 PostgreSQL 與 SQLite 專屬的 insert 語法，加上 on_conflict_do_nothing
+    來迴避主鍵或唯一約束衝突。
+
+    Args:
+        session (Session): SQLAlchemy 的資料庫對話。
+        model (type): 欲寫入的 SQLAlchemy 模型類別。
+        mappings (list[dict[str, object]]): 包含要寫入資料的字典陣列。
+        index_elements (list[str]): 判定衝突的索引或欄位名稱 (例如 ['job_id', 'source_url', 'target_url'])。
+
+    Raises:
+        ValueError: 遇到不支援的資料庫方言時拋出。
+    """
+    if not mappings:
+        return
+
+    dialect_name = session.bind.dialect.name if session.bind else ""
+    if dialect_name == "postgresql":
+        stmt_pg = pg_insert(model).values(mappings).on_conflict_do_nothing(index_elements=index_elements)
+        session.execute(stmt_pg)
+    elif dialect_name == "sqlite":
+        stmt_sq = sqlite_insert(model).values(mappings).on_conflict_do_nothing(index_elements=index_elements)
+        session.execute(stmt_sq)
+    else:
+        raise ValueError(f"不支援的資料庫方言: {dialect_name}")

@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.functions import count as sql_count
 from sqlalchemy.sql.functions import sum as sql_sum
 
-from backend.events import publish
+from backend.events import SystemEvent, publish
 from crawler.models import Base, CrawlQueue, ExternalLink, Job
 from crawler.runner import JobRunner
 from crawler.utils import create_optimized_engine
@@ -56,12 +56,14 @@ class JobManager:
     def __init__(
         self,
         db_url: str = "sqlite:///db/crawler.db",
+        on_event_callback: Callable[..., None] | None = None,
     ) -> None:
         """
         初始化 Job 管理器並建立資料庫連線。
 
         Args:
             db_url (str): 資料庫的連線字串。預設為 'sqlite:///db/crawler.db'。
+            on_event_callback (Callable[..., None] | None): 當爬蟲事件發生時的觸發回呼函數。
 
         Raises:
             OSError: 若建立資料庫目錄失敗時拋出。
@@ -78,6 +80,7 @@ class JobManager:
 
         Base.metadata.create_all(self.engine)
         self.session_factory: Callable[[], Session] = sessionmaker(bind=self.engine)
+        self.on_event_callback = on_event_callback
 
     def create_job(
         self,
@@ -158,7 +161,11 @@ class JobManager:
             force (bool): 是否強制接管卡在 running 狀態的任務。
             is_api_spawn (bool): 是否由 API 背景程序觸發。
         """
-        runner = JobRunner(self.session_factory, job_id)
+        runner = JobRunner(
+            session_factory=self.session_factory,
+            job_id=job_id,
+            on_event_callback=self.on_event_callback,
+        )
         runner.execute(crawler_config, force, is_api_spawn)
 
     def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
@@ -321,7 +328,7 @@ class JobManager:
                 logger.error("任務 %s 被標記為異常: %s", job_id, error_msg)
                 job.status = "error"
                 session.commit()
-                publish("job_status_changed", job_id=job_id, status="error")
+                publish(SystemEvent.JOB_STATUS_CHANGED, job_id=job_id, status="error")
             return True
 
     def transfer_job(self, job_id: str, new_user_id: str) -> bool:

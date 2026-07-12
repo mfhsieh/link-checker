@@ -52,7 +52,9 @@ class ConfirmModal extends HTMLElement {
         const closeBtn = document.createElement('button');
         closeBtn.className = 'modal-close-btn';
         closeBtn.id = 'close-btn';
-        closeBtn.innerHTML = '<span class="modal-close-icon"></span>';
+        const closeIcon = document.createElement('span');
+        closeIcon.className = 'modal-close-icon';
+        closeBtn.appendChild(closeIcon);
 
         headerEl.appendChild(titleEl);
         headerEl.appendChild(closeBtn);

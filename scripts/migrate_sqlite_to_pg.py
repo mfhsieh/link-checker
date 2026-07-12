@@ -263,7 +263,7 @@ def main() -> None:
         migrate_crawler_db(sqlite_crawler_url, pg_crawler_url)
         logger.info("資料庫全數遷移成功！現在您可以啟動 Web 服務並改用 PostgreSQL 運行了。")
     except (SQLAlchemyError, OSError) as e:
-        logger.exception("遷移過程中發生嚴重錯誤: %s", e)
+        logger.critical("[MIGRATION_FAILURE] 遷移過程中發生嚴重錯誤: %s", e, exc_info=True)
         sys.exit(1)
 
 

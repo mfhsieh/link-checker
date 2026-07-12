@@ -319,7 +319,7 @@ class CrawlerCore:
 
     def _handle_redirect(
         self, response: httpx.Response, current_url: str, target_domains: list[str] | None
-    ) -> tuple[str | None, tuple[str | None, int | None, str, str, bool, str | None] | None]:
+    ) -> tuple[str | None, tuple[str | list[str] | None, int | None, str, str, bool, str | None] | None]:
         """處理 HTTP 重導向，回傳 (next_url, 提前回傳的結果)。
 
         Args:
@@ -340,9 +340,8 @@ class CrawlerCore:
             next_domain = get_domain(next_url)
             if next_domain and not is_in_domain_list(next_domain, target_domains):
                 logger.info("網址 %s 重導向至外部網域 %s，停止深入抓取", current_url, next_url)
-                fake_html = f'<a href="{next_url}"></a>'
                 return None, (
-                    fake_html,
+                    [next_url],
                     response.status_code,
                     "completed",
                     current_url,
@@ -399,7 +398,7 @@ class CrawlerCore:
 
     def _process_response(
         self, response: httpx.Response, current_url: str, target_domains: list[str] | None
-    ) -> tuple[str | None, tuple[str | None, int | None, str, str, bool, str | None] | None]:
+    ) -> tuple[str | None, tuple[str | list[str] | None, int | None, str, str, bool, str | None] | None]:
         """處理 HTTP 回應，回傳 (next_url, 提前回傳的結果)。
 
         Args:
@@ -429,7 +428,7 @@ class CrawlerCore:
         target_domains: list[str] | None,
         accumulated_cookies: dict[str, dict[str, str]] | None = None,
         strip_sec_headers: bool = False,
-    ) -> tuple[bool, str, tuple[str | None, int | None, str, str, bool, str | None] | None]:
+    ) -> tuple[bool, str, tuple[str | list[str] | None, int | None, str, str, bool, str | None] | None]:
         """執行單次 HTTP 探測流程 (不含降級重試)，回傳狀態與下一步網址。
 
         涵蓋 SSRF 防護、MIME 類型驗證、跨域攔截與串流分塊下載機制。
@@ -515,7 +514,7 @@ class CrawlerCore:
     # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches
     def fetch(
         self, url: str, target_domains: list[str] | None = None
-    ) -> tuple[str | None, int | None, str, str, bool, str | None]:
+    ) -> tuple[str | list[str] | None, int | None, str, str, bool, str | None]:
         """主動抓取網頁內容，處理重導向與多階層異常容錯。
 
         這是內部網頁爬取的主要進入點。包含了：
@@ -770,7 +769,10 @@ class CrawlerCore:
         if not html:
             return [], [], status_code, status, request_sent, err_msg
 
-        links: list[str] = self.extract_links(html, final_url)
+        if isinstance(html, list):
+            links = html
+        else:
+            links = self.extract_links(html, final_url)
 
         internal_links: list[str] = []
         external_target_links: list[str] = []
@@ -792,7 +794,7 @@ class CrawlerCore:
 
     def _execute_curl_cffi_fallback(  # pylint: disable=too-many-statements,too-many-nested-blocks
         self, url: str, is_internal: bool = False, target_domains: list[str] | None = None
-    ) -> tuple[int | None, str | None, str | None, str | None]:
+    ) -> tuple[int | None, str | None, str | list[str] | None, str | None]:
         """終極備援核心邏輯：使用 curl_cffi 進行 TLS 指紋偽裝。
 
         手動處理重導向，每一跳均進行 SSRF 防護驗證，
@@ -905,8 +907,7 @@ class CrawlerCore:
                             next_domain = get_domain(next_url)
                             if next_domain and not is_in_domain_list(next_domain, target_domains):
                                 logger.info("網址 %s 重導向至外部網域 %s，停止深入抓取", current_url, next_url)
-                                fake_html = f'<a href="{next_url}"></a>'
-                                return status_code, None, fake_html, current_url
+                                return status_code, None, [next_url], current_url
 
                         current_url = next_url
                         continue

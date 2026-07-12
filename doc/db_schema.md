@@ -31,6 +31,7 @@
 2. **事件監聽器隔離 (Event Listeners)**：目前系統利用 `@event.listens_for(Engine, "connect")` 針對 SQLite 強制開啟 WAL 模式與外鍵約束。擴充時必須確保這些事件攔截器精準綁定在正確的 dialect 上，避免造成其他引擎報錯。
 3. **自動遞增與主鍵校正**：MySQL 使用 Auto-Increment 屬性，不需像 PostgreSQL 那樣手動推進 Sequence；但在跨庫遷移資料時，仍需針對新引擎的主鍵跳號與外鍵更新行為 (`ON UPDATE CASCADE` 支援度) 編寫專屬防護邏輯。
 4. **時區處理 (Timezone)**：為相容 SQLite，系統目前統一採用無時區資訊 (Naive UTC) 進行寫入。若引入對時區嚴格敏感的引擎，需審慎評估是否改用 `DateTime(timezone=True)` 並處理向下相容問題。
+5. **批次寫入與 Upsert 語法相容性**：PostgreSQL 與 SQLite 均支援 `INSERT ... ON CONFLICT DO NOTHING`，但 SQLAlchemy 需要針對不同方言載入專屬的 `insert` 模組。在實作去重防護的批次寫入時，嚴禁在業務邏輯層直接寫死特定方言，必須統一在 `crawler/utils.py` 中封裝跨資料庫的輔助函式（例如動態判斷 `session.bind.dialect.name`）。
 
 > [!TIP]
 > **客製化程式碼位置**：

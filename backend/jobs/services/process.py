@@ -4,12 +4,19 @@
 
 import logging
 import os
+import time
 from datetime import datetime, timezone
 
 from backend.jobs.constants import _ACTIVE_PROCESSES, PID_DIR
 from crawler.manager import JobManager
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+# 紀錄上一次執行清理動作的時間戳記 (由 time.time() 取得)
+_LAST_CLEANUP_TIME: float = 0.0
+
+# 殭屍任務與過期進程清理的時間節流區間 (秒)，避免高頻 API 呼叫拖垮磁碟 I/O
+_CLEANUP_THROTTLE_SECONDS: float = 30.0
 
 
 def _get_pid_file(job_id: str) -> str:
@@ -128,6 +135,10 @@ def _cleanup_finished_processes() -> None:
 
     走訪 PID 目錄並檢查進程狀態，若已結束則清除對應 PID 檔。
     """
+    current_time = time.time()
+    if current_time - _LAST_CLEANUP_TIME < _CLEANUP_THROTTLE_SECONDS:
+        return
+
     if not os.path.exists(PID_DIR):
         return
     for filename in os.listdir(PID_DIR):
@@ -145,6 +156,13 @@ def _cleanup_zombie_jobs(manager: JobManager, caller: str = "unknown") -> None:
         manager (JobManager): JobManager 實例。
         caller (str): 觸發來源，用於日誌追蹤。
     """
+    global _LAST_CLEANUP_TIME  # pylint: disable=global-statement
+    current_time = time.time()
+    # 這裡的 throttle 確保即使從其他路徑單獨呼叫此函式，也不會頻繁觸發
+    if current_time - _LAST_CLEANUP_TIME < _CLEANUP_THROTTLE_SECONDS:
+        return
+    _LAST_CLEANUP_TIME = current_time
+
     running_jobs = manager.get_all_jobs(status="running")
     for j in running_jobs:
         job_id = str(j["id"])

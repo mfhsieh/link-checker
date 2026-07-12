@@ -602,13 +602,13 @@ def cleanup_deleted_user_task(user_id: str) -> None:
     """
     # pylint: disable=import-outside-toplevel
     from backend.auth.db import get_auth_session_local
-    from backend.events import publish
+    from backend.events import SystemEvent, publish
     # pylint: enable=import-outside-toplevel
 
     auth_session_factory = get_auth_session_local()
 
     # 1. 發布事件，通知其他模組該使用者即將被徹底刪除
-    publish("user_permanently_deleted", user_id=user_id)
+    publish(SystemEvent.USER_PERMANENTLY_DELETED, user_id=user_id)
 
     # 2. 刪除 Auth DB 資料與實體使用者
     try:
@@ -621,7 +621,9 @@ def cleanup_deleted_user_task(user_id: str) -> None:
                 auth_db.commit()
                 logger.info("已背景實體刪除使用者 %s (%s)", user.email, user_id)
     except SQLAlchemyError as e:
-        logger.error("背景清理 Auth DB 時發生錯誤: %s", e)
+        logger.critical(
+            "[DATA_INCONSISTENCY_ALERT] 背景清理 Auth DB (硬刪除使用者) 時發生未預期錯誤: %s", e, exc_info=True
+        )
 
 
 def on_user_cleanup_failed(user_id: str, detail: str) -> None:
@@ -635,16 +637,16 @@ def on_user_cleanup_failed(user_id: str, detail: str) -> None:
         with session_factory() as auth_db:
             _log_event(auth_db, "user_cleanup_failed", user_id=user_id, ip_address="system", detail=detail)
     except SQLAlchemyError as e:
-        logger.error("寫入 user_cleanup_failed 日誌時發生錯誤: %s", e)
+        logger.critical("[AUDIT_LOG_FAILURE] 寫入 user_cleanup_failed 日誌時發生錯誤: %s", e, exc_info=True)
 
 
 def register_auth_events() -> None:
     """
     註冊 Auth 模組的內部事件監聽器。
     """
-    from backend.events import subscribe  # pylint: disable=import-outside-toplevel
+    from backend.events import SystemEvent, subscribe  # pylint: disable=import-outside-toplevel
 
-    subscribe("user_cleanup_failed", on_user_cleanup_failed)
+    subscribe(SystemEvent.USER_CLEANUP_FAILED, on_user_cleanup_failed)
 
 
 def run_session_gc_task() -> None:

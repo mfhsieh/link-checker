@@ -51,19 +51,19 @@ async def _run_scheduler_loop() -> None:
             break
         except SQLAlchemyError as e:
             error_count += 1
-            logger.error("背景排程器存取資料庫時發生錯誤: %s", e)
+            logger.critical("[SCHEDULER_FAILURE] 背景排程器存取資料庫時發生錯誤: %s", e, exc_info=True)
         except RuntimeError as e:
             error_count += 1
-            logger.error("背景排程器建立執行緒或非同步執行時發生系統錯誤: %s", e)
+            logger.critical("[SCHEDULER_FAILURE] 背景排程器建立執行緒或非同步執行時發生系統錯誤: %s", e, exc_info=True)
         except ValueError as e:
             error_count += 1
-            logger.error("背景排程器資料狀態或參數錯誤: %s", e)
+            logger.critical("[SCHEDULER_FAILURE] 背景排程器資料狀態或參數錯誤: %s", e, exc_info=True)
         except OSError as e:
             error_count += 1
-            logger.error("背景排程器子程序或系統資源錯誤: %s", e)
+            logger.critical("[SCHEDULER_FAILURE] 背景排程器子程序或系統資源錯誤: %s", e, exc_info=True)
         except Exception as e:  # pylint: disable=broad-except
             error_count += 1
-            logger.exception("背景排程器執行時發生未預期錯誤: %s", e)
+            logger.critical("[SCHEDULER_FAILURE] 背景排程器執行時發生未預期錯誤: %s", e, exc_info=True)
 
         if error_count > 0:
             # 隨著錯誤次數增加，休眠時間成指數級延長 (Exponential Backoff)，直到達到 MAX_BACKOFF_SEC
@@ -360,7 +360,9 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     Returns:
         JSONResponse: 包含錯誤細節的 500 JSON 回應。
     """
-    logger.exception("未處理的例外（%s %s）: %s", request.method, request.url.path, exc)
+    logger.critical(
+        "[UNHANDLED_API_EXCEPTION] 未處理的例外（%s %s）: %s", request.method, request.url.path, exc, exc_info=True
+    )
     return JSONResponse(
         status_code=500,
         content={"detail": "伺服器發生內部錯誤，請稍後再試。"},

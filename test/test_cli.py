@@ -162,10 +162,10 @@ def test_cli_full_flow() -> None:
     from crawler.runner import _get_domain_delay
 
     domain_delays = {"example.com": 5.0, "sub.example.com": 10.0}
-    assert _get_domain_delay("http://example.com/a", domain_delays, 3.0) == 5.0
-    assert _get_domain_delay("http://sub.example.com/b", domain_delays, 3.0) == 10.0
-    assert _get_domain_delay("http://another.example.com/c", domain_delays, 3.0) == 5.0
-    assert _get_domain_delay("http://google.com/d", domain_delays, 3.0) == 3.0
+    assert _get_domain_delay("example.com", domain_delays, 3.0) == 5.0
+    assert _get_domain_delay("sub.example.com", domain_delays, 3.0) == 10.0
+    assert _get_domain_delay("another.example.com", domain_delays, 3.0) == 5.0
+    assert _get_domain_delay("google.com", domain_delays, 3.0) == 3.0
     print("Unit Test Passed: Domain Delays Matching.")
 
     # 2.5 執行 Unit Test 驗證環境變數優先覆寫邏輯與設定合併
@@ -262,7 +262,7 @@ trusted_domains:
   - "localhost"
 crawler:
   retries: 0
-  delay: 0.0
+  delay: 1.5
   timeout: 10
   connect_timeout: 5.0
   external_check_timeout: 5.0
@@ -270,7 +270,7 @@ crawler:
     - "127.0.0.1"
 """)
 
-        # Allow local IPs for testing SSRF bypass
+        # 允許測試環境對 localhost/127.0.0.1 進行爬取
         os.environ["CRAWLER_ALLOW_LOCAL_IPS"] = "true"
 
         crawler_cmd = [sys.executable, "cli.py", "-g", test_global_config, "-c", YAML_CONFIG]
@@ -736,7 +736,9 @@ crawler:
         conn_check = sqlite3.connect(DB_PATH)
         cur_check = conn_check.cursor()
         cur_check.execute("SELECT status FROM jobs WHERE id = ?", (job_id,))
-        assert cur_check.fetchone()[0] == "paused", f"Expected job status to be paused, got {cur_check.fetchone()[0]}"
+        status_row = cur_check.fetchone()
+        actual_status = status_row[0] if status_row else None
+        assert actual_status == "paused", f"Expected job status to be paused, got {actual_status}"
         conn_check.close()
 
         # 再次恢復爬行直到完畢

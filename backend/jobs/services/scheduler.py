@@ -65,4 +65,4 @@ def check_and_spawn_queued_jobs() -> None:
         except SQLAlchemyError as e:
             logger.error("排程器啟動任務 %s 失敗 (資料庫存取異常): %s", job_id, e)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.exception("排程器喚醒任務 %s 時發生未預期錯誤: %s", job_id, e)
+            logger.critical("[SCHEDULER_FAILURE] 排程器喚醒任務 %s 時發生未預期錯誤: %s", job_id, e, exc_info=True)

@@ -10,7 +10,7 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.deps import get_job_manager
-from backend.events import publish, subscribe
+from backend.events import SystemEvent, publish, subscribe
 from crawler.models import Job
 
 logger = logging.getLogger(__name__)
@@ -38,9 +38,13 @@ def on_user_permanently_deleted(user_id: str) -> None:
             if crawler_jobs:
                 logger.info("已背景清理使用者 %s 的 %d 個爬蟲任務", user_id, len(crawler_jobs))
     except SQLAlchemyError as e:
-        logger.error("背景清理 Crawler DB 時發生錯誤，使用者 %s 的爬蟲資料可能成為孤兒資料: %s", user_id, e)
-        # 發送反向事件回 Auth 模組以記錄失敗
-        publish("user_cleanup_failed", user_id=user_id, detail=str(e))
+        logger.critical(
+            "[DATA_INCONSISTENCY_ALERT] 背景清理 Crawler DB 時發生錯誤，使用者 %s 的爬蟲資料可能成為孤兒資料: %s",
+            user_id,
+            e,
+            exc_info=True,
+        )
+        publish(SystemEvent.USER_CLEANUP_FAILED, user_id=user_id, detail=str(e))
 
 
 def register_job_events() -> None:
@@ -49,4 +53,4 @@ def register_job_events() -> None:
 
     在應用程式啟動時呼叫，將對應的事件處理函式綁定到事件匯流排上。
     """
-    subscribe("user_permanently_deleted", on_user_permanently_deleted)
+    subscribe(SystemEvent.USER_PERMANENTLY_DELETED, on_user_permanently_deleted)
