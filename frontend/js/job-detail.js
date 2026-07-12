@@ -249,18 +249,15 @@ function renderJobInfo(job) {
  * @returns {Promise<void>}
  */
 async function loadResults(jobId) {
-    // API 串行加載減壓 (Sequential Loading)
-    // 優先加載並渲染分頁表格資料
-    await Promise.all([
-        loadExternalResultsPage(jobId),
-        loadInternalResultsPage(jobId)
-    ]);
-
-    // 待表格加載完成後，才發送請求去拉取統計卡片摘要
-    await Promise.all([
-        loadExternalSummary(jobId),
-        loadInternalSummary(jobId)
-    ]);
+    // 根據當前所在頁籤 (Tab) 進行延遲載入 (Lazy Loading)
+    // 避免一次發送外部與內部連結的 API 請求，節省伺服器與資料庫資源
+    if (_currentTab === 'external') {
+        await loadExternalSummary(jobId);
+        await loadExternalResultsPage(jobId);
+    } else if (_currentTab === 'internal') {
+        await loadInternalSummary(jobId);
+        await loadInternalResultsPage(jobId);
+    }
 }
 
 /**
