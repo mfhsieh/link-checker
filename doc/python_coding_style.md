@@ -5,7 +5,8 @@
 ## 1. 函式原型宣告與型別提示 (Type Hinting)
 
 所有的函式 (Function)、方法 (Method) 以及類別屬性 (Class Attribute) 都必須明確標示輸入參數與回傳值的型別（Type Hints）。
-* 採用 Python 3.10+ 的現代型別標註語法，不使用 `typing` 程式庫的型別定義（例如使用 `list[str]` 而非 `List[str]`，使用 `int | None` 而非 `Optional[int]`）。
+* 採用 Python 3.10+ 的現代型別標註語法，原則上不使用 `typing` 程式庫的型別定義（例如使用 `list[str]` 而非 `List[str]`，使用 `int | None` 而非 `Optional[int]`）。
+* **使用 `typing.cast` 與嚴格型別檢查**：為了保持型別系統的嚴謹性，**強烈建議避免使用 `# type: ignore` 與 `typing.Any`**。若遇到第三方套件或動態指派導致型別推斷錯誤時，應該使用 `typing.cast` 搭配正確的型別宣告（必要時可搭配 `typing.TYPE_CHECKING`）來滿足靜態分析工具。
 * 即使函式沒有回傳值，也必須明確標示 `-> None`，不允許省略。
 * **模組層級變數與泛型 (Generics)**：模組層級的變數亦須嚴格標示型別（如 `_IS_READY: bool = True`）。強烈鼓勵使用精確的泛型標註（例如 `_ACTIVE_PROCESSES: dict[str, subprocess.Popen] = {}`）以協助 IDE 靜態推斷。
 

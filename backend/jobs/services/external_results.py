@@ -6,8 +6,9 @@ import json
 import logging
 from collections import defaultdict
 from collections.abc import Iterator, Mapping
+from typing import cast as typing_cast
 
-from sqlalchemy import Integer, String, and_, case, cast, desc
+from sqlalchemy import ColumnElement, Integer, String, and_, case, cast, desc
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -118,7 +119,7 @@ def _get_job_results_grouped_by_target(
         query=main_q,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,  # type: ignore[arg-type]
+        sort_map=typing_cast(Mapping[str, ColumnElement], sort_map),
         default_sort=desc(target_stats.c.occurrence_count),
         row_mapper=row_mapper,
     )
@@ -199,7 +200,7 @@ def _get_job_results_grouped_by_source(
         query=main_q,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,  # type: ignore[arg-type]
+        sort_map=typing_cast(Mapping[str, ColumnElement], sort_map),
         default_sort=desc(count(ExternalLink.id)),
         row_mapper=row_mapper,
         is_having=True,
@@ -305,7 +306,7 @@ def _get_job_results_grouped_by_domain(
         query=main_q,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,  # type: ignore[arg-type]
+        sort_map=typing_cast(Mapping[str, ColumnElement], sort_map),
         default_sort=desc(domain_stats.c.occurrence_count),
         row_mapper=row_mapper,
     )
@@ -361,7 +362,7 @@ def _get_job_results_no_grouping(
         query=query,
         query_args=query_args,
         filter_map=filter_map,
-        sort_map=sort_map,  # type: ignore[arg-type]
+        sort_map=typing_cast(Mapping[str, ColumnElement], sort_map),
         default_sort=ExternalLink.id + 0,
         row_mapper=row_mapper,
     )

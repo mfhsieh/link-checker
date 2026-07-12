@@ -13,6 +13,7 @@ import socket
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
+from typing import TYPE_CHECKING, cast
 from urllib.parse import ParseResult, urljoin, urlparse
 
 import httpx
@@ -21,6 +22,9 @@ from bs4 import BeautifulSoup
 from crawler.models import CrawlerConfig
 from crawler.profiles import get_random_profile
 from crawler.utils import get_domain, is_in_domain_list, is_safe_ip, normalize_url, resolve_ip
+
+if TYPE_CHECKING:
+    from curl_cffi.requests import BrowserTypeLiteral, ProxySpec
 
 try:
     import h2  # noqa: F401 # pylint: disable=unused-import
@@ -855,10 +859,10 @@ class CrawlerCore:
 
                             resp = cffi_requests.get(
                                 current_url,
-                                impersonate=impersonate,  # type: ignore[arg-type]
+                                impersonate=cast("BrowserTypeLiteral", impersonate),
                                 timeout=self.config.external_check_timeout,
                                 allow_redirects=False,
-                                proxies=proxies,  # type: ignore[arg-type]
+                                proxies=cast("ProxySpec", proxies) if proxies else None,
                                 stream=stream,
                                 verify=verify_ssl,
                                 curl_options=cffi_curl_options,

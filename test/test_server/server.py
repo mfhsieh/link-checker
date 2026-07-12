@@ -11,6 +11,7 @@ import os
 import sys
 import threading
 import time
+from typing import cast
 
 # 全域計數器與鎖，用以安全記錄請求次數
 request_counter: dict[str, int] = {"/temporary-error": 0, "/flaky_internal": 0}
@@ -145,7 +146,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         # 10. 測試：Advanced Test 進入點
         if self.path == "/advanced_test":
-            port = self.server.server_address[1]  # type: ignore
+            port = cast(tuple[str, int], self.server.server_address)[1]
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -189,7 +190,7 @@ class MockHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 with open(target_abs_path, "r", encoding="utf-8") as f:
                     content = f.read()
-                port = self.server.server_address[1]  # type: ignore
+                port = cast(tuple[str, int], self.server.server_address)[1]
                 content = content.replace("127.0.0.1", f"127.0.0.1:{port}")
                 content = content.replace("127.0.0.2", f"127.0.0.2:{port}")
                 content = content.replace("localhost", f"localhost:{port}")
