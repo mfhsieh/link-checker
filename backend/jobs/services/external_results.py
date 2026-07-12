@@ -445,7 +445,13 @@ def get_results_summary(  # pylint: disable=too-many-locals
 
     count_expr = count(key_col.distinct()) if is_grouped else count(key_col)
     insecure_expr = case(
-        (and_(ExternalLink.is_secure == False, ExternalLink.status_category != "pending"), key_col),  # pylint: disable=singleton-comparison,line-too-long  # noqa: E712
+        (
+            and_(
+                ExternalLink.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+                ExternalLink.status_category != "pending",
+            ),
+            key_col,
+        ),
         else_=None,
     )
     insecure_count_expr = count(insecure_expr.distinct()) if is_grouped else count(insecure_expr)

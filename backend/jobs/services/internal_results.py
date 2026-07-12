@@ -73,7 +73,10 @@ def stream_internal_errors(
         CrawlQueue.job_id == query_args.job_id,
         or_(
             CrawlQueue.status.in_(["failed", "warning"]),
-            and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"),  # pylint: disable=singleton-comparison,line-too-long  # noqa: E712
+            and_(
+                CrawlQueue.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+                CrawlQueue.status != "pending",
+            ),
         ),
     )
     query = apply_internal_result_filters(
@@ -170,14 +173,26 @@ def _get_internal_results_summary_none(db: DBSession, job_id: str) -> dict[str, 
         sql_sum(case((CrawlQueue.status_category == "connection_error", 1), else_=0)).label("connection_error"),
         sql_sum(case((CrawlQueue.status_category == "warning", 1), else_=0)).label("warning"),
         sql_sum(case((CrawlQueue.status_category == "other_error", 1), else_=0)).label("other_error"),
-        sql_sum(case((and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"), 1), else_=0)).label(  # pylint: disable=singleton-comparison,line-too-long  # noqa: E712
-            "insecure"
-        ),
+        sql_sum(
+            case(
+                (
+                    and_(
+                        CrawlQueue.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+                        CrawlQueue.status != "pending",
+                    ),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("insecure"),
     ).filter(
         CrawlQueue.job_id == job_id,
         or_(
             CrawlQueue.status.in_(["failed", "warning"]),
-            and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"),  # pylint: disable=singleton-comparison,line-too-long  # noqa: E712
+            and_(
+                CrawlQueue.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+                CrawlQueue.status != "pending",
+            ),
         ),
     )
 
@@ -233,13 +248,25 @@ def _get_internal_results_summary_grouped(db: DBSession, job_id: str, group_by: 
         count(case((CrawlQueue.status_category == "warning", key_col), else_=None).distinct()).label("warning"),
         count(case((CrawlQueue.status_category == "other_error", key_col), else_=None).distinct()).label("other_error"),
         count(
-            case((and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"), key_col), else_=None).distinct()  # pylint: disable=singleton-comparison,line-too-long  # noqa: E712
+            case(
+                (
+                    and_(
+                        CrawlQueue.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+                        CrawlQueue.status != "pending",
+                    ),
+                    key_col,
+                ),
+                else_=None,
+            ).distinct()
         ).label("insecure"),
     ).filter(
         CrawlQueue.job_id == job_id,
         or_(
             CrawlQueue.status.in_(["failed", "warning"]),
-            and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"),  # pylint: disable=singleton-comparison  # noqa: E712
+            and_(
+                CrawlQueue.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+                CrawlQueue.status != "pending",
+            ),
         ),
     )
 
@@ -330,7 +357,10 @@ def _get_internal_errors_grouped_by_source(
         CrawlQueue.job_id == query_args.job_id,
         or_(
             CrawlQueue.status.in_(["failed", "warning"]),
-            and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"),  # pylint: disable=singleton-comparison  # noqa: E712
+            and_(
+                CrawlQueue.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+                CrawlQueue.status != "pending",
+            ),
         ),
     )
 
@@ -444,7 +474,10 @@ def get_internal_errors(
         CrawlQueue.job_id == query_args.job_id,
         or_(
             CrawlQueue.status.in_(["failed", "warning"]),
-            and_(CrawlQueue.is_secure == False, CrawlQueue.status != "pending"),  # pylint: disable=singleton-comparison  # noqa: E712
+            and_(
+                CrawlQueue.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+                CrawlQueue.status != "pending",
+            ),
         ),
     )
     query = apply_internal_result_filters(

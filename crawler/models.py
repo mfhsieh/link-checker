@@ -269,7 +269,10 @@ def apply_job_result_filters(
     elif status_filter == "blocked":
         query = query.filter(ExternalLink.status_category == "blocked")
     elif status_filter == "insecure":
-        query = query.filter(ExternalLink.is_secure == False, ExternalLink.status_category != "pending")  # pylint: disable=singleton-comparison  # noqa: E712
+        query = query.filter(
+            ExternalLink.is_secure == False,  # pylint: disable=singleton-comparison  # noqa: E712
+            ExternalLink.status_category != "pending",
+        )
     elif status_filter == "healthy":
         query = query.filter(ExternalLink.status_category == "healthy")
     return query
