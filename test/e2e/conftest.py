@@ -4,7 +4,7 @@ E2E 自動化整合測試的 Pytest Fixture 配置模組。
 提供測試伺服器生命週期管理、資料庫初始化，以及 Playwright 相關設定。
 """
 
-# pylint: disable=protected-access, duplicate-code
+# pylint: disable=duplicate-code
 
 import os
 import shutil
@@ -59,6 +59,8 @@ def setup_databases() -> None:
     import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
     import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
 
+    # pylint: disable=protected-access
+
     # 確保環境變數指向正確的測試 DB
     _set_e2e_test_env()
 
@@ -104,6 +106,8 @@ def teardown_databases() -> None:
     """
     import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
     import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    # pylint: disable=protected-access
 
     # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
     if auth_db._ENGINE is not None:

@@ -98,12 +98,7 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
-1. **優化 SSE 串流與進度輪詢效能 (Payload 瘦身與 DB 查詢精簡)**
-   * **問題描述**：目前 `/api/jobs/{job_id}/stream` 每 2 秒輪詢一次。這不僅會廣播包含 `config_json` 的完整靜態大物件造成網路頻寬浪費，其底層的 `get_job_report` 每次輪詢都會對 `CrawlQueue` 與 `ExternalLink` 執行 `O(N)` 的全表聚合查詢 (`COUNT`, `SUM(CASE...)`)，在資料量龐大時會導致資料庫嚴重的效能瓶頸。
-   * **規劃方案**：
-     1. **Payload 瘦身**：在 `poller.py` 廣播前僅傳遞動態欄位（如 `status`, `is_running`, `completed_count` 等），靜態資料改由前端初始載入時獲取一次。
-     2. **DB 查詢精簡**：取消高頻的 `COUNT` 與 `SUM` 查詢。改採用「快取 (In-Memory) 累加」或是在 `Job` 資料表內正規化維護各狀態計數器欄位 (Denormalization)，讓每 2 秒的輪詢只需 `O(1)` 讀取。
-   * **狀態**：**已解決（Resolved）** - 藉由 `progress_stats` JSON 欄位與 Memory 節流寫入達成。
+無
 
 ---
 

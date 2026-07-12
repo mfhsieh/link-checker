@@ -54,9 +54,10 @@ def setup_databases() -> None:
     3. 清除舊的資料庫主檔案 (`.db`) 與其相關的暫存檔 (`-shm`, `-wal`)。
     4. 重新初始化認證 (Auth) 與爬蟲 (Crawler) 的資料庫引擎和會話。
     """
-    # pylint: disable=import-outside-toplevel, protected-access
-    import backend.auth.db as auth_db
-    import backend.deps as backend_deps
+    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
+    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    # pylint: disable=protected-access
 
     # 確保環境變數指向正確的測試 DB
     _set_cli_test_env()
@@ -87,8 +88,8 @@ def setup_databases() -> None:
                 except OSError:
                     pass
 
-    from backend.auth.db import get_auth_engine
-    from backend.deps import get_job_manager
+    from backend.auth.db import get_auth_engine  # pylint: disable=import-outside-toplevel
+    from backend.deps import get_job_manager  # pylint: disable=import-outside-toplevel
 
     get_auth_engine()
     get_job_manager()
@@ -102,9 +103,10 @@ def teardown_databases() -> None:
     1. 強制關閉並釋放所有現有的 SQLAlchemy Engine 連線池與 SQLite 檔案描述符。
     2. 清除測試過程中產生的資料庫主檔案 (`.db`) 與其相關的暫存檔 (`-shm`, `-wal`)。
     """
-    # pylint: disable=import-outside-toplevel, protected-access
-    import backend.auth.db as auth_db
-    import backend.deps as backend_deps
+    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
+    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    # pylint: disable=protected-access
 
     # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
     if auth_db._ENGINE is not None:
@@ -134,9 +136,7 @@ def teardown_databases() -> None:
 
 
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-# pylint: disable=import-outside-toplevel, protected-access
-# pylint: disable=subprocess-run-check
-# pylint: disable=consider-using-with
+# pylint: disable=subprocess-run-check, consider-using-with
 def test_cli_full_flow() -> None:
     """
     執行端到端 (E2E) 整合測試與各核心組件的單元測試。
@@ -160,8 +160,11 @@ def test_cli_full_flow() -> None:
 
     # 1. 執行 Unit Test 驗證雙 Client 網域 SSL 豁免機制
     print("\nRunning Unit Test: SSL Exempt Domains Client Check...")
-    from crawler.core import CrawlerCore
-    from crawler.models import CrawlerConfig
+
+    from crawler.core import CrawlerCore  # pylint: disable=import-outside-toplevel
+    from crawler.models import CrawlerConfig  # pylint: disable=import-outside-toplevel
+
+    # pylint: disable=protected-access
 
     crawler_instance = CrawlerCore(config=CrawlerConfig(ssl_exempt_domains=["badssl.com", "self-signed.org"]))
     client_normal = crawler_instance._get_client("https://www.google.com")
@@ -176,7 +179,7 @@ def test_cli_full_flow() -> None:
 
     # 2. 執行 Unit Test 驗證 domain_delays 匹配邏輯
     print("\nRunning Unit Test: Domain Delays Matching...")
-    from crawler.runner import _get_domain_delay
+    from crawler.runner import _get_domain_delay  # pylint: disable=import-outside-toplevel
 
     domain_delays = {"example.com": 5.0, "sub.example.com": 10.0}
     assert _get_domain_delay("example.com", domain_delays, 3.0) == 5.0
@@ -187,7 +190,7 @@ def test_cli_full_flow() -> None:
 
     # 2.5 執行 Unit Test 驗證環境變數優先覆寫邏輯與設定合併
     print("\nRunning Unit Test: Config Merge and Environment Override...")
-    from crawler.config_utils import merge_and_validate_crawler_config
+    from crawler.config_utils import merge_and_validate_crawler_config  # pylint: disable=import-outside-toplevel
 
     # 模擬環境變數
     os.environ["CRAWLER_PROXY_URL"] = "http://env-proxy:8080"
@@ -850,8 +853,8 @@ crawler:
         # 8. 執行進階測試：失敗重試 (Flaky) 與 Tarpit 防禦 (Timeout)
         # =====================================================================
         print("\nRunning Advanced Validation: Flaky Retry and Tarpit Defense...")
-        import urllib.error
-        import urllib.request
+        import urllib.error  # pylint: disable=import-outside-toplevel
+        import urllib.request  # pylint: disable=import-outside-toplevel
 
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{PORT}/reset_flaky").read()

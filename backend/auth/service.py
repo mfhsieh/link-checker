@@ -600,10 +600,8 @@ def cleanup_deleted_user_task(user_id: str) -> None:
     Args:
         user_id (str): 欲清理的使用者 ID。
     """
-    # pylint: disable=import-outside-toplevel
-    from backend.auth.db import get_auth_session_local
-    from backend.events import SystemEvent, publish
-    # pylint: enable=import-outside-toplevel
+    from backend.auth.db import get_auth_session_local  # pylint: disable=import-outside-toplevel
+    from backend.events import SystemEvent, publish  # pylint: disable=import-outside-toplevel
 
     auth_session_factory = get_auth_session_local()
 

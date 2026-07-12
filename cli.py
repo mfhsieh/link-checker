@@ -155,10 +155,9 @@ def create_admin(email: str) -> None:
         print(f"錯誤：提供的 Email 格式不合法 ({email})")
         sys.exit(1)
 
-    # pylint: disable=import-outside-toplevel
-    from backend.auth.db import get_auth_session_local
-    from backend.auth.models import User
-    from backend.auth.password import hash_password
+    from backend.auth.db import get_auth_session_local  # pylint: disable=import-outside-toplevel
+    from backend.auth.models import User  # pylint: disable=import-outside-toplevel
+    from backend.auth.password import hash_password  # pylint: disable=import-outside-toplevel
 
     session_local = get_auth_session_local()
     with session_local() as db:

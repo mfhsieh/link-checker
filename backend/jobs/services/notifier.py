@@ -25,8 +25,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 @dataclass
-class JobStats:
-    # pylint: disable=too-many-instance-attributes
+class JobStats:  # pylint: disable=too-many-instance-attributes
     """任務統計資訊。"""
 
     queue_total: int

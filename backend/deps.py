@@ -109,8 +109,7 @@ def get_current_session(
         HTTPException 401: 若 Cookie 不存在或 Session 已過期。
     """
     # 避免循環匯入
-    # pylint: disable=import-outside-toplevel, cyclic-import
-    from backend.auth import service as auth_service
+    from backend.auth import service as auth_service  # pylint: disable=import-outside-toplevel, cyclic-import
 
     settings = get_settings()
     raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME)

@@ -64,9 +64,10 @@ def setup_databases() -> None:
     接著呼叫 `get_auth_engine()` 與 `get_job_manager()` 來重新建立對應的資料表與初始化狀態。
     確保每次測試都在乾淨的環境下執行。
     """
-    # pylint: disable=import-outside-toplevel, protected-access
-    import backend.auth.db as auth_db
-    import backend.deps as backend_deps
+    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
+    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    # pylint: disable=protected-access
 
     # 確保環境變數指向正確的測試 DB
     _set_api_test_env()
@@ -108,9 +109,10 @@ def teardown_databases() -> None:
     此函式負責關閉並釋放 SQLAlchemy Engine 連線池，移除測試期間產生的 SQLite 主檔案
     及其暫存檔（-shm, -wal），並清除測試用的全域設定檔，確保測試環境的完整清理。
     """
-    # pylint: disable=import-outside-toplevel, protected-access
-    import backend.auth.db as auth_db
-    import backend.deps as backend_deps
+    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
+    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    # pylint: disable=protected-access
 
     # 強制關閉並釋放 SQLAlchemy Engine 連線池，釋放 sqlite fd
     if auth_db._ENGINE is not None:

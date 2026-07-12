@@ -815,6 +815,7 @@ class CrawlerCore:
             from curl_cffi import requests as cffi_requests
             from curl_cffi.requests.errors import CurlError as CFFICurlError
             from curl_cffi.requests.errors import RequestsError as CFFIRequestsError
+            # pylint: enable=import-outside-toplevel
 
             logger.info("啟動 TLS 偽裝備援引擎 (curl_cffi) 探測: %s", url)
             proxies = None

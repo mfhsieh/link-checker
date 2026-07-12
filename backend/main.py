@@ -87,15 +87,13 @@ async def app_lifespan(_app: FastAPI):
     logger.info("初始化系統事件監聽器...")
     register_auth_events()
     register_job_events()
-    # pylint: disable=import-outside-toplevel
-    from backend.admin.services.audit import subscribe_to_audit_events
 
-    subscribe_to_audit_events()
+    from backend.admin.services.audit import subscribe_to_audit_events  # pylint: disable=import-outside-toplevel
+    from backend.deps import get_job_manager  # pylint: disable=import-outside-toplevel
+    from backend.jobs.services.notifier import subscribe_to_events  # pylint: disable=import-outside-toplevel
 
     # 在此加入 Notifier 事件監聽
-    # pylint: disable=import-outside-toplevel
-    from backend.deps import get_job_manager
-    from backend.jobs.services.notifier import subscribe_to_events
+    subscribe_to_audit_events()
 
     manager = get_job_manager()
     subscribe_to_events(manager.session_factory)

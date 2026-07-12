@@ -209,9 +209,8 @@ class TestAdminLogs(unittest.TestCase):
         db.commit()
         db.close()
 
-        # pylint: disable=import-outside-toplevel
-        from backend.admin.services.audit import subscribe_to_audit_events
-        from backend.auth.service import register_auth_events
+        from backend.admin.services.audit import subscribe_to_audit_events  # pylint: disable=import-outside-toplevel
+        from backend.auth.service import register_auth_events  # pylint: disable=import-outside-toplevel
 
         register_auth_events()
         subscribe_to_audit_events()

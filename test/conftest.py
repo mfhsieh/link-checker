@@ -20,8 +20,7 @@ def refresh_settings_cache() -> None:
     已變動，單純重新實例化 `Settings()` 仍會取得舊值。本函式透過手動將最新的環境變數
     覆寫回類別屬性，確保測試能切換至正確的資料庫 URL。
     """
-    # pylint: disable=import-outside-toplevel
-    from backend.config import Settings, get_settings
+    from backend.config import Settings, get_settings  # pylint: disable=import-outside-toplevel
 
     # 清除 lru_cache
     get_settings.cache_clear()
@@ -47,11 +46,12 @@ def _reset_singletons_and_overrides() -> Generator[None, None, None]:
     Yields:
         None: 在測試模組執行期間暫停，等待結束後執行 Teardown。
     """
-    # pylint: disable=import-outside-toplevel, protected-access
-    from sqlalchemy.exc import SQLAlchemyError
+    from sqlalchemy.exc import SQLAlchemyError  # pylint: disable=import-outside-toplevel
 
-    import backend.auth.db as auth_db
-    import backend.deps as backend_deps
+    import backend.auth.db as auth_db  # pylint: disable=import-outside-toplevel
+    import backend.deps as backend_deps  # pylint: disable=import-outside-toplevel
+
+    # pylint: disable=protected-access
 
     # ── 重設 Auth DB singleton ──
     if auth_db._ENGINE is not None:
@@ -71,7 +71,7 @@ def _reset_singletons_and_overrides() -> Generator[None, None, None]:
     backend_deps._JOB_MANAGER = None
 
     # ── 清空 FastAPI dependency overrides（防止前一模組的 mock 影響後續模組）──
-    from backend.main import app
+    from backend.main import app  # pylint: disable=import-outside-toplevel
 
     app.dependency_overrides.clear()
 

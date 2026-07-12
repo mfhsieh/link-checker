@@ -272,11 +272,9 @@ class JobRunner:
             social_domains=cast(list[str], crawler_config.get("social_domains", _DEF.get("social_domains", []))),
         )
 
-        # pylint: disable=import-outside-toplevel
-        from sqlalchemy import case
-        from sqlalchemy.sql.functions import count as sql_count
-        from sqlalchemy.sql.functions import sum as sql_sum
-        # pylint: enable=import-outside-toplevel
+        from sqlalchemy import case  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.sql.functions import count as sql_count  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.sql.functions import sum as sql_sum  # pylint: disable=import-outside-toplevel
 
         # pylint: disable=duplicate-code
         queue_stats = (

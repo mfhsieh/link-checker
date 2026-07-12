@@ -182,7 +182,9 @@
                                     <strong>內部連結</strong>：在<strong>「平舖列表」</strong>檢視時，是對<strong>「目標頁面」</strong>的重新爬取；若在依<strong>「自家網頁」</strong>聚合時，則是對<strong>「來源頁面」</strong>的重新爬取。兩者皆會重新解析網頁內容，並覆寫其衍生的連結紀錄。
                                 </li>
                                 <li class="doc-li">
-                                    <strong>外部連結</strong>：在依<strong>「外連目標」</strong>聚合時，是對外連目標的<strong>「目標頁面」</strong>重新發出 HTTP 請求以確認對方網站是否恢復正常；若在依<strong>「自家網頁」</strong>聚合時，則是對自家網頁的<strong>「來源頁面」</strong>重新爬取，系統會重新解析並覆寫該來源頁面衍生的連結紀錄。
+                                    <strong>外部連結</strong>：在依<strong>「外連目標」</strong>聚合時，是對外連目標的<strong>「目標頁面」</strong>重新發出
+                                    HTTP
+                                    請求以確認對方網站是否恢復正常；若在依<strong>「自家網頁」</strong>聚合時，則是對自家網頁的<strong>「來源頁面」</strong>重新爬取，系統會重新解析並覆寫該來源頁面衍生的連結紀錄。
                                 </li>
                             </ul>
                             <div class="doc-p">
@@ -255,6 +257,24 @@
                                 💡 加上 <code>?:</code> 則代表「非捕獲群組 (Non-capturing
                                 group)」，這會告訴正規表達式引擎只需要「比對」而不需要「記住」比對的結果，能讓系統執行得更有效率！
                             </p>
+                        </div>
+                        <h4 class="doc-q-title">
+                            Q: 「忽略的路徑規則 (Regex)」與「忽略的副檔名」有什麼差別？我該優先用哪一個？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <ul class="doc-ul">
+                                <li class="doc-li">
+                                    <strong>忽略的副檔名</strong>：比對速度最快、設定也最簡單。只要確定網址結尾是 <code>.pdf</code>、<code>.zip</code>
+                                    或 <code>.png</code> 等靜態檔案，請<strong>優先使用</strong>這個功能。這能在爬蟲發出請求前快速擋下，最大化地節省系統運算資源與頻寬。
+                                </li>
+                                <li class="doc-li">
+                                    <strong>忽略的路徑規則 (Regex)</strong>：適用於「沒有明確副檔名」的動態路由或特定資料夾（例如
+                                    <code>/api/</code>、<code>/download/</code> 或帶有特殊參數的網址）。當副檔名過濾功能無法精準捕捉時，再使用 Regex
+                                    作為強大的過濾輔助。
+                                </li>
+                            </ul>
+                            <p class="doc-p"><strong>💡 小撇步：</strong>兩者可以完美搭配使用！先利用副檔名擋下絕大多數的靜態檔案，再針對特殊的動態路徑撰寫
+                                Regex，就能達到最佳的爬取效能與精準度。</p>
                         </div>
                     </div>
 
