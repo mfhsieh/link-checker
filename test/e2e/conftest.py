@@ -21,10 +21,13 @@ from sqlalchemy.exc import SQLAlchemyError
 # 將專案路徑加入 path 以便引用 backend
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from backend.auth.db import get_auth_engine, get_auth_session_local  # pylint: disable=wrong-import-position
-from backend.auth.models import User  # pylint: disable=wrong-import-position
-from backend.auth.password import hash_password  # pylint: disable=wrong-import-position
-from backend.deps import get_job_manager  # pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position
+from backend.auth.db import get_auth_engine, get_auth_session_local
+from backend.auth.models import User
+from backend.auth.password import hash_password
+from backend.deps import get_job_manager
+
+# pylint: enable=wrong-import-position
 
 PORT: int = 8085
 BASE_URL: str = f"http://127.0.0.1:{PORT}"

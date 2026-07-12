@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 import yaml
 
-# 加入專案根目錄到 sys.path
+# 將專案路徑加入 path 以便引用 crawler
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # pylint: disable=wrong-import-position

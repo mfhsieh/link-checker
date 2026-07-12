@@ -8,7 +8,9 @@ description: 當需要新增或修改 FastAPI 路由時，指導 Agent 遵守專
 本專案的前後端採用嚴格的 API 契約 (API Contract) 進行溝通。當你需要為系統新增或修改一支 API 時，必須嚴格遵守以下流程：
 
 ## 1. 定義 Schema
-- 在動手寫業務邏輯前，必須先在 Schema 檔案（如 `backend/schemas.py` 或 `backend/auth/schemas.py`）中定義 Request 與 Response 的 Pydantic Model。
+- 在動手寫業務邏輯前，必須先定義 Request 與 Response 的 Pydantic Model。請依照現有的模組結構放置檔案：
+  - **Jobs 模組**：定義於 `backend/jobs/schemas.py`
+  - **Auth 或 Admin 等模組**：目前直接定義於對應的 `router.py`（如 `backend/auth/router.py` 或 `backend/admin/router.py`）內。
 - 確保 Model 有明確的 Type Hinting，並適時加上 `Field` 描述。
 
 ## 2. 實作業務邏輯與路由
@@ -24,4 +26,8 @@ description: 當需要新增或修改 FastAPI 路由時，指導 Agent 遵守專
 ## 4. 自動更新 API 文件 (Living Documentation)
 - **這是最重要的一步**。實作完成後，務必使用專案內的自動化腳本更新文件。
 - 請執行：`.venv/bin/python scripts/gen_api_doc.py`（或透過 bash 啟動虛擬環境執行）。
-- 執行後，檢查 `doc/api_spec.md` 與 `doc/api_routes.md` 是否已正確反映你的修改。
+- 執行後，檢查 `doc/api_spec.md` 與 `doc/api_routes.md` 是否已正確反映修改。
+
+## 5. 執行專案品質閘門 (Quality Gate)
+- 實作與文件更新皆完成後，**必須**觸發「Run Quality Gate」技能或執行 `.agents/skills/run_quality_gate/scripts/check.sh`。
+- 確保程式碼通過 Ruff 排版、Pylint 靜態分析、Mypy 型別檢查與 Pytest 單元測試。若有任何錯誤，請自動進行修復（在取得使用者同意後修改程式碼）並重新驗證，直至所有檢查皆順利通過。

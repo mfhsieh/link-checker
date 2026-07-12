@@ -14,14 +14,14 @@ import unittest
 from collections.abc import Generator
 from datetime import datetime, timedelta
 
-# 將專案路徑加入 path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-# pylint: disable=wrong-import-position
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+# 將專案路徑加入 path 以便引用 backend, crawler, test
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# pylint: disable=wrong-import-position
 from backend.auth.models import AuthBase, AuthLog, User
 from backend.deps import get_auth_db, get_crawler_db, get_job_manager, require_admin, require_csrf
 from backend.main import app

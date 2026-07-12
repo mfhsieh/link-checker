@@ -15,15 +15,15 @@ import time
 from datetime import datetime, timezone
 
 import httpx
+from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from test.utils import is_port_in_use, wait_for_server  # pylint: disable=wrong-import-order
 
+# 將專案路徑加入 path 以便引用 backend
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # pylint: disable=wrong-import-position, duplicate-code
-from fastapi.testclient import TestClient
-
 from backend.auth.db import get_auth_engine, get_auth_session_local
 from backend.auth.models import User
 from backend.auth.password import hash_password

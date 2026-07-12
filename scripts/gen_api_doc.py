@@ -9,14 +9,11 @@ import os
 import re
 import sys
 
-# 將專案根目錄加入 PYTHONPATH 以便載入 backend 模組
-PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 將專案路徑加入 path 以便引用 backend
+PROJECT_ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-# pylint: disable=wrong-import-position
-from backend.main import app  # noqa: E402
-
-# pylint: enable=wrong-import-position
+from backend.main import app  # noqa: E402  # pylint: disable=wrong-import-position
 
 
 def _format_description_markdown(desc: str) -> str:

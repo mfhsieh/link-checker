@@ -11,14 +11,11 @@ import logging
 import os
 import sys
 
-# 加入專案根目錄到 sys.path
+# 將專案路徑加入 path 以便引用 crawler, test_url
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# pylint: disable=wrong-import-position
-from crawler.core import CrawlerCore
-from scripts.test_url import get_test_crawler_config
-
-# pylint: enable=wrong-import-position
+from crawler.core import CrawlerCore  # pylint: disable=wrong-import-position
+from scripts.test_url import get_test_crawler_config  # pylint: disable=wrong-import-position
 
 
 def main() -> None:

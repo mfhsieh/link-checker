@@ -10,14 +10,11 @@ import sys
 from mcp.server.fastmcp import FastMCP
 from sqlalchemy import func
 
-# 設定環境變數路徑，確保可以讀取到專案模組與設定
+# 將專案路徑加入 path 以便引用 backend, crawler
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# pylint: disable=wrong-import-position
-from backend.deps import get_job_manager
-from crawler.models import CrawlQueue, Job
-
-# pylint: enable=wrong-import-position
+from backend.deps import get_job_manager  # pylint: disable=wrong-import-position
+from crawler.models import CrawlQueue, Job  # pylint: disable=wrong-import-position
 
 mcp = FastMCP("LinkCheckerProductionMCP")
 manager = get_job_manager()

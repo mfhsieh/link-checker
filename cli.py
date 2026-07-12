@@ -22,19 +22,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # pylint: disable=wrong-import-position
-# isort: off
 from backend.jobs.services.exporter import (  # noqa: E402
-    export_full_report,
-    export_external_job_results,
-    export_internal_job_results,
     ExportOptions,
+    export_external_job_results,
+    export_full_report,
+    export_internal_job_results,
 )
-from backend.jobs.services.query_utils import ERROR_STATUS_FILTERS  # noqa: E402
 from backend.jobs.services.notifier import subscribe_to_events  # noqa: E402
-
+from backend.jobs.services.query_utils import ERROR_STATUS_FILTERS  # noqa: E402
 from crawler.config_utils import merge_and_validate_crawler_config  # noqa: E402
-from crawler.manager import JobManager, JobCreateOptions, Job  # noqa: E402
-# isort: on
+from crawler.manager import Job, JobCreateOptions, JobManager  # noqa: E402
+
 # pylint: enable=wrong-import-position
 
 # 設定初始的 logging，只輸出到畫面，確保 setup_logging 呼叫前的錯誤能被顯示

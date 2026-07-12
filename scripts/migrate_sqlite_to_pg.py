@@ -15,15 +15,14 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-# 將專案根目錄加入 PYTHONPATH
-PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
+# 將專案路徑加入 path 以便引用 backend, crawler
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # pylint: disable=wrong-import-position
-from backend.auth.models import AuthBase, AuthLog, Invitation, PasswordResetToken, User  # noqa: E402
-from backend.auth.models import Session as AuthSession  # noqa: E402
-from backend.config import get_settings  # noqa: E402
-from crawler.models import Base, CrawlQueue, ExternalLink, Job  # noqa: E402
+from backend.auth.models import AuthBase, AuthLog, Invitation, PasswordResetToken, User
+from backend.auth.models import Session as AuthSession
+from backend.config import get_settings
+from crawler.models import Base, CrawlQueue, ExternalLink, Job
 
 # pylint: enable=wrong-import-position
 

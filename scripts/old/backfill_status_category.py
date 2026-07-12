@@ -19,14 +19,13 @@ import sys
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-# 將專案根目錄加入 PYTHONPATH 以匯入本地模組
-PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
+# 將專案路徑加入 path 以便引用 backend, crawler
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # pylint: disable=wrong-import-position
-from backend.config import get_settings  # noqa: E402
-from crawler.models import CrawlQueue, ExternalLink  # noqa: E402
-from crawler.utils import determine_external_link_status_category, determine_internal_link_status_category  # noqa: E402
+from backend.config import get_settings
+from crawler.models import CrawlQueue, ExternalLink
+from crawler.utils import determine_external_link_status_category, determine_internal_link_status_category
 
 # pylint: enable=wrong-import-position
 

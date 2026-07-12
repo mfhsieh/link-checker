@@ -15,14 +15,13 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql.schema import MetaData
 
-# 將專案根目錄加入 PYTHONPATH
-PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
+# 將專案路徑加入 path 以便引用 backend, crawler
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # pylint: disable=wrong-import-position
-from backend.auth.models import AuthBase  # noqa: E402
-from backend.config import get_settings  # noqa: E402
-from crawler.models import Base  # noqa: E402
+from backend.auth.models import AuthBase
+from backend.config import get_settings
+from crawler.models import Base
 
 # pylint: enable=wrong-import-position
 
