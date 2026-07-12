@@ -7,7 +7,7 @@ __pycache__/
 .ruff_cache/
 
 # Antigravity IDE
-.agents/
+# .agents/
 
 # 虛擬環境 (Virtual Environments)
 .venv/

@@ -32,9 +32,11 @@ link-checker/
 │   │   ├── schemas.py  # 任務模組專用 Pydantic 與依賴注入 Model
 │   │   ├── routers/    # 子 API 路由定義 (管理、結果、匯出)
 │   │   └── services/   # 任務核心服務 (管理、進程、結果、郵件通知、報表匯出、局部重新探測)
+│   ├── cache_utils.py  # 系統快取工具 (如設定檔快取)
 │   ├── config.py       # 系統組態與環境變數設定
 │   ├── deps.py         # 依賴注入 (如 Session, Current User)
 │   ├── email_sender.py # SMTP 郵件發送服務
+│   ├── events.py       # 系統內部事件發布/訂閱 (Pub/Sub) 模組
 │   └── main.py         # FastAPI 應用程式進入點
 ├── frontend/           # 網站前台 UI (原生 Vanilla JS/CSS)
 │   ├── css/            # Vanilla CSS 樣式表
@@ -93,6 +95,7 @@ link-checker/
 │   ├── gen_api_doc.py          # 自動產生 API 規格與路由清單
 │   ├── job_sync.sh             # 跨環境任務備份與還原工具便利包
 │   ├── manage_job_data.py      # 任務資料跨庫 JSONL 匯出匯入核心 (含外連與內連狀態)
+│   ├── mcp_server.py           # Model Context Protocol (MCP) 伺服器，提供 AI 代理存取介面
 │   ├── migrate_sqlite_to_pg.py # PostgreSQL 平滑升級全自動遷移腳本
 │   ├── run_all_tests.sh        # 全域自動化測試套件啟動腳本
 │   ├── test_ext.py             # 單一外部連結存活測試腳本

@@ -131,3 +131,7 @@
   - 依賴 `backend.config` 獲取 Crawler DB 連線字串。
 - **`gen_api_doc.py`**:
   - 直接依賴 `backend.main` 匯入 FastAPI `app` 實例，以動態萃取 OpenAPI Schema。
+- **`mcp_server.py`**:
+  - 依賴第三方套件 `mcp.server.fastmcp` 來建立供 AI 代理存取的 Model Context Protocol 介面。
+  - 直接依賴 `backend.deps` 取得 `get_job_manager` 實例，作為資料存取的主要入口。
+  - 直接依賴 `crawler.models` 中的 `CrawlQueue`, `Job` 以支援原生的 SQLAlchemy 查詢與聚合統計。
