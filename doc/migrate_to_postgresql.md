@@ -126,14 +126,47 @@ python scripts/migrate_sqlite_to_pg.py
 ### 5.1 執行統計優化（推薦）
 因為剛剛完成大量資料的批次匯入，PostgreSQL 的統計資訊尚未更新，這可能會影響資料庫的查詢計畫（Query Planner）效能。
 
-建議在遷移完成後，連線至 PostgreSQL 並手動執行以下 SQL：
-```sql
-VACUUM ANALYZE;
-```
-> [!NOTE]
-> `VACUUM ANALYZE` 與強力釋放空間的 `VACUUM FULL` 不同，它**不會鎖定資料表**，您可以在系統運行中安全地線上執行，它會回收死資料空間並重新估算索引統計資訊，讓查詢變得更流暢。
+建議在遷移完成後，連線至 PostgreSQL 並手動執行以下 SQL。
+直接執行全域的 `VACUUM` 會嘗試優化系統內建表並跳出權限警告（如 `pg_authid`），為求優雅，建議您直接指定我們的應用程式資料表：
 
-### 5.2 實體檔案管理 (了解 PostgreSQL 存放在哪裡)
+```sql
+-- 切換至 auth_db 並最佳化：
+\c auth_db
+VACUUM (FULL, ANALYZE) users, invitations, sessions, password_reset_tokens, auth_logs;
+
+-- 切換至 crawler_db 並最佳化：
+\c crawler_db
+VACUUM (FULL, ANALYZE) jobs, crawl_queue, external_links;
+```
+> [!WARNING]
+> `VACUUM (FULL, ANALYZE)` 會進行深度的空間重組並重新估算索引統計資訊，藉此最大化資料庫效能。但請注意，**這會對資料表進行排他鎖定 (Exclusive Lock)**。因此，強烈建議在系統上線提供服務前（也就是剛遷移完畢的維護期間）執行完畢。
+
+### 5.2 查詢資料表與索引空間佔用
+在執行 `VACUUM FULL` 前後，您可以使用以下 SQL 查詢各個資料表（包含索引）的實際硬碟佔用空間，來觀察瘦身的成效：
+
+```sql
+-- 1. 查詢 auth_db 的空間佔用
+\c auth_db
+SELECT 
+    relname AS table_name,
+    pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
+    pg_size_pretty(pg_relation_size(relid)) AS table_size,
+    pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size
+FROM pg_catalog.pg_statio_user_tables 
+ORDER BY pg_total_relation_size(relid) DESC;
+
+-- 2. 查詢 crawler_db 的空間佔用
+\c crawler_db
+SELECT 
+    relname AS table_name,
+    pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
+    pg_size_pretty(pg_relation_size(relid)) AS table_size,
+    pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size
+FROM pg_catalog.pg_statio_user_tables 
+ORDER BY pg_total_relation_size(relid) DESC;
+```
+
+### 5.3 實體檔案管理 (了解 PostgreSQL 存放在哪裡)
 在 WSL / Ubuntu 預設安裝下，PostgreSQL 的主要檔案儲存於系統底層：
 * **資料與資料表物理檔案**：儲存在 `/var/lib/postgresql/<版本號>/main/` 目錄下。*(權限嚴格限制，僅 postgres 使用者有權讀取)*。
 * **資料庫主設定檔**：如 `postgresql.conf` 與 `pg_hba.conf` 儲存在 `/etc/postgresql/<版本號>/main/`。

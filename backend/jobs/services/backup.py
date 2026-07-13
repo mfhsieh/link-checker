@@ -188,7 +188,7 @@ def import_job(db: Session, input_path: str, new_user_id: str) -> None:
             with open(queue_file, "r", encoding="utf-8") as f:
                 for line in f:
                     q_data = json.loads(line)
-                    
+
                     queue_stats["total"] += 1
                     q_status = q_data.get("status")
                     if q_status == "completed":
