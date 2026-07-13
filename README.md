@@ -28,23 +28,27 @@
 ### 前端介面 (Frontend)
 * **零依賴 (Zero Dependencies)**：全站 UI 介面採用原生 Vanilla JavaScript (ESM) 與 CSS 開發，**不包含** React、Vue、jQuery 或 TailwindCSS 等任何框架或函式庫。
 
-### 後端與爬蟲核心 (Backend & Crawler)
-* **[FastAPI](https://fastapi.tiangolo.com/)** (`0.115.12`)：高效能的非同步 Web 框架，負責建構管理後台的 RESTful API 與 SSE (Server-Sent Events) 串流。
-* **[Uvicorn](https://www.uvicorn.org/)** (`0.34.3`)：作為 FastAPI 底層的高效能 ASGI 伺服器，負責處理 HTTP/網頁請求。
+### 爬蟲核心與資料擷取 (Crawler Core)
+* **[httpx](https://www.python-httpx.org/)** (`0.28.1`)：處理非同步 HTTP 請求，負責執行網頁抓取與狀態碼檢測（搭配 **[h2](https://github.com/python-hyper/h2)** `4.3.0` 支援 HTTP/2 通訊協定）。
+* **[curl_cffi](https://github.com/yifeikong/curl_cffi)** (`0.15.0`)：基於 curl-impersonate 的 HTTP 客戶端，模擬真實瀏覽器 TLS/JA3 指紋，協助繞過部分防爬蟲機制。
+* **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** (`4.14.3`)：負責 HTML 解析，從網頁原始碼中萃取連結。
+* **[fake-useragent](https://github.com/fake-useragent/fake-useragent)** (`1.5.1`)：自動產生隨機的 User-Agent，規避基礎防爬蟲機制。
+* **[PyYAML](https://pyyaml.org/)** (`6.0.3`)：解析、校驗與讀寫 `.yaml` 設定檔（搭配 `types-PyYAML` 提供型別檢查）。
+
+### 後端與系統基礎 (Web Backend)
+* **[FastAPI](https://fastapi.tiangolo.com/)** (`0.115.12`)：非同步 Web 框架，負責建構管理後台的 RESTful API 與 SSE (Server-Sent Events) 串流。
+* **[Starlette](https://www.starlette.io/)** (`0.41.3`)：FastAPI 的底層非同步框架，鎖定版本以確保相容性與系統穩定。
+* **[Uvicorn](https://www.uvicorn.org/)** (`0.34.3`)：FastAPI 底層的 ASGI 伺服器，負責處理 HTTP 請求。
 * **[SQLAlchemy](https://www.sqlalchemy.org/)** (`2.0.50`)：標準的 Python ORM 框架，封裝 SQL 語法並支援 SQLite 與 PostgreSQL。
 * **[psycopg2-binary](https://www.psycopg.org/)** (`2.9.12`)：PostgreSQL 的 Python 驅動程式。
-* **[httpx](https://www.python-httpx.org/)** (`0.28.1`)：處理非同步 HTTP 請求，負責執行併發的網頁抓取與狀態碼檢測（搭配 **[h2](https://github.com/python-hyper/h2)** `4.3.0` 模組支援 HTTP/2 通訊協定）。
-* **[curl_cffi](https://github.com/yifeikong/curl_cffi)** (`0.15.0`)：基於 curl-impersonate 的 HTTP 客戶端，用於模擬真實瀏覽器 TLS/JA3 指紋，協助繞過部分防爬蟲機制。
-* **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** (`4.14.3`)：負責 HTML 解析，從網頁原始碼中萃取連結。
-* **[PyYAML](https://pyyaml.org/)** (`6.0.3`)：用於解析、校驗與讀寫 `.yaml` 設定檔。
-* **[bcrypt](https://github.com/pyca/bcrypt/)** (`4.3.0`)：雜湊演算法，處理並保護使用者的登入密碼。
-* **[python-dotenv](https://github.com/theskumar/python-dotenv)** (`1.0.1`)：負責從 `.env` 檔案載入環境變數，確保配置與程式碼分離。
-* **[fake-useragent](https://github.com/fake-useragent/fake-useragent)** (`1.5.1`)：自動隨機產生模仿瀏覽器的 User-Agent，藉以規避基礎防爬蟲機制。
+* **[bcrypt](https://github.com/pyca/bcrypt/)** (`4.3.0`)：密碼雜湊演算法，處理並保護使用者的登入密碼。
 * **[email-validator](https://github.com/JoshData/python-email-validator)** (`2.2.0`)：提供符合 RFC 標準的 Email 格式與 DNS 驗證。
-* **[cachetools](https://github.com/tkem/cachetools/)** (`7.1.4`)：提供具備自動到期 (TTL) 能力的記憶體快取，減輕後端 API 的重複聚合運算壓力。
+* **[cachetools](https://github.com/tkem/cachetools/)** (`7.1.4`)：提供具備自動到期 (TTL) 能力的記憶體快取，減輕後端 API 的重複運算壓力。
+* **[python-dotenv](https://github.com/theskumar/python-dotenv)** (`1.0.1`)：負責從 `.env` 檔案載入環境變數，確保組態與程式碼分離。
 ### 開發與測試環境 (Development & Testing)
 * **[pytest](https://docs.pytest.org/)** (`8.2.0`)：自動化單元與整合測試框架。
-* **[Playwright](https://playwright.dev/)** (`1.60.0`)：無頭 (Headless) 瀏覽器測試框架，負責執行前端 UI 的端到端 (E2E) 互動測試。
+* **[Playwright](https://playwright.dev/)** (`1.60.0`) 與 **[pytest-playwright](https://playwright.dev/python/docs/intro)** (`0.8.0`)：無頭 (Headless) 瀏覽器測試框架及 pytest 整合外掛，負責執行前端 UI 的端到端 (E2E) 互動測試。
+* **[mcp](https://github.com/modelcontextprotocol/python-sdk)** (`1.28.1`)：Model Context Protocol Python SDK，用於建構提供 AI 助理操作與監控的遠端控制伺服器。
 * **[Ruff](https://astral.sh/ruff)** / **[Pylint](https://pylint.pycqa.org/)** / **[Mypy](https://mypy-lang.org/)**：靜態型別檢查與程式碼風格掃描工具，確保專案品質。
 
 ## 快速開始
