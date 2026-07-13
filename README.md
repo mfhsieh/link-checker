@@ -9,8 +9,8 @@
 - **智慧過濾與探測**：內建 MIME 類型過濾、副檔名忽略與 Regex 路徑排除，並支援繞過特定防爬蟲機制的降級探測。
 - **外部連結檢查**：針對站外連結，自動分類異常狀態並支援多維度視角檢視（如外部網域、來源頁面），同時內建解析 IP 防禦 SSRF 與非 HTTPS 標記，確保對外連線的安全。
 - **內部連結診斷**：針對站內連結，自動分類異常狀態，並支援來源網頁聚合視角，協助快速修補。
-- **極致前端效能與資安**：全站採 Vanilla JS (ESM) 原生開發，零第三方框架依賴，並 100% 以 `document.createElement` 進行 DOM 渲染，徹底根絕 XSS 風險。
-- **高併發與記憶體保護**：後端採用 O(1) 記憶體去重聚合與 ZIP 串流匯出，前端實作長清單自適應截斷，無懼百萬級資料量。
+- **原生前端與資安設計**：全站採 Vanilla JS (ESM) 原生開發，無第三方框架依賴，主要以 `document.createElement` 進行 DOM 渲染，降低 XSS 風險。
+- **資源最佳化與資料匯出**：後端採用 O(1) 記憶體去重聚合與 ZIP 串流匯出，前端實作長清單截斷機制，支援大量資料的處理與匯出。
 - **多維度報表匯出**：支援將掃描結果依目標頁面、來源頁面或外部網域進行去重聚合，並可匯出為 CSV 或 JSON 格式。
 - **即時狀態監控**：後端透過 Server-Sent Events (SSE) 推播進度，讓使用者能在 Web 介面即時查看爬蟲的執行狀態與數據變化。
 - **資料備份與遷移**：內建維運腳本支援單一任務資料的匯出匯入與移交；並提供升級腳本，支援從本機 SQLite 平滑移轉至 PostgreSQL。
@@ -23,7 +23,7 @@
 
 ## 第三方元件清單
 
-本專案在技術選型上極度克制，堅持「夠用就好」的原則。前端「零第三方依賴」，後端則嚴選由活躍社群維護的開源套件。
+本專案在技術選型上以穩定與精簡為原則，前端採用原生實作，後端則使用主流的開源套件。
 
 ### 前端介面 (Frontend)
 * **零依賴 (Zero Dependencies)**：全站 UI 介面採用原生 Vanilla JavaScript (ESM) 與 CSS 開發，**不包含** React、Vue、jQuery 或 TailwindCSS 等任何框架或函式庫。
@@ -31,16 +31,16 @@
 ### 後端與爬蟲核心 (Backend & Crawler)
 * **[FastAPI](https://fastapi.tiangolo.com/)** (`0.115.12`)：高效能的非同步 Web 框架，負責建構管理後台的 RESTful API 與 SSE (Server-Sent Events) 串流。
 * **[Uvicorn](https://www.uvicorn.org/)** (`0.34.3`)：作為 FastAPI 底層的高效能 ASGI 伺服器，負責處理 HTTP/網頁請求。
-* **[SQLAlchemy](https://www.sqlalchemy.org/)** (`2.0.50`)：標準的 Python ORM 框架，負責封裝 SQL 語法，實作 SQLite 與 PostgreSQL 的無縫切換。
+* **[SQLAlchemy](https://www.sqlalchemy.org/)** (`2.0.50`)：標準的 Python ORM 框架，封裝 SQL 語法並支援 SQLite 與 PostgreSQL。
 * **[psycopg2-binary](https://www.psycopg.org/)** (`2.9.12`)：PostgreSQL 的 Python 驅動程式。
 * **[httpx](https://www.python-httpx.org/)** (`0.28.1`)：處理非同步 HTTP 請求，負責執行併發的網頁抓取與狀態碼檢測（搭配 **[h2](https://github.com/python-hyper/h2)** `4.3.0` 模組支援 HTTP/2 通訊協定）。
-* **[curl_cffi](https://github.com/yifeikong/curl_cffi)** (`0.15.0`)：基於 curl-impersonate 的進階 HTTP 客戶端，用於模擬真實瀏覽器 TLS/JA3 指紋，協助繞過 Cloudflare 等高階防爬蟲機制 (WAF)。
+* **[curl_cffi](https://github.com/yifeikong/curl_cffi)** (`0.15.0`)：基於 curl-impersonate 的 HTTP 客戶端，用於模擬真實瀏覽器 TLS/JA3 指紋，協助繞過部分防爬蟲機制。
 * **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** (`4.14.3`)：負責 HTML 解析，從網頁原始碼中萃取連結。
 * **[PyYAML](https://pyyaml.org/)** (`6.0.3`)：用於解析、校驗與讀寫 `.yaml` 設定檔。
 * **[bcrypt](https://github.com/pyca/bcrypt/)** (`4.3.0`)：雜湊演算法，處理並保護使用者的登入密碼。
 * **[python-dotenv](https://github.com/theskumar/python-dotenv)** (`1.0.1`)：負責從 `.env` 檔案載入環境變數，確保配置與程式碼分離。
 * **[fake-useragent](https://github.com/fake-useragent/fake-useragent)** (`1.5.1`)：自動隨機產生模仿瀏覽器的 User-Agent，藉以規避基礎防爬蟲機制。
-* **[email-validator](https://github.com/JoshData/python-email-validator)** (`2.2.0`)：提供符合 RFC 標準的 Email 格式與 DNS 深度驗證。
+* **[email-validator](https://github.com/JoshData/python-email-validator)** (`2.2.0`)：提供符合 RFC 標準的 Email 格式與 DNS 驗證。
 * **[cachetools](https://github.com/tkem/cachetools/)** (`7.1.4`)：提供具備自動到期 (TTL) 能力的記憶體快取，減輕後端 API 的重複聚合運算壓力。
 ### 開發與測試環境 (Development & Testing)
 * **[pytest](https://docs.pytest.org/)** (`8.2.0`)：自動化單元與整合測試框架。
@@ -93,7 +93,7 @@ pip install -r requirements.txt
 python cli.py --create-admin admin@example.com
 ```
 
-建立完成後，終端機會顯示一組系統產生的高強度隨機密碼。請使用該密碼首次登入 Web 介面，並依照系統提示設定您的專屬密碼。
+建立完成後，終端機會顯示一組系統產生的隨機初始密碼。請使用該密碼首次登入 Web 介面，並依照系統提示設定您的專屬密碼。
 
 ### 5. 啟動 Web 服務
 
