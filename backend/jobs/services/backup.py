@@ -60,6 +60,7 @@ def export_job(db: Session, job_id: str, output_path: str) -> None:
             "trusted_domains": job.trusted_domains,
             "config_json": job.config_json,
             "status": job.status,
+            "progress_stats": job.progress_stats,
             "created_at": job.created_at.isoformat(),
             "updated_at": job.updated_at.isoformat(),
         }
@@ -103,6 +104,7 @@ def export_job(db: Session, job_id: str, output_path: str) -> None:
                     "error_message": ext.error_message,
                     "status_category": ext.status_category,
                     "created_at": ext.created_at.isoformat(),
+                    "updated_at": ext.updated_at.isoformat(),
                 }
                 f.write(json.dumps(ext_data, ensure_ascii=False) + "\n")
                 ext_count += 1
@@ -170,18 +172,36 @@ def import_job(db: Session, input_path: str, new_user_id: str) -> None:
             trusted_domains=job_data["trusted_domains"],
             config_json=job_data["config_json"],
             status=job_data["status"],
+            progress_stats=job_data.get("progress_stats"),
             created_at=datetime.fromisoformat(job_data["created_at"]),
-            updated_at=datetime.fromisoformat(job_data["updated_at"]),
+            updated_at=datetime.fromisoformat(job_data.get("updated_at", job_data["created_at"])),
         )
         db.add(new_job)
         db.commit()
         logger.info("已建立新任務 %s (接手使用者: %s)", new_job_id, new_user_id)
+
+        queue_stats = {"total": 0, "completed": 0, "warning": 0, "skipped": 0, "pending": 0, "failed": 0}
+        ext_links_count = 0
 
         if os.path.exists(queue_file):
             queue_objects = []
             with open(queue_file, "r", encoding="utf-8") as f:
                 for line in f:
                     q_data = json.loads(line)
+                    
+                    queue_stats["total"] += 1
+                    q_status = q_data.get("status")
+                    if q_status == "completed":
+                        queue_stats["completed"] += 1
+                    elif q_status == "warning":
+                        queue_stats["warning"] += 1
+                    elif q_status == "skip":
+                        queue_stats["skipped"] += 1
+                    elif q_status == "pending":
+                        queue_stats["pending"] += 1
+                    elif q_status == "failed":
+                        queue_stats["failed"] += 1
+
                     queue_objects.append(
                         CrawlQueue(
                             job_id=new_job_id,
@@ -198,7 +218,7 @@ def import_job(db: Session, input_path: str, new_user_id: str) -> None:
                             ),
                             is_secure=q_data.get("is_secure", True),
                             created_at=datetime.fromisoformat(q_data["created_at"]),
-                            updated_at=datetime.fromisoformat(q_data["updated_at"]),
+                            updated_at=datetime.fromisoformat(q_data.get("updated_at", q_data["created_at"])),
                         )
                     )
                     if len(queue_objects) >= 2000:
@@ -215,6 +235,7 @@ def import_job(db: Session, input_path: str, new_user_id: str) -> None:
             with open(ext_file, "r", encoding="utf-8") as f:
                 for line in f:
                     ext_data = json.loads(line)
+                    ext_links_count += 1
                     ext_objects.append(
                         ExternalLink(
                             job_id=new_job_id,
@@ -230,6 +251,7 @@ def import_job(db: Session, input_path: str, new_user_id: str) -> None:
                                 ext_data["ip_address"], ext_data["http_status_code"]
                             ),
                             created_at=datetime.fromisoformat(ext_data["created_at"]),
+                            updated_at=datetime.fromisoformat(ext_data.get("updated_at", ext_data["created_at"])),
                         )
                     )
                     if len(ext_objects) >= 2000:
@@ -240,6 +262,15 @@ def import_job(db: Session, input_path: str, new_user_id: str) -> None:
                 db.bulk_save_objects(ext_objects)
                 db.commit()
             logger.info("外部連結資料匯入完成")
+
+        if not job_data.get("progress_stats"):
+            progress_dict = {
+                "queue": queue_stats,
+                "external_links": ext_links_count,
+            }
+            new_job.progress_stats = json.dumps(progress_dict)
+            db.commit()
+            logger.info("已為舊備份自動重建任務 %s 的進度統計 (progress_stats)", new_job_id)
 
     finally:
         if is_zip and os.path.exists(work_dir):

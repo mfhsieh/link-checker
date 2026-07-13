@@ -261,12 +261,7 @@ class JobManager:
 
             total_external = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
 
-            return {
-                "id": job.id,
-                "start_url": job.start_url,
-                "status": job.status,
-                "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+            progress_dict = {
                 "queue": {
                     "total": total_queue,
                     "completed": completed,
@@ -276,6 +271,19 @@ class JobManager:
                     "failed": failed,
                 },
                 "external_links": total_external,
+            }
+
+            job.progress_stats = json.dumps(progress_dict)
+            session.commit()
+
+            return {
+                "id": job.id,
+                "start_url": job.start_url,
+                "status": job.status,
+                "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "queue": progress_dict["queue"],
+                "external_links": progress_dict["external_links"],
             }
 
     def pause_job(self, job_id: str) -> bool:
