@@ -158,13 +158,14 @@ python cli.py --help
 > sudo systemctl stop link-checker
 > psql -U lc_user -d crawler_db -c "ALTER TABLE crawl_queue ADD COLUMN is_secure BOOLEAN DEFAULT TRUE NOT NULL;"
 > psql -U lc_user -d crawler_db -c "UPDATE crawl_queue SET is_secure = FALSE WHERE url LIKE 'http://%';"
+> psql -U lc_user -d crawler_db -c "DROP INDEX CONCURRENTLY IF EXISTS ix_crawl_queue_internal_issues;"
 > psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crawl_queue_internal_issues ON crawl_queue (job_id) WHERE status IN ('failed', 'warning') OR is_secure = false;"
 > sudo systemctl start link-checker
 > ```
 
 > [!IMPORTANT]
 > **升級至 v1.9.4 或更高版本**
-> 為了讓外部連結具備 `updated_at` 追蹤能力，以及減輕 `poller.py` 造成的 `O(N)` 全表掃描負擔（`jobs` 新增 `progress_stats` 欄位快取），如使用 PostgreSQL，請務必手動執行以下指令：
+> 為了讓外部連結具備 `updated_at` 追蹤能力、減輕 `poller.py` 輪詢造成的 `O(N)` 全表掃描負擔（`jobs` 新增 `progress_stats` 欄位快取），以及解決爬蟲引擎查重時的 `O(N²)` 效能瓶頸（新增 `ix_external_links_job_target` 索引），如使用 PostgreSQL，請務必手動執行以下指令：
 > 
 > ```bash
 > sudo systemctl stop link-checker
