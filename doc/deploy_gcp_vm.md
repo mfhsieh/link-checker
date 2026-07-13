@@ -29,11 +29,11 @@ sudo apt install -y python3 python3-venv python3-pip git nginx build-essential p
 ```
 
 3. **(強烈建議) 建立 Swap 虛擬記憶體**：
-   - 若您選擇 `e2-micro` 規格 (僅 1GB RAM)，爬蟲在處理大量網頁時極易觸發 OOM (Out of Memory) 導致服務崩潰。請執行以下指令建立 2GB 的 Swap 交換空間以保障系統穩定運行：
+   - 若您選擇 `e2-micro` 規格 (僅 1GB RAM)，爬蟲在處理大量網頁時可能會觸發 OOM (Out of Memory) 導致服務崩潰。請執行以下指令建立 512MB 的 Swap 交換空間以保障系統穩定運行：
 
 ```bash
-# 建立一個 2GB 的 swap 檔案
-sudo fallocate -l 2G /swapfile
+# 建立一個 512MB 的 swap 檔案
+sudo fallocate -l 512M /swapfile
 # 設定正確的權限
 sudo chmod 600 /swapfile
 # 將檔案格式化為 swap
@@ -328,7 +328,21 @@ http://<您的 VM 外部 IP>/
 
 ---
 
-## 進階維護：資料庫備份與優化
+## 進階維護：系統與資料庫優化
 
 * **單一任務備份**：系統提供 `./scripts/job_sync.sh export <JOB_ID> backup.zip` 工具，能將任務以 JSONL 格式無損打包，方便您下載回本機或其他伺服器還原。
-* **資料庫空間釋放 (VACUUM)**：在系統長期運行並刪除大量舊任務後，建議定期連線至 PostgreSQL 並執行 `VACUUM ANALYZE;` 來重新估算索引與回收死資料空間。您可以使用 pgAdmin、DBeaver 或直接透過 `sudo -u postgres psql -d crawler_db -c "VACUUM ANALYZE;"` 進行線上維護，不會中斷系統服務。
+* **資料庫空間釋放 (VACUUM)**：在系統長期運行並刪除大量舊任務後，建議定期對 PostgreSQL 進行深度的空間重組與索引統計更新。詳細的操作指令（包含避免鎖定系統表的優雅寫法）與空間佔用查詢語法，請直接參考 [PostgreSQL 遷移與優化指南](migrate_to_postgresql.md#5-遷移後的優化與維護) 中的說明。
+* **作業系統磁碟空間管理**：在 GCP VM 長期運行後，系統的更新快取與日誌可能會逐漸佔用大量硬碟空間。建議定期執行以下指令來為您的伺服器「瘦身」：
+  
+  ```bash
+  # 1. 清除不再使用的 APT 依賴套件與下載快取
+  sudo apt autoremove --purge -y
+  sudo apt clean
+  
+  # 2. 清除舊版的 Snap 套件與下載快取（預設會保留多個舊版，極佔空間）
+  sudo sh -c 'set -eu; snap list --all | awk "/disabled/{print \$1, \$3}" | while read snapname revision; do snap remove "$snapname" --revision="$revision"; done'
+  sudo find /var/lib/snapd/cache -mindepth 1 -delete
+  
+  # 3. 清理龐大的 systemd 系統日誌（僅保留最近 7 天）
+  sudo journalctl --vacuum-time=7d
+  ```

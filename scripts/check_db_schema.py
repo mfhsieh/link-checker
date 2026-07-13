@@ -102,6 +102,23 @@ def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -
                             db_type,
                         )
 
+                # 檢查 Nullable 約束 (NOT NULL)
+                db_nullable = db_cols[col_name].get("nullable", True)
+                expected_nullable = getattr(col_obj, "nullable", True)
+                if expected_nullable is None:
+                    expected_nullable = True
+
+                if db_nullable != expected_nullable:
+                    logger.error(
+                        "[%s] 資料表 %s 欄位 %s Nullable 約束不一致: 程式預期 Nullable=%s，但資料庫為 Nullable=%s",
+                        db_name,
+                        table_name,
+                        col_name,
+                        expected_nullable,
+                        db_nullable,
+                    )
+                    has_diff = True
+
         # B. 檢查 Indexes
         db_indexes = {idx["name"]: idx for idx in inspector.get_indexes(table_name)}
         expected_indexes = {idx.name: idx for idx in table_obj.indexes}

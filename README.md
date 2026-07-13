@@ -156,7 +156,7 @@ python cli.py --help
 > 
 > ```bash
 > sudo systemctl stop link-checker
-> psql -U lc_user -d crawler_db -c "ALTER TABLE crawl_queue ADD COLUMN is_secure BOOLEAN DEFAULT TRUE;"
+> psql -U lc_user -d crawler_db -c "ALTER TABLE crawl_queue ADD COLUMN is_secure BOOLEAN DEFAULT TRUE NOT NULL;"
 > psql -U lc_user -d crawler_db -c "UPDATE crawl_queue SET is_secure = FALSE WHERE url LIKE 'http://%';"
 > psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crawl_queue_internal_issues ON crawl_queue (job_id) WHERE status IN ('failed', 'warning') OR is_secure = false;"
 > sudo systemctl start link-checker
@@ -170,10 +170,15 @@ python cli.py --help
 > sudo systemctl stop link-checker
 > psql -U lc_user -d crawler_db -c "ALTER TABLE external_links ADD COLUMN updated_at TIMESTAMP;"
 > psql -U lc_user -d crawler_db -c "UPDATE external_links SET updated_at = created_at WHERE updated_at IS NULL;"
+> psql -U lc_user -d crawler_db -c "ALTER TABLE external_links ALTER COLUMN updated_at SET NOT NULL;"
 > psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_external_links_job_target ON external_links (job_id, target_url);"
 > psql -U lc_user -d crawler_db -c "ALTER TABLE jobs ADD COLUMN progress_stats TEXT;"
 > sudo systemctl start link-checker
 > ```
+
+> [!TIP]
+> **資料庫結構驗證 (Schema Check)**
+> 在您手動完成上述升級指令（或任何資料庫異動）後，建議您執行內建腳本 `python scripts/check_db_schema.py`。這個工具會自動檢驗您的實體資料庫欄位與程式中的 SQLAlchemy 模型定義是否完全吻合，確保升級過程沒有任何遺漏。
 
 *(備註：若是在測試環境使用 SQLite，您可以刪除舊有資料庫讓系統自動重建，或是參考上述 SQL 語法自行更新。)*
 

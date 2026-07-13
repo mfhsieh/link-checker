@@ -127,7 +127,7 @@ python scripts/migrate_sqlite_to_pg.py
 因為剛剛完成大量資料的批次匯入，PostgreSQL 的統計資訊尚未更新，這可能會影響資料庫的查詢計畫（Query Planner）效能。
 
 建議在遷移完成後，連線至 PostgreSQL 並手動執行以下 SQL。
-直接執行全域的 `VACUUM` 會嘗試優化系統內建表並跳出權限警告（如 `pg_authid`），為求優雅，建議您直接指定我們的應用程式資料表：
+直接執行全域的 `VACUUM` 會嘗試優化系統內建表並跳出權限警告（如 `pg_authid`），建議直接指定應用程式的資料表：
 
 ```sql
 -- 切換至 auth_db 並最佳化：
