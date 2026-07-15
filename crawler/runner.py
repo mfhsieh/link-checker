@@ -427,15 +427,23 @@ class JobRunner:
             results = list(self.executor.map(check_single, unique_urls))
             res_dict = {res[0]: res for res in results}
 
-            for ext in pending_exts:
-                if ext.target_url in res_dict:
-                    _, res_ip, res_code, res_err = res_dict[ext.target_url]
-                    ext.ip_address = res_ip
-                    ext.http_status_code = res_code
-                    ext.error_message = res_err
-                    ext.is_secure = ext.target_url.startswith("https://")
-                    ext.status_category = determine_external_link_status_category(res_ip, res_code)
-                    self.state.checked_links_cache[ext.target_url] = (res_ip, res_code, res_err)
+            for target_url, (_, res_ip, res_code, res_err) in res_dict.items():
+                status_cat = determine_external_link_status_category(res_ip, res_code)
+                is_sec = target_url.startswith("https://")
+
+                session.query(ExternalLink).filter(
+                    ExternalLink.job_id == self.job_id,
+                    ExternalLink.target_url == target_url,
+                    ExternalLink.status_category == "pending",
+                ).update({
+                    "ip_address": res_ip,
+                    "http_status_code": res_code,
+                    "error_message": res_err,
+                    "is_secure": is_sec,
+                    "status_category": status_cat,
+                }, synchronize_session=False)
+
+                self.state.checked_links_cache[target_url] = (res_ip, res_code, res_err)
 
             session.commit()
             return True

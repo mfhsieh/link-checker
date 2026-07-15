@@ -19,7 +19,7 @@ from sqlalchemy.sql.functions import sum as sql_sum
 from backend.events import SystemEvent, publish
 from crawler.models import Base, CrawlQueue, ExternalLink, Job
 from crawler.runner import JobRunner
-from crawler.utils import create_optimized_engine
+from crawler.utils import create_optimized_engine, recalculate_job_progress
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -410,7 +410,6 @@ class JobManager:
                 return False
 
             job.status = "pending"
-            job.progress_stats = None
 
             # 清除外連記錄
             session.query(ExternalLink).filter(ExternalLink.job_id == job_id).delete(synchronize_session=False)
@@ -432,6 +431,9 @@ class JobManager:
             else:
                 new_start = CrawlQueue(job_id=job_id, url=job.start_url, source_url=None, status="pending")
                 session.add(new_start)
+
+            # 重新計算並更新快取的統計進度
+            recalculate_job_progress(session, job_id)
 
             session.commit()
             return True
@@ -460,7 +462,6 @@ class JobManager:
                 return False
 
             job.status = "pending"
-            job.progress_stats = None
 
             # 1. 將本身爬取失敗的內部網頁改回 pending
             session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.status == "failed").update(
@@ -509,6 +510,9 @@ class JobManager:
                         },
                         synchronize_session=False,
                     )
+
+            # 重新計算並更新快取的統計進度
+            recalculate_job_progress(session, job_id)
 
             session.commit()
             return True

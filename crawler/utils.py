@@ -5,6 +5,7 @@
 """
 
 import ipaddress
+import json
 import logging
 import os
 import socket
@@ -13,7 +14,7 @@ import threading
 import urllib.parse
 
 import cachetools
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine, create_engine, event, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.compiler import compiles
@@ -22,7 +23,7 @@ from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import JSON
 
-from crawler.models import CrawlQueue
+from crawler.models import CrawlQueue, ExternalLink, Job
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -410,3 +411,52 @@ def bulk_insert_ignore(
         session.execute(stmt_sq)
     else:
         raise ValueError(f"不支援的資料庫方言: {dialect_name}")
+
+
+def recalculate_job_progress(session: Session, job_id: str) -> None:
+    """
+    從資料庫重新計算特定任務的進度統計，並更新 Job.progress_stats。
+    通常用於局部重新探測或手動干預資料後，確保 UI 顯示的統計數據與 DB 一致。
+
+    Args:
+        session (Session): SQLAlchemy 資料庫 Session。
+        job_id (str): 欲更新統計的任務 ID。
+    """
+    job = session.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        return
+
+    # 統計 queue 各狀態數量
+    # 狀態包含: pending, completed, failed, skip, warning
+    status_counts = (
+        session.query(CrawlQueue.status, func.count(CrawlQueue.id))  # pylint: disable=not-callable
+        .filter(CrawlQueue.job_id == job_id)
+        .group_by(CrawlQueue.status)
+        .all()
+    )
+
+    counts_dict: dict[str, int] = dict(status_counts)  # type: ignore[arg-type]
+
+    queue_total = sum(counts_dict.values())
+    queue_completed = counts_dict.get("completed", 0)
+    queue_warning = counts_dict.get("warning", 0)
+    queue_skipped = counts_dict.get("skip", 0)
+    queue_pending = counts_dict.get("pending", 0)
+    queue_failed = counts_dict.get("failed", 0)
+
+    # 統計外部連結總數
+    external_total = session.query(func.count(ExternalLink.id)).filter(ExternalLink.job_id == job_id).scalar() or 0  # pylint: disable=not-callable
+
+    progress_dict = {
+        "queue": {
+            "total": queue_total,
+            "completed": queue_completed,
+            "warning": queue_warning,
+            "skipped": queue_skipped,
+            "pending": queue_pending,
+            "failed": queue_failed,
+        },
+        "external_links": external_total,
+    }
+
+    job.progress_stats = json.dumps(progress_dict)

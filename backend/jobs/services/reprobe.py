@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from crawler.manager import JobManager
 from crawler.models import CrawlQueue, ExternalLink, Job
+from crawler.utils import recalculate_job_progress
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -70,6 +71,9 @@ def reprobe_external_links(
     job_record = db.query(Job).filter(Job.id == job_id).first()
     if job_record and job_record.status in ("completed", "error"):
         job_record.status = "paused"
+
+    # 重新計算並更新快取的統計進度
+    recalculate_job_progress(db, job_id)
 
     db.commit()
 
@@ -160,6 +164,9 @@ def reprobe_internal_links(
     if job.status in ("completed", "error"):
         db.query(Job).filter(Job.id == job_id).update({"status": "paused"}, synchronize_session=False)
         job.status = "paused"
+
+    # 重新計算並更新快取的統計進度
+    recalculate_job_progress(db, job_id)
 
     db.commit()
 

@@ -32,7 +32,7 @@ logging.basicConfig(
 logger: logging.Logger = logging.getLogger("schema-check")
 
 
-# pylint: disable=too-many-locals, too-many-branches
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -> bool:
     """
     比對指定的 ORM Metadata 與資料庫真實 Schema 差異。

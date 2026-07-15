@@ -1182,10 +1182,12 @@ class CrawlerCore:
 
             return self._execute_external_request(current_url, tgt_dom, ip, accumulated_cookies)
         except httpx.RequestError as e:
-            return None, (None, str(e))
+            err_text = f"{type(e).__name__}: {e}".strip(": ")
+            return None, (None, err_text)
         # 外部連結探測的「統一防線」
         except Exception as e:  # pylint: disable=broad-exception-caught
-            return None, (None, str(e))
+            err_text = f"{type(e).__name__}: {e}".strip(": ")
+            return None, (None, err_text)
 
     def _handle_http_failure_retry(
         self,
@@ -1286,7 +1288,7 @@ class CrawlerCore:
                 if status_code is None and err_msg and ("DNS 解析失敗" in err_msg or "SSRF 防禦攔截" in err_msg):
                     return result
 
-                is_failed = (status_code is None and err_msg) or (status_code is not None and status_code >= 400)
+                is_failed = status_code is None or status_code >= 400
 
                 if is_failed and urlparse(current_url).scheme == "http":
                     next_url_retry, result_retry, fell_back = self._handle_http_failure_retry(
@@ -1298,10 +1300,8 @@ class CrawlerCore:
                         if fell_back:
                             return result_retry
 
-                        status_code_retry, err_msg_retry = result_retry
-                        is_retry_failed = (status_code_retry is None and err_msg_retry) or (
-                            status_code_retry is not None and status_code_retry >= 400
-                        )
+                        status_code_retry, _ = result_retry
+                        is_retry_failed = status_code_retry is None or status_code_retry >= 400
 
                         # 終極 TLS 偽裝降級 (curl_cffi)
                         if is_retry_failed and status_code_retry in TLS_SPOOF_STATUS_CODES:
