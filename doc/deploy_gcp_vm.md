@@ -40,6 +40,8 @@ sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 # 啟用 swap
 sudo swapon /swapfile
+# 檢查 swap 狀態
+sudo swapon --show
 # (可選) 永久生效，加入 /etc/fstab
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```

@@ -152,6 +152,7 @@ flowchart TD
   - 剔除無效的偽協定 (`javascript:`, `mailto:` 等)。
   - 將 URL 尾端的錨點（Fragment `#`）剝除。
   - 將相對路徑拼接為完整的絕對路徑。
+  - 判斷並傳遞 `is_secure` 狀態（若為 `http://` 則標記為非安全連結，以利後續資安稽核）。
 - **`_check_ignore_rules`**：檢查標準化後的網址是否符合附檔名或正則表達式排除規則。
 
 ---

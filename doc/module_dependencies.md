@@ -137,3 +137,6 @@
   - 為舊版腳本，早期資料庫欄位擴展時使用
   - 直接依賴 `crawler.models` 以撈取 `ExternalLink` 與 `Job` 並更新 `target_domain` 欄位。
   - 依賴 `backend.config` 獲取 Crawler DB 連線字串。
+- **`test_url.py` & `test_ext.py`**:
+  - 用於本地端測試與除錯的獨立腳本。
+  - 直接依賴 `crawler.core` 相關邏輯（如存活探測與狀態判定），並可能依賴 `crawler.utils`，用以驗證單一連結的爬取或外部存活狀態。

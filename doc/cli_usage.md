@@ -304,3 +304,12 @@ python cli.py --serve  # 若為開發環境，可加上 --reload 啟用熱重載
 # 在設定好 .env 後，執行遷移腳本
 python scripts/migrate_sqlite_to_pg.py
 ```
+
+---
+
+## 9. MCP Server 整合 (AI 助理代理)
+
+系統提供了一組獨立的 MCP (Model Context Protocol) 伺服器腳本，允許開發者透過 AI 助理 (例如 Claude Desktop) 直接連接並取得爬蟲系統的即時進度、錯誤報表，或執行暫停指令。
+
+若要啟動或設定此伺服器，請直接參閱專屬指南：
+👉 **[MCP Server 使用指南](file:///home/mfhsieh/projects/python/link-checker/doc/mcp_usage.md)**
