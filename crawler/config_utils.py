@@ -1,5 +1,16 @@
 """
 爬蟲設定與全域設定合併工具模組。
+
+此模組負責將個別任務的爬蟲設定與系統全域配置進行合併、驗證與安全上下限強制，
+提供以下三個公開元素：
+
+- ``DEFAULT_GLOBAL_CONFIG``：系統內建的安全預設設定常數，作為未指定設定時的最終退路保障。
+- ``ALLOWED_CRAWLER_KEYS``：個別任務允許覆寫的爬蟲設定鍵白名單。
+- ``merge_and_validate_crawler_config``：主要公開入口，完整執行白名單過濾、預設値補對、
+  清單聯集合併、環境變數覆寫與上下限強制等幾個步驟。
+
+模組內的私有函式（開頭有 ``_`` 字首者）為內部輔助工具，
+非專案公開介面，不建議直接呼叫。
 """
 
 import logging
@@ -51,34 +62,36 @@ def validate_domain_delays(delays: dict[str, float] | None) -> dict[str, float] 
 
 DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
     "crawler": {
-        "min_timeout": 10,
-        "max_timeout": 60,
-        "min_connect_timeout": 1.0,
-        "max_connect_timeout": 30.0,
-        "min_external_check_timeout": 1.0,
-        "max_external_check_timeout": 30.0,
-        "min_delay": 1.0,
-        "max_delay": 10.0,
-        "min_retries": 0,
-        "max_retries": 5,
-        "max_max_depth": None,
-        "max_max_pages": None,
-        "max_content_length": 10485760,
-        "max_redirects": 10,
-        "jitter_ratio": 0.2,
-        "user_agent": None,
-        "proxy_url": None,
-        "timeout": 30,
-        "connect_timeout": 5.0,
-        "external_check_timeout": 10.0,
-        "delay": 3.0,
-        "retries": 3,
-        "max_depth": None,
-        "max_pages": None,
+        # --- 安全上下限（全域配置可覆寫）---
+        "min_timeout": 10,                   # 請求等待超時最小限制 (秒)
+        "max_timeout": 60,                   # 請求等待超時最大限制 (秒)
+        "min_connect_timeout": 1.0,          # TCP 連線超時最小限制 (秒)
+        "max_connect_timeout": 30.0,         # TCP 連線超時最大限制 (秒)
+        "min_external_check_timeout": 1.0,  # 外部連結探測超時最小限制 (秒)
+        "max_external_check_timeout": 30.0, # 外部連結探測超時最大限制 (秒)
+        "min_delay": 1.0,                    # 網頁爬取間隔最小限制 (秒)
+        "max_delay": 10.0,                   # 網頁爬取間隔最大限制 (秒)
+        "min_retries": 0,                    # 最少重試次數
+        "max_retries": 5,                    # 最大重試次數
+        "max_max_depth": None,               # 爬取深度最大限制 (None 表示無限制)
+        "max_max_pages": None,               # 爬取頁數最大限制 (None 表示無限制)
+        "max_content_length": 10485760,      # 單頁內容最大允許字節數 (10 MB)
+        "max_redirects": 10,                 # HTTP 重導向最大次數
+        "jitter_ratio": 0.2,                 # 間隔時間隨機波動比例
+        # --- 任務預設值（小於全域上限）---
+        "user_agent": None,                  # HTTP User-Agent 標頭 (None 表示使用內建預設)
+        "proxy_url": None,                   # HTTP 代理伺服器 URL (None 表示不使用)
+        "timeout": 30,                       # 請求等待超時 (秒)
+        "connect_timeout": 5.0,             # TCP 連線超時 (秒)
+        "external_check_timeout": 10.0,     # 外部連結探測超時 (秒)
+        "delay": 3.0,                        # 網頁爬取間隔 (秒)
+        "retries": 3,                        # 失敗重試次數
+        "max_depth": None,                   # 爬取深度 (None 表示依全域限制)
+        "max_pages": None,                   # 爬取頁數 (None 表示依全域限制)
         "mime_type_filter": {"enabled": True, "allowed_types": ["text/html", "application/xhtml+xml"]},
-        "ignore_regexes": [],
-        "domain_delays": {},
-        "ssl_exempt_domains": [],
+        "ignore_regexes": [],                # 忽略 URL 的正則表達式清單
+        "domain_delays": {},                 # 特定網域的客製化間隔 (dict[str, float])
+        "ssl_exempt_domains": [],            # 豁免 SSL 驗證的網域清單
         "social_domains": [
             "facebook.com",
             "fb.com",
@@ -116,14 +129,23 @@ ALLOWED_CRAWLER_KEYS: set[str] = {
     "social_domains",
     "ignore_extensions",
 }
+"""個別任務允許覆寫的爬蟲設定鍵白名單。
+
+隱含設定（如安全上下限 ``min_*``/``max_*``、``max_content_length`` 等）
+僅允許全域配置覆寫，不得由個別任務直接設定。
+"""
 
 
 def _sanitize_numeric_type(k: str, v: object, exp: type | tuple[type, ...], config: dict[str, object]) -> None:
-    """處理數值型別的設定值清理。
+    """
+    處理數值型別的設定値清理。
+
+    若對應鍵的値為 bool（在 Python 中 bool 是 int 子類別），會發出警告並將其清除為 None。
+    若型別不符但可轉換，則嘗試強制轉換；若轉換失敗，則將其清除為 None。
 
     Args:
         k (str): 設定的鍵名。
-        v (object): 設定的原始值。
+        v (object): 設定的原始値。
         exp (type | tuple[type, ...]): 預期的型別。
         config (dict[str, object]): 爬蟲設定字典，清理後會直接修改此字典。
     """
@@ -140,11 +162,14 @@ def _sanitize_numeric_type(k: str, v: object, exp: type | tuple[type, ...], conf
 
 
 def _sanitize_string_type(k: str, v: object, config: dict[str, object]) -> None:
-    """處理字串型別的設定值清理。
+    """
+    處理字串型別的設定値清理。
+
+    若對應鍵的値不是字串型別，則將其強制轉換為字串。
 
     Args:
         k (str): 設定的鍵名。
-        v (object): 設定的原始值。
+        v (object): 設定的原始値。
         config (dict[str, object]): 爬蟲設定字典。
     """
     if not isinstance(v, str):
@@ -152,12 +177,16 @@ def _sanitize_string_type(k: str, v: object, config: dict[str, object]) -> None:
 
 
 def _sanitize_domain_delays(k: str, v: dict, config: dict[str, object]) -> None:
-    """清理 domain_delays 字典。
+    """
+    清理 domain_delays 字典並寫回至 config。
+
+    會过濾掉負數與無法轉換為 float 的對应值，
+    並將所有鍵強制轉換為字串。
 
     Args:
-        k (str): 設定的鍵名。
+        k (str): 設定的鍵名（常為 ``"domain_delays"``）。
         v (dict): 原始的 domain_delays 字典。
-        config (dict[str, object]): 爬蟲設定字典。
+        config (dict[str, object]): 爬蟲設定字典，清理後會直接寫回此字典。
     """
     sanitized_dd = {}
     for dd_k, dd_v in v.items():
@@ -173,10 +202,14 @@ def _sanitize_domain_delays(k: str, v: dict, config: dict[str, object]) -> None:
 
 
 def _sanitize_mime_type_filter(v: dict) -> None:
-    """清理 mime_type_filter 字典（就地修改）。
+    """
+    清理 mime_type_filter 字典（就地修改）。
+
+    將 ``enabled`` 欄位的字串形式變換為 bool，
+    並確保 ``allowed_types`` 為字串清單格式。
 
     Args:
-        v (dict): mime_type_filter 字典。
+        v (dict): mime_type_filter 字典（就地修改）。
     """
     if "enabled" in v and isinstance(v["enabled"], str):
         v["enabled"] = v["enabled"].lower() in ("true", "1", "yes", "on")
@@ -190,11 +223,15 @@ def _sanitize_mime_type_filter(v: dict) -> None:
 
 
 def _sanitize_dict_type(k: str, v: object, config: dict[str, object]) -> None:
-    """處理字典型別的設定值清理。
+    """
+    處理字典型別的設定値清理。
+
+    若對應鍵的値不是字典型別，發出警告並將其清除為 None。
+    若為 ``domain_delays`` 或 ``mime_type_filter``，委派給專屬的清理函式處理。
 
     Args:
         k (str): 設定的鍵名。
-        v (object): 設定的原始值。
+        v (object): 設定的原始値。
         config (dict[str, object]): 爬蟲設定字典。
     """
     if not isinstance(v, dict):
@@ -207,11 +244,15 @@ def _sanitize_dict_type(k: str, v: object, config: dict[str, object]) -> None:
 
 
 def _sanitize_list_type(k: str, v: object, config: dict[str, object]) -> None:
-    """處理陣列清單型別的設定值清理。
+    """
+    處理陣列清單型別的設定値清理。
+
+    若對應鍵的値為字串，自動包裝為單元素陣列。
+    若為可迭代物件則將其轉换為 list，否則清除為空陣列。
 
     Args:
         k (str): 設定的鍵名。
-        v (object): 設定的原始值。
+        v (object): 設定的原始値。
         config (dict[str, object]): 爬蟲設定字典。
     """
     if isinstance(v, str):
@@ -395,7 +436,13 @@ def _merge_crawler_lists(crawler_config: dict[str, object], global_crawler_confi
 
 def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_config: dict[str, object]) -> None:
     """
-    強制套用全域上下限。
+    將各項數值設定強制收斂在全域配置允許的安全上下限範圍內。
+
+    對於數値型設定（``timeout``、``delay``、``retries`` 等），將小於最小値者強制
+    拉升、大於最大値者強制拉降。
+    對於可為 None（無限制）的設定（``max_depth``、``max_pages``）：
+    - 若全域有設定最大値，會將 None 強制天花板為該最大値。
+    - 若個別値小於 1，則強制設為 1。
 
     Args:
         crawler_config (dict[str, object]): 個別任務的爬蟲設定。
@@ -443,12 +490,17 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
             crawler_config[key] = max_val
 
     def _clamp_optional_limit(key: str, max_k: str, def_max: int) -> None:
-        """套用可為 None 的選項上限限制。
+        """
+        套用可為 None（無限制）的選項上限限制。
+
+        如果個別設定為 None（表示無限制）而全域有設定最大値，
+        則將其強制受限為全域最大値。
+        如果個別値小於 1，則強制修正為 1。
 
         Args:
             key (str): 設定鍵名。
-            max_k (str): 最大值的全域設定鍵名。
-            def_max (int): 預設的最大值。
+            max_k (str): 最大値的全域設定鍵名。
+            def_max (int): 預設的最大値。
         """
         if max_k in global_crawler_config:
             max_val = global_crawler_config[max_k]

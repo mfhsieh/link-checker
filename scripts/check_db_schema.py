@@ -1,10 +1,17 @@
 """
 資料庫架構檢驗工具。
 
-此腳本讀取 `.env` 中的 `AUTH_DB_URL` 與 `CRAWLER_DB_URL` 設定，
+此腳本讀取 ``.env`` 中的 ``AUTH_DB_URL`` 與 ``CRAWLER_DB_URL`` 設定，
 利用 SQLAlchemy Inspection 機制反射資料庫結構，
 並與程式定義的 ORM Metadata (AuthBase, Base) 進行比對，
 列出缺失的資料表、欄位、索引或外鍵約束。
+
+典型用法：
+
+    .venv/bin/python scripts/check_db_schema.py
+
+此工具假設專案根目錄存在有效的 ``.env`` 檔案，內含 ``AUTH_DB_URL``
+與 ``CRAWLER_DB_URL`` 連線字串。
 """
 
 import logging
@@ -38,13 +45,18 @@ def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -
     比對指定的 ORM Metadata 與資料庫真實 Schema 差異。
 
     透過 SQLAlchemy 的 Inspection 機制取得資料庫真實的資料表、欄位、型別、
-    索引與外鍵設定，並與程式定義的 `metadata` 進行逐一比對。若發現任何結構缺失
-    或型別不符，將輸出警告日誌。
+    索引與外鍵設定，並與程式定義的 ``metadata`` 進行逐一比對。若發現任何結構缺失
+    或 Nullable 約束不符，將輸出錯誤日誌；欄位型別不一致則輸出警告日誌。
+
+    Note:
+        型別不一致僅記錄為 WARNING 而非 ERROR，因為不同資料庫方言的
+        型別字面可能有合法差異（如 SQLite 的 DATETIME
+        與 PostgreSQL 的 TIMESTAMP），這類差異不一定代表資料損壞。
 
     Args:
         engine (Engine): SQLAlchemy 資料庫引擎。
         metadata (MetaData): 程式定義的 ORM Metadata 結構描述。
-        db_name (str): 資料庫識別名稱（如 "Auth DB" 或 "Crawler DB"），用於日誌輸出。
+        db_name (str): 資料庫識別名稱（如 ``"Auth DB"`` 或 ``"Crawler DB"``），用於日誌輸出。
 
     Returns:
         bool: 若資料庫結構與 ORM 預期完全一致回傳 True，有任何差異則回傳 False。
@@ -103,6 +115,8 @@ def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -
                         )
 
                 # 檢查 Nullable 約束 (NOT NULL)
+                # SQLAlchemy Column.nullable 通常為 bool，
+                # 但防禦性處理 None 的情況（例如反射時無法取得欄位定義）。
                 db_nullable = db_cols[col_name].get("nullable", True)
                 expected_nullable = getattr(col_obj, "nullable", True)
                 if expected_nullable is None:
@@ -168,11 +182,14 @@ def main() -> None:
     主控制流程。
 
     讀取環境變數設定的資料庫連線字串，建立 SQLAlchemy Engine，
-    並依序檢驗 Auth DB 與 Crawler DB 的 Schema。若檢查全數通過，
-    程式會以 Exit Code 0 結束；若有任何不一致，則以 Exit Code 1 結束。
+    並依序檢驗 Auth DB 與 Crawler DB 的 Schema。
+
+    若兩個資料庫的結構檢查全數通過，程式以 Exit Code 0 結束；
+    若有任何不一致，則以 Exit Code 1 結束並輸出錯誤日誌。
 
     Raises:
-        SystemExit: 若結構相符則拋出 Exit Code 0，否則拋出 Exit Code 1 結束腳本。
+        SystemExit: 檢查完成後以 ``sys.exit()`` 結束程式。
+            全數通過為 Exit Code 0，有不一致為 Exit Code 1。
     """
     settings = get_settings()
 
@@ -182,8 +199,8 @@ def main() -> None:
     logger.info("========================================")
     logger.info("  正在檢驗生產環境資料庫架構 (Schema Check) ")
     logger.info("========================================")
-    logger.info("Auth DB URL      : %s", auth_url.split("@")[-1])
-    logger.info("Crawler DB URL   : %s", crawler_url.split("@")[-1])
+    logger.info("Auth DB URL      : %s", auth_url.split("@")[-1])  # 隱藏 @ 前的認證資訊
+    logger.info("Crawler DB URL   : %s", crawler_url.split("@")[-1])  # 隱藏 @ 前的認證資訊
     logger.info("========================================")
 
     auth_engine = create_engine(auth_url)

@@ -3,6 +3,15 @@
 
 此模組定義了 SQLAlchemy ORM 模型，用於追蹤 Job、爬取佇列 (Queue)
 以及探索到的外部連結，並採用 SQLAlchemy 2.0 的 Type Hinting 宣告風格。
+
+公開元素：
+
+- ``Base``：所有 ORM 模型的共同基底類別。
+- ``CrawlerConfig``：爬蟲引擎的運行期配置封裝物件。
+- ``Job``：表一個完整的爬蟲任務紀錄。
+- ``CrawlQueue``：表一筆等待爬取的網址佇列項目。
+- ``ExternalLink``：表在爬蟲任務期間發現的外部連結紀錄。
+- ``apply_job_result_filters``：對外連查詢套用搜尋、排除與狀態篩選條件的共用工具函式。
 """
 
 from __future__ import annotations
@@ -22,7 +31,12 @@ _DEF: dict[str, object] = _crawler_def if isinstance(_crawler_def, dict) else {}
 
 
 class Base(DeclarativeBase):  # pylint: disable=too-few-public-methods
-    """所有 SQLAlchemy 宣告式模型的基底類別 (Base Class)。"""
+    """
+    所有 SQLAlchemy 宣告式模型的基底類別 (Base Class)。
+
+    此專案中的所有 ORM 模型（``Job``、``CrawlQueue``、``ExternalLink``）
+    均繼承此類別，以便統一管理 ``metadata`` 與 ``Base.metadata.create_all()``。
+    """
 
 
 def get_utc_now() -> datetime:
@@ -74,7 +88,13 @@ class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
 
     def __post_init__(self) -> None:
         """
-        在初始化後檢查網域陣列是否有提供初始值。
+        在 dataclass 初始化完成後，確保所有可變預設值皆有有效的初始列表。
+
+        當 ``ignore_extensions``、``mime_type_filter``、``ignore_regexes``、
+        ``ssl_exempt_domains``、``social_domains`` 之一為 None 時，
+        將其改寫為從 ``DEFAULT_GLOBAL_CONFIG`` 複製的預設值。
+        此防禦性處理有其必要，因為 ``cast()`` 在少數情況下可能回傳 None，
+        而可變預設值若共用同一物件會導致意外連帶修改。
         """
         if self.ignore_extensions is None:
             self.ignore_extensions = list(_DEF["ignore_extensions"])
@@ -98,8 +118,11 @@ class Job(Base):  # pylint: disable=too-few-public-methods
         start_url (str): 爬蟲起始的網址。
         target_domains (str): 允許爬蟲進入的網域清單，以逗號分隔。
         trusted_domains (str): 被視為信任網域的清單，以逗號分隔。
-        status (str): 任務的當前狀態 (例如：pending, queued, starting, running, paused, completed, error)。
+        status (str): 任務的當前狀態
+            (例如：pending, queued, starting, running, paused, completed, error)。
         config_json (str | None): 紀錄啟動時的爬蟲設定 (JSON 格式)，以確保後續 Resume 設定一致。
+        progress_stats (str | None): 由爬蟲器寫入的任務進度統計快取 (JSON 格式)。用於加速
+            ``get_job_report`` 查詢，避免每次全表掃描。
         created_at (datetime): 任務建立的時間戳記。
         updated_at (datetime): 任務最後更新的時間戳記。
         queues (list[CrawlQueue]): 此任務中等待爬取的網址佇列關聯。
@@ -135,10 +158,14 @@ class CrawlQueue(Base):  # pylint: disable=too-few-public-methods
         id (int): 佇列項目的主鍵。
         job_id (str): 關聯到所屬任務的外部鍵 (Foreign Key)。
         url (str): 準備要爬取的網址。
-        source_url (str | None): 發現此網址的來源網頁網址 (若為起始網址則為 None)。
-        status (str): 此網址的當前狀態 (例如：pending, completed, failed)。
+        source_url (str | None): 發現此網址的來源網頁網址（若為起始網址則為 None）。
+        status (str): 此網址的當前狀態 (例如：pending, completed, failed, warning, skipped)。
+        status_code (int | None): HTTP 回應狀態碼（尚未處理時為 None）。
         retry_count (int): 目前已經失敗並重試的次數。
+        depth (int): 此網址在爬取樹狀結構中的深度層數（從起始網址計起）。
         error_message (str | None): 若爬取失敗時的例外或錯誤訊息紀錄。
+        status_category (str): 狀態分類總結，用於快速統計（例如：pending, completed, warning, failed）。
+        is_secure (bool): 指示該網址是否通過 HTTPS 連線，用於安全性報告。
         created_at (datetime): 此網址加入佇列的時間戳記。
         updated_at (datetime): 此網址狀態最後更新的時間戳記。
         job (Job): 關聯的任務物件。
@@ -183,8 +210,15 @@ class ExternalLink(Base):  # pylint: disable=too-few-public-methods
         job_id (str): 關聯到所屬任務的外部鍵。
         source_url (str): 發現此外部連結的來源網頁網址。
         target_url (str): 外部連結本身的網址。
-        ip_address (str | None): 該外部連結網域解析出的 IP 位址。
+        target_domain (str): 外部連結的網域名稱，用於分組與索引加速查詢。
+        ip_address (str | None): 該外部連結網域解析出的 IP 位址（IPv4 或 IPv6）。
+        is_secure (bool): 指示該外部連結是否通過 HTTPS 安全連線。
+        http_status_code (int | None): 探測到的 HTTP 狀態碼（尚未探測則為 None）。
+        error_message (str | None): 探測時發生的錯誤訊息（如 DNS 失敗、連線消時）。
+        status_category (str): 外連狀態分類，用於快速評估健康度
+            (例如：pending, healthy, not_found, server_error, connection_error, other_error, blocked, dns_failed)。
         created_at (datetime): 紀錄此外部連結的時間戳記。
+        updated_at (datetime): 此外連狀態最後更新的時間戳記。
         job (Job): 關聯的任務物件。
     """
 
@@ -227,13 +261,28 @@ def apply_job_result_filters(
     status_filter: str | None = None,
 ) -> Query:
     """
-    套用共用的外連過濾條件。
+    對外連查詢套用搜尋、排除與狀態篩選條件。
+
+    該函式套用的所有 LIKE 查詢均會對特殊字元 (``%``、``_``、``\\``)
+    進行逸出處理，防範 SQL LIKE Injection。
 
     Args:
-        query (Query): SQLAlchemy 查詢物件 (基於 ExternalLink)。
-        search (str | None): 搜尋關鍵字。
-        exclude (str | None): 要排除的關鍵字 (以逗號分隔)。
-        status_filter (str | None): 狀態篩選條件。
+        query (Query): SQLAlchemy 查詢物件（基於 ``ExternalLink``）。
+        search (str | None): (選填) 對 ``target_url`` 與 ``source_url`` 進行模糊搜尋的關鍵字。
+        exclude (str | None): (選填) 要從 ``target_url`` 中排除的關鍵字，
+            多項以逗號分隔（例如 ``"example.com,test.org"``）。
+        status_filter (str | None): (選填) 依據 ``status_category`` 進行狀態篩選，
+            支援的値為：
+            - ``"dead"`` 或 ``"dns_failed"``：dns_failed 類別。
+            - ``"broken"``：not_found, server_error, connection_error, other_error 類別。
+            - ``"not_found"``：HTTP 404 類別。
+            - ``"server_error"``：HTTP 5xx 類別。
+            - ``"connection_error"``：連線失敗。
+            - ``"other_error"``：其他錯誤類別。
+            - ``"blocked"``：被對方識別為機器人或主動封鎖。
+            - ``"insecure"``：已完成探測且為非 HTTPS 連線。
+            - ``"healthy"``：正常可連結。
+            - 其他值或 None：不套用任何狀態過濾。
 
     Returns:
         Query: 加上過濾條件後的 SQLAlchemy 查詢物件。

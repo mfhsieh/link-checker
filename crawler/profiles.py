@@ -1,8 +1,15 @@
 """
 動態瀏覽器特徵 (Browser Profiles) 產生模組。
 
-利用 fake_useragent 隨機取得真實的 User-Agent，並自動配對對應的現代瀏覽器 Headers，
+利用 ``fake_useragent`` 隨機取得真實的 User-Agent，並自動配對對應的現代瀏覽器 Headers，
 提高繞過基礎反爬蟲機制的成功率。
+
+公開入口：
+
+- ``get_random_profile``：主要公開函式，產生偽裝性高的瀏覽器 HTTP 標頭組合。
+
+若 ``fake_useragent`` 資料庫取得失敗，會自動退回 Chrome 120 的預設字串並發出警告日誌，
+不會中斷呼叫。
 """
 
 import logging
@@ -25,10 +32,10 @@ def _extract_chrome_version(ua_string: str) -> str:
         ua_string (str): User-Agent 字串。
 
     Returns:
-        str: Chrome 主版本號字串。
+        str: Chrome 主版本號字串。若無法從 ua_string 中擷取，則 fallback 為 ``"120"``。
     """
     match = re.search(r"Chrome/(\d+)\.", ua_string)
-    return match.group(1) if match else "120"
+    return match.group(1) if match else "120"  # fallback 為常規 Chrome 版本號
 
 
 def _extract_edge_version(ua_string: str) -> str:
@@ -39,22 +46,34 @@ def _extract_edge_version(ua_string: str) -> str:
         ua_string (str): User-Agent 字串。
 
     Returns:
-        str: Edge 主版本號字串。
+        str: Edge 主版本號字串。若無法從 ua_string 中擷取，則 fallback 為 ``"120"``。
     """
     match = re.search(r"Edg/(\d+)\.", ua_string)
-    return match.group(1) if match else "120"
+    return match.group(1) if match else "120"  # fallback 為常規 Edge 版本號
 
 
 def get_random_profile(url: str | None = None) -> dict[str, str]:
     """
     隨機產生一組高擬真度的瀏覽器 HTTP 標頭。
-    若提供 url，會根據 HTTP/HTTPS 動態決定是否附加 Secure Context 專屬標頭。
+
+    標頭內容會依據隨機取得的 User-Agent 屬於哪種瀏覽器（Chrome、Edge、Firefox、Safari）
+    進行對應調整，並對安全/非安全連線分別處理：
+
+    - HTTPS 連線（或 ``url`` 為 None）：附加 ``Sec-Fetch-*`` Secure Context 專屬標頭。
+    - HTTP 明文連線：不附加上述標頭，避免觸發 WAF 防護。
+    - Chrome/Edge：附加 ``Sec-Ch-Ua-*`` Client Hints。
+    - Firefox/Safari：不附加 ``Sec-Ch-Ua-*``，符合其實際瀏覽器行為。
 
     Args:
-        url (str | None): 當前請求的網址，用以判斷是否為安全連線。
+        url (str | None): 當前請求的網址。用以判斷是否為安全連線，
+            若為 None 則預設視為安全連線。
 
     Returns:
-        dict[str, str]: 包含 User-Agent 與對應 Sec-Ch-Ua 等欄位的標頭字典。
+        dict[str, str]: 包含 User-Agent 與對應瀏覽器標頭的字典。
+            實際包含的鍵因瀏覽器種類與連線名稱而異，
+            常規項目有 ``"User-Agent"``、``"Accept"``、``"Accept-Language"``、
+            ``"Upgrade-Insecure-Requests"``；HTTPS 另外附加 ``"Sec-Fetch-*"``；
+            Chrome/Edge 另外附加 ``"Sec-Ch-Ua-*"``。
     """
     try:
         user_agent = _ua.random
