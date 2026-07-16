@@ -1,10 +1,16 @@
 """
 任務局部重新探測 (Reprobe) 服務模組。
 
-本模組負責處理使用者在介面上觸發的「重新探測」操作，包含內部連結 (自家網頁)
-與外部連結的重測邏輯。主要行為是將對應的資料庫紀錄狀態重置為 pending，
-並將已完成或暫停的任務切換回暫停 (paused) 狀態，以便背景的爬蟲服務 (Crawler Runner)
-在重新啟動後接續處理這些 pending 的項目。
+本模組提供兩個公開服務函式，負責處理使用者在介面上觸發的「重新探測」操作：
+
+- ``reprobe_external_links``：將指定外部連結的狀態重置為 pending，
+  並將任務切換回 paused 以利後續重新啟動探測。
+- ``reprobe_internal_links``：將指定內部連結的狀態重置為 pending，
+  並清除其衍生的外部連結備檔，以防重複資料污染。
+
+共同假設：
+    此模組中的函式假設呼叫端將在必要時自行執行 ``session.commit()``，
+    同一請求內的多次資料庫寫入會整體 commit 或 rollback。
 """
 
 import logging
@@ -26,8 +32,8 @@ def reprobe_external_links(
     """
     將指定的外部連結標記為待重新探測 (pending)。
 
-    此函式並不會同步執行 HTTP 網路請求，而是將資料庫中指定的 `ExternalLink`
-    紀錄狀態重置為 `pending`，清空先前的 HTTP 狀態碼與錯誤訊息。同時，若任務目前
+    此函式並不會同步執行 HTTP 網路請求，而是將資料庫中指定的 ``ExternalLink``
+    紀錄狀態重置為 ``pending``，清空先前的 HTTP 狀態碼與錯誤訊息。同時，若任務目前
     處於已完成 (completed) 或錯誤 (error) 狀態，將其切換為暫停 (paused)，
     以便使用者後續可以點擊「啟動任務」交由背景爬蟲程式接手處理。
 
@@ -36,11 +42,17 @@ def reprobe_external_links(
         manager (JobManager): 負責管理任務實體與狀態的管理器。
         job_id (str): 欲操作的目標任務 ID。
         user_id (str): 當前發起請求的使用者 ID。
-        urls (list[str]): 欲重新探測的外部網址 (target_url) 清單。
-        group_by (str): 分組模式。
+        urls (list[str]): 欲重新探測的外部連結清單，其內容因 group_by 而異：
+            - ``"none"``：直接對比 ``target_url``。
+            - ``"source"``：對比 ``source_url``，重測該來源頁下所有外部連結。
+            - ``"domain"``：對比 ``target_domain``，重測該目標網域下所有連結。
+        group_by (str): 分組模式，控制 urls 清單的比對欄位。
+            允許值：``"none"``（預設）、``"source"``、``"domain"``。
 
     Returns:
-        dict[str, object]: 包含狀態與更新成功訊息的字典 (例如 `{"status": "success", "message": "..."}`)。
+        dict[str, object]: 包含下列鍵的操作結果字典：
+            - ``"status"`` (str)：操作狀態，常為 ``"success"``。
+            - ``"message"`` (str)：描述更新結果的訊息字串。
 
     Raises:
         ValueError: 若找不到指定的任務 ID，或當前使用者無權限操作該任務時拋出。
@@ -85,23 +97,33 @@ def reprobe_internal_links(
     db: DBSession, manager: JobManager, job_id: str, user_id: str, urls: list[str], group_by: str = "none"
 ) -> dict[str, object]:
     """
-    將指定的內部連結 (自家網頁) 標記為待重新探測 (pending)，並清除其衍生的外連紀錄。
+    將指定的內部連結 (自家網頁) 標記為待重新探測 (pending)，並清除其衍生的外部連結備檔。
 
-    當使用者修正了自家網頁的內容並希望重新掃描時，此函式會先刪除舊有由這些網頁
-    (source_url) 所萃取出來的 `ExternalLink` 紀錄，避免重新爬取時產生重複或髒資料。
-    接著將 `CrawlQueue` 中對應的紀錄狀態重置為 `pending`，最後若任務處於已完成或
-    錯誤狀態，則將其切換為暫停 (paused) 準備讓背景爬蟲接手。
+    此函式會對結果執行以下三項操作：
+    1. 刪除指定內部連結以 ``source_url`` 為源所產生的全部 ``ExternalLink`` 備檔，
+       避免重新爬取時產生重複或髒資料。
+    2. 將 ``CrawlQueue`` 中對應項目的狀態重置為 ``pending``。
+    3. 若任務處於已完成 (completed) 或錯誤 (error) 狀態，將其切換為暫停 (paused)。
+
+    Note:
+        ``group_by="source"`` 模式會額外重設指定內部連結之下，狀態為
+        ``failed``、``warning`` 或 ``is_secure=False`` 的子代連結。
 
     Args:
         db (DBSession): SQLAlchemy 的資料庫連線階段。
         manager (JobManager): 負責管理任務實體與狀態的管理器。
         job_id (str): 欲操作的目標任務 ID。
         user_id (str): 當前發起請求的使用者 ID。
-        urls (list[str]): 欲重測的內部網址清單。
-        group_by (str): 分組模式。
+        urls (list[str]): 欲重測的內部連結清單，其內容因 group_by 而異：
+            - ``"none"``：直接對比 ``CrawlQueue.url``，並清除對應的外部連結。
+            - ``"source"``：對比 ``CrawlQueue.url``，並額外重設其子代異常連結。
+        group_by (str): 分組模式，控制重置範圍與子代連結處理行為。
+            允許值：``"source"``（重設自己與子代）、其他任意字串（僅重設自己）。
 
     Returns:
-        dict[str, object]: 包含操作成功訊息的字典。
+        dict[str, object]: 包含下列鍵的操作結果字典：
+            - ``"status"`` (str)：操作狀態，常為 ``"success"``。
+            - ``"message"`` (str)：描述更新結果的訊息字串。
 
     Raises:
         ValueError: 若找不到指定的任務 ID，或當前使用者無權限操作該任務時拋出。
@@ -170,4 +192,4 @@ def reprobe_internal_links(
 
     db.commit()
 
-    return {"message": "已將選取的內部連結設為待爬取，請點擊「啟動任務」以重新處理。"}
+    return {"status": "success", "message": "已將選取的內部連結設為待爬取，請點擊「啟動任務」以重新處理。"}

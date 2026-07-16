@@ -1,7 +1,18 @@
 """
-爬蟲套件的工具函式。
+爬蟲套件的共用工具函式與輔助類別。
 
-此模組提供網域擷取、網域驗證、IP 位址解析以及網址正規化等輔助函式。
+此模組涵蓋下列大領域：
+
+- **網址與網域處理**：網域擷取、子網域比對、網址正規化。
+- **IP 位址與資安**：具備 TTL 快取的 DNS 解析、SSRF 風險防護檢查。
+- **資料庫工具**：跨資料庫最佳化引擎建立、跨方言 JSON SQL 聚合函式、
+  批次 Upsert (Insert Ignore)、任務進度重算。
+- **狀態分類**：依據 HTTP 狀態碼與錯誤訊息對內部與外部連結進行語意分類。
+- **報表格式化**：將 ORM 物件轉換為 API 回應用字典。
+
+模組層級常數：
+    DNS_CACHE_MAXSIZE: DNS 解析結果 LRU 快取的最大條數。
+    DNS_CACHE_TTL: DNS 解析快取的存活時間（秒）。
 """
 
 import ipaddress
@@ -27,9 +38,10 @@ from crawler.models import CrawlQueue, ExternalLink, Job
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# DNS 快取常數設定
-DNS_CACHE_MAXSIZE = 1024
-DNS_CACHE_TTL = 300
+#: DNS_CACHE_MAXSIZE: DNS 解析結果 LRU 快取的最大條數。
+DNS_CACHE_MAXSIZE: int = 1024
+#: DNS_CACHE_TTL: DNS 解析快取的存活時間（秒），預設為 5 分鐘。
+DNS_CACHE_TTL: int = 300
 
 
 def get_domain(url: str) -> str:
@@ -139,13 +151,27 @@ def normalize_url(url: str, base_url: str) -> str:
 
 def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
     """
-    格式化 CrawlQueue 項目為字典供報表使用。
+    將 CrawlQueue ORM 物件序列化為報表用字典。
+
+    回傳的字典鍵名同時包含首字母大寫（如 ``Status``）與小寫（如 ``is_secure``）
+    兩種樣式，為對歷史 CSV/Excel 導出格式的相容設計。
 
     Args:
-        q (CrawlQueue): 欲格式化的佇列項目。
+        q (CrawlQueue): 欲格式化的佇列 ORM 物件。
 
     Returns:
-        dict[str, object]: 包含佇列項目詳細資訊的字典。
+        dict[str, object]: 包含下列鍵的詳細字典：
+            - ``source_url`` (str): 來源網址（來源不明時為空字串）。
+            - ``target_url`` (str): 目標網址。
+            - ``Status`` (str): 爬取狀態（pending / completed / failed / skip / warning）。
+            - ``Status Category`` (str): 語意化分類（如 healthy、broken 等）。
+            - ``Depth`` (int): 爬取深度。
+            - ``Retry Count`` (int): 重試次數。
+            - ``is_secure`` (bool): 是否為 HTTPS 連結。
+            - ``http_status_code`` (int | str): HTTP 狀態碼（未取得時為空字串）。
+            - ``error_message`` (str): 錯誤訊息（無訊息時為空字串）。
+            - ``Created At`` (str): 建立時間（格式 ``YYYY-MM-DD HH:MM:SS``）。
+            - ``Updated At`` (str): 最後更新時間（格式 ``YYYY-MM-DD HH:MM:SS``）。
     """
     return {
         "source_url": q.source_url if q.source_url else "",
@@ -165,7 +191,18 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
 class JSONGroupArray(FunctionElement):
     """
     跨資料庫的 JSON 陣列聚合函數。
-    SQLite 編譯為 json_group_array，PostgreSQL 編譯為 json_agg。
+
+    將多筆資料列直下的值聚合為 JSON 陣列：
+    SQLite 編譯為 ``json_group_array(...)``，
+    PostgreSQL 編譯為 ``json_agg(...)``。
+
+    典型用法：
+        session.query(JSONGroupArray(MyModel.name)).scalar()
+
+    Attributes:
+        name (str): SQLAlchemy 內部識別用的函數名稱。
+        type_ (JSON): 回傳值的 SQLAlchemy 型別為 JSON。
+        inherit_cache (bool): 設為 True 表示允許 SQLAlchemy 對此函數元素快取編譯結果。
     """
 
     name = "json_group_array"
@@ -208,7 +245,18 @@ def _compile_json_group_array_postgresql(element: JSONGroupArray, compiler: SQLC
 class JSONObject(FunctionElement):
     """
     跨資料庫的 JSON 物件建構函數。
-    SQLite 編譯為 json_object，PostgreSQL 編譯為 json_build_object。
+
+    將鍵值對列表建構為單一 JSON 物件：
+    SQLite 編譯為 ``json_object(...)``，
+    PostgreSQL 編譯為 ``json_build_object(...)``。
+
+    典型用法：
+        session.query(JSONObject("key", MyModel.value)).scalar()
+
+    Attributes:
+        name (str): SQLAlchemy 內部識別用的函數名稱。
+        type_ (JSON): 回傳值的 SQLAlchemy 型別為 JSON。
+        inherit_cache (bool): 設為 True 表示允許 SQLAlchemy 對此函數元素快取編譯結果。
     """
 
     name = "json_object"
@@ -293,10 +341,16 @@ def create_optimized_engine(  # pylint: disable=too-many-arguments
         @event.listens_for(engine, "connect")
         def set_sqlite_pragma(dbapi_connection: sqlite3.Connection, _connection_record: object) -> None:
             """
-            設定 SQLite 的 PRAGMA 參數，提升並發效能與安全性。
+            新連線建立時自動設定 SQLite 的 PRAGMA 參數。
+
+            將 WAL 日誌、同步模式、快取頁數、外鍵等 PRAGMA 套入每條新連線，
+            提升多執行緒並發安全性與效能。
 
             Args:
-                dbapi_connection (object): SQLite 資料庫連線物件。
+                dbapi_connection (sqlite3.Connection): SQLite DBAPI 連線物件，
+                    由 SQLAlchemy 於連線池建立連線時傳入。
+                    ``_connection_record`` 參數為 SQLAlchemy ``connect`` 事件的必要
+                    簽名，但此處不使用，故以底線開頭命名。
             """
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
@@ -311,14 +365,24 @@ def create_optimized_engine(  # pylint: disable=too-many-arguments
 # pylint: disable=too-many-return-statements
 def determine_external_link_status_category(ip_address: str | None, status_code: int | None) -> str:
     """
-    根據目標的 IP 解析結果與 HTTP 狀態碼，判斷外部連結的狀態分類。
+    依據目標的 IP 解析結果與 HTTP 狀態碼，判斷外部連結的語意分類。
+
+    分類導用於前端報表呈現與筛選。分類優先順序為：
+    IP 解析失敗 > HTTP 狀態碼未取得 > 404/410 > 5xx > WAF 攔截 > 其他 4xx > 健康。
 
     Args:
-        ip_address (str | None): 網域解析出的 IP 位址。
-        status_code (int | None): 取得的 HTTP 狀態碼。
+        ip_address (str | None): 網域解析出的 IP 位址。為 None 表示 DNS 解析失敗。
+        status_code (int | None): 取得的 HTTP 狀態碼。為 None 表示連線層失敗。
 
     Returns:
-        str: 分類字串 (例如 "healthy", "dns_failed", "not_found" 等)。
+        str: 語意分類字串，可能值為：
+            - ``"dns_failed"``：網域無法解析 (ip_address 為 None)。
+            - ``"connection_error"``：連線建立失敗，未取得任何 HTTP 回應。
+            - ``"not_found"``：資源不存在 (HTTP 404 / 410)。
+            - ``"server_error"``：目標伺服器內部錯誤 (HTTP 5xx)。
+            - ``"blocked"``：被 WAF 或存取控制政策攔截 (HTTP 401/403/405/406/429)。
+            - ``"other_error"``：其他 4xx 狀態碼，非上述明確類別。
+            - ``"healthy"``：連結正常存活（HTTP 2xx/3xx）。
     """
     if not ip_address:
         return "dns_failed"
@@ -344,15 +408,26 @@ def determine_external_link_status_category(ip_address: str | None, status_code:
 # pylint: disable=too-many-return-statements
 def determine_internal_link_status_category(status: str, status_code: int | None, error_message: str | None) -> str:
     """
-    根據 CrawlQueue 的狀態、HTTP 狀態碼與錯誤訊息，判斷內部連結的狀態分類。
+    依據 CrawlQueue 的狀態、HTTP 狀態碼與錯誤訊息，判斷內部連結的語意分類。
+
+    此函式將 CrawlerCore 回傳的原始狀態資訊轉換為更細粒的語意分類，
+    分類僅在狀態為 ``"failed"`` 時才進一步分析錯誤原因。
 
     Args:
-        status (str): CrawlQueue 的當前狀態。
-        status_code (int | None): 取得的 HTTP 狀態碼。
-        error_message (str | None): 例外或錯誤訊息。
+        status (str): CrawlQueue 的當前狀態（completed / failed / skip / warning）。
+        status_code (int | None): 取得的 HTTP 狀態碼。為 None 表示連線層失敗。
+        error_message (str | None): 爬取時回傳的例外或錯誤訊息。
 
     Returns:
-        str: 分類字串 (例如 "healthy", "warning", "not_found", "server_error" 等)。
+        str: 語意分類字串，可能值為：
+            - ``"warning"``：爬取成功但內容被截斷（如網頁體積超限）。
+            - ``"completed"``、``"skip"``、``"pending"``：非 failed 時直接回傳原始 status 字串。
+            - ``"timeout"``：連線超時（status=failed 且對應訊息含 timeout）。
+            - ``"connection_error"``：連線層失敗且未取得 HTTP 狀態碼。
+            - ``"not_found"``：資源不存在 (HTTP 404 / 410)。
+            - ``"server_error"``：目標伺服器內部錯誤 (HTTP 5xx)。
+            - ``"blocked"``：被 WAF 或政策攔截 (HTTP 401/403/405/406/429)。
+            - ``"other_error"``：其他不明原因的 4xx 錯誤。
     """
     if status == "warning":
         return "warning"
@@ -416,7 +491,12 @@ def bulk_insert_ignore(
 def recalculate_job_progress(session: Session, job_id: str) -> None:
     """
     從資料庫重新計算特定任務的進度統計，並更新 Job.progress_stats。
+
     通常用於局部重新探測或手動干預資料後，確保 UI 顯示的統計數據與 DB 一致。
+
+    Note:
+        此函式僅修改 ``job.progress_stats``，不會自動執行 ``session.commit()``。
+        呼叫端負責在需要時自行 commit。
 
     Args:
         session (Session): SQLAlchemy 資料庫 Session。

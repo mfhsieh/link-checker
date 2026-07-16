@@ -1,8 +1,22 @@
 """
 爬蟲任務 (Job) 管理模組。
 
-此模組提供 JobManager 類別，負責處理資料庫互動、建立爬蟲任務、
-管理爬取佇列 (Queue)、處理中斷例外，以及執行主要的爬蟲迴圈。
+此模組提供兩個公開類別：
+
+- ``JobCreateOptions``：建立任務所需的參數封裝物件。
+- ``JobManager``：主要管理器類別，負責處理資料庫互動、建立爬蟲任務、
+  管理爬取佇列 (Queue)、處理中斷例外，以及執行主要的爬蟲迴圈。
+
+典型用法：
+
+    manager = JobManager(db_url="sqlite:///db/crawler.db")
+    options = JobCreateOptions(
+        start_url="https://example.com",
+        target_domains=["example.com"],
+        trusted_domains=[],
+    )
+    job_id = manager.create_job(options)
+    manager.run_job(job_id)
 """
 
 import json
@@ -27,14 +41,20 @@ logger: logging.Logger = logging.getLogger(__name__)
 @dataclass
 class JobCreateOptions:
     """
-    任務建立選項。
+    建立爬蟲任務所需的參數封裝物件。
+
+    此 dataclass 用於將 ``JobManager.create_job`` 的多個入口參數集中管理，
+    減少呼叫處的參數數量，並提供明確的預設值封裝。
 
     Attributes:
         start_url (str): 任務起始網址。
-        target_domains (list[str]): 允許爬蟲深入遍歷的目標網域清單。
-        trusted_domains (list[str]): 視為信任的網域清單。
-        crawler_config (dict[str, object] | None): 爬蟲設定參數字典。
-        user_id (str | None): 任務擁有者 ID。
+        target_domains (list[str]): 允許爬蟲深入遍歷的目標網域清單，不在此清單的
+            連結會被分類為外部連結。
+        trusted_domains (list[str]): 視為信任的網域清單，用於區分內部與外部
+            連結的輔助清單。
+        crawler_config (dict[str, object] | None): 爬蟲設定參數字典（如延遲、超時、
+            重試次數等）。若為 None 則使用全域預設設定。
+        user_id (str | None): 任務擁有者 ID。若為 None 則表示全域任務（無歸屬）。
     """
 
     start_url: str
@@ -48,9 +68,16 @@ class JobManager:
     """
     負責在資料庫中管理爬蟲任務與佇列狀態的管理器。
 
+    此類別角色為任務生命週期的門面層，封裝了建立、查詢、
+    終止、重置、重試、移交任務等所有資料庫寫入操作。
+    實際爬取邏輯委派給 ``JobRunner``。
+
     Attributes:
         engine (Engine): SQLAlchemy 的資料庫引擎物件。
-        session_factory (Callable[[], Session]): 用來建立新 SQLAlchemy Session 的工廠 (Factory)。
+        session_factory (Callable[[], Session]): 用來建立新 SQLAlchemy Session 的工廠
+            (Factory)。
+        on_event_callback (Callable[..., None] | None): 任務狀態變更時觸發的事件回呼
+            函式（例如通知 WebSocket 客戶端）。若不需要通知可為 None。
     """
 
     def __init__(
@@ -170,14 +197,21 @@ class JobManager:
 
     def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
         """
-        取得所有任務的列表與基本資訊。可透過 user_id 進行過濾。
+        取得所有任務的列表與基本資訊。可透過 user_id 與 status 進行過濾。
 
         Args:
             user_id (str | None): (選填) 若提供，則僅回傳該擁有者的任務。
-            status (str | None): (選填) 依據任務狀態進行過濾。
+            status (str | None): (選填) 依據任務狀態進行過濾（如 ``"running"``、``"paused"``）。
 
         Returns:
-            list[dict[str, object]]: 包含任務基本資訊的字典陣列。
+            list[dict[str, object]]: 按建立時間進行遞減排列的任務基本資訊字典陣列。
+                每個元素包含下列鍵：
+                - ``"id"`` (str)：任務 ID。
+                - ``"user_id"`` (str | None)：任務擁有者 ID。
+                - ``"start_url"`` (str)：起始網址。
+                - ``"status"`` (str)：目前任務狀態。
+                - ``"created_at"`` (str)：建立時間（格式 ``YYYY-MM-DD HH:MM:SS``）。
+                - ``"updated_at"`` (str)：最後更新時間（格式 ``YYYY-MM-DD HH:MM:SS``）。
 
         Raises:
             SQLAlchemyError: 當資料庫查詢失敗時拋出。
@@ -205,11 +239,22 @@ class JobManager:
         """
         取得指定任務的詳細統計報告。
 
+        當 ``job.progress_stats`` 已由爬蟲器寫入快取時，直接以 O(1) 解析 JSON
+        回傳，無須全表掃描。若無快取，則退化為 O(N) 計數查詢並將結果寫入快取。
+
         Args:
             job_id (str): 欲查詢報告的任務 ID。
 
         Returns:
-            dict[str, object] | None: 任務的詳細統計資料。若任務不存在則回傳 None。
+            dict[str, object] | None: 任務的詳細統計資料字典，若任務不存在則回傳 None。
+                回傳字典包含下列鍵：
+                - ``"id"`` (str)：任務 ID。
+                - ``"start_url"`` (str)：起始網址。
+                - ``"status"`` (str)：目前任務狀態。
+                - ``"created_at"`` (str)：建立時間（格式 ``YYYY-MM-DD HH:MM:SS``）。
+                - ``"updated_at"`` (str)：最後更新時間（格式 ``YYYY-MM-DD HH:MM:SS``）。
+                - ``"queue"`` (dict)：具有 total/completed/warning/skipped/pending/failed 鍵的佇列統計。
+                - ``"external_links"`` (int)：外部連結總條數。
 
         Raises:
             SQLAlchemyError: 當資料庫查詢失敗時拋出。
@@ -288,7 +333,11 @@ class JobManager:
 
     def pause_job(self, job_id: str) -> bool:
         """
-        將指定任務狀態更新為 paused（在任務當前為 running 或 pending 或 queued 時允許）。
+        將指定任務狀態更新為 paused。
+
+        僅當任務目前狀態為 ``"running"``、``"pending"``、``"starting"``
+        或 ``"queued"`` 時才會執行暫停。其他狀態（如已完成、已暫停、異常）
+        則不會修改狀態，並會記錄警告日誌。
 
         Args:
             job_id (str): 欲暫停的任務 ID。
@@ -337,12 +386,17 @@ class JobManager:
         """
         將任務強制標記為異常 (error)，用於處理假死任務 (Zombie Job)。
 
+        僅當任務實際狀態為 ``"running"`` 時才會將其標記為 error。
+        若任務已處於其他狀態（如 completed、paused），則不修改狀態但仍回傳 True，
+        以避免呢叫端誤認為操作失敗。
+
         Args:
             job_id (str): 任務 ID。
             error_msg (str): 錯誤原因說明 (供後續除錯參考)。
 
         Returns:
-            bool: 成功回傳 True。
+            bool: 若任務存在（無論狀態是否被更改）則回傳 True；
+                若任務不存在則回傳 False。
 
         Raises:
             SQLAlchemyError: 當資料庫寫入操作失敗時拋出。
@@ -499,6 +553,7 @@ class JobManager:
                 )
 
                 # 將包含失效外連的母網頁狀態重置為 pending，以便重新解析與探測
+                # SQLite 每条 IN 子句的參數數量限制為 999，故以 900 為安全批次大小
                 for i in range(0, len(source_urls_to_retry), 900):
                     batch = source_urls_to_retry[i : i + 900]
                     session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.url.in_(batch)).update(

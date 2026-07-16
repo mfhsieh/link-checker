@@ -34,6 +34,7 @@
 * **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** (`4.14.3`)：負責 HTML 解析，從網頁原始碼中萃取連結。
 * **[fake-useragent](https://github.com/fake-useragent/fake-useragent)** (`1.5.1`)：自動產生隨機的 User-Agent，規避基礎防爬蟲機制。
 * **[PyYAML](https://pyyaml.org/)** (`6.0.3`)：解析、校驗與讀寫 `.yaml` 設定檔（搭配 `types-PyYAML` 提供型別檢查）。
+* **[cachetools](https://github.com/tkem/cachetools/)** (`7.1.4`)：提供具備自動到期 (TTL) 能力的記憶體快取，減輕重複運算的負擔。(也同時用在 Web Backend)
 
 ### 後端與系統基礎 (Web Backend)
 * **[FastAPI](https://fastapi.tiangolo.com/)** (`0.115.12`)：非同步 Web 框架，負責建構管理後台的 RESTful API 與 SSE (Server-Sent Events) 串流。
@@ -43,7 +44,6 @@
 * **[psycopg2-binary](https://www.psycopg.org/)** (`2.9.12`)：PostgreSQL 的 Python 驅動程式。
 * **[bcrypt](https://github.com/pyca/bcrypt/)** (`4.3.0`)：密碼雜湊演算法，處理並保護使用者的登入密碼。
 * **[email-validator](https://github.com/JoshData/python-email-validator)** (`2.2.0`)：提供符合 RFC 標準的 Email 格式與 DNS 驗證。
-* **[cachetools](https://github.com/tkem/cachetools/)** (`7.1.4`)：提供具備自動到期 (TTL) 能力的記憶體快取，減輕後端 API 的重複運算壓力。
 * **[python-dotenv](https://github.com/theskumar/python-dotenv)** (`1.0.1`)：負責從 `.env` 檔案載入環境變數，確保組態與程式碼分離。
 ### 開發與測試環境 (Development & Testing)
 * **[pytest](https://docs.pytest.org/)** (`8.2.0`)：自動化單元與整合測試框架。

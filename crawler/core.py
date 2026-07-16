@@ -1,8 +1,21 @@
 """
 爬蟲核心邏輯模組，負責網頁抓取與解析。
 
-此模組提供 CrawlerCore 類別，負責發送 HTTP 請求抓取網頁、
-解析 HTML、擷取連結，並依據網域規則過濾與分類連結。
+此模組提供 ``CrawlerCore`` 類別以及相關輔助函式，職責如下：
+
+- 發送 HTTP/HTTPS 請求（透過 httpx，選配 curl_cffi TLS 偽裝備援）
+- 手動跟隨重導向並收集跨跳轉 Cookie（支援 Cookie-gate 穿透）
+- SSRF 防護（DNS 解析結果驗證與私有 IP 封鎖）
+- 解析 HTML 並擷取所有資源連結
+- 依目標網域規則將連結分類為內部連結與外部目標連結
+- 對外部連結執行 HEAD/GET 存活探測，包含自動 HTTPS 升級與 WAF 繞過
+
+模組層級常數：
+    REDIRECT_STATUS_CODES: 視為重導向的 HTTP 狀態碼集合。
+    WAF_STATUS_CODES: 常見 WAF 攔截狀態碼集合。
+    TLS_SPOOF_STATUS_CODES: 需觸發 TLS 偽裝的狀態碼集合（含 None 表示連線超時）。
+    HEAD_FALLBACK_STATUS_CODES: HEAD 請求失敗後，觸發 GET 降級的狀態碼集合。
+    _FETCH_SAFE_EXCEPTIONS: fetch 流程可安全攔截的例外型別集合。
 """
 
 # pylint: disable=too-many-lines
@@ -68,7 +81,23 @@ def _patched_getaddrinfo(  # pylint: disable=too-many-arguments
     proto: int = 0,
     flags: int = 0,
 ) -> list[tuple[socket.AddressFamily, socket.SocketKind, int, str, tuple[str, int] | tuple[str, int, int, int]]]:  # pylint: disable=no-member
-    """攔截 socket.getaddrinfo 以支援自訂 DNS 解析。"""
+    """
+    攔截 socket.getaddrinfo 以支援自訂 DNS 解析。
+
+    此函式會檢查執行緒區域儲存區中的 DNS 覆寫對應表，若目標主機名稱存在於
+    覆寫表中，則回傳對應的 IP 位址解析結果；否則委派給原始的 socket.getaddrinfo。
+
+    Args:
+        host (str | bytes | None): 目標主機名稱或位址。
+        port (str | int | None): 連接埠號碼。
+        family (int): 位址家族（預設 0 表示不限制）。
+        type_attr (int): Socket 類型（預設 0 表示不限制）。
+        proto (int): 協定類型（預設 0 表示不限制）。
+        flags (int): 解析旗標（預設 0）。
+
+    Returns:
+        list[tuple[...]]: 解析結果列表，格式符合 socket.getaddrinfo 回傳規範。
+    """
     if host is None:
         return _original_getaddrinfo(host, port, family, type_attr, proto, flags)
 
@@ -85,7 +114,10 @@ socket.getaddrinfo = _patched_getaddrinfo  # type: ignore[assignment]
 @contextmanager
 def dns_override(host: str, ip: str) -> Iterator[None]:
     """
-    Thread-safe Context Manager，用以強制替換指定網域的 DNS 解析結果。
+    執行緒安全的 Context Manager，用以強制替換指定網域的 DNS 解析結果。
+
+    在進入 context 時，將 (host, ip) 對應寫入執行緒區域儲存區的覆寫表；
+    離開 context 時自動移除該對應，確保不影響其他執行緒或後續解析。
 
     Args:
         host (str): 欲攔截的網域名稱。
@@ -123,7 +155,11 @@ class CrawlerCore:
 
     @classmethod
     def get_dynamic_impersonate_profiles(cls) -> list[str]:
-        """動態讀取 curl_cffi 支援的最新版瀏覽器指紋輪替清單。
+        """
+        動態讀取 curl_cffi 支援的最新版瀏覽器指紋輪替清單。
+
+        會過濾掉行動裝置特徵（android/ios），並分別取得 Chrome、Safari、Edge
+        的最新版本指紋字串。若動態解析失敗，會回退至預設名單。
 
         Returns:
             list[str]: 包含最新 Chrome, Safari 與 Edge 指紋字串的列表。
@@ -172,7 +208,8 @@ class CrawlerCore:
 
     @staticmethod
     def _compile_regexes(regexes: list[str]) -> list[re.Pattern]:
-        """編譯正則表達式，忽略無效的語法。
+        """
+        編譯正則表達式，忽略無效的語法。
 
         Args:
             regexes (list[str]): 原始的正則表達式字串列表。
@@ -191,6 +228,9 @@ class CrawlerCore:
     def __init__(self, config: CrawlerConfig | None = None) -> None:
         """
         初始化 CrawlerCore 物件。
+
+        根據提供的配置建立兩個 HTTPX 客戶端：一個為預設客戶端，另一個為
+        豁免 SSL 驗證的客戶端（用於 ssl_exempt_domains 白名單內的網域）。
 
         Args:
             config (CrawlerConfig | None): 爬蟲引擎配置物件。若未提供則使用預設配置。
@@ -227,7 +267,8 @@ class CrawlerCore:
         self.exempt_client.close()
 
     def __enter__(self) -> "CrawlerCore":
-        """進入 context manager，支援 with 語句。
+        """
+        進入 context manager，支援 with 語句。
 
         Returns:
             CrawlerCore: 回傳自身實例。
@@ -235,7 +276,8 @@ class CrawlerCore:
         return self
 
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
-        """離開 context manager，自動關閉連線池。
+        """
+        離開 context manager，自動關閉連線池。
 
         Args:
             exc_type (object): 例外型別。
@@ -246,7 +288,10 @@ class CrawlerCore:
 
     @staticmethod
     def _safe_decode(content_bytes: bytes, charset: str) -> str:
-        """安全地解碼位元組，避免未知的編碼名稱引發 LookupError。
+        """
+        安全地解碼位元組，避免未知的編碼名稱引發 LookupError。
+
+        若指定的 charset 無效，會自動退回使用 utf-8 並以 replace 模式處理錯誤字元。
 
         Args:
             content_bytes (bytes): 欲解碼的位元組資料。
@@ -261,7 +306,8 @@ class CrawlerCore:
             return content_bytes.decode("utf-8", errors="replace")
 
     def _get_client(self, url: str) -> httpx.Client:
-        """根據網址的網域選擇適合的 HTTPX 客戶端。
+        """
+        根據網址的網域選擇適合的 HTTPX 客戶端。
 
         若目標網域在 ssl_exempt_domains 白名單中，則回傳關閉憑證驗證的 exempt_client，
         否則回傳預設的 client。
@@ -277,14 +323,19 @@ class CrawlerCore:
             return self.exempt_client
         return self.client
 
-    def _check_ignore_rules(self, url: str) -> str | None:
-        """檢查是否符合忽略規則，若符合則回傳原因。
+    def _check_url_skip_rules(self, url: str) -> str | None:
+        """
+        檢查 URL 是否符合可直接略過的條件（Regex / 副檔名）。
+
+        依序檢查：
+        1. 是否符合 ignore_regexes 中的任一正則表達式。
+        2. 路徑部分是否以 ignore_extensions 中的任一副檔名結尾。
 
         Args:
-            url (str): 欲檢查的網址。
+            url (str): 完整的目標網址。
 
         Returns:
-            str | None: 若符合忽略規則回傳原因字串，否則回傳 None。
+            str | None: 符合略過條件時回傳原因字串；否則回傳 None。
         """
         if any(pattern.search(url) for pattern in self.ignore_regex_compiled):
             logger.debug("網址 %s 符合忽略之 Regex 規則，略過爬取", url)
@@ -293,17 +344,41 @@ class CrawlerCore:
         parsed_path = urlparse(url).path.lower()
         if any(parsed_path.endswith(ext) for ext in self.config.ignore_extensions):
             return "符合忽略之副檔名"
+
+        return None
+
+    def _check_response_skip_rules(self, content_type: str) -> str | None:
+        """
+        依據 MIME 類型檢查是否應略過該回應的內容下載。
+
+        根據設定檔中的 ``mime_type_filter`` 判斷給定的 Content-Type 是否在允許
+        清單之內。此方法刻意接受原始字串而非 Response 物件，以確保與 httpx 及
+        curl_cffi 等不同 HTTP 客戶端的 Response 型別皆相容。
+
+        Args:
+            content_type (str): HTTP 回應的 Content-Type 標頭值（應已轉為小寫）。
+
+        Returns:
+            str | None: 若應略過則回傳包含 MIME 類型的原因字串；否則回傳 None。
+        """
+        if self.config.mime_type_filter.get("enabled", True):
+            allowed_types_raw = self.config.mime_type_filter.get("allowed_types", ["text/html"])
+            allowed_types = allowed_types_raw if isinstance(allowed_types_raw, list) else ["text/html"]
+            if not any(str(allowed).lower() in content_type for allowed in allowed_types):
+                logger.debug("略過非目標 MIME 類型: %s", content_type)
+                return f"略過非目標 MIME 類型 ({content_type})"
         return None
 
     def _resolve_and_check_ssrf(self, domain: str | None, url: str) -> tuple[str | None, str | None]:
-        """解析 IP 並檢查 SSRF，回傳 (IP, 錯誤訊息)。
+        """
+        解析目標 IP 並檢查 SSRF 風險。
 
         Args:
             domain (str | None): 目標網域。
-            url (str): 目標網址。
+            url (str): 目標網址（用於日誌記錄）。
 
         Returns:
-            tuple[str | None, str | None]: (IP 位址, 錯誤訊息)。
+            tuple[str | None, str | None]: (解析出的 IP 位址, 錯誤訊息若被攔截)。
         """
         if not domain:
             return None, None
@@ -320,15 +395,18 @@ class CrawlerCore:
     def _handle_redirect(
         self, response: httpx.Response, current_url: str, target_domains: list[str] | None
     ) -> tuple[str | None, tuple[str | list[str] | None, int | None, str, str, bool, str | None] | None]:
-        """處理 HTTP 重導向，回傳 (next_url, 提前回傳的結果)。
+        """
+        處理 HTTP 重導向，回傳 (next_url, 提前回傳的結果)。
+
+        若重導向目標超出 target_domains 範圍，則停止深入抓取並回傳外部網域資訊。
 
         Args:
-            response (httpx.Response): HTTP 回應物件。
-            current_url (str): 當前網址。
+            response (httpx.Response): 包含重導向資訊的 HTTP 回應物件。
+            current_url (str): 產生重導向的當前網址。
             target_domains (list[str] | None): 允許進入的目標網域清單。
 
         Returns:
-            tuple[str | None, tuple | None]: (下一步網址, 提前回傳的結果)。
+            tuple[str | None, tuple | None]: (下一步網址, 提早終止的結果元組)。
         """
         location = response.headers.get("Location")
         if not location:
@@ -350,34 +428,18 @@ class CrawlerCore:
                 )
         return next_url, None
 
-    def _check_mime_type(self, response: httpx.Response, current_url: str) -> str | None:
-        """檢查 MIME 類型是否允許，若不允許則回傳錯誤訊息。
-
-        Args:
-            response (httpx.Response): HTTP 回應物件。
-            current_url (str): 當前網址。
-
-        Returns:
-            str | None: 若 MIME 類型不符則回傳錯誤訊息，否則回傳 None。
-        """
-        content_type: str = response.headers.get("Content-Type", "").lower()
-        if self.config.mime_type_filter.get("enabled", True):
-            allowed_types_raw = self.config.mime_type_filter.get("allowed_types", ["text/html"])
-            allowed_types: list[str] = allowed_types_raw if isinstance(allowed_types_raw, list) else ["text/html"]
-            if not any(str(allowed).lower() in content_type for allowed in allowed_types):
-                logger.debug("網址 %s 略過，不符 MIME 類型: %s", current_url, content_type)
-                return f"略過非目標 MIME 類型 ({content_type})"
-        return None
-
     def _download_content(self, response: httpx.Response, current_url: str) -> tuple[str, str | None]:
-        """下載網頁內容並回傳 (HTML 字串, 錯誤或警告訊息)。
+        """
+        下載網頁內容並回傳 (HTML 字串, 錯誤或警告訊息)。
+
+        以串流分塊方式讀取，並在超過 max_content_length 時提早截斷以防止 OOM。
 
         Args:
             response (httpx.Response): HTTP 回應物件。
-            current_url (str): 當前網址。
+            current_url (str): 當前網址（用於日誌記錄）。
 
         Returns:
-            tuple[str, str | None]: (網頁 HTML 內容, 錯誤或警告訊息)。
+            tuple[str, str | None]: (解碼後的 HTML 內容, 截斷警告訊息或 None)。
         """
         content_bytes = bytearray()
         err_msg = None
@@ -399,7 +461,14 @@ class CrawlerCore:
     def _process_response(
         self, response: httpx.Response, current_url: str, target_domains: list[str] | None
     ) -> tuple[str | None, tuple[str | list[str] | None, int | None, str, str, bool, str | None] | None]:
-        """處理 HTTP 回應，回傳 (next_url, 提前回傳的結果)。
+        """
+        處理 HTTP 回應，回傳 (next_url, 提前回傳的結果)。
+
+        流程：
+        1. 若為重導向狀態碼，委派給 _handle_redirect。
+        2. 檢查 HTTP 狀態碼（raise_for_status）。
+        3. 檢查 MIME 類型是否需略過。
+        4. 下載內容並判斷狀態（completed / warning）。
 
         Args:
             response (httpx.Response): HTTP 回應物件。
@@ -407,15 +476,16 @@ class CrawlerCore:
             target_domains (list[str] | None): 允許進入的目標網域清單。
 
         Returns:
-            tuple[str | None, tuple | None]: (下一步網址, 提前回傳的結果)。
+            tuple[str | None, tuple | None]: (下一步網址, 提早終止的結果元組)。
         """
         if response.status_code in REDIRECT_STATUS_CODES:
             return self._handle_redirect(response, current_url, target_domains)
 
         response.raise_for_status()
 
-        if mime_err := self._check_mime_type(response, current_url):
-            return None, (None, response.status_code, "skip", current_url, True, mime_err)
+        content_type = response.headers.get("Content-Type", "").lower()
+        if mime_reason := self._check_response_skip_rules(content_type):
+            return None, (None, response.status_code, "skip", current_url, True, mime_reason)
 
         text, err_msg = self._download_content(response, current_url)
         status = "warning" if err_msg else "completed"
@@ -448,7 +518,7 @@ class CrawlerCore:
                 - next_url (str): 重導向後的下一步網址 (若無則為原網址)
                 - result_tuple (tuple | None): 若探測已完成 (如成功取得內容、或確定失敗/略過)，則回傳提早終止的結果。
         """
-        if ignore_reason := self._check_ignore_rules(current_url):
+        if ignore_reason := self._check_url_skip_rules(current_url):
             return request_sent, current_url, (None, None, "skip", current_url, request_sent, ignore_reason)
 
         domain = get_domain(current_url)
@@ -609,6 +679,9 @@ class CrawlerCore:
                     # 若 curl_cffi 成功取得內容 (狀態碼 < 400)
                     if cffi_status is not None and cffi_status < 400 and cffi_text is not None:
                         return cffi_text, cffi_status, "completed", cffi_final_url or current_url, True, None
+
+                    if cffi_err and "略過非目標 MIME 類型" in str(cffi_err):
+                        return None, cffi_status, "skip", cffi_final_url or current_url, True, cffi_err
 
                     status_code = cffi_status
                     e = Exception(cffi_err) if cffi_err else Exception(f"TLS 偽裝失敗，狀態碼 {cffi_status}")
@@ -920,14 +993,9 @@ class CrawlerCore:
                     if status_code is not None and status_code >= 400:
                         return status_code, f"HTTP 狀態異常: {status_code}", None, current_url
 
-                    content_type = resp.headers.get("Content-Type", "").lower()
-                    if self.config.mime_type_filter.get("enabled", True):
-                        allowed_types_raw = self.config.mime_type_filter.get("allowed_types", ["text/html"])
-                        allowed_types: list[str] = (
-                            allowed_types_raw if isinstance(allowed_types_raw, list) else ["text/html"]
-                        )
-                        if not any(str(a).lower() in content_type for a in allowed_types):
-                            return status_code, f"略過非目標 MIME 類型 ({content_type})", None, current_url
+                    resp_content_type = resp.headers.get("Content-Type", "").lower()
+                    if mime_reason := self._check_response_skip_rules(resp_content_type):
+                        return status_code, mime_reason, None, current_url
 
                     content_bytes = bytearray()
                     for chunk in resp.iter_content(chunk_size=8192):
@@ -976,18 +1044,6 @@ class CrawlerCore:
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("TLS 偽裝備援遭遇未預期底層例外: %s", type(e).__name__)
             return None, f"TLS 偽裝發生底層異常: {e}", None, url
-
-    def _tls_spoofed_fallback(self, url: str) -> tuple[int | None, str | None]:
-        """外部探測專用的 TLS 指紋偽裝降級包裹方法。
-
-        Args:
-            url (str): 目標外部網址。
-
-        Returns:
-            tuple[int | None, str | None]: (HTTP 狀態碼, 錯誤或警告訊息)。
-        """
-        status_code, err_msg, _, _ = self._execute_curl_cffi_fallback(url, is_internal=False)
-        return status_code, err_msg
 
     def _fallback_get(  # pylint: disable=too-many-arguments
         self,
@@ -1309,7 +1365,10 @@ class CrawlerCore:
                             # 以下將原始 url 替換成 HTTPS，從頭發起請求，以發揮 TLS 偽裝能力。
                             # 重新走一遍以取回完整可用的 Cookie。
                             https_fallback_url = urlparse(url)._replace(scheme="https").geturl()
-                            return self._tls_spoofed_fallback(https_fallback_url)
+                            status_code, err_msg, _, _ = self._execute_curl_cffi_fallback(
+                                https_fallback_url, is_internal=False
+                            )
+                            return status_code, err_msg
 
                         return result_retry
 
@@ -1324,7 +1383,8 @@ class CrawlerCore:
                         # 若原始為 HTTP 但 current 走到 HTTPS，代表中間有正常的 301/302 重導向。
                         # 讓 curl_cffi 完整重跑這段 HTTP -> HTTPS 的重導向過程，
                         # 可以確保蒐集到途中伺服器可能發放的驗證 Cookie（例如 Cookie-gate 防護）。
-                        return self._tls_spoofed_fallback(url)
+                        status_code, err_msg, _, _ = self._execute_curl_cffi_fallback(url, is_internal=False)
+                        return status_code, err_msg
 
                 return result
 

@@ -8,6 +8,7 @@ types-PyYAML==6.0.12.20260518
 fake-useragent==1.5.1
 psycopg2-binary==2.9.12
 curl-cffi==0.15.0
+cachetools==7.1.4
 
 # ── Web 後端依賴 ───────────────────────
 fastapi==0.115.12
@@ -16,7 +17,6 @@ uvicorn[standard]==0.34.3
 bcrypt==4.3.0
 email-validator==2.2.0
 python-dotenv==1.0.1
-cachetools==7.1.4
 
 # ── 開發與測試依賴 ─────────────────────
 # pylint==3.2.2

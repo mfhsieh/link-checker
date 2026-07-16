@@ -135,7 +135,7 @@ flowchart TD
 
 ### 2.4 回應處理與串流下載
 - **`_process_response`**：統整 HTTP 回應的各項檢查。
-- **`_check_mime_type`**：基於 `Content-Type` 標頭判斷檔案類型。若非 HTML 文件（如 PDF），則直接略過下載。
+- **`_check_response_skip_rules`**：基於 `Content-Type` 標頭判斷檔案類型。若非 HTML 文件（如 PDF），則直接略過下載。為確保與 httpx 及 curl_cffi 等不同 HTTP 客戶端的 Response 型別皆相容，此方法接受 `content_type: str` 原始字串而非 Response 物件。
 - **`_download_content`**：使用 HTTP 串流 (`stream`) 分段下載內容，包含檔案大小保護 (防 OOM)，並且使用 `_safe_decode` 以避免遇到不合法或未知的 `charset` (例如 `charset=xxx-unknown`) 時引發 `LookupError` 崩潰。
   - 附帶一提，內部網路請求同樣採用手動將 Cookie 寫入 `headers["Cookie"]` 的方式，避免 `httpx` 已廢棄 `cookies=` 參數的不穩定行為。
 
@@ -149,11 +149,11 @@ flowchart TD
 - **`_extract_base_url`**：優先尋找網頁中是否有 `<base href="...">` 宣告，若有則覆寫相對路徑的基準 URL。
 - **`_collect_raw_links`**：走訪並蒐集所有常見的資源屬性 (`<a>`, `<img>`, `<script>` 等)，同時支援從 `<meta http-equiv="refresh">` 標籤中解析前端自動跳轉 (Client-side Redirect) 網址。
 - **`_normalize_and_filter_link`**：
-  - 剔除無效的偽協定 (`javascript:`, `mailto:` 等)。
+  - 剝除無效的偽協議 (`javascript:`, `mailto:` 等)。
   - 將 URL 尾端的錨點（Fragment `#`）剝除。
   - 將相對路徑拼接為完整的絕對路徑。
   - 判斷並傳遞 `is_secure` 狀態（若為 `http://` 則標記為非安全連結，以利後續資安稽核）。
-- **`_check_ignore_rules`**：檢查標準化後的網址是否符合附檔名或正則表達式排除規則。
+- **`_check_url_skip_rules`**：檢查標準化後的網址是否符合副檔名或正則表達式排除規則。
 
 ---
 

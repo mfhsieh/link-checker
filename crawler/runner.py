@@ -1,6 +1,22 @@
 """
-爬蟲任務執行器 (Job Runner) 模組
-負責封裝單一爬蟲任務的執行邏輯，包含重試、中斷、狀態更新與併發處理外連。
+爬蟲任務執行器 (Job Runner) 模組。
+
+此模組提供 ``JobRunner`` 類別，負責封裝單一爬蟲任務 (Job) 的完整執行生命週期：
+
+- 從資料庫載入任務設定並初始化爬蟲引擎 (``CrawlerCore``)
+- 以主迴圈不斷取出 ``CrawlQueue`` 中的待處理網址進行爬取
+- 解析 HTML 並分類內部連結（繼續遞迴爬取）與外部連結（進行存活探測）
+- 以 ``ThreadPoolExecutor`` 併發探測外部連結，並將結果寫入資料庫
+- 處理重試、指數退避延遲與定時狀態同步
+- 捕捉 ``KeyboardInterrupt`` 及非預期例外，確保任務狀態被正確更新
+
+模組層級常數：
+    DEFAULT_LRU_CACHE_MAXSIZE: 外部連結 LRU 快取的上限條數，防止 OOM。
+    STATUS_CHECK_INTERVAL: 主迴圈向資料庫查詢任務狀態的節流間隔（秒）。
+
+模組層級私有變數：
+    _DEF: 從 DEFAULT_GLOBAL_CONFIG 中讀取的全域爬蟲預設設定字典，用於初始化
+        ``CrawlerConfig`` 時提供各參數的後備預設值。
 """
 
 import json
@@ -45,13 +61,29 @@ STATUS_CHECK_INTERVAL: float = 10.0
 @dataclass
 class JobRunnerState:  # pylint: disable=too-many-instance-attributes
     """
-    爬蟲任務狀態追蹤資料類別。
+    爬蟲任務的記憶體狀態追蹤資料類別。
+
+    此類別以 dataclass 形式集中管理爬蟲主迴圈執行期間的所有可變狀態，
+    避免在 ``JobRunner`` 中散落大量執行個體變數。進度計數器（``queue_*``）
+    採取主動遞增/遞減策略，以規避在熱路徑上反覆執行 O(N) 資料庫計數查詢。
 
     Attributes:
-        crawled_count (int): 已爬取完成的頁面數量。
-        checked_links_cache (dict[str, tuple[str | None, int | None, str | None]]): 外部連結存活檢查的記憶體快取。
-        target_domains_list (list[str]): 允許遍歷的目標網域陣列。
-        trusted_domains_list (list[str]): 視為信任的網域陣列。
+        crawled_count (int): 已實際發送 HTTP 請求並爬取完成的頁面累計數量。
+        checked_links_cache (LRUCache): 外部連結存活探測結果的 LRU 記憶體快取，
+            避免對相同網址重複發送 HTTP 請求。快取容量上限由
+            ``DEFAULT_LRU_CACHE_MAXSIZE`` 控制。
+        target_domains_list (list[str]): 允許爬蟲深入遞迴爬取的目標網域清單。
+        trusted_domains_list (list[str]): 視為信任的網域清單；指向此清單以外且
+            不在 target_domains_list 中的連結，會被分類為外部目標連結。
+        queue_total (int): 任務佇列中的網址總條數（含所有狀態）。
+        queue_completed (int): 佇列中已成功爬取（status=completed）的條數。
+        queue_warning (int): 佇列中以警告狀態完成（status=warning）的條數。
+        queue_pending (int): 佇列中尚待處理（status=pending）的條數。
+        queue_failed (int): 佇列中爬取失敗（status=failed）的條數。
+        queue_skipped (int): 佇列中已略過（status=skip）的條數。
+        external_links_total (int): 本任務累計發現並記錄的外部連結總條數。
+        last_flush_time (float): 上次將進度寫入資料庫的 Unix 時間戳（秒），
+            用於實現定時 flush 的節流控制。
     """
 
     crawled_count: int = 0
@@ -72,17 +104,21 @@ class JobRunnerState:  # pylint: disable=too-many-instance-attributes
 
 def _get_domain_delay(domain: str, domain_delays: dict[str, float], default_delay: float) -> float:
     """
-    從 domain_delays 中尋找符合目前網域的 delay 數值，若無則回傳預設的 delay。
+    從 domain_delays 設定中查找適用於當前網域的延遲秒數。
 
-    支援以子網域完全匹配。
+    支援子網域繼承父網域的延遲規則：例如設定 ``example.com`` 的延遲，
+    亦會套用至 ``sub.example.com``。若同一網域有多條規則符合（父網域與子網域
+    皆有設定），優先取用最長（最具體）的網域規則。
 
     Args:
-        domain (str): 當前網域。
-        domain_delays (dict[str, float]): 網域為 key、延遲秒數為 value 的字典。
-        default_delay (float): 全域預設延遲秒數。
+        domain (str): 當前請求的目標網域（例如 ``sub.example.com``）。
+        domain_delays (dict[str, float]): 以網域字串為 key、延遲秒數（浮點數）
+            為 value 的設定字典。
+        default_delay (float): 當 domain_delays 為空或找不到符合規則時，
+            所使用的全域預設延遲秒數。
 
     Returns:
-        float: 該網域適用的延遲秒數。
+        float: 適用於該網域的延遲秒數。若無符合規則則回傳 default_delay。
     """
     if not domain_delays:
         return default_delay
@@ -106,7 +142,32 @@ def _get_domain_delay(domain: str, domain_delays: dict[str, float], default_dela
 
 
 class JobRunner:
-    """封裝並執行單一爬蟲任務，避免 run_job 邏輯過於龐大且變數過多。"""
+    """
+    封裝並執行單一爬蟲任務的執行器。
+
+    此類別將爬蟲任務的完整生命週期（初始化、主迴圈、外部連結探測、
+    進度同步與錯誤處理）集中封裝，避免外部 run_job 函式邏輯過於龐大。
+
+    典型用法：
+
+    .. code-block:: python
+
+        runner = JobRunner(session_factory, job_id, on_event_callback)
+        runner.execute(crawler_config_param={"delay": 0.5})
+
+    Attributes:
+        session_factory (Callable[[], Session]): 建立 SQLAlchemy Session 的工廠函式。
+        job_id (str): 正在執行的爬蟲任務 ID。
+        on_event_callback (Callable[..., None] | None): 任務狀態變更時觸發的事件回呼
+            函式（例如通知 WebSocket 客戶端）；若不需要通知可傳入 None。
+        config (CrawlerConfig | None): 從任務設定解析後建立的爬蟲配置物件，
+            於 ``_initialize`` 後才會有值。
+        crawler_config_dict (dict[str, object]): 原始的爬蟲設定字典，用於存取
+            ``max_pages``、``delay``、``retries`` 等非結構化參數。
+        state (JobRunnerState): 記憶體進度追蹤狀態物件。
+        executor (ThreadPoolExecutor | None): 用於併發探測外部連結的執行緒池，
+            於 ``execute`` 方法啟動後才會有值。
+    """
 
     def __init__(
         self,
@@ -278,8 +339,7 @@ class JobRunner:
 
         # pylint: disable=duplicate-code
         queue_stats = (
-            session
-            .query(
+            session.query(
                 sql_count(CrawlQueue.id).label("total"),
                 sql_sum(case((CrawlQueue.status == "completed", 1), else_=0)).label("completed"),
                 sql_sum(case((CrawlQueue.status == "warning", 1), else_=0)).label("warning"),
@@ -346,8 +406,7 @@ class JobRunner:
                 break
 
             queue_item: CrawlQueue | None = (
-                session
-                .query(CrawlQueue)
+                session.query(CrawlQueue)
                 .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
                 .order_by(CrawlQueue.id)
                 .first()
@@ -366,7 +425,17 @@ class JobRunner:
             break
 
     def _flush_progress(self, session: Session, job: Job) -> None:
-        """將記憶體中的進度狀態轉為 JSON 寫入資料庫，供 Web API 讀取。"""
+        """
+        將記憶體中的進度狀態序列化為 JSON 並寫入資料庫。
+
+        此方法將 ``self.state`` 中所有的進度計數器打包為結構化 JSON，
+        寫入 ``job.progress_stats`` 欄位後立即 commit，供 Web API
+        以低延遲方式讀取任務即時進度，無須在熱路徑上執行 O(N) COUNT 查詢。
+
+        Args:
+            session (Session): SQLAlchemy Session 實例。
+            job (Job): 當前的爬蟲任務物件，其 progress_stats 欄位將被更新。
+        """
         progress_dict = {
             "queue": {
                 "total": self.state.queue_total,
@@ -407,8 +476,7 @@ class JobRunner:
             bool: 若有處理到 pending 資料則回傳 True，否則回傳 False。
         """
         pending_exts = (
-            session
-            .query(ExternalLink)
+            session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == self.job_id,
                 ExternalLink.status_category == "pending",
@@ -425,6 +493,16 @@ class JobRunner:
         if self.executor:
 
             def check_single(link: str) -> tuple[str, str | None, int | None, str | None]:
+                """
+                呼叫爬蟲引擎對單一外部連結進行存活探測。
+
+                Args:
+                    link (str): 外部連結網址。
+
+                Returns:
+                    tuple[str, str | None, int | None, str | None]:
+                        (目標網址, IP, 狀態碼, 錯誤訊息)。
+                """
                 return self._check_single_link(link, crawler)
 
             results = list(self.executor.map(check_single, unique_urls))
@@ -492,6 +570,13 @@ class JobRunner:
                 self.state.trusted_domains_list,
             )
 
+            # process_url 回傳值索引對應：
+            # result[0] = internal_links (list[str])
+            # result[1] = external_target_links (list[str])
+            # result[2] = status_code (int | None)
+            # result[3] = status (str): 'completed' | 'failed' | 'skip' | 'warning'
+            # result[4] = request_sent (bool): 是否有實際發送 HTTP 請求
+            # result[5] = err_msg (str | None)
             queue_item.status_code = result[2]
             queue_item.status = result[3]
             queue_item.error_message = result[5]
@@ -503,6 +588,8 @@ class JobRunner:
             delta_pending, delta_total = self._handle_internal_links(session, queue_item, result[0])
             delta_ext = self._handle_external_links(session, current_url, result[1], crawler)
 
+            # 在 _handle_external_links 執行完畢後，以最終確定的 status 再次更新佇列項目，
+            # 確保外部連結探測期間若有非預期例外，佇列狀態仍能保持一致。
             queue_item.status = result[3]
             queue_item.status_category = determine_internal_link_status_category(
                 queue_item.status, queue_item.status_code, queue_item.error_message
@@ -525,6 +612,7 @@ class JobRunner:
             self.state.queue_total += delta_total
             self.state.external_links_total += delta_ext
 
+            # result[4] (request_sent) 為 True 表示有實際發送 HTTP 請求，才計入爬取頁數
             should_delay = result[4]
             if result[4]:
                 self.state.crawled_count += 1
@@ -582,8 +670,7 @@ class JobRunner:
                 # 解決 N+1 查詢問題：改用 IN 語法進行批次查詢，找出已存在的內部連結，避免在迴圈內逐一查詢 DB
                 existing_urls = {
                     u[0]
-                    for u in session
-                    .query(CrawlQueue.url)
+                    for u in session.query(CrawlQueue.url)
                     .filter(
                         CrawlQueue.job_id == self.job_id,
                         CrawlQueue.url.in_(internal_links),
@@ -637,8 +724,7 @@ class JobRunner:
         # 必須保留給後續重新檢查流程，而不是被當成已存在的結果直接跳過。
         existing_completed_urls_for_page = {
             u[0]
-            for u in session
-            .query(ExternalLink.target_url)
+            for u in session.query(ExternalLink.target_url)
             .filter(
                 ExternalLink.job_id == self.job_id,
                 ExternalLink.source_url == current_url,
@@ -655,8 +741,7 @@ class JobRunner:
 
         if links_not_in_cache:
             db_checked_links = (
-                session
-                .query(
+                session.query(
                     ExternalLink.target_url,
                     ExternalLink.ip_address,
                     ExternalLink.http_status_code,
@@ -768,17 +853,19 @@ class JobRunner:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
             is_sec = res_link.startswith("https://")
             status_cat = determine_external_link_status_category(res_ip, res_code)
-            mappings.append({
-                "job_id": self.job_id,
-                "source_url": current_url,
-                "target_url": res_link,
-                "target_domain": get_domain(res_link) or "",
-                "ip_address": res_ip,
-                "is_secure": is_sec,
-                "http_status_code": res_code,
-                "error_message": res_err,
-                "status_category": status_cat,
-            })
+            mappings.append(
+                {
+                    "job_id": self.job_id,
+                    "source_url": current_url,
+                    "target_url": res_link,
+                    "target_domain": get_domain(res_link) or "",
+                    "ip_address": res_ip,
+                    "is_secure": is_sec,
+                    "http_status_code": res_code,
+                    "error_message": res_err,
+                    "status_category": status_cat,
+                }
+            )
 
         if mappings:
             try:
