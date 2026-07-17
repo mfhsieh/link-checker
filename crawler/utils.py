@@ -511,8 +511,7 @@ def recalculate_job_progress(session: Session, job_id: str) -> None:
     # 統計 queue 各狀態數量
     # 狀態包含: pending, completed, failed, skip, warning
     status_counts = (
-        session
-        .query(CrawlQueue.status, func.count(CrawlQueue.id))  # pylint: disable=not-callable
+        session.query(CrawlQueue.status, func.count(CrawlQueue.id))  # pylint: disable=not-callable
         .filter(CrawlQueue.job_id == job_id)
         .group_by(CrawlQueue.status)
         .all()

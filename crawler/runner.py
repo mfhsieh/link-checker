@@ -337,8 +337,7 @@ class JobRunner:
 
         # pylint: disable=duplicate-code
         queue_stats = (
-            session
-            .query(
+            session.query(
                 sql_count(CrawlQueue.id).label("total"),
                 sql_sum(case((CrawlQueue.status == "completed", 1), else_=0)).label("completed"),
                 sql_sum(case((CrawlQueue.status == "warning", 1), else_=0)).label("warning"),
@@ -405,8 +404,7 @@ class JobRunner:
                 break
 
             queue_item: CrawlQueue | None = (
-                session
-                .query(CrawlQueue)
+                session.query(CrawlQueue)
                 .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
                 .order_by(CrawlQueue.id)
                 .first()
@@ -476,8 +474,7 @@ class JobRunner:
             bool: 若有處理到 pending 資料則回傳 True，否則回傳 False。
         """
         pending_exts = (
-            session
-            .query(ExternalLink)
+            session.query(ExternalLink)
             .filter(
                 ExternalLink.job_id == self.job_id,
                 ExternalLink.status_category == "pending",
@@ -671,8 +668,7 @@ class JobRunner:
                 # 解決 N+1 查詢問題：改用 IN 語法進行批次查詢，找出已存在的內部連結，避免在迴圈內逐一查詢 DB
                 existing_urls = {
                     u[0]
-                    for u in session
-                    .query(CrawlQueue.url)
+                    for u in session.query(CrawlQueue.url)
                     .filter(
                         CrawlQueue.job_id == self.job_id,
                         CrawlQueue.url.in_(internal_links),
@@ -726,8 +722,7 @@ class JobRunner:
         # 必須保留給後續重新檢查流程，而不是被當成已存在的結果直接跳過。
         existing_completed_urls_for_page = {
             u[0]
-            for u in session
-            .query(ExternalLink.target_url)
+            for u in session.query(ExternalLink.target_url)
             .filter(
                 ExternalLink.job_id == self.job_id,
                 ExternalLink.source_url == current_url,
@@ -744,8 +739,7 @@ class JobRunner:
 
         if links_not_in_cache:
             db_checked_links = (
-                session
-                .query(
+                session.query(
                     ExternalLink.target_url,
                     ExternalLink.ip_address,
                     ExternalLink.http_status_code,
@@ -857,17 +851,19 @@ class JobRunner:
             self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
             is_sec = res_link.startswith("https://")
             status_cat = determine_external_link_status_category(res_ip, res_code)
-            mappings.append({
-                "job_id": self.job_id,
-                "source_url": current_url,
-                "target_url": res_link,
-                "target_domain": get_domain(res_link) or "",
-                "ip_address": res_ip,
-                "is_secure": is_sec,
-                "http_status_code": res_code,
-                "error_message": res_err,
-                "status_category": status_cat,
-            })
+            mappings.append(
+                {
+                    "job_id": self.job_id,
+                    "source_url": current_url,
+                    "target_url": res_link,
+                    "target_domain": get_domain(res_link) or "",
+                    "ip_address": res_ip,
+                    "is_secure": is_sec,
+                    "http_status_code": res_code,
+                    "error_message": res_err,
+                    "status_category": status_cat,
+                }
+            )
 
         if mappings:
             try:

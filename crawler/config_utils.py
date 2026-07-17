@@ -63,35 +63,35 @@ def validate_domain_delays(delays: dict[str, float] | None) -> dict[str, float] 
 DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
     "crawler": {
         # --- 安全上下限（全域配置可覆寫）---
-        "min_timeout": 10,                   # 請求等待超時最小限制 (秒)
-        "max_timeout": 60,                   # 請求等待超時最大限制 (秒)
-        "min_connect_timeout": 1.0,          # TCP 連線超時最小限制 (秒)
-        "max_connect_timeout": 30.0,         # TCP 連線超時最大限制 (秒)
+        "min_timeout": 10,  # 請求等待超時最小限制 (秒)
+        "max_timeout": 60,  # 請求等待超時最大限制 (秒)
+        "min_connect_timeout": 1.0,  # TCP 連線超時最小限制 (秒)
+        "max_connect_timeout": 30.0,  # TCP 連線超時最大限制 (秒)
         "min_external_check_timeout": 1.0,  # 外部連結探測超時最小限制 (秒)
-        "max_external_check_timeout": 30.0, # 外部連結探測超時最大限制 (秒)
-        "min_delay": 1.0,                    # 網頁爬取間隔最小限制 (秒)
-        "max_delay": 10.0,                   # 網頁爬取間隔最大限制 (秒)
-        "min_retries": 0,                    # 最少重試次數
-        "max_retries": 5,                    # 最大重試次數
-        "max_max_depth": None,               # 爬取深度最大限制 (None 表示無限制)
-        "max_max_pages": None,               # 爬取頁數最大限制 (None 表示無限制)
-        "max_content_length": 10485760,      # 單頁內容最大允許字節數 (10 MB)
-        "max_redirects": 10,                 # HTTP 重導向最大次數
-        "jitter_ratio": 0.2,                 # 間隔時間隨機波動比例
+        "max_external_check_timeout": 30.0,  # 外部連結探測超時最大限制 (秒)
+        "min_delay": 1.0,  # 網頁爬取間隔最小限制 (秒)
+        "max_delay": 10.0,  # 網頁爬取間隔最大限制 (秒)
+        "min_retries": 0,  # 最少重試次數
+        "max_retries": 5,  # 最大重試次數
+        "max_max_depth": None,  # 爬取深度最大限制 (None 表示無限制)
+        "max_max_pages": None,  # 爬取頁數最大限制 (None 表示無限制)
+        "max_content_length": 10485760,  # 單頁內容最大允許字節數 (10 MB)
+        "max_redirects": 10,  # HTTP 重導向最大次數
+        "jitter_ratio": 0.2,  # 間隔時間隨機波動比例
         # --- 任務預設值（小於全域上限）---
-        "user_agent": None,                  # HTTP User-Agent 標頭 (None 表示使用內建預設)
-        "proxy_url": None,                   # HTTP 代理伺服器 URL (None 表示不使用)
-        "timeout": 30,                       # 請求等待超時 (秒)
-        "connect_timeout": 5.0,             # TCP 連線超時 (秒)
-        "external_check_timeout": 10.0,     # 外部連結探測超時 (秒)
-        "delay": 3.0,                        # 網頁爬取間隔 (秒)
-        "retries": 3,                        # 失敗重試次數
-        "max_depth": None,                   # 爬取深度 (None 表示依全域限制)
-        "max_pages": None,                   # 爬取頁數 (None 表示依全域限制)
+        "user_agent": None,  # HTTP User-Agent 標頭 (None 表示使用內建預設)
+        "proxy_url": None,  # HTTP 代理伺服器 URL (None 表示不使用)
+        "timeout": 30,  # 請求等待超時 (秒)
+        "connect_timeout": 5.0,  # TCP 連線超時 (秒)
+        "external_check_timeout": 10.0,  # 外部連結探測超時 (秒)
+        "delay": 3.0,  # 網頁爬取間隔 (秒)
+        "retries": 3,  # 失敗重試次數
+        "max_depth": None,  # 爬取深度 (None 表示依全域限制)
+        "max_pages": None,  # 爬取頁數 (None 表示依全域限制)
         "mime_type_filter": {"enabled": True, "allowed_types": ["text/html", "application/xhtml+xml"]},
-        "ignore_regexes": [],                # 忽略 URL 的正則表達式清單
-        "domain_delays": {},                 # 特定網域的客製化間隔 (dict[str, float])
-        "ssl_exempt_domains": [],            # 豁免 SSL 驗證的網域清單
+        "ignore_regexes": [],  # 忽略 URL 的正則表達式清單
+        "domain_delays": {},  # 特定網域的客製化間隔 (dict[str, float])
+        "ssl_exempt_domains": [],  # 豁免 SSL 驗證的網域清單
         "social_domains": [
             "facebook.com",
             "fb.com",
