@@ -135,10 +135,6 @@ graph TD
     %% 消除反向耦合
     Crawler -.->|僅引入事件定義| Backend
     Crawler -.->|Callback 回呼狀態| CLI
-    
-    %% MCP Server 代理
-    MCP[MCP Server] -->|直接操作狀態與配置| Backend
-    MCP -->|發送控制訊號| Crawler
 ```
 
 ### 核心設計層級
