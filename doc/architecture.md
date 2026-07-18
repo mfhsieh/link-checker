@@ -153,7 +153,8 @@ graph TD
    * CLI (`cli.py`) 直接驅動，能在沒有 Web 伺服器的情況下獨立完成所有工作。
    * 提供獨立的 `scripts/mcp_server.py` 伺服器，允許 AI 代理人 (如 Claude Desktop) 直接透過 Model Context Protocol 查詢任務狀態與控制爬蟲行為。
    * 結合 `httpx` 與 `BeautifulSoup4`，負責網路探測、HTML 解析、防護機制穿透 (Anti-Bot Bypass) 與錯誤重試。
-   * 全程由資料庫狀態 (State-driven) 引導執行，具備中斷恢復、協同暫停與殭屍進程防禦等高可靠度機制。
+   * 全程由資料庫狀態 (State-driven) 引導執行，具備中斷恢復、協同暫停與殭屍進程防禦（PID 與啟動時間雙重比對）等高可靠度機制。
+   * **可觀測性與多任務隔離 (Observability)**：採用 `contextvars` 原生上下文變數進行無侵入式日誌綁定，確保在高併發環境下各任務的追蹤日誌絕對隔離，免於全域變數污染。
 
 4. **資料持久層 (Data Layer)**
    * 採用雙資料庫實體分離架構：**Auth DB** (掌管帳號、日誌與權限) 與 **Crawler DB** (掌管任務、佇列與外連結果)。

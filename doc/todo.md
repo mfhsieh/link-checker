@@ -140,20 +140,35 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
+1. **修復例外處理區塊的 N+1 查詢效能隱患 (Lazy Load Overhead)**
+   * **問題描述**：`crawler/runner.py` 中，當抓取過程發生 `httpx.HTTPError` 或其他例外時，程式呼叫了 `session.rollback()`。在 rollback 後，ORM Session 會強制過期 (Expire) 所有綁定的物件。緊接著程式修改 `queue_item.status` 時，會自動觸發一次額外的 `SELECT` 查詢來重新載入該物件。在大量錯誤發生的情境下，這會引發多餘的 N+1 查詢效能損耗。
+   * **修正方案**：經評估 `httpx.HTTPError` 並非資料庫層級錯誤，且交易狀態仍屬乾淨，因此直接移除了 `_handle_error` 內的 `session.rollback()`；而對於未知例外的捕獲，則在 `rollback()` 後改用提取 `queue_item.id` 搭配原子性的 `update()` 語法更新狀態。這完全消除了不必要的 Lazy Load 查詢，大幅提升大量錯誤情況下的處理吞吐量。
+   * **狀態**：**已解決（Resolved）**。
+
+1. **擴充 `sanitize_error_message` 支援 IPv6 遮蔽**
+   * **問題描述**：`crawler/utils.py` 中的 `sanitize_error_message` 函式目前僅能成功遮蔽 IPv4 位址。若未來目標伺服器回傳帶有 IPv6 位址的連線錯誤訊息，該 IP 仍可能會被明文暴露。
+   * **修正方案**：已在 `crawler/utils.py` 的 `sanitize_error_message` 函式中加入能完整涵蓋標準與縮寫格式（含 `::`）的 IPv6 正則表達式，進一步阻絕 IPv6 位址洩漏的風險。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式資安需求）
+
+1. **修復全域日誌變數污染導致的任務追蹤失效 (Race Condition)**
+   * **問題描述**：`crawler/runner.py` 中使用了 `setattr(logging, "current_job_id", ...)` 的做法來注入日誌前綴。由於 `logging` 是全域模組，這會導致當多個 `JobRunner` 同時運行時，後啟動的任務會覆寫先啟動任務的 `job_id`，引發嚴重的 Race Condition 與日誌污染，使得多任務並發時的除錯追蹤功能失效。
+   * **修正方案**：已將 `crawler/runner.py` 中全域的 `setattr(logging, ...)` 移除，改用 Python 原生的 `contextvars.ContextVar` 來儲存 `job_id`。由於 Python 的 `ThreadPoolExecutor` 會自動傳遞 context，這能確保在並發環境下安全地隔離，並正確標記個別任務的日誌。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
+
 1. **為關鍵操作日誌加入 `job_id` 上下文追蹤**
    * **問題描述**：當有多個爬蟲任務在背景同時運行時，若日誌只印出正在爬取的 URL，維運人員無法區分該日誌屬於哪一個任務，增加多任務並發時的除錯難度。
    * **修正方案**：已透過在 `crawler/runner.py` 中全域覆寫 `logging.setLogRecordFactory`，於 `JobRunner` 初始化時將當前執行的 `job_id` 注入環境上下文。這讓所有 `CrawlerRunner` 與底層 `CrawlerCore` 的日誌輸出皆會自動帶上 `[Job <id>]` 的前綴，不僅達成目標，且完全無須逐一修改歷史程式碼中的 `logger.info()` 呼叫，為最優雅且無侵入式的解法。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
 
 1. **修復殭屍任務偵測僅依賴 PID 導致的重用誤判風險**
    * **問題描述**：Unix 系統的 PID 會循環重用。如果爬蟲意外崩潰，而作業系統剛好把同一個 PID 配發給了其他不相干的進程，原本單純檢查 `os.kill(pid, 0)` 的作法會誤以為爬蟲還活著，導致這個任務永遠卡在 `running` 成為無法中斷的殭屍狀態。
    * **修正方案**：已在 `backend/jobs/services/process.py` 實作防護機制。現在在寫入 PID 檔案時，會一併讀取 `/proc/{pid}/stat` 取出該進程的啟動時間 (starttime) 並寫入檔案。在後續驗證進程存活時，除了比對 PID，也會二次比對啟動時間。一旦發現 PID 存在但啟動時間不同，就能準確判斷這是被作業系統重用的進程，並立即將卡死的任務狀態設為 `error`。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式容錯需求）
 
 1. **實作錯誤訊息與日誌的敏感資訊清洗機制**
    * **問題描述**：目前爬蟲底層若遇到連線錯誤，會把原始的錯誤字串直接寫入資料庫的 `error_message` 欄位或印到 Log 中。如果連線剛好帶有 Proxy 的密碼或是敏感的 Cookie，這些機密就會被明文存下來。
    * **修正方案**：已在 `crawler/utils.py` 實作 `sanitize_error_message` 函式，透過正規表達式主動遮蔽 URL 憑證 (`user:pass`)、HTTP Header (如 `Cookie`, `Authorization`) 的值，以及內含的 IPv4 位址。並已整合至 `crawler/runner.py` 的所有例外紀錄儲存點，徹底阻絕機密外洩風險。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式資安需求）
 
 1. **修復畸形網域 (IDNA) 解析例外導致爬蟲崩潰的風險**
    * **問題描述**：爬蟲在處理具有瑕疵的網址時，若遭遇 IDNA 編碼錯誤（如 `idna.IDNAError`），而系統目前的 `_FETCH_SAFE_EXCEPTIONS` 沒有捕捉到這個特定的例外，這會導致未處理的例外直接往上層拋，造成爬蟲任務意外崩潰。

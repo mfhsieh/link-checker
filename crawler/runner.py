@@ -19,6 +19,9 @@
         ``CrawlerConfig`` 時提供各參數的後備預設值。
 """
 
+# pylint: disable=too-many-lines
+
+import contextvars
 import json
 import logging
 import random
@@ -55,11 +58,14 @@ logger: logging.Logger = logging.getLogger(__name__)
 _old_factory = logging.getLogRecordFactory()
 
 
+current_job_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("current_job_id", default=None)
+
+
 def _job_aware_record_factory(*args, **kwargs) -> logging.LogRecord:
     """
     攔截並修改預設的 LogRecord，動態注入 job_id 上下文。
 
-    若當前執行緒綁定了 `logging.current_job_id`，則在日誌訊息的最前方
+    若當前執行緒綁定了 `current_job_id_var`，則在日誌訊息的最前方
     加上 `[Job <id>]` 標籤，方便多任務併發時追蹤特定任務的日誌。
 
     Args:
@@ -70,7 +76,7 @@ def _job_aware_record_factory(*args, **kwargs) -> logging.LogRecord:
         logging.LogRecord: 修改過訊息內容的日誌紀錄物件。
     """
     record = _old_factory(*args, **kwargs)
-    job_id = getattr(logging, "current_job_id", None)
+    job_id = current_job_id_var.get()
     if job_id:
         record.msg = f"[Job {job_id}] {record.msg}"
     return record
@@ -210,7 +216,7 @@ class JobRunner:
         """
         self.session_factory = session_factory
         self.job_id = job_id
-        setattr(logging, "current_job_id", self.job_id)  # 注入 context 給 Logger (使用 setattr 繞過 Mypy 檢查)
+        current_job_id_var.set(self.job_id)  # 使用 ContextVar 注入 context，確保 ThreadPool 併發安全
         self.on_event_callback = on_event_callback
 
         # 以下狀態於 _initialize 中初始化
@@ -577,6 +583,7 @@ class JobRunner:
             crawler (CrawlerCore): 爬蟲核心引擎。
         """
         current_url: str = queue_item.url
+        queue_item_id: int = queue_item.id
         logger.info("正在爬取: %s", current_url)
 
         should_delay = True
@@ -646,14 +653,19 @@ class JobRunner:
                 self.state.crawled_count += 1
 
         except httpx.HTTPError as e:
-            self._handle_error(session, queue_item, e)
+            self._handle_error(queue_item, e)
             session.commit()
         except Exception as e:  # pylint: disable=broad-exception-caught
             session.rollback()
             logger.error("抓取 %s 時發生未預期錯誤: %s", current_url, e, exc_info=True)
-            queue_item.status = "failed"
-            queue_item.error_message = sanitize_error_message(f"未預期錯誤: {e}")
-            queue_item.status_category = "broken"
+            session.query(CrawlQueue).filter(CrawlQueue.id == queue_item_id).update(
+                {
+                    "status": "failed",
+                    "error_message": sanitize_error_message(f"未預期錯誤: {e}"),
+                    "status_category": "broken",
+                },
+                synchronize_session=False,
+            )
             session.commit()
 
             self.state.queue_pending -= 1
@@ -924,16 +936,15 @@ class JobRunner:
         code_res, err_res = crawler.check_external_link(link)
         return link, ip_res, code_res, err_res
 
-    def _handle_error(self, session: Session, queue_item: CrawlQueue, e: httpx.HTTPError) -> None:
+    def _handle_error(self, queue_item: CrawlQueue, e: httpx.HTTPError) -> None:
         """
         處理 HTTP 請求過程中的錯誤，套用重試邏輯或標記永久失效。
 
         Args:
-            session (Session): SQLAlchemy Session 實例。
             queue_item (CrawlQueue): 發生錯誤的佇列物件。
             e (httpx.HTTPError): 捕捉到的 HTTPX 例外。
         """
-        session.rollback()
+        # 移除 session.rollback()，避免 queue_item 過期導致後續修改觸發 N+1 查詢
         current_url = queue_item.url
         status_code = None
         is_permanent_error = False

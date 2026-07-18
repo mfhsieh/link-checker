@@ -118,7 +118,7 @@ flowchart TD
   1. **HTTP 自動升級**：若以 `http://` 請求時遭遇連線錯誤或 HTTP >= 400，會自動替換為 `https://` 進行重試。
   2. **特徵標頭拔除**：若遭遇常見 WAF 阻擋碼（如 403, 520 等），將嘗試拔除 `Sec-CH-UA` 等現代瀏覽器特徵標頭後重試。
   3. **終極 TLS 偽裝 (`_execute_curl_cffi_fallback`)**：若拔除標頭仍受阻，或遭遇連線超時/丟棄 (狀態碼為 None) 等 stealthy Tarpit 阻擋，自動降級呼叫 `curl_cffi` 引擎。**此階段將捨棄不完整的 HTTP 跳轉狀態，改從最原始的 `url` 重新發起連線**，由備援引擎自行跑完重導向與 Cookie 收集。
-  4. **全方位例外攔截**：定義 `_FETCH_SAFE_EXCEPTIONS` 以攔截已知的網路或解碼例外，更在主流程最外層利用 `Exception` 攔截所有未知錯誤，統一轉化為安全的 `failed` 狀態以避免中斷整個爬行任務。
+  4. **全方位例外攔截**：定義 `_FETCH_SAFE_EXCEPTIONS` 以攔截已知的網路或解碼例外（包含新加入的 `idna.IDNAError` 以防禦畸形網域），更在主流程最外層利用 `Exception` 攔截所有未知錯誤，統一轉化為安全的 `failed` 狀態以避免中斷整個爬行任務。
 - **`_fetch_single`**：單次執行的網路請求入口，包含實際呼叫 HTTPX。現在支援接收 `accumulated_cookies` 以維持跨跳轉的連線狀態。
 
 ### 2.2 連線與資安檢測
@@ -164,7 +164,7 @@ flowchart TD
 ### 4.1 核心探測進入點
 - **`check_external_link`**：探測流程的進入點，建立專屬的 `accumulated_cookies` 容器，以隔離記錄單次探測中跨跳的 Cookie。
 - **`_check_external_single`**：包裹著單次探測的例外處理與前置檢查：
-  - 專門攔截因網頁撰寫失誤導致的畸形網址（例如 `UnicodeError` 造成的 DNS 解析崩潰），並轉化為安全的 `failed` 標記。
+  - 專門攔截因網頁撰寫失誤導致的畸形網址（例如 `UnicodeError` 與 `idna.IDNAError` 造成的 DNS 解析崩潰），並轉化為安全的 `failed` 標記。
   - **提早攔截死連結與 SSRF 防護**：發送 HTTP 請求前先進行 DNS 解析 (`resolve_ip`)。如果解析失敗會直接中斷探測。配合 `lru_cache` 快取機制，大量死連結不會拖垮系統效能。
 
 ### 4.2 探測策略與 Cookie 穿透
