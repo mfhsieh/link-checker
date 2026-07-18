@@ -191,10 +191,12 @@ def test_cli_full_flow() -> None:
     # 2.5 執行 Unit Test 驗證環境變數優先覆寫邏輯與設定合併
     print("\nRunning Unit Test: Config Merge and Environment Override...")
     from crawler.config_utils import merge_and_validate_crawler_config  # pylint: disable=import-outside-toplevel
+    from crawler.env import get_env  # pylint: disable=import-outside-toplevel
 
     # 模擬環境變數
     os.environ["CRAWLER_PROXY_URL"] = "http://env-proxy:8080"
     os.environ["CRAWLER_SSL_EXEMPT_DOMAINS"] = "env-exempt.com, sub.env-exempt.org"
+    get_env.cache_clear()
 
     global_cfg = {
         "crawler": {

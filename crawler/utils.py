@@ -19,6 +19,7 @@ import ipaddress
 import json
 import logging
 import os
+import re
 import socket
 import sqlite3
 import threading
@@ -34,6 +35,7 @@ from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import JSON
 
+from crawler.env import get_env
 from crawler.models import CrawlQueue, ExternalLink, Job
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -118,7 +120,9 @@ def is_safe_ip(ip_str: str) -> bool:
     Returns:
         bool: 如果是安全的公開 IP 則回傳 True，否則（如 Loopback, Private, Link-local）回傳 False。
     """
-    if os.environ.get("CRAWLER_ALLOW_LOCAL_IPS", "false").lower() == "true":
+    # 若啟用開發模式覆寫，則直接放行
+    env = get_env()
+    if env.allow_local_ips:
         return True
 
     if not ip_str:
@@ -131,6 +135,31 @@ def is_safe_ip(ip_str: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def sanitize_error_message(msg: str | None) -> str:
+    """
+    清洗錯誤訊息中的敏感資訊（如密碼、IP、Cookie、Token）。
+
+    Args:
+        msg (str | None): 原始錯誤訊息。
+
+    Returns:
+        str: 清洗後的字串。若傳入 None 則回傳空字串。
+    """
+    if not msg:
+        return ""
+
+    # 遮蔽 URL 中的憑證: http://user:pass@host -> http://***:***@host
+    msg = re.sub(r"([a-zA-Z0-9+.-]+://)[^:\s@]+:[^@\s]+@", r"\g<1>***:***@", msg)
+
+    # 遮蔽 Header 或字典中的敏感值 (Cookie, Authorization, Bearer)
+    msg = re.sub(r"(?i)(cookie|authorization|bearer)(\s*[:=]\s*)([^\s'\"\]}]+)", r"\1\2***", msg)
+
+    # 遮蔽 IPv4 位址
+    msg = re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "[IP_MASKED]", msg)
+
+    return msg
 
 
 def normalize_url(url: str, base_url: str) -> str:

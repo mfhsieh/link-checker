@@ -14,10 +14,11 @@
 """
 
 import logging
-import os
 import re
 from collections.abc import Iterable
 from typing import cast
+
+from crawler.env import get_env
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -585,12 +586,13 @@ def merge_and_validate_crawler_config(config: dict[str, object], global_config: 
     _merge_crawler_lists(crawler_config, global_crawler_config)
 
     # 6. 環境變數優先覆寫 (處理如 Proxy 密碼等不宜寫入檔案的機密設定)
-    env_proxy = os.environ.get("CRAWLER_PROXY_URL")
+    env = get_env()
+    env_proxy = env.proxy_url
     if env_proxy:
         crawler_config["proxy_url"] = env_proxy
 
     # 環境變數的自簽憑證豁免網域：將環境變數設定與先前的結果再進行一次聯集合併
-    env_ssl_exempt = os.environ.get("CRAWLER_SSL_EXEMPT_DOMAINS")
+    env_ssl_exempt = env.ssl_exempt_domains
     if env_ssl_exempt:
         crawler_config["ssl_exempt_domains"] = list(
             set(

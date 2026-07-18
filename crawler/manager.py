@@ -21,7 +21,6 @@
 
 import json
 import logging
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -31,6 +30,7 @@ from sqlalchemy.sql.functions import count as sql_count
 from sqlalchemy.sql.functions import sum as sql_sum
 
 from backend.events import SystemEvent, publish
+from crawler.env import get_env
 from crawler.models import Base, CrawlQueue, ExternalLink, Job
 from crawler.runner import JobRunner
 from crawler.utils import create_optimized_engine, recalculate_job_progress
@@ -96,14 +96,21 @@ class JobManager:
             OSError: 若建立資料庫目錄失敗時拋出。
             SQLAlchemyError: 若建立資料表失敗時拋出。
         """
-        self.engine: Engine = create_optimized_engine(
-            db_url=db_url,
-            sqlite_timeout=int(os.environ.get("SQLITE_TIMEOUT", "30")),
-            pool_size=int(os.environ.get("DB_POOL_SIZE", "40")),
-            max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "20")),
-            pool_pre_ping=os.environ.get("DB_POOL_PRE_PING", "true").lower() == "true",
-            sqlite_cache_size=10000,
-        )
+        env = get_env()
+        is_postgres = db_url.startswith("postgresql://")
+        if is_postgres:
+            self.engine: Engine = create_optimized_engine(
+                db_url=db_url,
+                pool_size=env.db_pool_size,
+                max_overflow=env.db_max_overflow,
+                pool_pre_ping=env.db_pool_pre_ping,
+            )
+        else:
+            self.engine = create_optimized_engine(
+                db_url=db_url,
+                sqlite_timeout=env.sqlite_timeout,
+                sqlite_cache_size=10000,
+            )
 
         Base.metadata.create_all(self.engine)
         self.session_factory: Callable[[], Session] = sessionmaker(bind=self.engine)

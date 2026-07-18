@@ -86,7 +86,7 @@ class Settings:  # pylint: disable=too-few-public-methods
     # 邀請連結有效期（秒），預設 72 小時
     INVITATION_EXPIRE_SECONDS: int = int(os.environ.get("INVITATION_EXPIRE_SECONDS") or "259200")
     # 後台可訪問的基礎 URL（用於生成邀請連結）
-    BASE_URL: str = os.environ.get("BASE_URL", "http://localhost:8000")
+    BASE_URL: str = os.environ.get("BASE_URL", "http://localhost:8000").rstrip("/")
 
     # ── 登入保護設定 ───────────────────────────────────────────────────────────
     # 連續登入失敗次數閾值，超過後暫時鎖定帳號

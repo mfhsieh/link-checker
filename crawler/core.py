@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, cast
 from urllib.parse import ParseResult, urljoin, urlparse
 
 import httpx
+import idna
 from bs4 import BeautifulSoup
 
 from crawler.models import CrawlerConfig
@@ -66,6 +67,7 @@ _FETCH_SAFE_EXCEPTIONS: tuple[type[BaseException], ...] = (
     TypeError,
     UnicodeError,
     LookupError,
+    idna.IDNAError,
 )
 
 # 實作執行緒安全的 DNS 解析攔截器 (Monkey Patch)
@@ -623,7 +625,7 @@ class CrawlerCore:
                 status_code = getattr(getattr(e, "response", None), "status_code", None)
                 parsed = urlparse(current_url)
 
-                if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError)):
+                if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError, idna.IDNAError)):
                     # 這些是資料解析或格式錯誤，降級重試無效
                     logger.warning("網址 %s 格式錯誤或無法解析: %s", current_url, e)
                     return None, None, "failed", current_url, request_sent, f"無效或無法解析的內容: {e}"
@@ -647,7 +649,7 @@ class CrawlerCore:
                         e = retry_e
                         status_code = getattr(getattr(e, "response", None), "status_code", None)
                         current_url = new_url
-                        if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError)):
+                        if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError, idna.IDNAError)):
                             return None, None, "failed", current_url, request_sent, f"無效或無法解析的內容: {e}"
                         logger.warning("HTTPS 重試亦失敗: %s", e)
 
@@ -664,7 +666,7 @@ class CrawlerCore:
                     except _FETCH_SAFE_EXCEPTIONS as fallback_e:
                         e = fallback_e
                         status_code = getattr(getattr(e, "response", None), "status_code", None)
-                        if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError)):
+                        if isinstance(e, (ValueError, TypeError, UnicodeError, LookupError, idna.IDNAError)):
                             return None, None, "failed", current_url, request_sent, f"無效或無法解析的內容: {e}"
 
                 # 3. 終極 TLS 偽裝降級 (curl_cffi)

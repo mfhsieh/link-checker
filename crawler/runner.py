@@ -21,7 +21,6 @@
 
 import json
 import logging
-import os
 import random
 import time
 from collections.abc import Callable
@@ -37,6 +36,7 @@ from sqlalchemy.orm import Session
 from backend.events import SystemEvent
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 from crawler.core import CrawlerCore
+from crawler.env import get_env
 from crawler.models import CrawlerConfig, CrawlQueue, ExternalLink, Job
 from crawler.utils import (
     bulk_insert_ignore,
@@ -44,12 +44,39 @@ from crawler.utils import (
     determine_internal_link_status_category,
     get_domain,
     resolve_ip,
+    sanitize_error_message,
 )
 
 _crawler_def = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
 _DEF = _crawler_def if isinstance(_crawler_def, dict) else {}
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+_old_factory = logging.getLogRecordFactory()
+
+
+def _job_aware_record_factory(*args, **kwargs) -> logging.LogRecord:
+    """
+    攔截並修改預設的 LogRecord，動態注入 job_id 上下文。
+
+    若當前執行緒綁定了 `logging.current_job_id`，則在日誌訊息的最前方
+    加上 `[Job <id>]` 標籤，方便多任務併發時追蹤特定任務的日誌。
+
+    Args:
+        *args: 傳遞給底層 factory 的位置參數。
+        **kwargs: 傳遞給底層 factory 的關鍵字參數。
+
+    Returns:
+        logging.LogRecord: 修改過訊息內容的日誌紀錄物件。
+    """
+    record = _old_factory(*args, **kwargs)
+    job_id = getattr(logging, "current_job_id", None)
+    if job_id:
+        record.msg = f"[Job {job_id}] {record.msg}"
+    return record
+
+
+logging.setLogRecordFactory(_job_aware_record_factory)
 
 # 外部連結狀態快取的最大數量限制，避免發生 OOM (Out Of Memory)
 DEFAULT_LRU_CACHE_MAXSIZE: int = 1000
@@ -183,6 +210,7 @@ class JobRunner:
         """
         self.session_factory = session_factory
         self.job_id = job_id
+        setattr(logging, "current_job_id", self.job_id)  # 注入 context 給 Logger (使用 setattr 繞過 Mypy 檢查)
         self.on_event_callback = on_event_callback
 
         # 以下狀態於 _initialize 中初始化
@@ -210,7 +238,8 @@ class JobRunner:
             if not job:
                 return
 
-            max_workers = int(os.environ.get("CRAWLER_MAX_WORKERS", "5"))
+            env = get_env()
+            max_workers = env.max_workers
             self.executor = ThreadPoolExecutor(max_workers=max_workers)
             crawler = None
             try:
@@ -518,7 +547,7 @@ class JobRunner:
                     {
                         "ip_address": res_ip,
                         "http_status_code": res_code,
-                        "error_message": res_err,
+                        "error_message": sanitize_error_message(res_err),
                         "is_secure": is_sec,
                         "status_category": status_cat,
                     },
@@ -556,7 +585,8 @@ class JobRunner:
             if max_depth is not None and queue_item.depth > max_depth:
                 queue_item.status = "skip"
                 queue_item.status_category = "skip"
-                session.commit()
+                # 依 Code Review 修正：使用 flush 而非 commit，確保狀態持久化但保持交易開啟
+                session.flush()
                 self.state.queue_pending -= 1
                 self.state.queue_skipped += 1
                 return
@@ -577,7 +607,7 @@ class JobRunner:
             # result[5] = err_msg (str | None)
             queue_item.status_code = result[2]
             queue_item.status = result[3]
-            queue_item.error_message = result[5]
+            queue_item.error_message = sanitize_error_message(result[5])
             queue_item.status_category = determine_internal_link_status_category(
                 queue_item.status, queue_item.status_code, queue_item.error_message
             )
@@ -617,11 +647,12 @@ class JobRunner:
 
         except httpx.HTTPError as e:
             self._handle_error(session, queue_item, e)
+            session.commit()
         except Exception as e:  # pylint: disable=broad-exception-caught
             session.rollback()
             logger.error("抓取 %s 時發生未預期錯誤: %s", current_url, e, exc_info=True)
             queue_item.status = "failed"
-            queue_item.error_message = f"未預期錯誤: {e}"
+            queue_item.error_message = sanitize_error_message(f"未預期錯誤: {e}")
             queue_item.status_category = "broken"
             session.commit()
 
@@ -860,7 +891,7 @@ class JobRunner:
                     "ip_address": res_ip,
                     "is_secure": is_sec,
                     "http_status_code": res_code,
-                    "error_message": res_err,
+                    "error_message": sanitize_error_message(res_err),
                     "status_category": status_cat,
                 }
             )
@@ -924,12 +955,11 @@ class JobRunner:
                 status_code,
             )
             queue_item.status = "failed"
-            queue_item.error_message = f"永久性錯誤: {e}"
+            queue_item.error_message = sanitize_error_message(f"永久性錯誤: {e}")
             queue_item.status_category = determine_internal_link_status_category(
                 queue_item.status, queue_item.status_code, queue_item.error_message
             )
-            session.commit()
-
+            # 依 Code Review 修正：移除此處的提早 commit，由上層統一 commit
             self.state.queue_pending -= 1
             self.state.queue_failed += 1
             self.state.crawled_count += 1
@@ -954,7 +984,7 @@ class JobRunner:
                     retries,
                     f"{backoff_delay:.1f}",
                 )
-                session.commit()
+                # 依 Code Review 修正：移除此處的提早 commit，由上層統一 commit
 
                 jitter_ratio = cast(float, self.crawler_config_dict.get("jitter_ratio", 0.2))
                 actual_delay = (
@@ -970,12 +1000,11 @@ class JobRunner:
             else:
                 logger.error("處理網址 %s 時發生錯誤且已達重試上限", current_url)
                 queue_item.status = "failed"
-                queue_item.error_message = str(e)
+                queue_item.error_message = sanitize_error_message(str(e))
                 queue_item.status_category = determine_internal_link_status_category(
                     queue_item.status, queue_item.status_code, queue_item.error_message
                 )
-                session.commit()
-
+                # 依 Code Review 修正：移除此處的提早 commit，由上層統一 commit
                 self.state.queue_pending -= 1
                 self.state.queue_failed += 1
                 self.state.crawled_count += 1
