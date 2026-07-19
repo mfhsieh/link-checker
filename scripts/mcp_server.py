@@ -25,13 +25,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from backend.auth.db import get_auth_session_local  # pylint: disable=wrong-import-position
 from backend.auth.models import User  # pylint: disable=wrong-import-position
 from backend.deps import get_job_manager  # pylint: disable=wrong-import-position
-from crawler.manager import JobManager  # pylint: disable=wrong-import-position
 from crawler.models import CrawlQueue, Job  # pylint: disable=wrong-import-position
 
 #: mcp: 負責處理 MCP 協議的 FastMCP 伺服器實例。
 mcp: FastMCP = FastMCP("LinkCheckerProductionMCP")
-#: manager: 用於與資料庫及爬蟲引擎互動的任務管理員。
-manager: JobManager = get_job_manager()
 
 
 @mcp.tool()
@@ -50,6 +47,7 @@ def get_jobs_status(job_id: str | None = None) -> str:
         str: 包含任務詳情、使用者信箱與最新爬取紀錄的 JSON 字串列表。若無符合的任務則回傳提示訊息。
     """
     auth_session_factory = get_auth_session_local()
+    manager = get_job_manager()
 
     with manager.session_factory() as crawler_db, auth_session_factory() as auth_db:
         query = crawler_db.query(Job)
@@ -57,7 +55,7 @@ def get_jobs_status(job_id: str | None = None) -> str:
             query = query.filter(Job.id == job_id)
         else:
             query = query.filter(Job.status.in_(["running", "pending"]))
-            
+
         jobs = query.all()
         if not jobs:
             return f"找不到指定的任務: {job_id}" if job_id else "目前沒有正在執行的任務。"
@@ -73,14 +71,14 @@ def get_jobs_status(job_id: str | None = None) -> str:
         result = []
         for job in jobs:
             email = user_email_map.get(job.user_id, "Unknown / System") if job.user_id else "System"
-            
+
             latest_queue = (
                 crawler_db.query(CrawlQueue)
                 .filter(CrawlQueue.job_id == job.id)
                 .order_by(CrawlQueue.updated_at.desc())
                 .first()
             )
-            
+
             latest_crawl_data = None
             if latest_queue:
                 latest_crawl_data = {
@@ -121,6 +119,7 @@ def get_job_config(job_id: str) -> str:
     Returns:
         str: 該任務的執行配置 (JSON 格式字串)。若找不到該任務或沒有配置快照，則回傳錯誤訊息。
     """
+    manager = get_job_manager()
     with manager.session_factory() as db:
         job = db.query(Job).filter(Job.id == job_id).first()
         if not job:
