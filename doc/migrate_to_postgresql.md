@@ -22,6 +22,10 @@
 ```bash
 sudo apt update
 sudo apt install postgresql postgresql-contrib
+
+# 若未來在生產環境需進行無停機空間優化，建議一併安裝 pg_repack 擴充套件
+# 提示：請依照您實際安裝的 PostgreSQL 版本 (如 15, 16) 替換下方的版本號
+sudo apt install postgresql-16-repack
 ```
 
 ### 步驟 2.2：啟動 PostgreSQL 服務
@@ -140,6 +144,8 @@ VACUUM (FULL, ANALYZE) jobs, crawl_queue, external_links;
 ```
 > [!WARNING]
 > `VACUUM (FULL, ANALYZE)` 會進行深度的空間重組並重新估算索引統計資訊，藉此最大化資料庫效能。但請注意，**這會對資料表進行排他鎖定 (Exclusive Lock)**。因此，強烈建議在系統上線提供服務前（也就是剛遷移完畢的維護期間）執行完畢。
+> 
+> **生產環境進階建議 (`pg_repack`)**：若您的系統已正式上線且無法容忍鎖定造成的停機，建議改用 **`pg_repack`**。這是一個第三方擴充套件，可以在不中斷讀寫的情況下 (Online) 移除資料表膨脹 (Bloat)。您需先進入資料庫執行 `CREATE EXTENSION pg_repack;` 啟用它，日後維護時即可透過終端機指令（如 `pg_repack -c -d crawler_db`）進行無鎖定最佳化。
 
 ### 5.2 查詢資料表與索引空間佔用
 在執行 `VACUUM FULL` 前後，您可以使用以下 SQL 查詢各個資料表（包含索引）的實際硬碟佔用空間，來觀察瘦身的成效：

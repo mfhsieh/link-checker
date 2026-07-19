@@ -3,7 +3,11 @@
 
 // 任務詳情返回列表按鈕 (使用 Event Delegation)
 document.addEventListener('click', (e) => {
-    if (e.target.closest('#btn-back-jobs')) {
+    let target = e.target;
+    if (target && target.nodeType === Node.TEXT_NODE) target = target.parentElement;
+    const backBtn = target && target.closest ? target.closest('#btn-back-jobs') : null;
+    if (backBtn) {
+        e.preventDefault();
         window.location.hash = '#/jobs';
     }
 
@@ -198,6 +202,9 @@ export async function initJobDetailPage(jobId) {
  */
 export function destroyJobDetailPage() {
     stopSseStream();
+    _currentJobId = null;
+    if (_extFilterTimeout) clearTimeout(_extFilterTimeout);
+    if (_intFilterTimeout) clearTimeout(_intFilterTimeout);
 }
 
 /**
