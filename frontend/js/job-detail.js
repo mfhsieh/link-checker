@@ -8,7 +8,13 @@ document.addEventListener('click', (e) => {
     const backBtn = target && target.closest ? target.closest('#btn-back-jobs') : null;
     if (backBtn) {
         e.preventDefault();
-        window.location.hash = '#/jobs';
+        const backPath = sessionStorage.getItem('jobBackPath');
+        if (backPath) {
+            sessionStorage.removeItem('jobBackPath');
+            window.location.href = backPath;
+        } else {
+            window.location.hash = '#/jobs';
+        }
     }
 
     // Config modal close buttons

@@ -947,6 +947,9 @@ function renderAllJobsTable(container) {
                     aUrl.style.wordBreak = "break-all";
                     aUrl.title = "查看任務詳情";
                     aUrl.textContent = j.start_url;
+                    aUrl.addEventListener("click", () => {
+                        sessionStorage.setItem("jobBackPath", "/admin.html#/admin/jobs");
+                    });
                     return aUrl;
                 } else {
                     const divUrl = document.createElement("div");
