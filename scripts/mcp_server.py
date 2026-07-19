@@ -100,6 +100,7 @@ def get_jobs_status(job_id: str | None = None) -> str:  # pylint: disable=too-ma
                     "start_url": job.start_url,
                     "user_email": email,
                     "created_at": job.created_at.isoformat() if job.created_at else None,
+                    "progress_stats": job.progress_stats,
                     "latest_crawl": latest_crawl_data,
                 }
             )
