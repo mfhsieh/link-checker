@@ -11,7 +11,7 @@
   - [中優先（中大型功能擴充）](#中優先中大型功能擴充)
   - [低優先（邊緣需求與周邊工具）](#低優先邊緣需求與周邊工具)
 - [進行中 / 部分完成 (In Progress)](#進行中--部分完成-in-progress)
-- [觀察中 / 技術儲備 (Monitoring)](#觀察中--技術儲備-monitoring)
+- [觀察中 / 長期規劃 (Monitoring)](#觀察中--長期規劃-monitoring)
 - [已解決 / 已完成 (Resolved / Completed)](#已解決--已完成-resolved--completed)
 - [永久擱置 / 已移除 (Dropped / Removed)](#永久擱置--已移除-dropped--removed)
 
@@ -88,7 +88,7 @@
 
 ---
 
-## 觀察中 / 技術儲備 (Monitoring)
+## 觀察中 / 長期規劃 (Monitoring)
 
 1. **實作雙資料庫軟刪除 (Soft Delete) 與背景清理機制**
    * **現狀描述**：規格書 **§4.1** 明確要求跨資料庫資源刪除時，應採軟刪除機制以確保最終一致性。但在當前架構下，跨資料庫的資源關聯極少頻繁變動，且全面改用軟刪除需改寫幾乎所有 SQLAlchemy 查詢以過濾 `deleted_at`。
@@ -103,7 +103,7 @@
 1. **解耦 `crawler` 模組對 `backend.events` 的反向依賴**
    * **現狀描述**：爬蟲模組直接 `import` 了 `backend` 的事件匯流排。雖然規格書規定 CLI-First，但目前 CLI 執行時連帶載入 backend 並無嚴重副作用。
    * **改善建議**：將事件通知改為依賴注入或回呼函式機制，徹底解除耦合。
-   * **狀態**：**觀察中（Monitoring）**。由於涉及較大範圍的架構調整且目前無明顯 Bug，列為未來架構翻新時的儲備任務。
+   * **狀態**：**觀察中（Monitoring）**。由於涉及較大範圍的架構調整且目前無明顯 Bug，列為未來架構翻新時的長期任務。
 
 1. **程式碼重構：明確區分內部與外部連結的命名**
    * **現狀描述**：因歷史因素，部分變數與 API 命名未能精確區分內部與外部連結。
@@ -128,17 +128,35 @@
 1. **FastAPI 同步端點 (`def`) 潛在的 ThreadPool 瓶頸**
    * **問題描述**：目前幾乎所有的 FastAPI API 端點皆使用同步函式 (`def`)。這在底層使用 SQLAlchemy 同步 ORM (`Session`) 時是完全正確的做法，能讓 FastAPI 將請求轉交給外部的 ThreadPool 執行，避免阻塞主事件迴圈。
    * **改善建議**：若未來 API 請求併發量極大，預設的 Starlette ThreadPool 數量 (約 40) 可能會成為瓶頸。屆時需調大 ThreadPool 的數量，或逐步將資料庫引擎遷移至非同步 (`asyncio` + `AsyncSession`) 架構。
-   * **狀態**：**觀察中（Monitoring）**。在目前的流量與架構下是安全且最佳的實作，作為未來擴展時的技術儲備即可。
+   * **狀態**：**觀察中（Monitoring）**。在目前的流量與架構下是安全且最佳的實作，作為未來擴展時的長期規劃即可。
 
 1. **外部連結探測的 `ThreadPoolExecutor` 缺乏優雅關閉與例外傳播機制**
    * **位置**: `crawler/runner.py` (執行外部連結探測的迴圈)
    * **問題描述**：目前外部連結檢查使用 `ThreadPoolExecutor`。雖然 `finally` 區塊呼叫了 `executor.shutdown(wait=True, cancel_futures=True)`，但若主迴圈發生例外中斷，池中正在等待 HTTP 網路 I/O 的任務可能無法被立即中斷，這取決於底層 `httpx` 的行為，有極低的機率造成連線資源短暫殘留。
    * **改善建議**：未來若要進一步提升爬蟲網路 I/O 效能與資源回收能力，建議將外部連結探測遷移至純 Async 協程架構 (`asyncio` + `httpx.AsyncClient`)，獲得更好的取消語意與併發能力。
-   * **狀態**：**觀察中（Monitoring）**。屬於未來架構重構方向的技術儲備。
+   * **狀態**：**觀察中（Monitoring）**。屬於未來架構重構方向的長期規劃。
+
+1. **資料庫 Schema 精簡與體積最佳化 (Database Size Optimization)**
+   * **問題描述**：目前爬蟲系統儲存的歷史紀錄與佇列，會消耗極大的資料庫空間。字串冗餘（如相同的網址字串重複儲存）、低效型別（如 UUID 存為 36-byte 字串、狀態存為字串），以及長網址放入 B-Tree 索引造成的索引膨脹，皆會導致資料庫磁碟耗用過快。
+   * **改善建議**：
+     1. **網址正規化 (URL Normalization)**：將冗長且重複的 `url`、`source_url`、`target_url` 抽離至獨立的 URL 表格，並改用整數 ID 關聯。
+     2. **UUID 原生型別**：將 `job_id` 等 UUID 欄位從 `String(36)` 改用原生 16-byte 二進位或 PostgreSQL 的原生 `UUID` 型別。
+     3. **Hash 索引 (Hash Indexing)**：對長網址先計算 MD5 或 SHA-256 建立短欄位（如 `url_hash`）並建構索引，大幅消除長字串造成的 B-Tree 索引膨脹。
+     4. **狀態欄位瘦身**：將 `status` 與 `status_category` 從 `String` 改為原生 `ENUM` 或是 `SmallInteger` 整數常數。
+     5. **採用 JSONB**：若遷移至 PostgreSQL，將 `progress_stats` 等 JSON 欄位改為 `JSONB` 以獲得更好的二進位壓縮比。
+   * **狀態**：**觀察中（Monitoring）**。若未來爬蟲資料量成長且造成嚴重的儲存空間瓶頸，再行評估啟動大規模 Schema 遷移計畫。
 
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+1. **修復任務詳情頁「返回列表」按鈕失效與導覽動線問題**
+   * **問題描述**：使用者在讀取大量資料的任務詳情頁面時，若中途（或甚至讀取完成後）點擊「返回列表」，畫面會卡住無法跳轉；且管理者從監控面板進入詳情頁後，返回時會被錯誤導向一般使用者的任務列表，操作體驗中斷。
+   * **修正方案**：
+     1. 修復事件委派 (Event Delegation) 中 `e.target.closest` 因點擊文字節點而拋出 TypeError 中斷路由的錯誤。
+     2. 強化 `destroyJobDetailPage` 的資源清理邏輯，強制重置 `_currentJobId`，避免背景仍在執行的非同步請求完成後，錯誤觸發 DOM 重繪並污染列表畫面 (Race Condition)。
+     3. 引入 `sessionStorage` 紀錄來源路徑機制。當從管理員介面 (`/admin.html#/admin/jobs`) 進入任務詳情時，返回按鈕會智慧辨識並導回管理者的監控列表。
+   * **狀態**：**已解決（Resolved）**。
 
 1. **修復例外處理區塊的 N+1 查詢效能隱患 (Lazy Load Overhead)**
    * **問題描述**：`crawler/runner.py` 中，當抓取過程發生 `httpx.HTTPError` 或其他例外時，程式呼叫了 `session.rollback()`。在 rollback 後，ORM Session 會強制過期 (Expire) 所有綁定的物件。緊接著程式修改 `queue_item.status` 時，會自動觸發一次額外的 `SELECT` 查詢來重新載入該物件。在大量錯誤發生的情境下，這會引發多餘的 N+1 查詢效能損耗。
