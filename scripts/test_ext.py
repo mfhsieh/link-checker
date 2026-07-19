@@ -7,6 +7,7 @@
 # pylint: disable=duplicate-code
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -37,6 +38,7 @@ def main() -> None:
         "-g", "--global-config", type=str, default="config/config_global.yaml", help="全域 YAML 設定檔的路徑"
     )
     parser.add_argument("-d", "--debug", action="store_true", help="啟用除錯模式，顯示底層爬蟲的詳細處理日誌")
+    parser.add_argument("--json", action="store_true", help="以 JSON 格式輸出結果")
     args = parser.parse_args()
 
     if args.debug:
@@ -53,17 +55,22 @@ def main() -> None:
     config = get_test_crawler_config(args.global_config, user_config_overrides)
 
     core = CrawlerCore(config)
-    print(f"[*] 開始測試外部連結: {args.url}")
+    if not args.json:
+        print(f"[*] 開始測試外部連結: {args.url}")
 
     # check_external_link 回傳: (status_code, error_msg)
     status_code, error_msg = core.check_external_link(args.url)
 
-    if status_code is not None and status_code < 400:
-        print(f"[+] 測試成功 (Healthy)！狀態碼: {status_code}")
+    if args.json:
+        result_json = {"url": args.url, "status_code": status_code, "error_msg": error_msg}
+        print(json.dumps(result_json, ensure_ascii=False))
     else:
-        print(f"[-] 測試失敗或異常 (Broken/Dead)。狀態碼: {status_code}")
-        if error_msg:
-            print(f"    - 錯誤訊息: {error_msg}")
+        if status_code is not None and status_code < 400:
+            print(f"[+] 測試成功 (Healthy)！狀態碼: {status_code}")
+        else:
+            print(f"[-] 測試失敗或異常 (Broken/Dead)。狀態碼: {status_code}")
+            if error_msg:
+                print(f"    - 錯誤訊息: {error_msg}")
 
     core.close()
 

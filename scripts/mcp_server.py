@@ -203,5 +203,65 @@ def get_disk_usage() -> str:
     return json.dumps(info, ensure_ascii=False, indent=2)
 
 
+@mcp.tool()
+def test_internal_url(url: str) -> str:
+    """
+    透過執行 scripts/test_url.py 測試內部連結，取得 HTTP 狀態碼與解析結果。
+    與直接執行 CLI 的行為與程式碼完全一致。
+
+    Args:
+        url (str): 欲測試的內部連結。
+
+    Returns:
+        str: 包含 status_code, error_msg 與連結數量的 JSON 字串。若執行失敗，則回傳錯誤訊息。
+    """
+    # pylint: disable=import-outside-toplevel
+    import os
+    import subprocess
+    # pylint: enable=import-outside-toplevel
+
+    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "test_url.py"))
+    # 使用當前執行的 python 直譯器
+    python_exe = sys.executable
+
+    try:
+        result = subprocess.run([python_exe, script_path, url, "--json"], capture_output=True, text=True, check=False)
+        if result.stdout.strip():
+            return result.stdout.strip()
+        return json.dumps({"error": f"腳本沒有輸出。 stderr: {result.stderr.strip()}"})
+    except Exception as e:
+        return json.dumps({"error": f"執行測試腳本時發生異常: {e}"})
+
+
+@mcp.tool()
+def test_external_url(url: str) -> str:
+    """
+    透過執行 scripts/test_ext.py 測試外部連結，取得 HTTP 狀態碼與解析結果。
+    與直接執行 CLI 的行為與程式碼完全一致。
+
+    Args:
+        url (str): 欲測試的外部連結。
+
+    Returns:
+        str: 包含 status_code, error_msg 的 JSON 字串。若執行失敗，則回傳錯誤訊息。
+    """
+    # pylint: disable=import-outside-toplevel
+    import os
+    import subprocess
+    # pylint: enable=import-outside-toplevel
+
+    script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "test_ext.py"))
+    # 使用當前執行的 python 直譯器
+    python_exe = sys.executable
+
+    try:
+        result = subprocess.run([python_exe, script_path, url, "--json"], capture_output=True, text=True, check=False)
+        if result.stdout.strip():
+            return result.stdout.strip()
+        return json.dumps({"error": f"腳本沒有輸出。 stderr: {result.stderr.strip()}"})
+    except Exception as e:
+        return json.dumps({"error": f"執行測試腳本時發生異常: {e}"})
+
+
 if __name__ == "__main__":
     mcp.run()

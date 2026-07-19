@@ -7,6 +7,7 @@
 # pylint: disable=duplicate-code
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -101,6 +102,7 @@ def main() -> None:
         "-g", "--global-config", type=str, default="config/config_global.yaml", help="全域 YAML 設定檔的路徑"
     )
     parser.add_argument("-d", "--debug", action="store_true", help="啟用除錯模式，顯示底層爬蟲的詳細處理日誌")
+    parser.add_argument("--json", action="store_true", help="以 JSON 格式輸出結果 (供程式或 MCP 介接使用)")
     args = parser.parse_args()
 
     if args.debug:
@@ -112,7 +114,8 @@ def main() -> None:
     config = get_test_crawler_config(args.global_config)
 
     core = CrawlerCore(config)
-    print(f"[*] 開始爬取單一頁面: {args.url}")
+    if not args.json:
+        print(f"[*] 開始爬取單一頁面: {args.url}")
 
     parsed_url = urlparse(args.url)
     target_domains = [parsed_url.netloc] if parsed_url.netloc else []
@@ -122,23 +125,34 @@ def main() -> None:
         args.url, target_domains=target_domains, trusted_domains=[]
     )
 
-    if status_code == 200:
-        print(f"[+] 爬取成功！狀態碼: {status_code}")
-        print(f"    - 內部連結數量: {len(internal_links)}")
-        print(f"    - 外部連結數量: {len(external_links)}")
-
-        print("\n[內部連結預覽]")
-        for link in internal_links:
-            print(f"  - {link}")
-
-        print("\n[外部連結預覽]")
-        for link in external_links:
-            print(f"  - {link}")
-
+    if args.json:
+        result_json = {
+            "url": args.url,
+            "status_code": status_code,
+            "status": status,
+            "error_msg": error_msg,
+            "internal_links_count": len(internal_links),
+            "external_links_count": len(external_links),
+        }
+        print(json.dumps(result_json, ensure_ascii=False))
     else:
-        print(f"[-] 爬取失敗或異常。狀態: {status}, 狀態碼: {status_code}")
-        if error_msg:
-            print(f"    - 錯誤訊息: {error_msg}")
+        if status_code == 200:
+            print(f"[+] 爬取成功！狀態碼: {status_code}")
+            print(f"    - 內部連結數量: {len(internal_links)}")
+            print(f"    - 外部連結數量: {len(external_links)}")
+
+            print("\n[內部連結預覽]")
+            for link in internal_links:
+                print(f"  - {link}")
+
+            print("\n[外部連結預覽]")
+            for link in external_links:
+                print(f"  - {link}")
+
+        else:
+            print(f"[-] 爬取失敗或異常。狀態: {status}, 狀態碼: {status_code}")
+            if error_msg:
+                print(f"    - 錯誤訊息: {error_msg}")
 
     core.close()
 
