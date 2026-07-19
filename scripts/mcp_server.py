@@ -77,7 +77,8 @@ def get_jobs_status(job_id: str | None = None) -> str:  # pylint: disable=too-ma
             email = user_email_map.get(job.user_id, "Unknown / System") if job.user_id else "System"
 
             latest_queue = (
-                crawler_db.query(CrawlQueue)
+                crawler_db
+                .query(CrawlQueue)
                 .filter(CrawlQueue.job_id == job.id)
                 .order_by(CrawlQueue.updated_at.desc())
                 .first()
@@ -95,17 +96,15 @@ def get_jobs_status(job_id: str | None = None) -> str:  # pylint: disable=too-ma
                     "updated_at": latest_queue.updated_at.isoformat() if latest_queue.updated_at else None,
                 }
 
-            result.append(
-                {
-                    "job_id": job.id,
-                    "status": job.status,
-                    "start_url": job.start_url,
-                    "user_email": email,
-                    "created_at": job.created_at.isoformat() if job.created_at else None,
-                    "progress_stats": job.progress_stats,
-                    "latest_crawl": latest_crawl_data,
-                }
-            )
+            result.append({
+                "job_id": job.id,
+                "status": job.status,
+                "start_url": job.start_url,
+                "user_email": email,
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+                "progress_stats": job.progress_stats,
+                "latest_crawl": latest_crawl_data,
+            })
 
         return json.dumps(result, ensure_ascii=False, indent=2)
 
