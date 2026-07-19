@@ -5,12 +5,14 @@
 此模組主要作為 FastMCP 的進入點，提供供外部呼叫的工具 (Tools)。
 
 此模組提供以下主要功能（Tools）：
-- get_job_config: 取得指定任務的執行配置快照 (Config Snapshot)
+- get_job_config: 取得指定任務的執行配置快照 (Config Snapshot)。
 - get_jobs_status: 取得指定任務的最新狀態，或列出所有執行中與等待中的任務。
+- get_disk_usage: 取得資料庫 (Crawler DB) 與檔案系統 (root) 的空間耗用量資訊。
+- test_internal_url: 測試單一內部連結，取得 HTTP 狀態碼與解析結果。
+- test_external_url: 測試單一外部連結，取得 HTTP 狀態碼與驗證結果。
 
 模組層級變數：
     mcp (FastMCP): 負責處理 MCP 協議的伺服器實例。
-    manager (JobManager): 用於與資料庫及爬蟲引擎互動的任務管理員。
 """
 
 import json
@@ -36,10 +38,10 @@ def get_jobs_status(job_id: str | None = None) -> str:  # pylint: disable=too-ma
     同時，也會依據 `updated_at` (最後更新時間) 排序，附上該任務在 crawl_queue 中最新的一筆爬取紀錄。
 
     Args:
-        job_id (str | None): 若指定，則只查詢該 UUID 對應的任務；若未指定，則列出所有 running/pending 任務。
+        job_id (str | None): 若指定，則只查詢該 UUID 對應的任務；若未指定，則列出所有 running/pending 任務。預設為 None。
 
     Returns:
-        str: 包含任務詳情、使用者信箱與最新爬取紀錄的 JSON 字串列表。若無符合的任務則回傳提示訊息。
+        str: 包含任務詳情、使用者信箱與最新爬取紀錄的 JSON 字串列表。若無符合的任務則回傳錯誤或提示訊息。
     """
     # pylint: disable=import-outside-toplevel
     from backend.auth.db import get_auth_session_local
@@ -208,6 +210,7 @@ def get_disk_usage() -> str:
 def test_internal_url(url: str) -> str:
     """
     透過執行 scripts/test_url.py 測試內部連結，取得 HTTP 狀態碼與解析結果。
+
     與直接執行 CLI 的行為與程式碼完全一致。
 
     Args:
@@ -237,6 +240,7 @@ def test_internal_url(url: str) -> str:
 def test_external_url(url: str) -> str:
     """
     透過執行 scripts/test_ext.py 測試外部連結，取得 HTTP 狀態碼與解析結果。
+
     與直接執行 CLI 的行為與程式碼完全一致。
 
     Args:
