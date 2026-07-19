@@ -216,7 +216,6 @@ def test_internal_url(url: str) -> str:
         str: 包含 status_code, error_msg 與連結數量的 JSON 字串。若執行失敗，則回傳錯誤訊息。
     """
     # pylint: disable=import-outside-toplevel
-    import os
     import subprocess
     # pylint: enable=import-outside-toplevel
 
@@ -246,7 +245,6 @@ def test_external_url(url: str) -> str:
         str: 包含 status_code, error_msg 的 JSON 字串。若執行失敗，則回傳錯誤訊息。
     """
     # pylint: disable=import-outside-toplevel
-    import os
     import subprocess
     # pylint: enable=import-outside-toplevel
 
