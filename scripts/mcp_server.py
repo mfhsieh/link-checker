@@ -229,7 +229,7 @@ def test_internal_url(url: str) -> str:
         if result.stdout.strip():
             return result.stdout.strip()
         return json.dumps({"error": f"腳本沒有輸出。 stderr: {result.stderr.strip()}"})
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         return json.dumps({"error": f"執行測試腳本時發生異常: {e}"})
 
 
@@ -259,7 +259,7 @@ def test_external_url(url: str) -> str:
         if result.stdout.strip():
             return result.stdout.strip()
         return json.dumps({"error": f"腳本沒有輸出。 stderr: {result.stderr.strip()}"})
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         return json.dumps({"error": f"執行測試腳本時發生異常: {e}"})
 
 
