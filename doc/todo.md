@@ -144,6 +144,11 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
+1. **重構前端 Resume 任務的邏輯與 API 呼叫**
+   * **問題描述**：目前前端在「恢復」任務時，直接共用了 `btn-start-job` 與 `/api/jobs/{job_id}/start` API。雖然底層能順利接續跑起來，但未利用到後端專門提供、具備嚴格安全狀態檢查機制 (`paused` / `error`) 的 `/api/jobs/{job_id}/resume` 端點。
+   * **規劃方案**：在前端 `job-controls.js` 中依據任務狀態分流：狀態為 `paused` 或 `error` 時派發 `job-resume` 事件。然後在 `job-detail.js` 新增對 `job-resume` 的監聽器，精準呼叫專屬的 `/resume` API。
+   * **狀態**：**已解決（Resolved）**。(已寫入 requirements.md 成為前端規範)
+
 1. **實作雲端測試 MCP 與本地/雲端結果比對 Skill**
    * **問題描述**：同一個連結在本地端用 `scripts/test_ext.py` 或 `scripts/test_url.py` 測試時可能成功，但在雲端主機測試時，偶爾會因為目標主機的防禦策略（例如阻擋雲端 IP 或資料中心網段）而失敗。這導致難以釐清是連結真的失效，還是防禦策略造成的誤判。
    * **規劃方案**：

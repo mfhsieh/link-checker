@@ -1,8 +1,9 @@
 """
-FastAPI 應用程式主入口。
+FastAPI 應用程式主入口模組。
 
-建立 FastAPI app、掛載所有 Router、設定靜態檔案服務、
-CORS（開發模式）、全域例外處理。
+負責建立 FastAPI app 實例、掛載所有的 APIRouter（Admin, Auth, Jobs）、
+設定靜態檔案與前端介面路由、註冊啟動與關閉的背景排程迴圈（Lifespan），
+並實作全域的例外捕捉機制（Exception Handlers）與 CORS 中介軟體。
 """
 
 import asyncio

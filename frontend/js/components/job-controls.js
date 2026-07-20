@@ -185,9 +185,9 @@ export class JobControls extends HTMLElement {
 
             if (['pending', 'paused', 'error'].includes(this._jobStatus)) {
                 this._buttons['btn-start-job'].style.display = 'inline-flex';
-                // 暫停中 → 標籤改為「恢復」，其他 → 保持「啟動」
+                // 暫停中或錯誤 → 標籤改為「恢復」，其他 → 保持「啟動」
                 this._buttons['btn-start-job'].lastChild.textContent =
-                    this._jobStatus === 'paused' ? '恢復' : '啟動';
+                    ['paused', 'error'].includes(this._jobStatus) ? '恢復' : '啟動';
             }
 
             if (this._jobStatus === 'completed') {
@@ -204,6 +204,7 @@ export class JobControls extends HTMLElement {
      * 綁定各按鈕的點擊事件，分別對外派送對應的自訂事件。
      *
      * @fires job-start
+     * @fires job-resume
      * @fires job-pause
      * @fires job-reset
      * @fires job-retry
@@ -216,7 +217,13 @@ export class JobControls extends HTMLElement {
         const dispatch = (eventName) =>
             this.dispatchEvent(new CustomEvent(eventName, { bubbles: true, composed: true }));
 
-        this._buttons['btn-start-job'].addEventListener('click', () => dispatch('job-start'));
+        this._buttons['btn-start-job'].addEventListener('click', () => {
+            if (['paused', 'error'].includes(this._jobStatus)) {
+                dispatch('job-resume');
+            } else {
+                dispatch('job-start');
+            }
+        });
         this._buttons['btn-pause-job'].addEventListener('click', () => dispatch('job-pause'));
         this._buttons['btn-reset-job'].addEventListener('click', () => dispatch('job-reset'));
         this._buttons['btn-retry-failed-job'].addEventListener('click', () => dispatch('job-retry'));

@@ -1,8 +1,9 @@
 """
 單一外部連結存活測試腳本。
 
-此腳本用於在終端機中快速測試特定外部連結的存活狀態，
+此模組提供快速測試外部連結存活狀態的命令列工具，
 直接印出 HTTP 狀態碼與錯誤訊息，方便開發除錯與驗證。
+它使用核心的 ``CrawlerCore`` 進行發送請求與憑證驗證。
 """
 # pylint: disable=duplicate-code
 
@@ -23,11 +24,12 @@ def main() -> None:
     """
     解析命令列參數，並針對目標外部連結進行存活探測。
 
-    利用 argparse 接收指定的 URL 與選填參數，實例化 CrawlerCore 並進行探測，
-    最終將存活狀態、HTTP 狀態碼或錯誤訊息印出至終端機。
+    利用 argparse 接收指定的 URL 與選填參數，實例化 CrawlerCore 並進行存活探測，
+    最終將 HTTP 狀態碼、存活狀態或錯誤訊息格式化並印出至標準輸出 (stdout)。
+    支援以純文字或 JSON 格式輸出，方便與其他工具或 MCP 整合。
 
     Raises:
-        SystemExit: 當命令列參數解析錯誤或缺少必填參數時拋出。
+        SystemExit: 當命令列參數解析錯誤、缺少必填參數或是使用者要求顯示說明 (--help) 時拋出。
     """
     parser = argparse.ArgumentParser(description="測試單一外部連結存活狀態")
     parser.add_argument("url", help="欲測試的外部連結網址")

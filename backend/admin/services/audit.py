@@ -1,8 +1,13 @@
 """
 稽核日誌服務模組。
 
-負責訂閱各種系統操作事件（如帳號刪除、任務接管、設定變更），
-並統一將稽核紀錄寫入 AuthLog 資料表。
+此模組負責訂閱各種系統級別的關鍵操作事件（如帳號刪除、任務接管、設定變更），
+並統一將稽核紀錄寫入 AuthLog 資料庫表，以供日後安全追蹤與查閱。
+
+模組主要職責：
+- 註冊並監聽事件匯流排中的高風險操作事件
+- 安全地開啟獨立的資料庫工作階段進行紀錄寫入
+- 捕捉並記錄寫入失敗的例外狀況，避免干擾主要業務流程
 """
 
 import logging
@@ -25,14 +30,18 @@ def _handle_audit_event(
     **kwargs: object,  # pylint: disable=unused-argument
 ) -> None:
     """
-    內部處理函式：接收事件並寫入 AuthLog。
+    內部事件處理常式：接收事件資料並寫入 AuthLog。
+
+    當訂閱的系統事件被觸發時，此函式會被呼叫。它會開啟獨立的 Auth 資料庫 Session，
+    將事件詳細資訊寫入 AuthLog，若發生資料庫連線或寫入錯誤，將捕捉並輸出嚴重層級的日誌，
+    以避免中斷觸發該事件的上游業務流程。
 
     Args:
         event_type (str): 事件名稱（如 'user_deleted'）。
-        user_id (str | None): 操作者的 User ID。
-        ip_address (str | None): 客戶端 IP。
-        detail (str | None): 補充詳細資訊（通常是 JSON 字串）。
-        kwargs: 攔截其他多餘參數。
+        user_id (str | None): 操作者的 User ID（若適用）。
+        ip_address (str | None): 客戶端的來源 IP。
+        detail (str | None): 補充的詳細資訊（通常是格式化後的 JSON 字串）。
+        **kwargs (object): 用於攔截並忽略其他由發布者傳入但用不到的多餘參數。
     """
     try:
         session_factory = get_auth_session_local()
@@ -53,7 +62,10 @@ def _handle_audit_event(
 
 def subscribe_to_audit_events() -> None:
     """
-    註冊稽核日誌的事件監聽。
+    註冊系統級別操作的稽核事件監聽器。
+
+    此函式應於系統啟動時被呼叫，負責訂閱所有關鍵的系統事件（如使用者刪除、
+    全域設定變更、任務強制接管與角色異動等），並將它們與內部處理常式 `_handle_audit_event` 進行綁定。
     """
     audit_events = [
         SystemEvent.USER_DELETED,

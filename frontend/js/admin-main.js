@@ -998,6 +998,16 @@ function renderAllJobsTable(container) {
                     });
                     divActions.appendChild(btnTakeover);
                 }
+                if (["paused", "error"].includes(j.status)) {
+                    const btnResume = document.createElement("button");
+                    btnResume.className = "btn btn-sm btn-secondary";
+                    btnResume.textContent = "強制恢復";
+                    btnResume.addEventListener("click", async (e) => {
+                        e.stopPropagation();
+                        await resumeJob(j.id);
+                    });
+                    divActions.appendChild(btnResume);
+                }
                 if (j.user_id !== user.id) {
                     const btnRetrieve = document.createElement("button");
                     btnRetrieve.className = "btn btn-sm btn-secondary";
@@ -1095,6 +1105,27 @@ async function takeoverJob(jobId) {
     try {
         await adminService.takeoverJob(jobId);
         toast.success("任務已強制暫停。");
+        await loadAllJobs();
+    } catch (err) {
+        toast.error(err.message);
+    }
+}
+
+/**
+ * 強制恢復指定的任務，確認後呼叫 API。
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<void>} 無回傳值
+ */
+async function resumeJob(jobId) {
+    const confirmed = await showConfirm(
+        "強制恢復任務",
+        "確定要強制恢復該任務執行嗎？",
+        "強制恢復",
+    );
+    if (!confirmed) return;
+    try {
+        await adminService.resumeJob(jobId);
+        toast.success("任務已強制恢復執行。");
         await loadAllJobs();
     } catch (err) {
         toast.error(err.message);

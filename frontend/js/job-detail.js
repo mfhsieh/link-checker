@@ -1042,10 +1042,19 @@ function bindWebComponentEvents() {
     // Components Events
     if (jobControls) {
         jobControls.addEventListener('job-start', async () => {
-            if (await showConfirm('啟動任務', '確定要開始（或接續）執行此爬蟲任務嗎？', '啟動')) {
+            if (await showConfirm('啟動任務', '確定要開始執行此爬蟲任務嗎？', '啟動')) {
                 try {
                     await api.post(`/api/jobs/${_currentJobId}/start`);
                     toast.success('任務已啟動！');
+                    refreshJobDetail(_currentJobId);
+                } catch (err) { toast.error(err.message); }
+            }
+        });
+        jobControls.addEventListener('job-resume', async () => {
+            if (await showConfirm('恢復任務', '確定要恢復執行此爬蟲任務嗎？', '恢復')) {
+                try {
+                    await api.post(`/api/jobs/${_currentJobId}/resume`);
+                    toast.success('任務已恢復執行！');
                     refreshJobDetail(_currentJobId);
                 } catch (err) { toast.error(err.message); }
             }

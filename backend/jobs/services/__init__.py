@@ -1,11 +1,18 @@
-"""連結檢查工作之服務層模組。
+"""
+連結檢查工作之核心服務層 (Services Package) 初始化模組。
 
-此套件包含了連結檢查任務的核心業務邏輯與輔助服務，包括：
-- exporter: 匯出檢查紀錄與外部連結資料為 ZIP 壓縮檔。
-- management: 工作任務的建立、排程與生命週期管理。
-- notifier: 發送連結檢查結果之郵件通知。
-- process: 管理爬蟲與檢查之背景處理程序與 PID 鎖定。
-- external_results: 處理、儲存並比對外部連結檢查結果。
-- internal_results: 處理、儲存並統計內部連結診斷結果。
-- query_utils: 共用的查詢過濾與排序輔助工具。
+此套件封裝了外部連結檢查任務背後所有的重度業務邏輯與輔助機制，確保 API 層與底層資料操作分離。
+主要包含以下模組：
+- backup.py: 提供資料庫與設定檔的備份還原邏輯。
+- events.py: 定義與處理任務執行過程中產生的各類系統事件。
+- exporter.py: 提供將檢查結果匯出為 CSV 報表與完整 ZIP 壓縮封包的邏輯。
+- external_results.py: 處理外部連結探測結果的儲存、狀態判定與歷史差異比對。
+- internal_results.py: 處理內部連結抓取結果的儲存與全站統計。
+- management.py: 管理工作任務的建立、擁有權轉移與生命週期狀態機。
+- notifier.py: 負責任務完成後的 SMTP 郵件通知與報表夾帶發送。
+- poller.py: 負責定期輪詢與監控背景處理程序的存活狀態。
+- process.py: 提供背景爬蟲處理程序 (Subprocess) 的啟動、中斷與 PID 鎖定機制。
+- query_utils.py: 提供共用的 SQLAlchemy 查詢過濾、分頁與排序輔助工具。
+- reprobe.py: 實作針對失敗或特定連結的重新探測機制。
+- scheduler.py: 處理排程任務的佇列與觸發邏輯。
 """

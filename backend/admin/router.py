@@ -32,6 +32,7 @@ from backend.deps import (
 )
 from backend.email_sender import send_test_email
 from backend.events import SystemEvent, publish
+from backend.jobs.services import management as job_management
 from backend.jobs.services.backup import export_job, import_job
 from crawler.config_utils import (
     DEFAULT_GLOBAL_CONFIG,
@@ -567,6 +568,20 @@ def admin_transfer_job(
 ) -> dict[str, str]:
     """
     強制將任務轉移給當前管理員（強制取回）。
+
+    此操作將變更任務的擁有者，並在系統紀錄中留下操作軌跡。
+
+    Args:
+        job_id (str): 欲轉移的任務 ID。
+        request (Request): FastAPI 請求物件，用於記錄來源 IP。
+        manager (JobManager): JobManager 實例。
+        auth_db (DBSession): Auth DB 的 SQLAlchemy Session，用於儲存操作日誌。
+
+    Returns:
+        dict[str, str]: 操作成功訊息。
+
+    Raises:
+        HTTPException: 若任務不存在時拋出 404 例外。
     """
     if not manager.get_job(job_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
@@ -588,6 +603,68 @@ def admin_transfer_job(
     if not manager.transfer_job(job_id, _admin.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
     return {"message": f"任務 {job_id} 已成功轉移給您。"}
+
+
+@router.post("/jobs/{job_id}/resume", status_code=status.HTTP_200_OK)
+def admin_resume_job(
+    job_id: str,
+    request: Request,
+    manager: JobManager = Depends(get_job_manager),
+    auth_db: DBSession = Depends(get_auth_db),
+    _admin: User = Depends(require_admin),
+    _csrf: None = Depends(require_csrf),
+) -> dict[str, str]:
+    """
+    管理員強制恢復執行指定任務（無需取回所有權）。
+
+    即使管理員不是該任務的擁有者，仍可強制將處於 paused 或 error 狀態的任務重啟，
+    並在系統中留下操作稽核紀錄。
+
+    Args:
+        job_id (str): 欲恢復的任務 ID。
+        request (Request): FastAPI 請求物件，用於記錄來源 IP。
+        manager (JobManager): JobManager 實例。
+        auth_db (DBSession): Auth DB 的 SQLAlchemy Session，用於儲存操作日誌。
+
+    Returns:
+        dict[str, str]: 操作成功訊息。
+
+    Raises:
+        HTTPException:
+            - 404: 任務不存在時拋出。
+            - 400: 任務狀態非 paused 或 error 時拋出。
+            - 500: 底層啟動程序發生未預期錯誤時拋出。
+    """
+    job = manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任務不存在。")
+    if job.status not in ("paused", "error"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"任務狀態為 {job.status}，只有 paused 或 error 狀態的任務才能恢復執行。",
+        )
+
+    # 記錄任務強制恢復的操作日誌
+    log_detail = {
+        "job_id": job_id,
+        "action": "resume",
+        "before_status": job.status,
+    }
+    publish(
+        SystemEvent.JOB_FORCE_ACTION,
+        user_id=_admin.id,
+        ip_address=request.client.host if request.client else None,
+        detail=json.dumps(log_detail, ensure_ascii=False),
+    )
+    auth_db.commit()
+
+    try:
+        # 以 Admin 身分直接呼叫底層 start_job
+        job_management.start_job(manager, job_id, None)
+        return {"message": f"任務 {job_id} 已強制恢復執行。"}
+    except Exception as e:
+        logger.error("Admin 恢復任務 %s 失敗: %s", job_id, e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
 @router.delete("/jobs/{job_id}", status_code=status.HTTP_200_OK)
@@ -642,6 +719,24 @@ def export_job_backup(
 ) -> FileResponse:
     """
     匯出任務備份為 ZIP 壓縮檔。
+
+    將指定任務的所有設定與爬取結果（包含連結資料）打包成一個壓縮檔，
+    供管理員下載留存或日後匯入使用。產生 ZIP 檔後會透過背景任務自動刪除暫存檔。
+
+    Args:
+        job_id (str): 欲匯出的任務 ID。
+        background_tasks (BackgroundTasks): FastAPI 背景任務，用於回應後清理暫存檔。
+        manager (JobManager): JobManager 實例，用以確認任務存在。
+        crawler_db (DBSession): Crawler DB 的 SQLAlchemy Session，用於撈取資料。
+
+    Returns:
+        FileResponse: 下載 ZIP 壓縮檔的回應物件。
+
+    Raises:
+        HTTPException:
+            - 404: 任務不存在時拋出。
+            - 400: 資料庫或匯出邏輯錯誤時拋出。
+            - 500: 其他未預期系統錯誤時拋出。
     """
     job = manager.get_job(job_id)
     if not job:
@@ -681,6 +776,21 @@ def import_job_backup(
 ) -> dict[str, str]:
     """
     上傳 ZIP 檔匯入任務備份，並將任務預設指派給當前管理員。
+
+    將先前匯出的 ZIP 壓縮檔上傳，系統會自動解壓縮並還原任務設定與關聯資料至資料庫中。
+
+    Args:
+        file (UploadFile): 欲匯入的 ZIP 備份檔案。
+        crawler_db (DBSession): Crawler DB 的 SQLAlchemy Session，用於寫入資料。
+        current_admin (User): 當前登入的 Admin 使用者，將成為該匯入任務的新擁有者。
+
+    Returns:
+        dict[str, str]: 匯入成功的訊息。
+
+    Raises:
+        HTTPException:
+            - 400: 上傳的檔案格式錯誤或解壓縮與還原過程發生錯誤時拋出。
+            - 500: 其他未預期系統錯誤時拋出。
     """
     if not file.filename or not file.filename.endswith(".zip"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="僅支援匯入 .zip 格式的備份檔案。")
@@ -713,8 +823,14 @@ def get_config(
 ) -> dict[str, object]:
     """
     取得全域爬蟲配置（讀取 config_global.yaml）。
+
+    提供系統目前生效的各項爬蟲全域預設值及安全限制設定。
+
     Returns:
-        dict[str, object]: 目前的全域爬蟲配置。
+        dict[str, object]: 目前的全域爬蟲配置，若檔案不存在或解析失敗將回傳預設配置。
+
+    Raises:
+        HTTPException: 若讀取設定檔過程發生嚴重錯誤（OSError 或 YAML 解析錯誤）時拋出 500。
     """
     settings = get_settings()
     config_path = settings.GLOBAL_CONFIG_PATH
@@ -814,8 +930,12 @@ def get_smtp_config(
 ) -> dict[str, object]:
     """
     取得 SMTP 配置狀態（密碼遮罩，從環境變數讀取）。
+
+    此端點提供目前的 SMTP 寄信設定狀態，為確保資安，密碼欄位將被遮蔽。
+    由於設定依賴環境變數，因此此端點僅提供讀取，如需修改需更改環境變數並重啟。
+
     Returns:
-        dict[str, object]: SMTP 配置狀態，包含各種設定值。
+        dict[str, object]: SMTP 配置狀態字典，包含主機、連接埠與各項設定值。
     """
     settings = get_settings()
     return {

@@ -88,6 +88,15 @@ export async function getAllJobs() {
 export async function takeoverJob(jobId) {
   return api.post(`/api/admin/jobs/${jobId}/takeover`);
 }
+/**
+ * 強制恢復指定任務
+ * @param {string} jobId - 任務 ID
+ * @returns {Promise<Object>} API 回應結果
+ */
+export async function resumeJob(jobId) {
+  return api.post(`/api/admin/jobs/${jobId}/resume`);
+}
+
 
 /**
  * 強制刪除指定任務
