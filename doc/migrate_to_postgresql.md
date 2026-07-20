@@ -127,12 +127,12 @@ python scripts/migrate_sqlite_to_pg.py
 
 ## 5. 遷移後的優化與維護
 
-### 5.1 執行統計優化（推薦）
-因為剛剛完成大量資料的批次匯入，PostgreSQL 的統計資訊尚未更新，這可能會影響資料庫的查詢計畫（Query Planner）效能。
+### 5.1 遷移後的一次性設定與優化
+在剛完成資料庫遷移或系統建置時，建議立即執行以下一次性工作，以為未來的穩定運作打下基礎。
 
-建議在遷移完成後，連線至 PostgreSQL 並手動執行以下 SQL。
-直接執行全域的 `VACUUM` 會嘗試優化系統內建表並跳出權限警告（如 `pg_authid`），建議直接指定應用程式的資料表：
-
+#### 1. 執行統計優化與深度重組
+因為剛剛完成大量資料的批次匯入，PostgreSQL 的統計資訊尚未更新，這可能會影響資料庫的查詢計畫效能。
+請連線至 PostgreSQL 並手動執行以下 SQL（注意：這會對資料表進行排他鎖定，請在系統正式上線前完成）：
 ```sql
 -- 切換至 auth_db 並最佳化：
 \c auth_db
@@ -142,37 +142,70 @@ VACUUM (FULL, ANALYZE) users, invitations, sessions, password_reset_tokens, auth
 \c crawler_db
 VACUUM (FULL, ANALYZE) jobs, crawl_queue, external_links;
 ```
-> [!WARNING]
-> `VACUUM (FULL, ANALYZE)` 會進行深度的空間重組並重新估算索引統計資訊，藉此最大化資料庫效能。但請注意，**這會對資料表進行排他鎖定 (Exclusive Lock)**。因此，強烈建議在系統上線提供服務前（也就是剛遷移完畢的維護期間）執行完畢。
-> 
-> **生產環境進階建議 (`pg_repack`)**：若您的系統已正式上線且無法容忍鎖定造成的停機，建議改用 **`pg_repack`**。這是一個第三方擴充套件，可以在不中斷讀寫的情況下 (Online) 移除資料表膨脹 (Bloat)。您需先進入資料庫執行 `CREATE EXTENSION pg_repack;` 啟用它，日後維護時即可透過終端機指令（如 `pg_repack -c -d crawler_db`）進行無鎖定最佳化。
 
-### 5.2 查詢資料表與索引空間佔用
-在執行 `VACUUM FULL` 前後，您可以使用以下 SQL 查詢各個資料表（包含索引）的實際硬碟佔用空間，來觀察瘦身的成效：
-
-```sql
--- 1. 查詢 auth_db 的空間佔用
-\c auth_db
-SELECT 
-    relname AS table_name,
-    pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
-    pg_size_pretty(pg_relation_size(relid)) AS table_size,
-    pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size
-FROM pg_catalog.pg_statio_user_tables 
-ORDER BY pg_total_relation_size(relid) DESC;
-
--- 2. 查詢 crawler_db 的空間佔用
-\c crawler_db
-SELECT 
-    relname AS table_name,
-    pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
-    pg_size_pretty(pg_relation_size(relid)) AS table_size,
-    pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size
-FROM pg_catalog.pg_statio_user_tables 
-ORDER BY pg_total_relation_size(relid) DESC;
+#### 2. 啟用線上空間重組套件 (`pg_repack`)
+為因應未來正式上線後無法容忍停機的維護需求，請先為兩個資料庫安裝並啟用 `pg_repack` 第三方擴充套件（允許在不中斷讀寫的情況下移除資料表膨脹）：
+```bash
+sudo -u postgres psql -d auth_db -c "CREATE EXTENSION IF NOT EXISTS pg_repack;"
+sudo -u postgres psql -d crawler_db -c "CREATE EXTENSION IF NOT EXISTS pg_repack;"
 ```
 
-### 5.3 實體檔案管理 (了解 PostgreSQL 存放在哪裡)
+#### 3. 設定 WAL (預寫式日誌) 大小上限
+為避免後續進行大量寫入或重組時，暫存的 WAL 日誌撐爆硬碟，建議手動調整 WAL 的保留極限（不需重啟伺服器即可生效）：
+```bash
+# 設定最大 WAL 大小為 256MB (限制佔用上限，降低硬碟爆滿風險)
+sudo -u postgres psql -c "ALTER SYSTEM SET max_wal_size = '256MB';"
+# 設定最少強制保留的 WAL 大小為 64MB (若無 Replication 備份需求，可設小以節省空間)
+sudo -u postgres psql -c "ALTER SYSTEM SET wal_keep_size = '32MB';"
+# 重新載入設定檔讓變更立即生效
+sudo -u postgres psql -c "SELECT pg_reload_conf();"
+# 查看設定是否生效
+sudo -u postgres psql -c "SHOW max_wal_size;"
+sudo -u postgres psql -c "SHOW wal_keep_size;"
+```
+
+### 5.2 日常空間管理與維護
+當系統正式上線並持續運行後，資料表與日誌會不可避免地產生膨脹，請參考以下方式進行日常維運。
+
+#### 1. 無鎖定空間最佳化 (Online Repack)
+日後維護時，您不應再使用會鎖死資料表的 `VACUUM FULL`。請改用我們提供的 `scripts/cleanup_disk.sh` 腳本，或是透過終端機手動執行 `pg_repack` 進行無鎖定最佳化（例如：`sudo -u postgres pg_repack -t external_links -d crawler_db`）。
+
+#### 2. 查詢資料表與索引空間佔用
+您可以隨時使用以下 SQL 查詢各個資料表（包含索引）的實際硬碟佔用空間，來觀察資料膨脹的情況與瘦身的成效：
+```bash
+# 1. 查詢 auth_db 的空間佔用
+sudo -u postgres psql -d auth_db -c "
+SELECT 
+    relname AS table_name,
+    pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
+    pg_size_pretty(pg_relation_size(relid)) AS table_size,
+    pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size
+FROM pg_catalog.pg_statio_user_tables 
+ORDER BY pg_total_relation_size(relid) DESC;
+"
+
+# 2. 查詢 crawler_db 的空間佔用
+sudo -u postgres psql -d crawler_db -c "
+SELECT 
+    relname AS table_name,
+    pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
+    pg_size_pretty(pg_relation_size(relid)) AS table_size,
+    pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS index_size
+FROM pg_catalog.pg_statio_user_tables 
+ORDER BY pg_total_relation_size(relid) DESC;
+"
+```
+
+#### 3. WAL 日誌空間的自動回收與強制大掃除
+當資料庫進行大量操作（如 `pg_repack`）時，會產生大量的 WAL 暫存日誌，導致空間短暫暴增。
+* **檢查 WAL 大小**：`sudo du -sh /var/lib/postgresql/<版本號>/main/pg_wal`
+* **自動回收機制**：PostgreSQL 預設會在背景定時觸發 **Checkpoint（檢查點）** 來自動刪除不再需要的舊日誌，因此空間暴增後緩慢減少是**完全正常**的。
+* **手動強制大掃除**：若硬碟空間極度吃緊等不及自動回收，可以手動強制系統立刻清理日誌：
+  ```bash
+  sudo -u postgres psql -c "CHECKPOINT;"
+  ```
+
+### 5.3 PostgreSQL 基本知識 (實體檔案管理)
 在 WSL / Ubuntu 預設安裝下，PostgreSQL 的主要檔案儲存於系統底層：
 * **資料與資料表物理檔案**：儲存在 `/var/lib/postgresql/<版本號>/main/` 目錄下。*(權限嚴格限制，僅 postgres 使用者有權讀取)*。
 * **資料庫主設定檔**：如 `postgresql.conf` 與 `pg_hba.conf` 儲存在 `/etc/postgresql/<版本號>/main/`。
