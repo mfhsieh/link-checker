@@ -52,6 +52,7 @@
 | `GET` | `/api/admin/jobs` | 列出所有使用者的任務（Admin 全視圖）。 | 管理員 |
 | `POST` | `/api/admin/jobs/{job_id}/takeover` | 強制接管卡死任務（重置 running 狀態為 paused）。 | 管理員 |
 | `POST` | `/api/admin/jobs/{job_id}/transfer` | 強制將任務轉移給當前管理員（強制取回）。 | 管理員 |
+| `POST` | `/api/admin/jobs/{job_id}/resume` | 管理員強制恢復執行指定任務（無需取回所有權）。 | 管理員 |
 | `DELETE` | `/api/admin/jobs/{job_id}` | 強制刪除任意任務（Admin 用）。 | 管理員 |
 | `GET` | `/api/admin/jobs/{job_id}/export` | 匯出任務備份為 ZIP 壓縮檔。 | 管理員 |
 | `POST` | `/api/admin/jobs/import` | 上傳 ZIP 檔匯入任務備份，並將任務預設指派給當前管理員。 | 管理員 |

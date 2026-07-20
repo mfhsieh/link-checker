@@ -58,11 +58,11 @@
                                 <li class="doc-li"><strong>伺服器異常</strong>：對方網站的主機現在當機了 (例如 500
                                     錯誤)，可以過幾天再來看它修好了沒。但也有可能對方只是不喜歡爬蟲，故意對爬蟲說不歡迎進門。</li>
                                 <li class="doc-li">
-                                    <strong>底層異常</strong>：連線失敗，通常是因為對方的安全設定有問題（例如：憑證過期、憑證串鍊不正確），或是對方直接拒絕您連線。
+                                    <strong>底層異常</strong>：連線失敗或連線逾時，通常是因為對方的安全設定有問題（例如：憑證過期、憑證串鍊不正確），或是對方直接拒絕或忽略您連線。
                                 </li>
                                 <li class="doc-li"><strong>其他異常</strong>：不屬於上述原因的連線錯誤。例如：系統根本看不懂這個連線是要幹嘛的 (例如
                                     400 錯誤)。</li>
-                                <li class="doc-li"><strong>遭到阻擋</strong>：對方網站的防護機制把我們的爬蟲擋在門外了（例如
+                                <li class="doc-li"><strong>權限阻擋</strong>：對方網站的防護機制把我們的爬蟲擋在門外了（例如
                                     403 錯誤）。這不代表連結壞掉，您可以自己點開確認看看。</li>
                                 <li><strong>非 HTTPS</strong>：這個連結還在使用沒有加密的 <code>http://</code>。建議改成加密的
                                     <code>https://</code>，保護讀者的連線隱私。
@@ -80,11 +80,11 @@
                                 </li>
                                 <li class="doc-li"><strong>底層異常</strong>：網路連線有問題，可能是您的防火牆設定錯了，或是您網站的憑證壞了。
                                 </li>
+                                <li class="doc-li"><strong>資源遺失</strong>：您自己的網站裡有「死連結」(例如 404
+                                    錯誤)，也就是您貼出的網址或圖片不見了，請進系統後台把它補上或改掉。</li>
                                 <li class="doc-li">
                                     <strong>連線逾時</strong>：您的網站回應太慢了，爬蟲等太久只好放棄。可能是現在網站大塞車，或是主機跑不動了。
                                 </li>
-                                <li class="doc-li"><strong>資源遺失</strong>：您自己的網站裡有「死連結」(例如 404
-                                    錯誤)，也就是您貼出的網址或圖片不見了，請進系統後台把它補上或改掉。</li>
                                 <li class="doc-li"><strong>其他異常</strong>：少見的未知錯誤。例如：系統根本看不懂這個連線是要幹嘛的 (例如
                                     400 錯誤)。</li>
                                 <li class="doc-li">
@@ -179,12 +179,12 @@
                             </p>
                             <ul class="doc-ul">
                                 <li class="doc-li">
-                                    <strong>內部連結</strong>：在<strong>「平舖列表」</strong>檢視時，是對<strong>「目標頁面」</strong>的重新爬取；若在依<strong>「自家網頁」</strong>聚合時，則是對<strong>「來源頁面」</strong>的重新爬取。兩者皆會重新解析網頁內容，並覆寫其衍生的連結紀錄。
+                                    <strong>內部連結</strong>：在<strong>「平鋪列表」</strong>檢視時，是對<strong>「目標頁面」</strong>的重新爬取；若在依<strong>「來源頁面」</strong>聚合時，則是對<strong>「來源頁面」</strong>的重新爬取。兩者皆會重新解析網頁內容，並覆寫其衍生的連結紀錄。
                                 </li>
                                 <li class="doc-li">
-                                    <strong>外部連結</strong>：在依<strong>「外連目標」</strong>聚合時，是對外連目標的<strong>「目標頁面」</strong>重新發出
+                                    <strong>外部連結</strong>：在依<strong>「目標頁面」</strong>聚合時，是對外連目標的<strong>「目標頁面」</strong>重新發出
                                     HTTP
-                                    請求以確認對方網站是否恢復正常；若在依<strong>「自家網頁」</strong>聚合時，則是對自家網頁的<strong>「來源頁面」</strong>重新爬取，系統會重新解析並覆寫該來源頁面衍生的連結紀錄。
+                                    請求以確認對方網站是否恢復正常；若在依<strong>「來源頁面」</strong>聚合時，則是對自家網頁的<strong>「來源頁面」</strong>重新爬取，系統會重新解析並覆寫該來源頁面衍生的連結紀錄。
                                 </li>
                             </ul>
                             <div class="doc-p">

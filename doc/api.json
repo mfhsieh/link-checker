@@ -2000,7 +2000,7 @@
           "admin"
         ],
         "summary": "Admin Transfer Job",
-        "description": "強制將任務轉移給當前管理員（強制取回）。",
+        "description": "強制將任務轉移給當前管理員（強制取回）。\n\n此操作將變更任務的擁有者，並在系統紀錄中留下操作軌跡。\n\nArgs:\n    job_id (str): 欲轉移的任務 ID。\n    request (Request): FastAPI 請求物件，用於記錄來源 IP。\n    manager (JobManager): JobManager 實例。\n    auth_db (DBSession): Auth DB 的 SQLAlchemy Session，用於儲存操作日誌。\n\nReturns:\n    dict[str, str]: 操作成功訊息。\n\nRaises:\n    HTTPException: 若任務不存在時拋出 404 例外。",
         "operationId": "admin_transfer_job_api_admin_jobs__job_id__transfer_post",
         "parameters": [
           {
@@ -2024,6 +2024,53 @@
                     "type": "string"
                   },
                   "title": "Response Admin Transfer Job Api Admin Jobs  Job Id  Transfer Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/jobs/{job_id}/resume": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Resume Job",
+        "description": "管理員強制恢復執行指定任務（無需取回所有權）。\n\n即使管理員不是該任務的擁有者，仍可強制將處於 paused 或 error 狀態的任務重啟，\n並在系統中留下操作稽核紀錄。\n\nArgs:\n    job_id (str): 欲恢復的任務 ID。\n    request (Request): FastAPI 請求物件，用於記錄來源 IP。\n    manager (JobManager): JobManager 實例。\n    auth_db (DBSession): Auth DB 的 SQLAlchemy Session，用於儲存操作日誌。\n\nReturns:\n    dict[str, str]: 操作成功訊息。\n\nRaises:\n    HTTPException:\n        - 404: 任務不存在時拋出。\n        - 400: 任務狀態非 paused 或 error 時拋出。\n        - 500: 底層啟動程序發生未預期錯誤時拋出。",
+        "operationId": "admin_resume_job_api_admin_jobs__job_id__resume_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Admin Resume Job Api Admin Jobs  Job Id  Resume Post"
                 }
               }
             }
@@ -2094,7 +2141,7 @@
           "admin"
         ],
         "summary": "Export Job Backup",
-        "description": "匯出任務備份為 ZIP 壓縮檔。",
+        "description": "匯出任務備份為 ZIP 壓縮檔。\n\n將指定任務的所有設定與爬取結果（包含連結資料）打包成一個壓縮檔，\n供管理員下載留存或日後匯入使用。產生 ZIP 檔後會透過背景任務自動刪除暫存檔。\n\nArgs:\n    job_id (str): 欲匯出的任務 ID。\n    background_tasks (BackgroundTasks): FastAPI 背景任務，用於回應後清理暫存檔。\n    manager (JobManager): JobManager 實例，用以確認任務存在。\n    crawler_db (DBSession): Crawler DB 的 SQLAlchemy Session，用於撈取資料。\n\nReturns:\n    FileResponse: 下載 ZIP 壓縮檔的回應物件。\n\nRaises:\n    HTTPException:\n        - 404: 任務不存在時拋出。\n        - 400: 資料庫或匯出邏輯錯誤時拋出。\n        - 500: 其他未預期系統錯誤時拋出。",
         "operationId": "export_job_backup_api_admin_jobs__job_id__export_get",
         "parameters": [
           {
@@ -2135,7 +2182,7 @@
           "admin"
         ],
         "summary": "Import Job Backup",
-        "description": "上傳 ZIP 檔匯入任務備份，並將任務預設指派給當前管理員。",
+        "description": "上傳 ZIP 檔匯入任務備份，並將任務預設指派給當前管理員。\n\n將先前匯出的 ZIP 壓縮檔上傳，系統會自動解壓縮並還原任務設定與關聯資料至資料庫中。\n\nArgs:\n    file (UploadFile): 欲匯入的 ZIP 備份檔案。\n    crawler_db (DBSession): Crawler DB 的 SQLAlchemy Session，用於寫入資料。\n    current_admin (User): 當前登入的 Admin 使用者，將成為該匯入任務的新擁有者。\n\nReturns:\n    dict[str, str]: 匯入成功的訊息。\n\nRaises:\n    HTTPException:\n        - 400: 上傳的檔案格式錯誤或解壓縮與還原過程發生錯誤時拋出。\n        - 500: 其他未預期系統錯誤時拋出。",
         "operationId": "import_job_backup_api_admin_jobs_import_post",
         "requestBody": {
           "content": {
@@ -2181,7 +2228,7 @@
           "admin"
         ],
         "summary": "Get Config",
-        "description": "取得全域爬蟲配置（讀取 config_global.yaml）。\nReturns:\n    dict[str, object]: 目前的全域爬蟲配置。",
+        "description": "取得全域爬蟲配置（讀取 config_global.yaml）。\n\n提供系統目前生效的各項爬蟲全域預設值及安全限制設定。\n\nReturns:\n    dict[str, object]: 目前的全域爬蟲配置，若檔案不存在或解析失敗將回傳預設配置。\n\nRaises:\n    HTTPException: 若讀取設定檔過程發生嚴重錯誤（OSError 或 YAML 解析錯誤）時拋出 500。",
         "operationId": "get_config_api_admin_config_get",
         "responses": {
           "200": {
@@ -2249,7 +2296,7 @@
           "admin"
         ],
         "summary": "Get Smtp Config",
-        "description": "取得 SMTP 配置狀態（密碼遮罩，從環境變數讀取）。\nReturns:\n    dict[str, object]: SMTP 配置狀態，包含各種設定值。",
+        "description": "取得 SMTP 配置狀態（密碼遮罩，從環境變數讀取）。\n\n此端點提供目前的 SMTP 寄信設定狀態，為確保資安，密碼欄位將被遮蔽。\n由於設定依賴環境變數，因此此端點僅提供讀取，如需修改需更改環境變數並重啟。\n\nReturns:\n    dict[str, object]: SMTP 配置狀態字典，包含主機、連接埠與各項設定值。",
         "operationId": "get_smtp_config_api_admin_smtp_get",
         "responses": {
           "200": {

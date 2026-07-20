@@ -24,8 +24,8 @@ sudo apt update
 sudo apt install postgresql postgresql-contrib
 
 # 若未來在生產環境需進行無停機空間優化，建議一併安裝 pg_repack 擴充套件
-# 提示：請依照您實際安裝的 PostgreSQL 版本 (如 15, 16) 替換下方的版本號
-sudo apt install postgresql-16-repack
+# 提示：請依照您實際安裝的 PostgreSQL 版本 (如 15, 16) 替換下方的<版本號>
+sudo apt install 'postgresql-<版本號>-repack'
 ```
 
 ### 步驟 2.2：啟動 PostgreSQL 服務
