@@ -8,6 +8,7 @@ echo "============================================="
 echo " 開始執行磁碟空間清理作業..."
 echo "============================================="
 
+echo
 echo "--- 清理前根目錄使用狀況 ---"
 df -h /
 echo
@@ -26,6 +27,7 @@ sudo find /var/lib/snapd/cache -mindepth 1 -delete || true
 echo "[3/4] 清理 systemd 系統日誌 (僅保留最近 28 天)..."
 sudo journalctl --vacuum-time=28d 2>/dev/null
 
+echo
 echo "--- 清理中根目錄使用狀況 ---"
 df -h /
 echo
@@ -65,6 +67,7 @@ else
     echo "  -> 若需啟用，請先執行: sudo apt install postgresql-<版本>-repack"
 fi
 
+echo
 echo "--- 清理後根目錄使用狀況 ---"
 df -h /
 echo
