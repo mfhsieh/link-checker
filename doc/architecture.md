@@ -77,6 +77,7 @@ link-checker/
 │   ├── db_schema.md          # 資料庫 Schema 說明
 │   ├── deploy_gcp_vm.md      # GCP 雲端部署指南
 │   ├── js_coding_style.md    # JavaScript 程式風格與開發規範
+│   ├── mcp_usage.md          # MCP Server (AI 代理) 使用指南
 │   ├── migrate_to_postgresql.md # PostgreSQL 遷移指南
 │   ├── module_dependencies.md# 模組間詳細依賴說明
 │   ├── python_coding_style.md# Python 程式風格與開發規範
@@ -90,6 +91,7 @@ link-checker/
 ├── report/             # 外部連結分析與內部網頁診斷報告之預設匯出目錄
 ├── scripts/            # 系統維運與自動化腳本
 │   ├── check_db_schema.py      # DB Schema 檢查腳本
+│   ├── cleanup_disk.sh         # 系統磁碟空間與資料庫無鎖定重組清理腳本
 │   ├── gen_api_doc.py          # 自動產生 API 規格與路由清單
 │   ├── job_sync.sh             # 跨環境任務備份與還原工具便利包
 │   ├── manage_job_data.py      # 任務資料跨庫 JSONL 匯出匯入核心 (含外連與內連狀態)
@@ -151,8 +153,9 @@ graph TD
 
 3. **爬蟲核心引擎 (Crawler Core)**
    * CLI (`cli.py`) 直接驅動，能在沒有 Web 伺服器的情況下獨立完成所有工作。
-   * 提供獨立的 `scripts/mcp_server.py` 伺服器，允許 AI 代理人 (如 Claude Desktop) 直接透過 Model Context Protocol 查詢任務狀態與控制爬蟲行為。
+   * 提供獨立的 `scripts/mcp_server.py` 伺服器，允許 AI 代理人 (如 Claude Desktop) 直接透過 Model Context Protocol 查詢任務狀態、控制爬蟲行為，並可作為**遠端網路探測節點**，輔助進行跨環境的防禦策略診斷。
    * 結合 `httpx` 與 `BeautifulSoup4`，負責網路探測、HTML 解析、防護機制穿透 (Anti-Bot Bypass) 與錯誤重試。
+   * **主動式敏感資訊清洗 (Data Sanitization)**：內建錯誤訊息過濾機制，在例外發生時自動遮蔽代理伺服器憑證、Cookie、Authorization Header 與 IP 位址 (IPv4/IPv6)，徹底阻絕機密明文落地的外洩風險。
    * 全程由資料庫狀態 (State-driven) 引導執行，具備中斷恢復、協同暫停與殭屍進程防禦（PID 與啟動時間雙重比對）等高可靠度機制。
    * **可觀測性與多任務隔離 (Observability)**：採用 `contextvars` 原生上下文變數進行無侵入式日誌綁定，確保在高併發環境下各任務的追蹤日誌絕對隔離，免於全域變數污染。
 
@@ -165,17 +168,23 @@ graph TD
 ## 相關參考文件
 
 為了保持文件聚焦，各模組之詳細設計已拆分至以下獨立文件：
-* [系統需求規格書](requirements.md)：所有業務邏輯、資安防護與容錯機制之最高指導原則。
-* [網站爬蟲核心流程說明](crawler_workflow.md)
-* [模組間詳細依賴說明文件](module_dependencies.md)
-* [命令列 (CLI) 操作指南](cli_usage.md)
-* [MCP Server 使用指南](mcp_usage.md)
-* [API 規格與路由清單](api_routes.md) 及 [API 詳細規格](api_spec.md)
-* [爬蟲參數詳細說明](crawler_parameters.md)
-* [資料庫 Schema 說明](db_schema.md)
-* [GCP 雲端部署指南](deploy_gcp_vm.md)
-* [PostgreSQL 遷移指南](migrate_to_postgresql.md)
-* [自動化測試策略與執行指南](testing_strategy.md)
-* [Python 程式風格規範](python_coding_style.md)
-* [JavaScript 程式風格規範](js_coding_style.md)
-* [待辦清單與後續優化計畫](todo.md)
+* **核心規格與設計 (Core Specifications)**
+  * [系統需求規格書](requirements.md)：所有業務邏輯、資安防護與容錯機制之最高指導原則。
+  * [網站爬蟲核心流程說明](crawler_workflow.md)
+  * [資料庫 Schema 說明](db_schema.md)
+  * [模組間詳細依賴說明文件](module_dependencies.md)
+* **操作與設定指南 (Operations & Configuration)**
+  * [命令列 (CLI) 操作指南](cli_usage.md)
+  * [爬蟲參數詳細說明](crawler_parameters.md)
+  * [MCP Server 使用指南](mcp_usage.md)
+* **開發與介面規格 (API & Development)**
+  * [API 規格與路由清單](api_routes.md) 及 [API 詳細規格](api_spec.md)
+* **部署與維運 (Deployment & Maintenance)**
+  * [GCP 雲端部署指南](deploy_gcp_vm.md)
+  * [PostgreSQL 遷移指南](migrate_to_postgresql.md)
+* **團隊協作規範 (Team Guidelines)**
+  * [自動化測試策略與執行指南](testing_strategy.md)
+  * [Python 程式風格規範](python_coding_style.md)
+  * [JavaScript 程式風格規範](js_coding_style.md)
+* **專案追蹤 (Tracking)**
+  * [待辦清單與後續優化計畫](todo.md)

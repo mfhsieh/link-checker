@@ -149,7 +149,7 @@
    * **規劃方案**：
      1. **新增 MCP 功能**：擴充現有 MCP 伺服器，提供能在遠端（雲端主機）執行單一連結探測並回傳詳細結果與狀態碼的功能。
      2. **新增 Agent Skill**：建立一個新的 Skill，用於接收特定連結後，自動同時觸發本地端測試與雲端 MCP 測試，並交叉比對兩者結果。若本地成功而雲端失敗，即可明確判斷為目標主機防禦策略所致。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `architecture.md` 成為正式架構）
 
 1. **修復任務詳情頁「返回列表」按鈕失效與導覽動線問題**
    * **問題描述**：使用者在讀取大量資料的任務詳情頁面時，若中途（或甚至讀取完成後）點擊「返回列表」，畫面會卡住無法跳轉；且管理者從監控面板進入詳情頁後，返回時會被錯誤導向一般使用者的任務列表，操作體驗中斷。
@@ -197,22 +197,22 @@
 1. **將外部連結檢查的 `ThreadPool` 數量調優**
    * **問題描述**：外部連結探測是純 I/O 密集的操作，預設只開 5 個 Worker 數量過少，導致外部連結多的網頁爬取速度被嚴重拖慢。
    * **修正方案**：在 `crawler/runner.py` 中，將 `CRAWLER_MAX_WORKERS` 的預設值由 5 調大至 50，一舉提升 10 倍的外連並發探測吞吐量。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
 
 1. **修復 `_process_item` 非原子性 Commit 導致內外部連結資料不一致**
    * **問題描述**：`_process_item` 先處理內部連結並 `session.commit()`，再處理外部連結並再次 `session.commit()`。若外部連結處理途中拋出例外，內部連結已入庫但外部連結遺失，且佇列項目狀態已被標記為 `completed`，形成資料不一致。
    * **修正方案**：移除中間的提早 `commit()`，改用 `session.flush()` 取得 ID；待 `_handle_internal_links` 與 `_handle_external_links` 均執行完畢後，才於 `_process_item` 末尾統一執行最後一次 `session.commit()`。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
 
 1. **修復 `_handle_error` 後缺少 `session.commit()` 導致狀態更新遺失**
    * **問題描述**：`_process_item` 在捕捉 `httpx.HTTPError` 後呼叫 `_handle_error`，而 `_handle_error` 內部會先執行 `session.rollback()`，再修改 `queue_item` 的 `status`、`retry_count` 等屬性。但 `_handle_error` 回傳後，`_process_item` 沒有後續的 `session.commit()`，導致這些修改永遠不會寫入資料庫。結果是：永久性錯誤（404/403）的失敗狀態遺失、重試計數不遞增。
    * **修正方案**：在 `crawler/runner.py` 的 `except httpx.HTTPError` 區塊，於 `self._handle_error(...)` 呼叫後補上 `session.commit()`。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
 
 1. **全面盤查並修復進度數據 (progress_stats) 更新不一致的問題**
    * **問題描述**：目前使用 `progress_stats` 來紀錄快取進度，但在「重新探測」部份連結後，或是發生其他非預期情況時，`progress_stats` 沒有正確同步更新，導致介面上「爬取進度」內的數據與實際狀況脫節。
    * **規劃方案**：全面盤查所有會更動內部或外部連結狀態的邏輯（尤其是重新探測、狀態變更等流程），確保每次狀態異動時，都會對應地重新計算並寫入最新的 `progress_stats`，以維持數據一致性與正確性。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
 
 ---
 

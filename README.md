@@ -132,19 +132,25 @@ python cli.py --help
 
 為了保持 README 的簡潔，更詳細的系統設計與操作手冊已拆分至 `doc/` 目錄中：
 
-* **[系統架構說明](doc/architecture.md)**：了解系統目錄結構與核心技術選型。
-* **[模組依賴說明](doc/module_dependencies.md)**：詳細條列本專案各核心模組（前端、後端、爬蟲核心與 CLI）間的依賴關係與隔離邊界。
-* **[命令列 (CLI) 操作指南](doc/cli_usage.md)**：完整的 CLI 參數、功能介紹與全域設定檔說明。
-* **[MCP Server 使用指南](doc/mcp_usage.md)**：提供 AI 助理與開發者遠端查詢任務狀態的 Model Context Protocol 介面說明。
-* **[API 路由清單](doc/api_routes.md)** 與 **[API 完整規格書](doc/api_spec.md)**：後端 RESTful API 規格與傳輸 Schema。
-* **[系統需求規格書](doc/requirements.md)**：詳細的功能需求、資安防護與業務邏輯邊界。
-* **[網站爬蟲核心流程說明](doc/crawler_workflow.md)**：詳細說明爬蟲抓取、解析、與錯誤重試的完整生命週期與驗證機制。
-* **[爬蟲引擎參數設定指南](doc/crawler_parameters.md)**：爬蟲核心進階參數、白名單與資源限制說明。
-* **[資料庫 Schema 說明](doc/db_schema.md)**：Crawler DB 與 Auth DB 實體關聯圖與詳細結構。
-* **[GCP VM 部署指南](doc/deploy_gcp_vm.md)** 與 **[PostgreSQL 升級指南](doc/migrate_to_postgresql.md)**：雲端建置、Nginx 反向代理與資料庫平滑移轉。
-* **[自動化測試策略](doc/testing_strategy.md)**：模組級隔離架構與自動化測試執行指引。
-* **程式風格與開發規範**：[Python 規範](doc/python_coding_style.md) / [JavaScript 規範](doc/js_coding_style.md)
-* **[待辦清單與後續規劃](doc/todo.md)**
+* **核心規格與設計 (Core Specifications)**
+  * **[系統架構說明](doc/architecture.md)**：了解系統目錄結構與核心技術選型。
+  * **[系統需求規格書](doc/requirements.md)**：詳細的功能需求、資安防護與業務邏輯邊界。
+  * **[網站爬蟲核心流程說明](doc/crawler_workflow.md)**：詳細說明爬蟲抓取、解析、與錯誤重試的完整生命週期與驗證機制。
+  * **[資料庫 Schema 說明](doc/db_schema.md)**：Crawler DB 與 Auth DB 實體關聯圖與詳細結構。
+  * **[模組依賴說明](doc/module_dependencies.md)**：詳細條列本專案各核心模組（前端、後端、爬蟲核心與 CLI）間的依賴關係與隔離邊界。
+* **操作與設定指南 (Operations & Configuration)**
+  * **[命令列 (CLI) 操作指南](doc/cli_usage.md)**：完整的 CLI 參數、功能介紹與全域設定檔說明。
+  * **[爬蟲引擎參數設定指南](doc/crawler_parameters.md)**：爬蟲核心進階參數、白名單與資源限制說明。
+  * **[MCP Server 使用指南](doc/mcp_usage.md)**：提供 AI 助理與開發者遠端查詢任務狀態的 Model Context Protocol 介面說明。
+* **開發與介面規格 (API & Development)**
+  * **[API 路由清單](doc/api_routes.md)** 與 **[API 完整規格書](doc/api_spec.md)**：後端 RESTful API 規格與傳輸 Schema。
+* **部署與維運 (Deployment & Maintenance)**
+  * **[GCP VM 部署指南](doc/deploy_gcp_vm.md)** 與 **[PostgreSQL 升級指南](doc/migrate_to_postgresql.md)**：雲端建置、Nginx 反向代理與資料庫平滑移轉。
+* **團隊協作規範 (Team Guidelines)**
+  * **[自動化測試策略](doc/testing_strategy.md)**：模組級隔離架構與自動化測試執行指引。
+  * **程式風格與開發規範**：[Python 規範](doc/python_coding_style.md) / [JavaScript 規範](doc/js_coding_style.md)
+* **專案追蹤 (Tracking)**
+  * **[待辦清單與後續規劃](doc/todo.md)**
 
 ---
 
