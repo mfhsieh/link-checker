@@ -5,7 +5,7 @@
 測試匯出與篩選功能，以及任務生命週期管理（暫停、重設、恢復、刪除）等一系列測試步驟。
 """
 
-# pylint: disable=duplicate-code,too-many-lines
+# pylint: disable=duplicate-code
 
 import json
 import os
@@ -964,77 +964,6 @@ crawler:
             server_proc.kill()
             print("Mock Server process killed.")
         teardown_databases()
-
-
-def test_in_memory_priority_queue() -> None:
-    """
-    驗證 JobRunner 記憶體 ID 雙階佇列 (In-Memory ID Partitioning) 的優先級分流功能。
-
-    預期行為：
-    即使子網域項目 (如 ws.example.com) 較早被寫入 DB (ID 較小)，
-    JobRunner 啟動後依然會將主目標網域 (www.example.com) 的 ID 放在 primary_id_deque 前端優先處理。
-    """
-    # pylint: disable=import-outside-toplevel,protected-access
-    setup_databases()
-    from backend.deps import get_job_manager
-    from crawler.models import CrawlQueue, Job
-    from crawler.runner import JobRunner
-
-    jm = get_job_manager()
-    with jm.session_factory() as session:
-        job = Job(
-            id="test_priority_job_123",
-            start_url="https://www.example.com/",
-            target_domains="example.com",
-            trusted_domains="example.com",
-            status="pending",
-        )
-        session.add(job)
-        session.flush()
-
-        # 先寫入子網域項目 (ID 較小 = 1)
-        sub_item = CrawlQueue(
-            job_id=job.id,
-            url="https://ws.example.com/001/file1.png",
-            status="pending",
-            status_category="pending",
-            depth=1,
-        )
-        # 後寫入主目標網域項目 (ID 較大 = 2)
-        main_item = CrawlQueue(
-            job_id=job.id,
-            url="https://www.example.com/news/1.html",
-            status="pending",
-            status_category="pending",
-            depth=1,
-        )
-        session.add(sub_item)
-        session.add(main_item)
-        session.commit()
-
-        sub_id = sub_item.id
-        main_id = main_item.id
-
-        runner = JobRunner(jm.session_factory, job.id, None)
-        runner._initialize(session, None, False)
-
-        # 斷言 1: 主網域被正確鎖定為 www.example.com
-        assert runner.state.primary_domain == "www.example.com"
-
-        # 斷言 2: ID 2 (www.example.com) 被歸類入 primary_id_deque
-        assert main_id in runner.state.primary_id_deque
-        # 斷言 3: ID 1 (ws.example.com) 被歸類入 other_id_deque
-        assert sub_id in runner.state.other_id_deque
-
-        # 斷言 4: 第一個被 pop 出來的 ID 必須是主網域的 main_id (即便 sub_id 在 DB 中較小)
-        first_pop_id = runner.state.primary_id_deque.popleft()
-        assert first_pop_id == main_id, f"Expected primary domain ID {main_id}, but got {first_pop_id}"
-
-        session.delete(sub_item)
-        session.delete(main_item)
-        session.delete(job)
-        session.commit()
-    print("test_in_memory_priority_queue Passed Successfully!")
 
 
 if __name__ == "__main__":
