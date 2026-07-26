@@ -144,6 +144,11 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
+1. **Web UI 起始網址自動帶入「目標網域」與「信任網域」時自動去除 `www.` 前綴**
+   * **問題描述**：目前在 Web UI 建立任務頁面中，當使用者輸入起始網址 (Start URL，例如 `https://www.example.com/`) 並失焦 (`blur`) 時，前端自動帶入「目標網域」與「信任網域」填空會保留 `www.` 前綴 (即帶入 `www.example.com`)。這會導致預設情況下爬蟲將同機構下的其他附屬子網域 (如 `ws.example.com` 或 `law.example.com`) 過濾或誤判為外部連結。
+   * **修復方案**：在前端 `frontend/js/app-main.js` 的 `jobUrlInput` `blur` 事件監聽器中，自動提取 `url.hostname` 並套用 `.replace(/^www\./i, "")`。當使用者輸入 `https://www.example.com/` 且未填寫網域時，前端會自動切除 `www.` 並將基底網域 `example.com` 帶入「目標網域」與「信任網域」輸入框中。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `doc/requirements.md` 成為正式前端規範）
+
 1. **CrawlQueue 記憶體 ID 雙階佇列 (In-Memory ID Queue Partitioning) 優先級分流**
    * **問題描述**：當爬取包含多重子網域之廣域目標 (如 `target_domains: example.com` 且含資源子網域 `ws.example.com`) 時，數萬筆靜態資源/附件子網域寫入 `CrawlQueue` 佇列，佔據單一 FIFO 佇列前端，導致主目標網域 (`www.example.com`) 的深層 HTML 新聞列表與內容頁面被迫延後處理數十小時，最終因目標伺服器 Session Token (`_CSN`) 到期而引發連鎖斷鏈缺漏。
    * **規劃方案**：

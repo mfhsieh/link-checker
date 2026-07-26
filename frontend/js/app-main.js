@@ -469,11 +469,12 @@ if (createJobForm) {
             if (jobUrlInput.value.trim()) {
                 try {
                     const url = new URL(jobUrlInput.value.trim());
+                    const domain = url.hostname.replace(/^www\./i, "");
                     if (!targetDomainsInput.value.trim()) {
-                        targetDomainsInput.value = url.hostname;
+                        targetDomainsInput.value = domain;
                     }
                     if (trustedDomainsInput && !trustedDomainsInput.value.trim()) {
-                        trustedDomainsInput.value = url.hostname;
+                        trustedDomainsInput.value = domain;
                     }
                 } catch (e) { }
             }

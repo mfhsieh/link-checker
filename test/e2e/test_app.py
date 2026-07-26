@@ -275,3 +275,22 @@ def test_job_lifecycle_ui(page: Page, base_url: str) -> None:
         raise AssertionError(
             f"Error during lifecycle UI test: {type(e).__name__} - {str(e)}\nConsole logs:\n" + "\n".join(console_msgs)
         ) from e
+
+
+def test_autofill_start_url_strips_www(page: Page, base_url: str) -> None:
+    """測試建立任務頁面中，輸入以 www. 開頭之起始網址時，目標網域與信任網域會自動去除 www. 前綴帶入。"""
+    page.goto(f"{base_url}/index.html")
+    page.fill('input[type="email"]', "admin@test.com")
+    page.fill('input[type="password"]', "Admin@12345678")
+
+    with page.expect_response(lambda response: "/api/jobs" in response.url and response.request.method == "GET"):
+        page.click('button[type="submit"]')
+
+    page.click("#nav-new-job")
+    page.wait_for_selector("#job-url", state="visible")
+
+    page.fill("#job-url", "https://www.example-strip-test.com/news")
+    page.evaluate("document.getElementById('job-url').dispatchEvent(new Event('blur'))")
+
+    expect(page.locator("#job-target-domains")).to_have_value("example-strip-test.com")
+    expect(page.locator("#job-trusted-domains")).to_have_value("example-strip-test.com")
