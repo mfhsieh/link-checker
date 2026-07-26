@@ -37,6 +37,10 @@
 * **`<base>` 標籤基準網址解析支援**：在 HTML 解析與連結擷取過程中，若 HTML 內含有 `<base href="...">` 標籤，爬蟲核心解析 HTML 時必須主動讀取該標籤之 `href` 屬性，並將其與當前實際網址（Base URL）合併，做為該網頁所有相對連結路徑解析與正規化之最高優先級基準網址。
 * **資源限制與死循環陷阱防禦 (Resource Limitation & Crawl Trap Defense)**：系統必須能針對單一任務配置「最大爬取深度」與「最大抓取頁面數量上限」之硬性限制，在超出閾值時必須主動優雅終止任務，防止因網站結構陷阱（Crawl Trap）導致系統資源耗盡。
 * **網址去重機制**：巡覽佇列需具備防重機制，確保同一個任務內不重複爬取相同的內部網頁。
+* **主網域優先分流與記憶體雙階佇列 (Primary Domain Priority & In-Memory Partitioning)**：當目標網站包含多個附屬子網域或靜態資源/附件子網域 (如 `ws.example.com`) 時，為防止數萬筆子網域資源佔據佇列前端導致主站 HTML 頁面延後處理而引發 Session Token 到期過期，系統在 `JobRunner` 中必須實作「記憶體 ID 雙階佇列 (In-Memory ID Queue Partitioning)」分流機制：
+  * **主網域自動鎖定**：系統必須自動以 `get_domain(job.start_url)` 鎖定起始網址所在的主探索網域 (如 `www.example.com`)。
+  * **雙階佇列分流 (Primary vs. Other Deque)**：任務啟動或恢復 (Resume) 時，必須將待爬取網址之 ID 分流至 `primary_id_deque` (主網域高優先佇列) 與 `other_id_deque` (次要/子網域佇列)。
+  * **亞毫秒級主鍵取用**：爬蟲主迴圈必須 100% 優先取用 `primary_id_deque` 中的 ID，並以資料庫主鍵 (`WHERE id = ?`) 進行 `< 0.1ms` 的亞毫秒級高效查詢，確保主目標網域的核心 HTML 頁面於最短時間內全數爬取完畢。
 
 ### 2.2 外部連結偵測與紀錄
 

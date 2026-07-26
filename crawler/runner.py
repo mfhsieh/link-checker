@@ -26,6 +26,7 @@ import json
 import logging
 import random
 import time
+from collections import deque
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -108,6 +109,9 @@ class JobRunnerState:  # pylint: disable=too-many-instance-attributes
         target_domains_list (list[str]): 允許爬蟲深入遞迴爬取的目標網域清單。
         trusted_domains_list (list[str]): 視為信任的網域清單；指向此清單以外且
             不在 target_domains_list 中的連結，會被分類為外部目標連結。
+        primary_domain (str): 起點主探索網域 (如 www.mac.gov.tw)。
+        primary_id_deque (deque[int]): 屬於主網域的待爬取 ID 記憶體優先佇列。
+        other_id_deque (deque[int]): 屬於非主網域的待爬取 ID 記憶體次要佇列。
         queue_total (int): 任務佇列中的網址總條數（含所有狀態）。
         queue_completed (int): 佇列中已成功爬取（status=completed）的條數。
         queue_warning (int): 佇列中以警告狀態完成（status=warning）的條數。
@@ -123,6 +127,9 @@ class JobRunnerState:  # pylint: disable=too-many-instance-attributes
     checked_links_cache: LRUCache = field(default_factory=lambda: LRUCache(maxsize=DEFAULT_LRU_CACHE_MAXSIZE))
     target_domains_list: list[str] = field(default_factory=list)
     trusted_domains_list: list[str] = field(default_factory=list)
+    primary_domain: str = ""
+    primary_id_deque: deque[int] = field(default_factory=deque)
+    other_id_deque: deque[int] = field(default_factory=deque)
 
     # 用於在記憶體中追蹤任務進度，避免反覆 O(N) 查詢資料庫
     queue_total: int = 0
@@ -281,6 +288,7 @@ class JobRunner:
         """
         return self.job_id
 
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     def _initialize(
         self,
         session: Session,
@@ -329,6 +337,34 @@ class JobRunner:
 
         self.state.target_domains_list = job.target_domains.split(",") if job.target_domains else []
         self.state.trusted_domains_list = job.trusted_domains.split(",") if job.trusted_domains else []
+
+        # 決定起點主探索網域 (優先以 start_url 的網域為準)
+        start_domain = get_domain(job.start_url)
+        if start_domain:
+            self.state.primary_domain = start_domain
+        elif self.state.target_domains_list:
+            self.state.primary_domain = self.state.target_domains_list[0]
+        else:
+            self.state.primary_domain = ""
+
+        # 從資料庫中讀取所有 pending 的 (id, url)，建立記憶體 ID 雙階佇列 (分流 primary 與 other)
+        pending_rows = (
+            session.query(CrawlQueue.id, CrawlQueue.url)
+            .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
+            .order_by(CrawlQueue.id.asc())
+            .all()
+        )
+
+        self.state.primary_id_deque.clear()
+        self.state.other_id_deque.clear()
+
+        p_dom = self.state.primary_domain.lower() if self.state.primary_domain else ""
+        for item_id, item_url in pending_rows:
+            dom = (get_domain(item_url) or "").lower()
+            if p_dom and dom == p_dom:
+                self.state.primary_id_deque.append(item_id)
+            else:
+                self.state.other_id_deque.append(item_id)
 
         crawler_config = crawler_config_param
         if crawler_config is None:
@@ -400,7 +436,7 @@ class JobRunner:
 
         return job
 
-    def _run_loop(self, session: Session, job: Job, crawler: CrawlerCore) -> None:
+    def _run_loop(self, session: Session, job: Job, crawler: CrawlerCore) -> None:  # pylint: disable=too-many-branches
         """
         任務的執行主迴圈。
 
@@ -438,12 +474,35 @@ class JobRunner:
                 self._mark_job_completed(session, job)
                 break
 
-            queue_item: CrawlQueue | None = (
-                session.query(CrawlQueue)
-                .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
-                .order_by(CrawlQueue.id)
-                .first()
-            )
+            # 雙階佇列取號機制：優先從 primary_id_deque 取得 ID，若空則由 other_id_deque 取得
+            queue_item: CrawlQueue | None = None
+            target_id: int | None = None
+
+            while self.state.primary_id_deque:
+                candidate_id = self.state.primary_id_deque.popleft()
+                item = session.query(CrawlQueue).filter(CrawlQueue.id == candidate_id).first()
+                if item and item.job_id == self.job_id and item.status == "pending":
+                    target_id = candidate_id
+                    queue_item = item
+                    break
+
+            if target_id is None:
+                while self.state.other_id_deque:
+                    candidate_id = self.state.other_id_deque.popleft()
+                    item = session.query(CrawlQueue).filter(CrawlQueue.id == candidate_id).first()
+                    if item and item.job_id == self.job_id and item.status == "pending":
+                        target_id = candidate_id
+                        queue_item = item
+                        break
+
+            # 防護機制：若記憶體佇列用盡，向 DB 進行最後安全備援查詢 (避免記憶體漏同步風險)
+            if queue_item is None:
+                queue_item = (
+                    session.query(CrawlQueue)
+                    .filter(CrawlQueue.job_id == self.job_id, CrawlQueue.status == "pending")
+                    .order_by(CrawlQueue.id.asc())
+                    .first()
+                )
 
             if queue_item:
                 self._process_item(session, queue_item, crawler)
@@ -736,6 +795,14 @@ class JobRunner:
                 if new_items:
                     # 解決 N+1 查詢問題：改用 add_all 進行批次插入 (Batch Insert)
                     session.add_all(new_items)
+                    session.flush()  # 迫使 DB 生成 auto-increment id 以更新記憶體佇列
+                    p_dom = self.state.primary_domain.lower() if self.state.primary_domain else ""
+                    for item in new_items:
+                        dom = (get_domain(item.url) or "").lower()
+                        if p_dom and dom == p_dom:
+                            self.state.primary_id_deque.append(item.id)
+                        else:
+                            self.state.other_id_deque.append(item.id)
         # 依 Code Review 修正：此處的 commit 已刪除，由上層 _process_item 統一 commit
         new_items_count = len(new_items) if "new_items" in locals() and new_items else 0
         return new_items_count, new_items_count

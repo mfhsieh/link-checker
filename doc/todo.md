@@ -144,6 +144,14 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
+1. **CrawlQueue 記憶體 ID 雙階佇列 (In-Memory ID Queue Partitioning) 優先級分流**
+   * **問題描述**：當爬取包含多重子網域之廣域目標 (如 `target_domains: example.com` 且含資源子網域 `ws.example.com`) 時，數萬筆靜態資源/附件子網域寫入 `CrawlQueue` 佇列，佔據單一 FIFO 佇列前端，導致主目標網域 (`www.example.com`) 的深層 HTML 新聞列表與內容頁面被迫延後處理數十小時，最終因目標伺服器 Session Token (`_CSN`) 到期而引發連鎖斷鏈缺漏。
+   * **規劃方案**：
+     1. 在不更動任何資料庫 Schema 的前提下，於 `JobRunner` 導入「記憶體 ID 雙階佇列」機制。
+     2. 任務啟動或 Resume 恢復時，以 `get_domain(job.start_url)` 鎖定主探索網域，將 `pending` 的 ID 極速分流至 `primary_id_deque` (高優先) 與 `other_id_deque` (低優先)。
+     3. 爬蟲主迴圈優先取高優先 ID，透過 PK 主鍵 `WHERE id = ?` 進行 < 0.1ms 亞毫秒級高效查詢，確保主目標網域的 HTML 頁面於數小時內全數爬完。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `doc/requirements.md` 成為正式系統規範）
+
 1. **重構前端 Resume 任務的邏輯與 API 呼叫**
    * **問題描述**：目前前端在「恢復」任務時，直接共用了 `btn-start-job` 與 `/api/jobs/{job_id}/start` API。雖然底層能順利接續跑起來，但未利用到後端專門提供、具備嚴格安全狀態檢查機制 (`paused` / `error`) 的 `/api/jobs/{job_id}/resume` 端點。
    * **規劃方案**：在前端 `job-controls.js` 中依據任務狀態分流：狀態為 `paused` 或 `error` 時派發 `job-resume` 事件。然後在 `job-detail.js` 新增對 `job-resume` 的監聽器，精準呼叫專屬的 `/resume` API。
