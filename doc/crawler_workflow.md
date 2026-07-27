@@ -136,8 +136,16 @@ flowchart TD
 ### 2.4 回應處理與串流下載
 - **`_process_response`**：統整 HTTP 回應的各項檢查。
 - **`_check_response_skip_rules`**：基於 `Content-Type` 標頭判斷檔案類型。若非 HTML 文件（如 PDF），則直接略過下載。為確保與 httpx 及 curl_cffi 等不同 HTTP 客戶端的 Response 型別皆相容，此方法接受 `content_type: str` 原始字串而非 Response 物件。
-- **`_download_content`**：使用 HTTP 串流 (`stream`) 分段下載內容，包含檔案大小保護 (防 OOM)，並且使用 `_safe_decode` 以避免遇到不合法或未知的 `charset` (例如 `charset=xxx-unknown`) 時引發 `LookupError` 崩潰。
+- **`_download_content`** : 使用 HTTP 串流 (`stream`) 分段下載內容，包含檔案大小保護 (防 OOM)，並且使用 `_safe_decode` 以避免遇到不合法或未知的 `charset` (例如 `charset=xxx-unknown`) 時引發 `LookupError` 崩潰。
   - 附帶一提，內部網路請求同樣採用手動將 Cookie 寫入 `headers["Cookie"]` 的方式，避免 `httpx` 已廢棄 `cookies=` 參數的不穩定行為。
+
+### 2.5 被忽略內部連結之輕量探測機制 (Probing Skipped Links)
+當啟用 `check_skipped_links` 且內部連結符合忽略規則（副檔名或路徑 Regex）時，爬蟲核心會啟動「GET 串流標頭截斷模式」的輕量探測：
+1. **繞過前期攔截**：在 `_fetch_single` 中，若檢測到連結為內部連結且 `check_skipped_links` 為 `True`，則跳過前期的忽略規則攔截，正常發起 GET 請求。
+2. **串流標頭截斷 (Stream Truncation)**：在發送請求後，`_process_response` 讀取到伺服器回傳的 HTTP 標頭並完成狀態碼驗證。若狀態碼為 200 OK 且確認該連結符合忽略規則：
+   - 爬蟲會**立刻中斷/關閉該 GET 串流**，不下載後續的 Body 內容（如 PDF、ZIP 等大型檔案）。
+   - 最終將此連結狀態歸類為 `skip`，並傳回忽略原因（如 `符合忽略之副檔名`），既確認了連結的存活度，又極大程度地節省了頻寬。
+3. **異常轉化**：若探測到的回應狀態碼 >= 400（如 404），則視為正常連線異常並記錄為 `failed` 死鏈。
 
 ---
 

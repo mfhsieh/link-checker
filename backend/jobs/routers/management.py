@@ -98,6 +98,7 @@ def get_default_config(
         "ssl_exempt_domains",
         "social_domains",
         "domain_delays",
+        "check_skipped_links",
     }
 
     return {k: v for k, v in crawler_config.items() if k in allowed_keys}

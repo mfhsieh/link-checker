@@ -322,6 +322,14 @@
                                     <span class="card-title">進階過濾與網路</span>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 1.5rem">
+                                    <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
+                                        <input type="checkbox" id="job-check-skipped-links" /> 啟用「略過副檔名」與「排除的路徑規則」的存活探測
+                                    </label>
+                                    <div class="form-hint">
+                                        開啟後，符合略過規則的內部連結不會下載檔案內容，但仍會發送輕量 HTTP 請求以確認連結是否正常。
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 1.5rem">
                                     <label class="form-label" for="job-ignore-regexes">忽略的路徑規則 (Regex)</label>
                                     <textarea class="form-textarea" id="job-ignore-regexes" rows="3"
                                         placeholder="載入中..."></textarea>
@@ -470,7 +478,7 @@
                                         <strong>【完全覆寫】</strong>。
                                     </div>
                                 </div>
-                                <div class="form-group">
+                                <div class="form-group" style="margin-bottom: 1.5rem">
                                     <label class="form-label" for="job-proxy-url">代理伺服器 (Proxy URL)</label>
                                     <input class="form-input" type="url" id="job-proxy-url"
                                         placeholder="http://user:pass@proxy:8080" />

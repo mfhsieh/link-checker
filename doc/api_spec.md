@@ -1277,6 +1277,7 @@ Crawler 區塊配置更新請求結構。
 | `ignore_extensions` | array | 否 |  |
 | `ignore_regexes` | array | 否 |  |
 | `mime_type_filter` | MimeTypeFilterConfig | 否 |  |
+| `check_skipped_links` | boolean | 否 |  |
 | `min_timeout` | integer | 否 |  |
 | `max_timeout` | integer | 否 |  |
 | `connect_timeout` | number | 否 |  |
@@ -1335,6 +1336,7 @@ Attributes:
 | `ssl_exempt_domains` | array | 否 |  |
 | `social_domains` | array | 否 |  |
 | `domain_delays` | object | 否 |  |
+| `check_skipped_links` | boolean | 否 |  |
 
 ---
 

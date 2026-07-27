@@ -106,6 +106,7 @@ link-checker/
 │   ├── test_cli.py     # CLI 爬蟲核心與調度整合測試
 │   ├── test_admin_logs.py # 後台安全稽核日誌整合測試
 │   ├── test_scheduler.py  # 任務排程器自動化測試
+│   ├── test_skipped_head_check.py # 被忽略內部連結之輕量死檔探測單元測試
 │   ├── test_server/    # 本機 Mock HTTP 測試伺服器靶機
 │   └── e2e/            # Playwright 前端介面自動化測試
 │       ├── conftest.py

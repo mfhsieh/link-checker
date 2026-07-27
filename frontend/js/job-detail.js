@@ -1009,6 +1009,7 @@ function bindWebComponentEvents() {
                 ]));
 
                 wrapper.appendChild(createSection('🛡️ 進階過濾與網路', [
+                    { label: '探測略過連結', value: c.check_skipped_links === undefined ? '已停用 [舊任務]' : (c.check_skipped_links ? '已啟用' : '已停用') },
                     { label: '忽略路徑規則', value: el => formatList(c.ignore_regexes, el) },
                     { label: '忽略副檔名', value: el => formatList(c.ignore_extensions, el), valStyle: { maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' } },
                     { label: '社群與反爬蟲', value: el => formatList(c.social_domains, el) },

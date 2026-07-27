@@ -400,6 +400,7 @@ class JobRunner:
             max_content_length=cast(int, crawler_config.get("max_content_length", 10485760)),
             max_redirects=cast(int, crawler_config.get("max_redirects", 10)),
             social_domains=cast(list[str], crawler_config.get("social_domains", _DEF.get("social_domains", []))),
+            check_skipped_links=cast(bool, crawler_config.get("check_skipped_links", False)),
         )
 
         from sqlalchemy import case  # pylint: disable=import-outside-toplevel

@@ -274,6 +274,16 @@
                                 </div>
 
                                 <div class="form-group" style="margin-bottom:1rem">
+                                    <label
+                                        style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
+                                        <input type="checkbox" id="cfg-check-skipped-links" /> 啟用「略過副檔名」與「排除的路徑規則」的存活探測
+                                    </label>
+                                    <div class="form-hint">
+                                        開啟後，符合略過規則的內部連結不會下載檔案內容，但仍會發送輕量 HTTP 請求以確認連結是否正常。
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-bottom:1rem">
                                     <label class="form-label" for="cfg-ignore-exts">略過副檔名 (ignore_extensions)</label>
                                     <textarea class="form-textarea" id="cfg-ignore-exts" rows="2"
                                         placeholder=".pdf&#10;每行一個"></textarea>

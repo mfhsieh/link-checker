@@ -123,6 +123,10 @@ crawler:
     - "linkedin.com"
     - "line.me"
 
+  # 是否啟用對被忽略內部連結的存活探測 (預設為 true)
+  # 開啟後，符合略過規則的內部連結不會下載檔案內容，但仍會發送輕量 HTTP 請求以確認連結是否正常。
+  check_skipped_links: true
+
   # 預設略過且不進行 HTML 抓取解析的副檔名清單
   # 合併規則：【聯集合併 (Union)】個別任務的清單會與此清單疊加生效，防範意外下載巨型非網頁檔案。
   ignore_extensions:

@@ -21,9 +21,87 @@
 
 ### 最優先（安全性、資料庫與基礎架構）
 
-*目前無項目。*
+1. **修復 `sanitize_error_message` 未防禦日誌注入 (Log Injection)**
+   * **問題描述**：`crawler/utils.py` 中的 `sanitize_error_message` 函式雖有遮蔽 IP、密碼與 Token 等敏感資料，但未清洗 `\r` (Carriage Return) 與 `\n` (Line Feed) 字元。當爬蟲抓取回傳帶有換行符的惡意 HTTP 回應或例外字串時，寫入日誌可能會造成日誌偽造 (Log Forgery)，干擾日誌分析與告警機制。
+   * **規劃方案**：在 `sanitize_error_message()` 的回傳前加入 `msg = msg.replace("\r", "").replace("\n", " ")` 進行換行符清洗。
+   * **狀態**：**待排程（Pending）**。
 
 ### 高優先（效能優化、核心精準度與程式品質）
+
+1. **優化 SSE 於 `paused` 狀態下的生命週期處理**
+   * **問題描述**：`backend/jobs/routers/management.py` 的 `stream_job_updates` 在建立 SSE 連線時，若任務狀態為 `paused` 且非運行中，會直接結束傳輸關閉連線；前端接收到 `paused` 狀態時亦會終止 SSE 與背景輪詢。在 `reprobe_external_links` 後任務狀態轉為 `paused` 時，若使用者隨後啟動任務，前端連線會因為先前的自動中斷而無法及時獲得 SSE 動態推播。
+   * **規劃方案**：在後端及前端 SSE 處理邏輯中檢視 `paused` 狀態且包含 `pending` 連結時的連線維持與重新連結機制，避免前端介面狀態非同步。
+   * **狀態**：**待排程（Pending）**。
+
+1. **統一 `max_depth` 與 `max_pages` 參數存取路徑至 `CrawlerConfig` Dataclass**
+   * **問題描述**：`crawler/models.py` 的 `CrawlerConfig` dataclass 缺少 `max_depth` 與 `max_pages` 欄位定義，導致 `crawler/runner.py` 在 `_run_loop` 必須繞過 Dataclass 封裝直接讀取字典 `self.crawler_config_dict.get(...)`，破壞了核心配置物件的抽象封裝與型別安全。
+   * **規劃方案**：在 `CrawlerConfig` Dataclass 補充 `max_depth` 與 `max_pages` 欄位，並將 `runner.py` 的讀取路徑統一重構為 `self.config.max_depth` / `self.config.max_pages`。
+   * **狀態**：**待排程（Pending）**。
+
+1. **在 `doc/requirements.md` 標註軟刪除 (Soft Delete) 的已知實作偏差**
+   * **問題描述**：`doc/requirements.md` §4.1 規範跨資料庫資源刪除應採「軟刪除」，但當前系統基於簡化 ORM 查詢考量暫採硬刪除（此項已在 `todo.md` 追蹤）。需求規格書中未記載此「意圖性偏差 (Intentional Deviation)」，容易引發文件不一致。
+   * **規劃方案**：於 `doc/requirements.md` §4.1 的軟刪除段落補充已知偏差說明與指向 `todo.md` 的參考說明。
+   * **狀態**：**待排程（Pending）**。
+
+1. **在 `doc/api_spec.md` 補充 `format_crawl_queue_item` 的歷史 CSV 命名規範說明**
+   * **問題描述**：`crawler/utils.py` 的 `format_crawl_queue_item()` 字典鍵名混用大寫空格與小寫底線（例如 `"Status"` vs `"is_secure"`），此為向後相容舊有 CSV/Excel 導出的既有設計，但 `doc/api_spec.md` 中未記錄此欄位相容性細節。
+   * **規劃方案**：在 `doc/api_spec.md` 的導出/回應說明欄位中，補充此 Legacy 欄位命名設計與未來可能之重構說明。
+   * **狀態**：**待排程（Pending）**。
+
+1. **為 `JobManager.get_all_jobs` 新增分頁機制**
+   * **問題描述**：`crawler/manager.py` 的 `get_all_jobs()` 函式直接呼叫 `.all()` 撈出全量歷史任務，當資料庫累積大量任務紀錄時會產生不必要的記憶體與資料庫 I/O 開銷。
+   * **規劃方案**：在 `get_all_jobs()` 增加可選的 `limit` 與 `offset` 分頁參數。
+   * **狀態**：**待排程（Pending）**。
+
+1. **補充 `_serve_html_with_nonce` 的標籤 nonce 動態注入單元測試**
+   * **問題描述**：`backend/main.py` 中的 `_serve_html_with_nonce()` 在生產模式下會將 HTML 快取至記憶體並動態注入 CSP nonce。正則匹配邏輯 `if "nonce=" in attrs.lower()` 若遇到包含 `"nonce="` 字串的特殊屬性 (如 JSON dataset) 時，可能發生誤判。目前缺乏自動化單元測試覆蓋此動態替換行為。
+   * **規劃方案**：在 API 測試套件中補充各種 HTML 標籤（含有內建 nonce、自訂 dataset 屬性等）之動態替換測試案例，確保 CSP Nonce 注入之穩定性。
+   * **狀態**：**待排程（Pending）**。
+
+1. **補充 `sanitize_error_message` 敏感資訊過濾與邊界情況單元測試**
+   * **問題描述**：`crawler/utils.py` 中的 `sanitize_error_message` 涵蓋複雜的 IPv6、IPv4、URL 密碼與 Token 遮蔽正則表達式，但目前測試集中缺乏專屬單元測試。對於 IPv6 縮寫格式 (如 `::1`)、IPv4-mapped IPv6 及換行符等邊界測試覆蓋不足。
+   * **規劃方案**：新增 `test/test_utils.py` 測試檔案，為 `sanitize_error_message()` 撰寫完整的單元測試矩陣。
+   * **狀態**：**待排程（Pending）**。
+
+1. **補充 `CrawlerCore.check_external_link` 核心降級路徑單元與整合測試**
+   * **問題描述**：`CrawlerCore.check_external_link()` 為爬蟲核心探測引擎，包含多層複雜降級邏輯（如 HEAD 失敗降級 GET、HTTP 升級 HTTPS 探測、`httpx` 降級至 `curl_cffi` TLS 指紋偽裝、Cookie-gate 重導向維持等）。目前測試集中缺乏針對這些降級分支的自動化測試覆蓋，若後續重構可能無法即時發現 regression。
+   * **規劃方案**：使用 `respx` 或 Mock 工具建立測試腳本，針對 HEAD 超時/404 降級、HTTP 轉 HTTPS 嘗試、TLS 偽裝降級及 Cookie 重導向等場景補齊單元與整合測試案例。
+   * **狀態**：**待排程（Pending）**。
+
+1. **優化 `JobRunner._handle_error` 指數退避延遲解耦長時間阻塞以提升暫停響應**
+   * **問題描述**：`crawler/runner.py` 的 `_handle_error()` 在進行失敗重試時，直接使用 `time.sleep(actual_delay)`。當退避延遲達數十秒時，長時間阻塞會導致爬蟲無法即時響應使用者的暫停/停止指令。
+   * **規劃方案**：將長時間 `time.sleep()` 分割為短暫的微輪詢 sleep 迴圈（如 0.5 秒），確保在等待期間能隨時回應暫停與終止訊號。
+   * **狀態**：**待排程（Pending）**。
+
+1. **全域字典 `_ACTIVE_PROCESSES` 存取顯式添加 Thread Lock 保護**
+   * **問題描述**：`backend/jobs/constants.py` 中定義的全域字典 `_ACTIVE_PROCESSES` 在 `management.py` 與 `process.py` 之間被多個 FastAPI 路由執行緒併發讀寫（`__setitem__` / `get` / `pop`）。雖然 CPython 的 GIL 保障了單步字典操作的原子性，但顯式加鎖能傳達明確的執行緒安全意圖，並為未來的 Python free-threading (PEP 703) 做準備。
+   * **規劃方案**：建立全域 `_ACTIVE_PROCESSES_LOCK = threading.Lock()`，並在存取與修改 `_ACTIVE_PROCESSES` 時顯式使用 `with _ACTIVE_PROCESSES_LOCK:` 包覆。
+   * **狀態**：**待排程（Pending）**。
+
+1. **替換 `CrawlerConfig` 初始化中的 `cast()` 為真實運行期型別轉換**
+   * **問題描述**：`crawler/runner.py` 中建立 `CrawlerConfig` 物件時使用 `cast()`（如 `cast(int, ...)`）。`cast()` 在 Runtime 是無效的（no-op），若 CLI 傳入字串等非預期型別，無法在初始化時及時防禦。
+   * **規劃方案**：將 `runner.py` 的 `cast()` 替換為顯式型別轉換（如 `int(...)` / `float(...)`），強化強型別防禦。
+   * **狀態**：**待排程（Pending）**。
+
+1. **重構 `crawler/manager.py` 提取 IN 子句批次大小魔術數字為常數**
+   * **問題描述**：`crawler/manager.py` 中的 `retry_failed_job()` 函式包含寫死的 Magic Number `900`（因應 SQLite IN 子句參數 999 限制）。魔術數字直接寫死於 `range()` 與切片中，降低了程式碼維護性。
+   * **規劃方案**：在 `crawler/manager.py` 定義模組級常數 `_SQLITE_MAX_IN_BATCH_SIZE: int = 900` 並替換硬編碼數值。
+   * **狀態**：**待排程（Pending）**。
+
+1. **補充 `JobProgressPoller` 執行緒安全假設文檔標注**
+   * **問題描述**：`backend/jobs/services/poller.py` 中的 `JobProgressPoller.active_jobs` 字典未加鎖保護，依賴於單一 asyncio Event Loop 的調度特性。為防止未來開發者將 `add_job` 或 `remove_job` 放入 `run_in_threadpool` 導致競態條件，應補齊類別級別的 docstring 說明。
+   * **規劃方案**：在 `JobProgressPoller` 類別 docstring 中明確補上「此類別設計僅限於單一 asyncio Event Loop 執行緒中使用」之假設說明。
+   * **狀態**：**待排程（Pending）**。
+
+1. **修復 `_cleanup_finished_processes` 節流計時器未更新問題**
+   * **問題描述**：`backend/jobs/services/process.py` 中的 `_cleanup_finished_processes()` 函式雖有 `_LAST_CLEANUP_TIME` 節流判斷，但通過判斷後未進行 `_LAST_CLEANUP_TIME = current_time` 的更新賦值。當該函式被單獨呼叫時，節流機制會徹底失效，導致每次都會觸發 PID 目錄走訪與檔案 I/O 操作。
+   * **規劃方案**：在 `_cleanup_finished_processes()` 宣告 `global _LAST_CLEANUP_TIME` 並於檢查後更新全域時間標記。
+   * **狀態**：**待排程（Pending）**。
+
+1. **修復 `JobRunner._run_loop` 狀態查詢異常導致誤判任務失敗**
+   * **問題描述**：在 `crawler/runner.py` 的 `_run_loop` 主迴圈中，每隔 10 秒會向資料庫查詢任務當前狀態（如是否被暫停）。若該 DB 查詢因 SQLite 鎖定（database is locked）、PostgreSQL 連線瞬斷/逾時/死鎖等待，或任何暫時性 DB 異常拋出 `SQLAlchemyError` 例外，目前缺乏專門的捕捉機制，例外會直接冒泡至外層頂層 `try...except Exception` 區塊，導致原本正常的爬蟲任務被錯誤標記為 `error` 狀態並異常終止。
+   * **規劃方案**：在 `_run_loop` 的狀態查詢段落加上針對 `SQLAlchemyError` 的捕捉，記錄 Warning 日誌後重置計時器並跳過當次檢查，允許在資料庫短暫忙碌時持續維持爬蟲運作，提升系統併發與韌性。
+   * **狀態**：**待排程（Pending）**。
 
 1. **擴充比對任務 (Job Diff) 支援內部連結與診斷邏輯優化**
    * **問題描述**：目前的任務歷史差異比對引擎 (Job Diff Engine) 僅針對「外部連結」進行比對分析。然而，目標網站的「內部連結」健康度同樣重要，目前卻未被納入比對範圍。此外，現有的比對診斷方式及分類標籤在面對複雜的狀態變化時，可能不夠精確，仍需要進一步的調整與優化。
@@ -39,12 +117,7 @@
 
 ### 中優先（中大型功能擴充）
 
-1. **支援對「被忽略的內部連結」進行 HEAD 存活探測**
-   * **問題描述**：目前系統對於符合「忽略副檔名」或「忽略路徑規則」的內部連結，會直接跳過不予處理。這導致使用者雖然不希望爬蟲深入抓取這些資源（如 PDF、圖片檔或特定目錄），但同時也無從得知這些連結「是否真的存在（避免死檔或斷鏈）」。
-   * **規劃方案**：
-     1. 在任務設定或全域設定中新增一個選項，允許使用者對於被忽略的內部連結改用 `HEAD` 請求進行輕量級探測。
-     2. 若探測結果為異常（如 404 Not Found 或 500 Server Error），應將該連結一併納入內部死鏈的錯誤報告中，以提升連結健康度診斷的覆蓋率。
-   * **狀態**：**待排程（Pending）**。
+
 
 1. **爬蟲深度 (Depth) 監控與動態調整任務參數**
    * **問題描述**：目前使用者在任務執行期間，無法直觀地得知爬蟲當前探索到了哪一個層級 (Depth) 的內部連結。此外，如果任務在中途發現原本設定的 `max_depth` (最大深度) 或 `max_pages` (最大頁面數) 不符預期（例如想提早結束或擴大探索範圍），系統目前並不支援在任務執行過程中動態修改這些參數。
@@ -143,6 +216,14 @@
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+1. **支援對「被忽略的內部連結」進行輕量死檔探測**
+   * **問題描述**：目前系統對於符合「忽略副檔名」或「忽略路徑規則」的內部連結，會直接跳過不予處理。這導致使用者雖然不希望爬蟲深入抓取這些資源（如 PDF、圖片檔或特定目錄），但同時也無從得知這些連結「是否真的存在（避免死檔或斷鏈）」。
+   * **修復方案**：
+     1. 在任務設定或全域設定中新增一個選項 `check_skipped_links`（預設為 `True`），啟用時採用「GET 串流標頭截斷模式」進行輕量探測（發送 GET 請求但在成功讀取 HTTP 標頭後即關閉連線，只檢查存活而不下載檔案內容）。
+     2. **相容性防護**：未來新建的任務預設啟用此功能；但對於歷史舊任務，若設定檔中無此參數，則必須強制預設為 `False`，以維護其原本不發送探測請求的行為。
+     3. 若探測結果為異常（如 404 或 500），則將該連結納入內部死鏈的錯誤報告中。
+   * **狀態**：**已解決（Resolved）**。（已寫入 `doc/requirements.md` 成為正式系統規範）
 
 1. **Web UI 起始網址自動帶入「目標網域」與「信任網域」時自動去除 `www.` 前綴**
    * **問題描述**：目前在 Web UI 建立任務頁面中，當使用者輸入起始網址 (Start URL，例如 `https://www.example.com/`) 並失焦 (`blur`) 時，前端自動帶入「目標網域」與「信任網域」填空會保留 `www.` 前綴 (即帶入 `www.example.com`)。這會導致預設情況下爬蟲將同機構下的其他附屬子網域 (如 `ws.example.com` 或 `law.example.com`) 過濾或誤判為外部連結。

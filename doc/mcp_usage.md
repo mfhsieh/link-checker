@@ -1,6 +1,6 @@
 # MCP Server 使用指南
 
-本系統提供一組基於 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 規格的本地獨立伺服器，專門供開發者與 AI 助理（如 Claude Desktop 或 Cursor）使用，以方便地直接查閱遠端 Production 或 Staging 環境中的爬蟲任務執行狀態。
+本系統提供一組基於 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 規格的本地獨立伺服器，專門供開發者與 AI 助理（如 Claude Desktop 或 Antigravity IDE）使用，以方便地直接查閱遠端 Production 或 Staging 環境中的爬蟲任務執行狀態、系統磁碟容量，或是在本機直接測試特定的內外連結。
 
 ## 架構說明
 
@@ -60,31 +60,27 @@ Host myserver-prod
 
 ## 提供的 Tools
 
-MCP Server 啟動後，將向您的 AI 助理註冊以下 Tools：
+MCP Server 啟動後，將向您的 AI 助理註冊以下五個核心 Tools：
 
-1. **`list_active_jobs`**
-   - **功能**：列出目前系統中所有狀態為 `running` 或 `pending` 的任務。
-   - **回傳**：包含任務 ID (`job_id`)、狀態、起始網址與建立時間的 JSON 列表。
+1. **`get_jobs_status`**
+   - **參數**：`job_id` (字串 | 選填)
+   - **功能**：取得指定任務的詳細狀態與最後一次爬取紀錄。若未傳入 `job_id`，則自動列出目前系統中所有狀態為 `running` 或 `pending` 的執行中任務。
+   - **回傳**：包含任務 ID、狀態、起始網址、負責人 Email、進度統計快照與最新一筆爬取紀錄的 JSON 列表。
 
-2. **`get_job_progress`**
+2. **`get_job_config`**
    - **參數**：`job_id` (字串)
-   - **功能**：專注於「內部網頁佇列」的處理進度。透過查詢各項 `status_category` 的數量，計算出整體的探索進度百分比。適合在任務「執行中」高頻輪詢，以取得進度條所需數據（此工具完全不包含外部連結資訊）。
+   - **功能**：取得指定任務的執行配置快照 (Config Snapshot)，包含已與全域設定合併之生效參數（如延遲秒數、重試次數、信任網域等），協助診斷爬蟲的特定行為。
 
-3. **`get_job_errors`**
-   - **參數**：`job_id` (字串)、`limit` (數字，預設 10)
-   - **功能**：針對特定任務，抓取最新發生的錯誤連結資訊（包含錯誤訊息與狀態碼），以協助 AI 快速診斷失敗原因。
+3. **`get_disk_usage`**
+   - **功能**：取得主機硬碟空間分佈與 Crawler DB 大小（支援 SQLite 與 PostgreSQL 兩種 Dialect 空間計算），協助開發者或 AI 監控 Production 環境的硬碟資源佔用。
 
-4. **`get_job_report`**
-   - **參數**：`job_id` (字串)
-   - **功能**：取得全方位的綜合健檢報告。不僅包含內部佇列的完成度，更跨表聚合了「外部連結」的各項存活狀態總數與網域統計。適合在「任務完成後」呼叫，作為撰寫最終總結分析的依據。
+4. **`test_internal_url`**
+   - **參數**：`url` (字串)
+   - **功能**：調用 `scripts/test_url.py` 腳本，對單一內部連結進行抓取測試。驗證 HTML 解析、狀態碼與提取出的連結數量。
 
-5. **`get_job_config`**
-   - **參數**：`job_id` (字串)
-   - **功能**：取得指定任務的執行配置快照 (Config Snapshot)，幫助診斷該任務啟動時所合併的各項參數（如延遲秒數、重試次數等）。
-
-6. **`pause_job`**
-   - **參數**：`job_id` (字串)
-   - **功能**：對執行中的任務發送暫停指令 (Pause Signal)，系統會在完成當前處理的網址後進行安全的溫和暫停。
+5. **`test_external_url`**
+   - **參數**：`url` (字串)
+   - **功能**：調用 `scripts/test_ext.py` 腳本，對單一外部連結進行健康度與防禦穿透探測。
 
 ## 擴充與維護
 

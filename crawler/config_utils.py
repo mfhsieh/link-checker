@@ -110,6 +110,7 @@ DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
             ".dmg .pkg .deb .rpm .css .js .json .xml .exe .apk .bin .woff .woff2 .ttf .eot .otf "
             ".dll .so .class .jar"
         ).split(),
+        "check_skipped_links": True,
     },
 }
 
@@ -129,6 +130,7 @@ ALLOWED_CRAWLER_KEYS: set[str] = {
     "ssl_exempt_domains",
     "social_domains",
     "ignore_extensions",
+    "check_skipped_links",
 }
 """個別任務允許覆寫的爬蟲設定鍵白名單。
 
@@ -308,6 +310,7 @@ def _sanitize_crawler_types(config: dict[str, object]) -> None:
     string_types = {"user_agent", "proxy_url"}
     dict_types = {"mime_type_filter", "domain_delays"}
     list_types = {"ignore_extensions", "ignore_regexes", "ssl_exempt_domains", "social_domains"}
+    boolean_types = {"check_skipped_links"}
 
     for k, v in list(config.items()):
         if v is None:
@@ -322,6 +325,15 @@ def _sanitize_crawler_types(config: dict[str, object]) -> None:
             _sanitize_dict_type(k, v, config)
         elif k in list_types:
             _sanitize_list_type(k, v, config)
+        elif k in boolean_types:
+            if not isinstance(v, bool):
+                if str(v).lower() in ("true", "1", "yes", "on"):
+                    config[k] = True
+                elif str(v).lower() in ("false", "0", "no", "off"):
+                    config[k] = False
+                else:
+                    logging.warning("設定 '%s' 必須為布林格式，將被重置為 True。", k)
+                    config[k] = True
 
 
 def _apply_crawler_defaults(crawler_config: dict[str, object], global_crawler_config: dict[str, object]) -> None:

@@ -25,6 +25,7 @@ ALLOWED_CRAWLER_CONFIG_KEYS: list[str] = [
     "ssl_exempt_domains",
     "social_domains",
     "domain_delays",
+    "check_skipped_links",
 ]
 
 SSE_POLL_INTERVAL_SEC: int = 10

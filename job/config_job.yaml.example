@@ -73,6 +73,9 @@ crawler:
   # 若需隱藏來源 IP 可在此設定，亦可透過環境變數 CRAWLER_PROXY_URL 設定 (環境變數優先層級最高)
   proxy_url: null
 
+  # 是否啟用對被忽略內部連結的存活探測 (預設為 true)
+  check_skipped_links: true
+
   # MIME 類型過濾開關，防止爬蟲下載非網頁媒體資源浪費頻寬
   mime_type_filter:
     enabled: true

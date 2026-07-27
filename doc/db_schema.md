@@ -283,7 +283,7 @@ erDiagram
 | `start_url` | `Text` | `NOT NULL` | 該任務開始進行爬取的起點網址。 |
 | `target_domains` | `Text` | `NOT NULL` | 允許爬蟲深入抓取的網域清單，以逗號 (`,`) 分隔。 |
 | `trusted_domains` | `Text` | `NOT NULL` | 視為信任系統的網域清單，以逗號 (`,`) 分隔。 |
-| `config_json` | `Text` | `Nullable` | 任務建立當下，已與全域設定合併之最終爬蟲參數快照 (JSON 格式)。註：為落實最小權限，後端 API 提取此快照時會主動進行機密遮蔽 (如 Proxy 密碼)。 |
+| `config_json` | `Text` | `Nullable` | 任務建立當下，已與全域設定合併之最終爬蟲參數快照 (JSON 格式)。包含是否探測忽略內部連結的 `check_skipped_links` 布林參數。註：為落實最小權限，後端 API 提取此快照時會主動進行機密遮蔽 (如 Proxy 密碼)。 |
 | `status` | `String(50)` | `Default: 'pending'` | 任務狀態，包含：`pending` (等待中), `running` (執行中), `paused` (已暫停), `completed` (已完成), `error` (發生嚴重例外)。 |
 | `progress_stats` | `Text` | `Nullable` | 任務的進度統計快取 (JSON 格式)。包含已處理/成功/失敗數量等，降低輪詢時的 DB 聚合查詢壓力。 |
 | `created_at` | `DateTime` | `Default: 當下時間` | 任務建立的 UTC 時間戳記。 |
@@ -309,8 +309,8 @@ erDiagram
 | `url` | `Text` | `NOT NULL` | 準備或已經被爬取之頁面網址。 |
 | `source_url` | `Text` | `Nullable` | 發現此網址的來源網頁網址 (若是任務的起始網址則為 NULL)。 |
 | `is_secure` | `Boolean` | `Default: True` | 標記此內部連結是否使用安全傳輸協定（網址開頭為 `https://`）。若為 HTTPS 則為 `True`，若為 HTTP 則為 `False`。 |
-| `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗), `skip` (因 MIME 或副檔名不符而跳過), `warning` (因超過容量上限被截斷)。 |
-| `status_code` | `Integer` | `Nullable` | 記錄爬取最終的 HTTP 狀態碼。前端與匯出引擎藉由綜合判斷此欄位與 `error_message`，將內部失敗動態歸類為 7 大失效樣態 (資源遺失、伺服器異常、權限不足、連線逾時、底層異常、網頁截斷、其他)。 |
+| `status` | `String(50)` | `Default: 'pending'` | 該網址目前的爬取狀態，包含：`pending` (等待爬取), `completed` (爬取成功), `failed` (爬取失敗。如啟用 `check_skipped_links` 且探測忽略連結回傳 4xx/5xx), `skip` (直接跳過，或啟用 `check_skipped_links` 探測成功後忽略), `warning` (因超過容量上限被截斷)。 |
+| `status_code` | `Integer` | `Nullable` | 記錄爬取最終的 HTTP 狀態碼。若啟用 `check_skipped_links`，則 `skip` 項目可能留有其探測到的狀態碼 (如 200)。 |
 | `status_category` | `String(30)` | `Default: 'pending'` | 統一狀態分類（例如：`timeout`, `not_found`, `server_error` 等），透過分析程式於背景解析或回填，直接支援統計聚合查詢。 |
 | `retry_count` | `Integer` | `Default: 0` | 爬取發生錯誤並重試的次數，由全域與任務設定控制上限。 |
 | `depth` | `Integer` | `Default: 0` | 記錄此網址被發現的爬取深度。起始網址深度為 `0`，子網址為 `current_depth + 1`。 |

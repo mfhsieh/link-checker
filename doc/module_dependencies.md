@@ -140,3 +140,37 @@
 - **`test_url.py` & `test_ext.py`**:
   - 用於本地端測試與除錯的獨立腳本。
   - 直接依賴 `crawler.core` 相關邏輯（如存活探測與狀態判定），並可能依賴 `crawler.utils`，用以驗證單一連結的爬取或外部存活狀態。
+
+---
+
+## 8. 測試套件 (Test Suite) 的依賴狀況
+
+自動化測試套件（`test/` 目錄）在設計上單向依賴於系統核心，核心代碼絕不引入任何測試相關模組，確保生產環境的純淨度。各測試模組的具體依賴如下：
+
+* **`test_api.py`** (API 端點與 Web 後台整合測試):
+  - **後端依賴**: 依賴 `backend.main` (`app` 實例) 進行 API 路由加載，引入 `backend.auth.db`、`backend.auth.models` 與 `backend.deps` 模擬身分驗證與注入 `JobManager`。
+  - **核心依賴**: 依賴 `crawler.manager` 與 `crawler.models`。
+  - **測試輔助**: 依賴 `fastapi.testclient.TestClient` 發起模擬 HTTP 請求，以及 `test.utils` 來等待模擬靶機。
+
+* **`test_cli.py`** (CLI 爬蟲核心與調度整合測試):
+  - **進程依賴**: 透過 `subprocess.run` 或 `subprocess.Popen` 直接調用頂層的 `cli.py` 腳本，模擬最真實的命令列運行。
+  - **外部依賴**: 依賴 `test/test_server/server.py` 啟動本機 Mock 靶機，提供爬行時的各種網頁回應。
+  - **資料庫依賴**: 引入 `sqlite3` 直連測試資料庫以進行欄位狀態斷言。
+
+* **`test_admin_logs.py`** (後台安全稽核日誌整合測試):
+  - **後端依賴**: 依賴 `backend.main`、`backend.auth.models` (`User`, `AuthLog`)，以及 `backend.deps` 攔截並驗證日誌紀錄。
+  - **測試輔助**: 依賴 `fastapi.testclient.TestClient` 模擬管理員的操作（如修改設定、鎖定帳號）以驗證日誌生成。
+
+* **`test_scheduler.py`** (任務排程器自動化測試):
+  - **後端依賴**: 依賴 `backend.config.get_settings`（用以 Monkeypatch 修改最大並發限制）及 `backend.jobs.services.management.start_job` 模擬排程調度。
+  - **核心依賴**: 依賴 `crawler.manager.JobCreateOptions` 建立測試任務。
+
+* **`test_skipped_head_check.py`** (被忽略內部連結之輕量死檔探測單元測試):
+  - **核心依賴**: 依賴 `crawler.core` (導入 `CrawlerCore` 執行抓取過程) 與 `crawler.models` (導入 `CrawlerConfig` 配置探測參數)。
+  - **測試輔助**: 依賴 `unittest.mock` 的 `MagicMock` / `patch` 以模擬 `httpx.Response` 回應。
+  - **連線庫**: 依賴 `httpx` 來進行回應物件的規格斷言與異常型別斷言。
+
+* **`e2e/`** (Playwright 前端 UI 自動化測試):
+  - **前端依賴**: 單向依賴於 `frontend/` 目錄下的 HTML 與 JS 資源檔案。
+  - **測試輔助**: 依賴 `playwright.sync_api` 控制 Chromium 瀏覽器，執行模擬登入、任務建立、複製、比對與表單防呆驗證。
+  - **後端依賴**: 啟動 `fastapi` Uvicorn 後端，或以 TestClient 橋接。

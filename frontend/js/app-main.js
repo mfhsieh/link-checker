@@ -234,6 +234,13 @@ async function loadJobDefaults() {
         setField("job-max-pages", config.max_pages, 1, config.max_max_pages);
         setField("job-proxy-url", config.proxy_url);
 
+        const checkSkippedEl = document.getElementById("job-check-skipped-links");
+        if (checkSkippedEl) {
+            const isChecked = config.check_skipped_links !== undefined ? !!config.check_skipped_links : true;
+            checkSkippedEl.checked = isChecked;
+            checkSkippedEl.defaultChecked = isChecked;
+        }
+
         _isDefaultsLoaded = true;
     } catch (err) {
         console.error("無法載入全域預設配置:", err);
@@ -417,6 +424,11 @@ async function route() {
                 setVal("job-retries", c.retries);
                 setVal("job-max-depth", c.max_depth);
                 setVal("job-max-pages", c.max_pages);
+ 
+                const checkSkippedEl = document.getElementById("job-check-skipped-links");
+                if (checkSkippedEl) {
+                    checkSkippedEl.checked = c.check_skipped_links !== undefined ? !!c.check_skipped_links : false;
+                }
 
                 // domain_delays 屬於字典合併，依然需要進行過濾，防止全域網域延遲被寫死回表單
                 const filteredDomainDelays = getFilteredValue(
@@ -560,7 +572,12 @@ if (createJobForm) {
 
             const userAgent = document.getElementById("job-user-agent").value.trim();
             if (userAgent) body.user_agent = userAgent;
-
+ 
+            const checkSkippedEl = document.getElementById("job-check-skipped-links");
+            if (checkSkippedEl) {
+                body.check_skipped_links = checkSkippedEl.checked;
+            }
+ 
             const sslExemptRaw = document.getElementById("job-ssl-exempt").value;
             const sslExempt = sslExemptRaw
                 .split("\n")

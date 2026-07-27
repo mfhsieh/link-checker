@@ -488,6 +488,13 @@ async function loadConfig() {
         document.getElementById("cfg-mime-types").value = (
             mime.allowed_types || []
         ).join("\n");
+ 
+        const checkSkippedEl = document.getElementById("cfg-check-skipped-links");
+        if (checkSkippedEl) {
+            const isChecked = c.check_skipped_links !== undefined ? !!c.check_skipped_links : true;
+            checkSkippedEl.checked = isChecked;
+            checkSkippedEl.defaultChecked = isChecked;
+        }
     } catch (err) {
         toast.error("載入配置失敗：" + err.message);
     }
@@ -565,6 +572,9 @@ document
                     enabled: document.getElementById("cfg-mime-enabled").checked,
                     allowed_types: getList("cfg-mime-types"),
                 },
+                check_skipped_links: document.getElementById("cfg-check-skipped-links") 
+                    ? document.getElementById("cfg-check-skipped-links").checked 
+                    : true,
             };
 
             const payload = { crawler: crawlerConfig };

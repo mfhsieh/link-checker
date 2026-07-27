@@ -56,6 +56,7 @@ class CreateJobRequest(BaseModel):
     ssl_exempt_domains: list[str] = []
     social_domains: list[str] = []
     domain_delays: dict[str, float] | None = None
+    check_skipped_links: bool | None = None
 
     @field_validator("start_url")
     @classmethod

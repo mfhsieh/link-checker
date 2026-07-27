@@ -148,6 +148,7 @@ class CrawlerConfigUpdate(BaseModel):
     ignore_extensions: list[str] | None = None
     ignore_regexes: list[str] | None = None
     mime_type_filter: MimeTypeFilterConfig | None = None
+    check_skipped_links: bool | None = None
     min_timeout: int | None = Field(None, ge=1)
     max_timeout: int | None = Field(None, ge=1)
     connect_timeout: float | None = Field(None, ge=1.0)

@@ -485,6 +485,10 @@ class CrawlerCore:
 
         response.raise_for_status()
 
+        if self.config.check_skipped_links:
+            if ignore_reason := self._check_url_skip_rules(current_url):
+                return None, (None, response.status_code, "skip", current_url, True, ignore_reason)
+
         content_type = response.headers.get("Content-Type", "").lower()
         if mime_reason := self._check_response_skip_rules(content_type):
             return None, (None, response.status_code, "skip", current_url, True, mime_reason)
@@ -520,8 +524,11 @@ class CrawlerCore:
                 - next_url (str): 重導向後的下一步網址 (若無則為原網址)
                 - result_tuple (tuple | None): 若探測已完成 (如成功取得內容、或確定失敗/略過)，則回傳提早終止的結果。
         """
-        if ignore_reason := self._check_url_skip_rules(current_url):
-            return request_sent, current_url, (None, None, "skip", current_url, request_sent, ignore_reason)
+        is_internal = is_in_domain_list(get_domain(current_url), target_domains) if target_domains else False
+        should_skip_early = not (self.config.check_skipped_links and is_internal)
+        if should_skip_early:
+            if ignore_reason := self._check_url_skip_rules(current_url):
+                return request_sent, current_url, (None, None, "skip", current_url, request_sent, ignore_reason)
 
         domain = get_domain(current_url)
         ip, ssrf_err = self._resolve_and_check_ssrf(domain, current_url)
