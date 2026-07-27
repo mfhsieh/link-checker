@@ -102,11 +102,13 @@ link-checker/
 ├── test/               # 一鍵式自動化整合測試套件 (基於 Pytest)
 │   ├── conftest.py     # 模組級隔離與全域 Fixture
 │   ├── utils.py        # 測試輔助工具 (Port 與 Server 監控)
+│   ├── test_admin_logs.py # 後台安全稽核日誌整合測試
 │   ├── test_api.py     # API 端點與 Web 後台整合測試
 │   ├── test_cli.py     # CLI 爬蟲核心與調度整合測試
-│   ├── test_admin_logs.py # 後台安全稽核日誌整合測試
+│   ├── test_crawler_fallback.py # 爬蟲核心引擎 5 大降級分支專屬單元與整合測試
 │   ├── test_scheduler.py  # 任務排程器自動化測試
 │   ├── test_skipped_head_check.py # 被忽略內部連結之輕量死檔探測單元測試
+│   ├── test_utils.py   # 核心工具與 Log Injection 清洗單元測試
 │   ├── test_server/    # 本機 Mock HTTP 測試伺服器靶機
 │   └── e2e/            # Playwright 前端介面自動化測試
 │       ├── conftest.py
@@ -155,7 +157,7 @@ graph TD
 3. **爬蟲核心引擎 (Crawler Core)**
    * CLI (`cli.py`) 直接驅動，能在沒有 Web 伺服器的情況下獨立完成所有工作。
    * 提供獨立的 `scripts/mcp_server.py` 伺服器，允許 AI 代理人 (如 Claude Desktop) 直接透過 Model Context Protocol 查詢任務狀態、控制爬蟲行為，並可作為**遠端網路探測節點**，輔助進行跨環境的防禦策略診斷。
-   * 結合 `httpx` 與 `BeautifulSoup4`，負責網路探測、HTML 解析、防護機制穿透 (Anti-Bot Bypass) 與錯誤重試。
+   * 結合 `httpx` 與 `BeautifulSoup4`，負責網路探測、HTML 解析、防護機制穿透 (Anti-Bot Bypass) 與錯誤重試。重試退避採用 `_MICRO_SLEEP_STEP_SECONDS` (0.5 秒) 微步長解耦長延遲，確保能即時響應使用者的暫停/停止指令；並對狀態查詢具備 `SQLAlchemyError` 暫時性 DB 異常容錯防護。
    * **主動式敏感資訊清洗 (Data Sanitization)**：內建錯誤訊息過濾機制，在例外發生時自動遮蔽代理伺服器憑證、Cookie、Authorization Header 與 IP 位址 (IPv4/IPv6)，徹底阻絕機密明文落地的外洩風險。
    * 全程由資料庫狀態 (State-driven) 引導執行，具備中斷恢復、協同暫停與殭屍進程防禦（PID 與啟動時間雙重比對）等高可靠度機制。
    * **可觀測性與多任務隔離 (Observability)**：採用 `contextvars` 原生上下文變數進行無侵入式日誌綁定，確保在高併發環境下各任務的追蹤日誌絕對隔離，免於全域變數污染。

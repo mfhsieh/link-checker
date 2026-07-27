@@ -355,7 +355,7 @@ crawler:
         assert google_url in ext_dict, "Google link not found in DB"
         assert ext_dict[google_url]["status_code"] == 200, (
             f"Google status code should be 200, got {ext_dict[google_url]['status_code']}. "
-            f"Error: {ext_dict[google_url]['error']}",
+            f"Error: {ext_dict[google_url]['error']}"
         )
         assert ext_dict[google_url]["ip"] is not None, "Google IP should not be None"
         assert ext_dict[google_url]["is_secure"] == 1, "Google is_secure should be 1 (True)"

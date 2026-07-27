@@ -364,10 +364,11 @@ def update_user(
         changes["role"] = {"before": user.role, "after": body.role}
         user.role = body.role
 
+    user_email = user.email
     if changes:
         log_detail = {
             "target_user_id": user_id,
-            "target_email": user.email,
+            "target_email": user_email,
             "changes": changes,
         }
         publish(
@@ -378,7 +379,7 @@ def update_user(
         )
 
     auth_db.commit()
-    return {"message": f"帳號 {user.email} 已更新。"}
+    return {"message": f"帳號 {user_email} 已更新。"}
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)

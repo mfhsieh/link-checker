@@ -25,6 +25,12 @@ class JobProgressPoller:
 
     維持一個背景迴圈，定期針對活躍的任務 ID 查詢最新進度，
     並透過事件匯流排廣播，降低資料庫存取壓力。
+
+    注意（執行緒安全假設）：
+        此類別之成員變數（`active_jobs` 與 `last_data`）未加鎖保護，
+        設計嚴格限制僅能於單一 asyncio Event Loop 主執行緒中調用與存取。
+        請勿將 `add_job()` 或 `remove_job()` 方法放入 `run_in_threadpool`
+        或外部 ThreadPool 中執行，以防引發資料競爭 (Race Condition)。
     """
 
     def __init__(self) -> None:

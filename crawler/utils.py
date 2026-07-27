@@ -177,6 +177,9 @@ def sanitize_error_message(msg: str | None) -> str:
     )
     msg = re.sub(ipv6_pattern, "[IP_MASKED]", msg)
 
+    # 移除 \r 與 \n 以防範日誌注入 (Log Injection)
+    msg = msg.replace("\r", "").replace("\n", " ")
+
     return msg
 
 
@@ -207,7 +210,7 @@ def format_crawl_queue_item(q: CrawlQueue) -> dict[str, object]:
         q (CrawlQueue): 欲格式化的佇列 ORM 物件。
 
     Returns:
-        dict[str, object]: 包含下列鍵的詳細字典：
+        dict[str, object]: 包含下列鍵的詳細字典 (為向後相容歷史 CSV/Excel 導出格式，部分欄位鍵名維持 Legacy 大寫空格設計，如 `Status`、`Created At` 等)：
             - ``source_url`` (str): 來源網址（來源不明時為空字串）。
             - ``target_url`` (str): 目標網址。
             - ``Status`` (str): 爬取狀態（pending / completed / failed / skip / warning）。

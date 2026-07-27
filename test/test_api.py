@@ -643,6 +643,56 @@ def test_api_real_scenario_flow() -> None:
         teardown_databases()
 
 
+def test_serve_html_with_nonce_csp_injection() -> None:
+    """
+    測試 _serve_html_with_nonce 的 CSP Nonce 動態替換邏輯。
+
+    驗證各種 HTML 標籤（如 <script>、<style>、帶自訂 dataset 屬性者、已被替換過的 nonce 標籤）
+    的動態替換行為與防呆邊界條件。
+    """
+    _set_api_test_env()
+    setup_databases()
+    try:
+        from unittest.mock import MagicMock  # pylint: disable=import-outside-toplevel
+
+        from backend.main import _html_cache, _serve_html_with_nonce  # pylint: disable=import-outside-toplevel
+
+        mock_request = MagicMock()
+        mock_request.state.nonce = "test-random-nonce-12345"
+
+        # 1. 測試不存在的檔案重導向
+        res_missing = _serve_html_with_nonce("non_existent_page.html", mock_request)
+        assert res_missing.status_code == 307
+
+        # 2. 測試 script / style 標籤 nonce 注入
+        fake_html_name = "test_nonce_page.html"
+        test_html_content = (
+            "<html><head>"
+            '<script src="app.js"></script>'
+            '<style type="text/css">body { color: red; }</style>'
+            '<script data-nonce="fake_attr" src="vendor.js"></script>'
+            '<script nonce="already-existing-nonce">console.log(1)</script>'
+            "</head><body></body></html>"
+        )
+        _html_cache[fake_html_name] = test_html_content
+
+        res = _serve_html_with_nonce(fake_html_name, mock_request)
+        assert res.status_code == 200
+        html_text = bytes(res.body).decode("utf-8")
+
+        # 驗證動態注入 nonce
+        assert 'script nonce="test-random-nonce-12345"' in html_text
+        assert 'style nonce="test-random-nonce-12345"' in html_text
+        # 驗證含有 dataset 屬性 (data-nonce="fake_attr") 的標籤亦成功注入正確的 nonce 屬性
+        assert 'data-nonce="fake_attr"' in html_text
+        assert 'nonce="test-random-nonce-12345"' in html_text
+        # 驗證已有 nonce 屬性的標籤不會被重複替換
+        assert 'nonce="already-existing-nonce"' in html_text
+
+    finally:
+        teardown_databases()
+
+
 if __name__ == "__main__":
     import pytest
 

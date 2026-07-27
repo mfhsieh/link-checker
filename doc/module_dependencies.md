@@ -170,6 +170,14 @@
   - **測試輔助**: 依賴 `unittest.mock` 的 `MagicMock` / `patch` 以模擬 `httpx.Response` 回應。
   - **連線庫**: 依賴 `httpx` 來進行回應物件的規格斷言與異常型別斷言。
 
+* **`test_crawler_fallback.py`** (爬蟲核心引擎 5 大降級分支專屬單元與整合測試):
+  - **核心依賴**: 依賴 `crawler.core` (導入 `CrawlerCore`) 與 `crawler.models` (導入 `CrawlerConfig`)。
+  - **測試輔助**: 依賴 `unittest.mock` 的 `MagicMock` / `patch` 模擬 HEAD/GET 網路逾時、WAF 403 與 `curl_cffi` 偽裝引擎。
+
+* **`test_utils.py`** (核心工具與 Log Injection 清洗單元測試):
+  - **核心依賴**: 依賴 `crawler.utils` 中的 `sanitize_error_message` 函式。
+  - **測試輔助**: 使用 Python 原生 `pytest` 測試框架針對敏感 Token、URL 密碼、IPv4/IPv6 地址及 CRLF 換行符進行覆蓋斷言。
+
 * **`e2e/`** (Playwright 前端 UI 自動化測試):
   - **前端依賴**: 單向依賴於 `frontend/` 目錄下的 HTML 與 JS 資源檔案。
   - **測試輔助**: 依賴 `playwright.sync_api` 控制 Chromium 瀏覽器，執行模擬登入、任務建立、複製、比對與表單防呆驗證。

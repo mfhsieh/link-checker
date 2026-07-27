@@ -223,7 +223,7 @@ if os.path.isdir(_frontend_dir):
                 """
                 tag = match.group(1)
                 attrs = match.group(2)
-                if "nonce=" in attrs.lower():
+                if re.search(r"\bnonce\s*=", attrs, flags=re.IGNORECASE):
                     return match.group(0)
                 return f'<{tag} nonce="{nonce}"{attrs}>'
 

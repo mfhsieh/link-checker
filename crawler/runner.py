@@ -54,6 +54,9 @@ from crawler.utils import (
 _crawler_def = DEFAULT_GLOBAL_CONFIG.get("crawler", {})
 _DEF = _crawler_def if isinstance(_crawler_def, dict) else {}
 
+# 微輪詢步長常數 (秒)：用於解耦退避重試時的長時間阻塞，提升暫停/停止指令的響應速度
+_MICRO_SLEEP_STEP_SECONDS: float = 0.5
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 _old_factory = logging.getLogRecordFactory()
@@ -380,27 +383,33 @@ class JobRunner:
 
         self.crawler_config_dict = crawler_config
 
-        # 建立 config
+        raw_user_agent = crawler_config.get("user_agent", None)
+        raw_proxy_url = crawler_config.get("proxy_url", None)
+        raw_max_depth = crawler_config.get("max_depth")
+        raw_max_pages = crawler_config.get("max_pages")
+
         self.config = CrawlerConfig(
-            timeout=cast(int, crawler_config.get("timeout", 30)),
-            connect_timeout=cast(float, crawler_config.get("connect_timeout", 5.0)),
-            external_check_timeout=cast(float, crawler_config.get("external_check_timeout", 10.0)),
-            ignore_extensions=cast(
-                list[str], crawler_config.get("ignore_extensions", _DEF.get("ignore_extensions", []))
+            timeout=int(cast(int | str, crawler_config.get("timeout", 30))),
+            connect_timeout=float(cast(float | str, crawler_config.get("connect_timeout", 5.0))),
+            external_check_timeout=float(cast(float | str, crawler_config.get("external_check_timeout", 10.0))),
+            ignore_extensions=list(
+                cast(list[str], crawler_config.get("ignore_extensions", _DEF.get("ignore_extensions", [])))
             ),
-            mime_type_filter=cast(
-                dict[str, object], crawler_config.get("mime_type_filter", _DEF.get("mime_type_filter", {}))
+            mime_type_filter=dict(
+                cast(dict[str, object], crawler_config.get("mime_type_filter", _DEF.get("mime_type_filter", {})))
             ),
-            ignore_regexes=cast(list[str], crawler_config.get("ignore_regexes", _DEF.get("ignore_regexes", []))),
-            user_agent=cast(str | None, crawler_config.get("user_agent", None)),
-            ssl_exempt_domains=cast(
-                list[str], crawler_config.get("ssl_exempt_domains", _DEF.get("ssl_exempt_domains", []))
+            ignore_regexes=list(cast(list[str], crawler_config.get("ignore_regexes", _DEF.get("ignore_regexes", [])))),
+            user_agent=str(raw_user_agent) if raw_user_agent is not None else None,
+            ssl_exempt_domains=list(
+                cast(list[str], crawler_config.get("ssl_exempt_domains", _DEF.get("ssl_exempt_domains", [])))
             ),
-            proxy_url=cast(str | None, crawler_config.get("proxy_url", None)),
-            max_content_length=cast(int, crawler_config.get("max_content_length", 10485760)),
-            max_redirects=cast(int, crawler_config.get("max_redirects", 10)),
-            social_domains=cast(list[str], crawler_config.get("social_domains", _DEF.get("social_domains", []))),
-            check_skipped_links=cast(bool, crawler_config.get("check_skipped_links", False)),
+            proxy_url=str(raw_proxy_url) if raw_proxy_url is not None else None,
+            max_content_length=int(cast(int | str, crawler_config.get("max_content_length", 10485760))),
+            max_redirects=int(cast(int | str, crawler_config.get("max_redirects", 10))),
+            social_domains=list(cast(list[str], crawler_config.get("social_domains", _DEF.get("social_domains", [])))),
+            check_skipped_links=bool(crawler_config.get("check_skipped_links", False)),
+            max_depth=int(cast(int | str, raw_max_depth)) if raw_max_depth is not None else None,
+            max_pages=int(cast(int | str, raw_max_pages)) if raw_max_pages is not None else None,
         )
 
         from sqlalchemy import case  # pylint: disable=import-outside-toplevel
@@ -453,19 +462,25 @@ class JobRunner:
             current_time = time.time()
             # 節流機制：每隔 N 秒才真正向資料庫查詢一次狀態，避免產生大量不必要的 SELECT 查詢開銷
             if current_time - last_status_check_time >= STATUS_CHECK_INTERVAL:
-                session.expire(job)
-                fetched_job = session.query(Job).filter(Job.id == self.job_id).first()
-                if not fetched_job or fetched_job.status != "running":
-                    logger.info("偵測到任務狀態變更為 %s，中斷爬取。", fetched_job.status if fetched_job else "None")
-                    break
-                job = fetched_job
-                last_status_check_time = current_time
+                try:
+                    session.expire(job)
+                    fetched_job = session.query(Job).filter(Job.id == self.job_id).first()
+                    if not fetched_job or fetched_job.status != "running":
+                        logger.info(
+                            "偵測到任務狀態變更為 %s，中斷爬取。", fetched_job.status if fetched_job else "None"
+                        )
+                        break
+                    job = fetched_job
+                    last_status_check_time = current_time
+                except SQLAlchemyError as e:
+                    logger.warning("查詢任務狀態時遭遇資料庫暫時性異常 (將跳過當次檢查): %s", e)
+                    last_status_check_time = current_time
 
             if current_time - self.state.last_flush_time >= 3.0:
                 self._flush_progress(session, job)
                 self.state.last_flush_time = current_time
 
-            max_pages = cast(int | None, self.crawler_config_dict.get("max_pages"))
+            max_pages = self.config.max_pages if self.config else None
             if max_pages is not None and self.state.crawled_count >= max_pages:
                 logger.info(
                     "任務 %s 已達到最大抓取頁數限制 (%s)。優雅結束任務。",
@@ -648,7 +663,7 @@ class JobRunner:
 
         should_delay = True
         try:
-            max_depth = cast(int | None, self.crawler_config_dict.get("max_depth"))
+            max_depth = self.config.max_depth if self.config else None
             if max_depth is not None and queue_item.depth > max_depth:
                 queue_item.status = "skip"
                 queue_item.status_category = "skip"
@@ -765,7 +780,7 @@ class JobRunner:
             tuple[int, int]: (新增的待處理數量, 新增的總數量)
         """
         next_depth = queue_item.depth + 1
-        max_depth = cast(int | None, self.crawler_config_dict.get("max_depth"))
+        max_depth = self.config.max_depth if self.config else None
         if max_depth is None or next_depth <= max_depth:
             if internal_links:
                 # 解決 N+1 查詢問題：改用 IN 語法進行批次查詢，找出已存在的內部連結，避免在迴圈內逐一查詢 DB
@@ -1075,7 +1090,10 @@ class JobRunner:
                     if jitter_ratio > 0
                     else backoff_delay
                 )
-                time.sleep(actual_delay)
+                # 將長時間 sleep 拆解為小步長 (微輪詢 _MICRO_SLEEP_STEP_SECONDS) 迴圈，解耦長時間阻塞以提升使用者發起暫停/停止時的系統響應速度
+                end_time = time.time() + actual_delay
+                while time.time() < end_time:
+                    time.sleep(min(_MICRO_SLEEP_STEP_SECONDS, max(0.0, end_time - time.time())))
             else:
                 logger.error("處理網址 %s 時發生錯誤且已達重試上限", current_url)
                 queue_item.status = "failed"

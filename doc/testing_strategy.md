@@ -36,7 +36,7 @@
     *   **職責**：針對後端 API 進行完整的整合與端到端劇本測試。
     *   **狀態管理**：在檔案內部透過 `setup_databases()` 與 `teardown_databases()` 管理其專屬的 `db/test_auth_api.db` 與 `db/test_crawler_api.db` 資料庫檔案。
     *   **主要測試範疇**：
-        1. **端點功能驗證**：登入/登出、修改密碼、設定密碼（Pending 帳號）、忘記/重設密碼；管理員端點（邀請使用者、重新邀請、停用/啟用、角色權限 Promote/Demote、修改/取得全域配置、SMTP 發信測試、操作日誌取得）；任務控制（建立、啟動、暫停、恢復、重置、重試失敗、任務移交、管理員接管與刪除）。
+        1. **端點功能驗證**：登入/登出、修改密碼、設定密碼（Pending 帳號）、忘記/重設密碼；管理員端點（邀請使用者、重新邀請、停用/啟用、角色權限 Promote/Demote、修改/取得全域配置、SMTP 發信測試、操作日誌取得）；任務控制（建立、啟動、暫停、恢復、重置、重試失敗、任務移交、管理員接管與刪除）；HTML 靜態頁面 CSP Nonce 動態注入與過濾防呆。
         2. **真實劇本情境測試 (Real Scenario Flow)**：利用 Mock Server 為靶機，模擬真實使用者登入、建立並啟動爬蟲任務、API 狀態輪詢 (Polling)、檢驗內外連結掃描結果與匯出 CSV/JSON 報表的完整閉環流程。
 
 *   **`test/test_cli.py`**：
@@ -62,6 +62,19 @@
         2. **探測失效 (404 Not Found)**：驗證當啟用 `check_skipped_links` 但連結回傳 404 時，正確標記為 `failed` 並判定為死鏈。
         3. **功能關閉**：驗證當停用 `check_skipped_links` 時，忽略規則的連結會直接以 `skip` 略過，完全不發送任何 HTTP 串流請求。
     *   **狀態管理**：在單一測試函式級別，使用 MagicMock/patch 完成對底層網路連線的純淨 Mock，並於結束後調用 `crawler.close()`。
+
+*   **`test/test_crawler_fallback.py`**：
+    *   **職責**：針對爬蟲核心引擎 (`CrawlerCore`) 的多層探測與降級 (Fallback) 分支進行專屬單元與整合測試。
+    *   **主要測試範疇**：
+        1. **HEAD 網路異常降級 GET**：驗證 HEAD 請求發生連線逾時/網路層異常時，自動降級為 GET 探測。
+        2. **HEAD 誤判狀態碼降級**：驗證 HEAD 請求回傳 404/405 等狀態碼或目標為社群平台時，降級為 GET 二次確認。
+        3. **HTTP 自動升級 HTTPS**：驗證明文 HTTP 探測連線失敗時，自動升級至 HTTPS 重新探測。
+        4. **WAF 阻擋觸發 TLS 偽裝引擎**：驗證遭 WAF 403 阻擋時，觸發 `curl_cffi` TLS 擬真瀏覽器指紋引擎降級。
+        5. **跨跳 Set-Cookie 分桶繼承**：驗證重導向過程中的網域萬用字元與子網域 Cookie 收集與繼承比對。
+
+*   **`test/test_utils.py`**：
+    *   **職責**：針對核心工具函式（如 `sanitize_error_message`）進行單元測試與安全邊界防護驗證。
+    *   **主要測試範疇**：驗證敏感 Token 遮蔽、URL 帳密過濾、IPv4/IPv6 位址格式（含完整與 `::` 縮寫）遮蔽，以及 CRLF 換行符 Log Injection 清洗。
 
 *   **`test/utils.py`**：
     *   **職責**：測試環境共用之底層輔助工具模組。

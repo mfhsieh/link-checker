@@ -9,7 +9,12 @@ import subprocess
 import sys
 from urllib.parse import urlparse
 
-from backend.jobs.constants import _ACTIVE_PROCESSES, ALLOWED_CRAWLER_CONFIG_KEYS, PROJECT_ROOT
+from backend.jobs.constants import (
+    _ACTIVE_PROCESSES,
+    _ACTIVE_PROCESSES_LOCK,
+    ALLOWED_CRAWLER_CONFIG_KEYS,
+    PROJECT_ROOT,
+)
 from backend.jobs.schemas import JobCreateConfig
 from backend.jobs.services.process import _cleanup_finished_processes, _cleanup_zombie_jobs, _is_job_running, _write_pid
 from crawler.manager import JobCreateOptions, JobManager
@@ -122,7 +127,8 @@ def start_job(manager: JobManager, job_id: str, user_id: str | None = None) -> b
             stderr=subprocess.DEVNULL,
             close_fds=True,
         )
-        _ACTIVE_PROCESSES[job_id] = proc
+        with _ACTIVE_PROCESSES_LOCK:
+            _ACTIVE_PROCESSES[job_id] = proc
         _write_pid(job_id, proc.pid)
         logger.info("任務 %s 已啟動（PID: %d）", job_id, proc.pid)
         return True

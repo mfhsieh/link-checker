@@ -648,7 +648,8 @@
 
 
 **Returns**:
-- `dict[str, object]`: 包含失敗紀錄列表與分頁資訊的字典。
+- `dict[str, object]`: 包含內部網頁爬取紀錄列表與分頁資訊的字典。
+- 清單項目之鍵名為向後相容舊有 CSV/Excel 導出，部分保留 Legacy 大寫空格設計（如 Status 等）。
 
 
 **Raises**:

@@ -1224,7 +1224,7 @@
           "jobs"
         ],
         "summary": "Get Internal Results",
-        "description": "取得內部網頁爬取失敗的紀錄列表（支援分頁）。\n\nArgs:\n    job_id (str): 任務 ID。\n    page (int): 頁碼。\n    page_size (int): 每頁筆數。\n    status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。\n    group_by (str): 分組方式。\n    sort_by (str | None): 排序欄位。\n    sort_asc (bool): 升冪或降冪排序。\n    col_filters (str | None): 欄位過濾條件。\n    current_user (User): 當前登入的使用者。\n    db (DBSession): Crawler DB Session。\n\nReturns:\n    dict[str, object]: 包含失敗紀錄列表與分頁資訊的字典。\n\nRaises:\n    HTTPException 404: 找不到任務或無權限存取時拋出。",
+        "description": "取得內部網頁爬取失敗的紀錄列表（支援分頁）。\n\nArgs:\n    job_id (str): 任務 ID。\n    page (int): 頁碼。\n    page_size (int): 每頁筆數。\n    status_filter (str | None): 對應資料庫 status_category 欄位的篩選條件。\n    group_by (str): 分組方式。\n    sort_by (str | None): 排序欄位。\n    sort_asc (bool): 升冪或降冪排序。\n    col_filters (str | None): 欄位過濾條件。\n    current_user (User): 當前登入的使用者。\n    db (DBSession): Crawler DB Session。\n\nReturns:\n    dict[str, object]: 包含內部網頁爬取紀錄列表與分頁資訊的字典。\n        清單項目之鍵名為向後相容舊有 CSV/Excel 導出，部分保留 Legacy 大寫空格設計（如 Status 等）。\n\nRaises:\n    HTTPException 404: 找不到任務或無權限存取時拋出。",
         "operationId": "get_internal_results_api_jobs__job_id__internal_results_get",
         "parameters": [
           {

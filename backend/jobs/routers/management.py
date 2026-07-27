@@ -506,11 +506,11 @@ async def stream_job_updates(
                 "external_link_count": initial_detail.get("external_link_count"),
             }
             yield f"data: {json.dumps(slim_initial)}\n\n"
-            if (
-                initial_detail["status"] in ["completed", "error", "paused", "pending"]
-                and not initial_detail["is_running"]
-            ):
+            if initial_detail["status"] in ["completed", "error"] and not initial_detail["is_running"]:
                 logger.info("Job %s stopped. Closing SSE stream immediately.", job_id)
+                return
+            if initial_detail["status"] in ["paused", "pending"] and not initial_detail["is_running"]:
+                logger.info("Job %s is %s and not running. Closing SSE stream.", job_id, initial_detail["status"])
                 return
         except ValueError as e:
             logger.warning("Job %s not found or permission error for SSE stream: %s. Closing.", job_id, e)
@@ -553,10 +553,11 @@ async def stream_job_updates(
 
                     yield f"data: {json.dumps(slim_detail)}\n\n"
 
-                    if detail.get("status") in ["completed", "error", "paused", "pending"] and not detail.get(
-                        "is_running"
-                    ):
-                        logger.info("Job %s stopped. Closing SSE stream.", job_id)
+                    if detail.get("status") in ["completed", "error"] and not detail.get("is_running"):
+                        logger.info("Job %s finished/errored (%s). Closing SSE stream.", job_id, detail.get("status"))
+                        break
+                    if detail.get("status") in ["paused", "pending"] and not detail.get("is_running"):
+                        logger.info("Job %s stopped (%s). Closing SSE stream.", job_id, detail.get("status"))
                         break
                 except asyncio.TimeoutError:
                     continue

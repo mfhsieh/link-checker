@@ -5,10 +5,12 @@
 
 import os
 import subprocess
+import threading
 
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PID_DIR: str = os.path.join(PROJECT_ROOT, "log", "pids")
 _ACTIVE_PROCESSES: dict[str, subprocess.Popen] = {}
+_ACTIVE_PROCESSES_LOCK = threading.Lock()
 
 ALLOWED_CRAWLER_CONFIG_KEYS: list[str] = [
     "max_depth",

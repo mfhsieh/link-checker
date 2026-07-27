@@ -14,7 +14,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from backend.jobs.constants import _ACTIVE_PROCESSES, PID_DIR
+from backend.jobs.constants import _ACTIVE_PROCESSES, _ACTIVE_PROCESSES_LOCK, PID_DIR
 from crawler.manager import JobManager
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -161,12 +161,14 @@ def _is_job_running(job_id: str) -> bool:
         bool: 若仍在運行中則回傳 True。
     """
     # 優先檢查本地記錄的 Popen 物件，透過 poll() 能自動回收殭屍進程
-    proc = _ACTIVE_PROCESSES.get(job_id)
+    with _ACTIVE_PROCESSES_LOCK:
+        proc = _ACTIVE_PROCESSES.get(job_id)
     if proc is not None:
         if proc.poll() is None:
             return True
         # 進程已結束，回收資源與 PID 檔案
-        _ACTIVE_PROCESSES.pop(job_id, None)
+        with _ACTIVE_PROCESSES_LOCK:
+            _ACTIVE_PROCESSES.pop(job_id, None)
         _clear_pid(job_id)
         return False
 
@@ -187,9 +189,11 @@ def _cleanup_finished_processes() -> None:
     走訪 PID 目錄並檢查進程狀態，若已結束則清除對應 PID 檔。此函式內部具備節流機制，
     頻繁呼叫時會根據 `_CLEANUP_THROTTLE_SECONDS` 直接返回。
     """
+    global _LAST_CLEANUP_TIME  # pylint: disable=global-statement
     current_time = time.time()
     if current_time - _LAST_CLEANUP_TIME < _CLEANUP_THROTTLE_SECONDS:
         return
+    _LAST_CLEANUP_TIME = current_time
 
     if not os.path.exists(PID_DIR):
         return

@@ -37,6 +37,9 @@ from crawler.utils import create_optimized_engine, recalculate_job_progress
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+# SQLite 每條 IN 子句的參數數量限制為 999（此處定義 900 為批次更新之安全上限）
+_SQLITE_MAX_IN_BATCH_SIZE: int = 900
+
 
 @dataclass
 class JobCreateOptions:
@@ -560,9 +563,9 @@ class JobManager:
                 )
 
                 # 將包含失效外連的母網頁狀態重置為 pending，以便重新解析與探測
-                # SQLite 每条 IN 子句的參數數量限制為 999，故以 900 為安全批次大小
-                for i in range(0, len(source_urls_to_retry), 900):
-                    batch = source_urls_to_retry[i : i + 900]
+                # SQLite 每條 IN 子句的參數數量限制為 999，故使用 _SQLITE_MAX_IN_BATCH_SIZE 為安全批次大小
+                for i in range(0, len(source_urls_to_retry), _SQLITE_MAX_IN_BATCH_SIZE):
+                    batch = source_urls_to_retry[i : i + _SQLITE_MAX_IN_BATCH_SIZE]
                     session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id, CrawlQueue.url.in_(batch)).update(
                         {
                             "status": "pending",

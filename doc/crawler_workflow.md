@@ -41,10 +41,11 @@ flowchart TD
     Extract --> NormFilter["網址標準化與規則過濾"]
     NormFilter --> Distribute{"連結類型 ?"}
     
-    Distribute -->|"內部連結"| QueueInternal["加入內部佇列待爬取"]
+    Distribute -->|"內部連結"| QueueInternal["雙階佇列分流 (主目標網域高優先 / 子網域低優先)"]
+    QueueInternal --> Fetch
     Distribute -->|"外部連結"| ExtStart["check_external_link"]
     
-    %% 異常容錯與重試機制 (在 fetch 內部)
+    %% 異常容錯與重試機制 (在 fetch 與 runner 內部)
     ReqResult -->|"網路異常或 HTTP >= 400"| CheckHttp{"原為 http:// ?"}
     CheckHttp -->|"是"| RetryHttps["升級 HTTPS 並呼叫 _fetch_single"]
     
@@ -60,7 +61,9 @@ flowchart TD
     StripSecHeaders -->|"成功取得跳轉"| FollowRedirect
     StripSecHeaders -->|"重試仍失敗"| TLSSpoofInt
     
-    CheckWAF -->|"否"| FetchFail(["紀錄抓取失敗"])
+    CheckWAF -->|"否"| BackoffRetry["指數退避重試 (0.5s 微步長輪詢睡眠解耦)"]
+    BackoffRetry -->|"重試次數未超限"| Fetch
+    BackoffRetry -->|"已達重試上限"| FetchFail(["紀錄抓取失敗"])
     
     TLSSpoofInt --> TLSSpoofRestart["捨棄半路狀態，自原始 URL 從頭發起 (接續 4.3 相同行為)"]
     TLSSpoofRestart --> TLSSpoofResult{"偽裝與下載結果"}
@@ -118,7 +121,9 @@ flowchart TD
   1. **HTTP 自動升級**：若以 `http://` 請求時遭遇連線錯誤或 HTTP >= 400，會自動替換為 `https://` 進行重試。
   2. **特徵標頭拔除**：若遭遇常見 WAF 阻擋碼（如 403, 520 等），將嘗試拔除 `Sec-CH-UA` 等現代瀏覽器特徵標頭後重試。
   3. **終極 TLS 偽裝 (`_execute_curl_cffi_fallback`)**：若拔除標頭仍受阻，或遭遇連線超時/丟棄 (狀態碼為 None) 等 stealthy Tarpit 阻擋，自動降級呼叫 `curl_cffi` 引擎。**此階段將捨棄不完整的 HTTP 跳轉狀態，改從最原始的 `url` 重新發起連線**，由備援引擎自行跑完重導向與 Cookie 收集。
-  4. **全方位例外攔截**：定義 `_FETCH_SAFE_EXCEPTIONS` 以攔截已知的網路或解碼例外（包含新加入的 `idna.IDNAError` 以防禦畸形網域），更在主流程最外層利用 `Exception` 攔截所有未知錯誤，統一轉化為安全的 `failed` 狀態以避免中斷整個爬行任務。
+  4. **微步長重試解耦 (Micro-sleep Backoff)**：當爬蟲遭遇暫時性失敗進行退避重試時，`JobRunner._handle_error` 採用 `_MICRO_SLEEP_STEP_SECONDS` (0.5 秒) 微步長輪詢睡眠迴圈，將數十秒的阻塞解耦，確保系統可在 0.5 秒內即時響應使用者的「暫停」與「停止」指令。
+  5. **資料庫暫時性異常容錯 (DB Transient Error Tolerance)**：`JobRunner._run_loop` 在定期查詢任務當前狀態時，具備 `SQLAlchemyError` 例外捕捉防護。若遭遇 SQLite `database is locked` 或連線瞬斷，會記錄警告並跳過當次檢查，防範任務被錯誤標記為 `error`。
+  6. **全方位例外攔截**：定義 `_FETCH_SAFE_EXCEPTIONS` 以攔截已知的網路或解碼例外（包含新加入的 `idna.IDNAError` 以防禦畸形網域），更在主流程最外層利用 `Exception` 攔截所有未知錯誤，統一轉化為安全的 `failed` 狀態以避免中斷整個爬行任務。
 - **`_fetch_single`**：單次執行的網路請求入口，包含實際呼叫 HTTPX。現在支援接收 `accumulated_cookies` 以維持跨跳轉的連線狀態。
 
 ### 2.2 連線與資安檢測

@@ -86,6 +86,8 @@ class CrawlerConfig:  # pylint: disable=too-many-instance-attributes
     max_redirects: int = cast(int, _DEF["max_redirects"])
     social_domains: list[str] = field(default_factory=lambda: cast(list[str], _DEF["social_domains"]))
     check_skipped_links: bool = cast(bool, _DEF.get("check_skipped_links", True))
+    max_depth: int | None = None
+    max_pages: int | None = None
 
     def __post_init__(self) -> None:
         """

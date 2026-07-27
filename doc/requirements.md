@@ -151,6 +151,8 @@
 * **狀態轉換的原子性保護 (Atomic State Transitions)**：當進行狀態轉換（如啟動任務或檢查並發上限）時，嚴禁使用單純的「先讀取後寫入 (Read-then-Write)」模式。必須強制使用帶有條件的原子性更新 (Atomic UPDATE with Optimistic Locking) 或分散式鎖，防範雙重啟動或突破並發上限的 Race Condition。
 * **排隊機制與並發控制 (Queued & Concurrency Control)**：系統實作全域並發任務數限制 (`CRAWLER_MAX_CONCURRENT_JOBS`)。當使用者啟動任務時，若當前系統執行中 (`running` / `starting`) 的任務數量已達上限，新任務將進入 `queued` (排隊中) 狀態。背景排程器會定期輪詢，待資源有餘裕時自動依先進先出原則喚醒任務。
 * **暫停與恢復 (Pause/Resume)**：支援溫和的暫停信號，在完成當下網址爬取後安全暫停；並允許後續接續爬取未完成之佇列。針對因 OOM 或伺服器中斷被標記為 `error` 的異常任務，系統亦支援直接無縫恢復執行（CLI 需搭配強制參數），免去重新發起全站爬取的龐大時間成本。**注意：恢復執行時，同樣受系統並發數量上限管控，若資源滿載將先轉為 `queued` 狀態等候調度。**
+* **重試退避與暫停響應性 (Micro-sleep for Long Retries)**：爬蟲引擎在執行重試退避 (Backoff Sleep) 等延遲等待時，嚴禁使用單次長連線阻塞 (如 `time.sleep(30)`)。必須採用微步長 (如 0.5 秒) 輪詢機制解耦長延遲，以確保爬蟲能在 1 秒以內即時響應使用者的「暫停 (Pause)」與「停止 (Stop)」指令。
+* **資料庫暫時性異常容錯 (DB Transient Error Tolerance)**：爬蟲主迴圈在定期查詢任務最新狀態（如確認是否被使用者暫停）時，必須針對資料庫操作建立專屬的暫時性異常捕捉 (`SQLAlchemyError`)。若因資料庫鎖定 (database is locked) 或連線瞬斷拋出例外，應記錄警告並重置計時器跳過當次檢查，嚴禁直接冒泡導致運行中的爬蟲任務被誤判標記為 `error` 狀態並異常終止。
 * **刪除任務 (Delete)**：支援徹底清理指定任務的所有佇列與外連結果，防止資料庫無限制膨脹。
 * **重置任務 (Reset)**：支援將已完成或發生中斷的任務恢復至起點，清空佇列狀態與外連紀錄以利重新爬取。
 * **失敗重試機制 (Retry Failed)**：支援針對已完成但有部分失敗（包含內部網頁爬取失敗，或外部連結探測異常）的任務進行局部重試，自動將失敗項目重新加入佇列並接續爬取，免去重新爬取整站的龐大開銷，提升維運效率。**同上，重試操作亦受並發數量管控，可能進入 `queued` 狀態排隊。**
@@ -205,7 +207,7 @@
 
 * 兩個資料庫的連線設定（路徑 / DSN）需分別獨立配置，透過環境變數或配置檔案各自指定。
 * **關聯完整性保護**：針對預設未啟用外鍵檢查的 SQLite，系統建立連線初始化時，必須明確執行 `PRAGMA foreign_keys=ON;`，以確保外鍵約束強制生效。
-* **跨庫最終一致性與軟刪除機制**：跨資料庫（Auth DB 與 Crawler DB）資源刪除時，為避免分散式事務失敗導致不一致，系統採「軟刪除 (Soft Delete)」機制，於主庫標記刪除狀態，再由背景任務 (`BackgroundTasks`) 與定期的 Session GC 機制進行實體髒資料清理，確保最終一致性。
+* **跨庫最終一致性與軟刪除機制**：跨資料庫（Auth DB 與 Crawler DB）資源刪除時，為避免分散式事務失敗導致不一致，系統採「軟刪除 (Soft Delete)」機制，於主庫標記刪除狀態，再由背景任務 (`BackgroundTasks`) 與定期的 Session GC 機制進行實體髒資料清理，確保最終一致性。（**已知偏差 / Intentional Deviation**：當前架構因跨庫關聯極少異動且避免過度改寫所有 ORM 查詢，現階段實體層暫採硬刪除 Hard Delete 處理，軟刪除架構整併規劃保留於 `todo.md` Monitoring 條目中追蹤。）
 * 爬蟲核心與任務管理模組**僅能存取爬蟲資料庫**，不得直接讀寫帳號資料庫；身分驗證邏輯須完全隔離於 Web 層。
 * 兩個資料庫的 Schema 遷移腳本需分別管理，可獨立執行。
 * **資料庫架構合規檢驗機制（Database Schema Verification）**：為了確保資料庫的真實 Schema 與 Python ORM 模型宣告一致，系統必須提供自動化的架構檢驗工具。該工具能反射（reflect）資料庫實體結構，深入比對並列出缺失的資料表、缺失或型別不符之欄位、缺失索引（含複合索引）及外鍵約束，以防範因部署版本落差引發的執行期例外。
@@ -242,6 +244,7 @@
 
 * **上下文變數注入 (Context Variables)**：為了在多任務並發執行的環境下維持日誌的精確追蹤能力，系統嚴禁依賴全域屬性（例如修改 `logging` 模組層級的屬性）來傳遞任務識別碼，防止 Race Condition 導致日誌被後續任務污染。
 * **無侵入式日誌標籤 (Non-intrusive Log Tagging)**：系統必須透過原生的 `contextvars.ContextVar` 結合日誌工廠 (`LogRecordFactory`) 的全域攔截機制，在每次任務啟動時將該任務的 `job_id` 注入執行緒或協程上下文。讓底層爬蟲核心所有的日誌輸出皆能「自動且安全地」帶有 `[Job <id>]` 前綴，降低除錯難度並維持程式碼乾淨。
+* **全域共享狀態與執行緒安全鎖 (Global State Locking)**：系統中跨路由/跨服務共享的非非同步全域狀態（如背景進程追蹤字典 `_ACTIVE_PROCESSES`）在多執行緒環境下進行讀取與變更時，必須強制使用顯式 `threading.Lock` 進行包覆保護，傳達明確的執行緒安全意圖，並為未來的 Python free-threading (PEP 703) 做準備。
 
 ---
 
@@ -272,7 +275,7 @@
 ### 5.4 機密保護與資訊洩漏防禦
 
 * **機密性與配置憑證保護**：系統日誌與異常輸出中嚴格禁止明文紀錄或印出任何敏感憑證（如代理伺服器帳密）；載入此類機密配置時，應優先支援自環境變數（Environment Variables）讀取。
-* **錯誤訊息清洗機制 (Error Sanitization)**：當底層爬蟲遇到連線失敗、伺服器錯誤時，攔截到的例外字串往往會參雜敏感資訊。系統必須在寫入資料庫（如 `error_message` 欄位）或輸出日誌前，強制透過正規表達式進行主動清洗，遮蔽：URL 憑證 (`user:pass`)、HTTP 標頭內容 (如 `Cookie`, `Authorization`)，以及伺服器回傳的 IPv4 與 IPv6 實體位址（含縮寫與 `::` 格式），徹底落實資料最小化暴露原則。
+* **錯誤訊息與日誌清洗機制 (Error Sanitization & Log Injection Defense)**：當底層爬蟲遇到連線失敗、伺服器錯誤時，攔截到的例外字串往往會參雜敏感資訊或惡意換行符。系統必須在寫入資料庫（如 `error_message` 欄位）或輸出日誌前，強制進行主動清洗：除了透過正規表達式遮蔽 URL 憑證 (`user:pass`)、HTTP 標頭內容 (如 `Cookie`, `Authorization`) 與伺服器回傳的 IPv4/IPv6 實體位址外，**必須強制清洗 `\r` (Carriage Return) 與 `\n` (Line Feed) 等換行字元**（替換為空格），防範攻擊者透過帶有換行符的惡意 HTTP 回應進行日誌偽造 (Log Forgery / Log Injection)，確保日誌完整性與告警可信度。
 * **最小權限暴露 (Masking)**：後端在回傳系統設定或任務快照至前端時，必須主動過濾內部邏輯設定，並將敏感憑證（如 Proxy 密碼）進行遮蔽（Masking）處理。
 * **統一例外攔截與堆疊隱藏 (Stack Trace Hiding)**：Web 服務層必須實作全域例外攔截器 (Global Exception Handler)。當捕捉到未處理的伺服器內部錯誤時，一律回傳標準的 HTTP 500 JSON 錯誤訊息，嚴禁將系統內部的堆疊追蹤 (Stack Trace) 或套件版本暴露於前端，防止架構資訊外洩。
 * **防禦計時攻擊 (Timing Attack)**：系統在處理任何敏感憑證的驗證（如登入密碼驗證、CSRF Token 比對）時，必須確保執行時間具備恆定性。字串比對須強制使用安全的時間恆定比較函式（如 `secrets.compare_digest`）；密碼驗證時，無論帳號是否存在，皆須執行等效耗時的雜湊運算，防範攻擊者透過測量回應時間探測帳號狀態。
@@ -716,6 +719,8 @@
 ## 13. CI/CD 與開發規範 (CI/CD & Development Standards)
 
 * **自動化整合測試 (Pytest) 與模組級隔離**：專案必須採用一鍵式自動化整合測試套件。為防測試污染與殘留，必須實作以 Fixture 為核心的「模組級隔離架構」。在每個測試模組執行前，強制重設所有後端全域單例物件（Singletons，如 DB Engine）、清除 FastAPI 的依賴覆寫，並刷新環境變數快取，確保每個測試檔案皆在絕對乾淨的沙箱環境中運行。
+* **爬蟲核心降級防線自動化測試 (Core Fallback Coverage)**：爬蟲核心探測引擎 (`CrawlerCore`) 的 5 大降級分支（包含 HEAD 網路異常/404 降級 GET、明文 HTTP 升級 HTTPS、WAF 403 觸發 TLS 擬真瀏覽器指紋引擎及跨跳 Cookie 分桶繼承）必須具備獨立且完整的自動化單元測試覆蓋 (`test/test_crawler_fallback.py`)。
+* **CSP Nonce 動態替換測試 (CSP Nonce Injection Coverage)**：生產模式下的 HTML 快取與 CSP Nonce 動態注入機制，必須具備涵蓋 `<script>`, `<style>`, 帶有 `data-nonce` 屬性標籤與防範重複注入等邊界條件的自動化 API 測試 (`test/test_api.py`)。
 * **基於 Playwright 的前端 E2E 測試架構與無頭模擬 (Playwright E2E Architecture & API Mocking)**：前端必須建構完善的全鏈路 E2E 測試架構（基於 Playwright 搭配 pytest-asyncio），涵蓋登入驗證、任務生命週期、表單操作與日誌管理等核心情境。為確保測試穩定性，在驗證介面互動與任務生命週期時，必須採用 API 攔截技術動態模擬後端狀態（如任務 `running` 與進度流轉），嚴禁在 UI 測試中真實觸發並等待後端爬蟲子程序執行。此舉能徹底斬斷前後端測試耦合，避免真實網路 I/O 造成測試結果不穩定 (Flaky Tests)。
 * **靜態分析、排版檢驗與靜態型別檢查 (Static Analysis & Type Checking)**：提交之程式碼須於 CI/CD 流程中通過嚴格的靜態分析。包含使用 Ruff 進行排版與規則檢查、Pylint 進行深度的程式碼品質與壞味道分析，以及必須整合 **Mypy 靜態型別檢查** 確保所有函式與變數皆符合型別提示 (Type Hints) 規範，以大幅提升程式碼的健壯性與長期維護性。
 * **自動化狀態反饋**：測試套件在完成檢驗後，必須能依照校驗結果（如 Queue 數量統計、DNS 異常捕獲、HTTP 狀態碼及去重聚合結果）自動回傳 Exit Code (0 代表成功，非 0 代表失敗)，以利 CI/CD 系統判定測試狀態。

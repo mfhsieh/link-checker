@@ -5,8 +5,10 @@
 - test_admin_logs: 測試後台日誌功能。
 - test_api: 測試核心 API 功能。
 - test_cli: 測試命令列介面功能。
+- test_crawler_fallback: 測試爬蟲核心降級與 Fallback 探測路徑。
 - test_scheduler: 測試排程器功能。
 - test_skipped_head_check: 測試被忽略內部連結之輕量死檔探測功能。
+- test_utils: 測試核心工具函式與 Log Injection 清洗。
 - utils: 提供測試用的共用輔助函式。
 - e2e: 端到端測試案例集。
 - test_server: 測試用的模擬伺服器。
