@@ -463,13 +463,13 @@ class JobRunner:
             # 節流機制：每隔 N 秒才真正向資料庫查詢一次狀態，避免產生大量不必要的 SELECT 查詢開銷
             if current_time - last_status_check_time >= STATUS_CHECK_INTERVAL:
                 try:
-                    session.expire(job)
                     fetched_job = session.query(Job).filter(Job.id == self.job_id).first()
                     if not fetched_job or fetched_job.status != "running":
                         logger.info(
                             "偵測到任務狀態變更為 %s，中斷爬取。", fetched_job.status if fetched_job else "None"
                         )
                         break
+                    session.expire(job)
                     job = fetched_job
                     last_status_check_time = current_time
                 except SQLAlchemyError as e:
@@ -611,6 +611,7 @@ class JobRunner:
                     tuple[str, str | None, int | None, str | None]:
                         (目標網址, IP, 狀態碼, 錯誤訊息)。
                 """
+                current_job_id_var.set(self.job_id)
                 return self._check_single_link(link, crawler)
 
             results = list(self.executor.map(check_single, unique_urls))

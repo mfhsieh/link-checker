@@ -137,9 +137,50 @@
      5. **採用 JSONB**：若遷移至 PostgreSQL，將 `progress_stats` 等 JSON 欄位改為 `JSONB` 以獲得更好的二進位壓縮比。
    * **狀態**：**觀察中（Monitoring）**。若未來爬蟲資料量成長且造成嚴重的儲存空間瓶頸，再行評估啟動大規模 Schema 遷移計畫。
 
+1. **`_handle_error` 重試退避期間未獨立 commit 持久化 `retry_count`**
+   * **位置**：[runner.py](file:///home/mfhsieh/projects/python/link-checker/crawler/runner.py#L1060-L1096)
+   * **問題描述**：當 `_handle_error` 判定為暫時性錯誤並進入重試等待時（`retry_count < retries`），僅遞增了 `queue_item.retry_count` 但未發起資料庫 commit，隨即進入長達數秒的 sleep 退避。若在此 sleep 期間進程遭遇強行終止（例如 OOM Killer 或斷電），`retry_count` 的遞增將丟失，重啟後會從舊有的計數重新開始，多出一次額外重試。
+   * **改善建議**：此為已知設計權衡（避免在 sleep 退避前產生頻繁 I/O commit），上層 `_process_item` 會在返回後統一 commit。列為技術債監控，待未來進行重試持久化機制翻新時再評估處置。
+   * **狀態**：**觀察中（Monitoring）**。
+
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+1. **優化 `_html_cache` 基於 `mtime` 的動態快取過期檢驗機制 (S-01)**
+   * **說明**：（已寫入 `requirements.md` §5.2 成為正式靜態檔案服務快取規範）
+   * **問題描述**：`_html_cache` 在 `DEBUG=False`（生產模式）下會永久快取前端 HTML，部署新頁面後需手動重啟服務。
+   * **修復方案**：已於 `backend/main.py` 的 `_serve_html_with_nonce` 引入 `os.path.getmtime(file_path)` 修改時間校驗，達成檔案未修改走零 I/O 快取，一旦修改自動即時感應刷新。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **微優化 `get_job_report` Fallback 路徑外部連結 count 查詢效能 (P-01)**
+   * **問題描述**：`get_job_report` 在 fallback 時呼叫 `.count()` 會產生多餘子查詢 SQL。
+   * **修復方案**：已於 `crawler/manager.py` 中重構為 `session.query(func.count(ExternalLink.id)).filter(...).scalar() or 0`，消除子查詢開銷。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **`ContextVar` 上下文傳播至 `ThreadPoolExecutor` 子執行緒 (C-02 / O-01)**
+   * **說明**：（已寫入 `requirements.md` §5.4 成為正式並發日誌上下文規範）
+   * **問題描述**：`ThreadPoolExecutor` 工作執行緒探測外部連結與執行 `curl_cffi` 降級時，產生的 log 未繼承 `current_job_id_var` 的 `job_id` 上下文。
+   * **修復方案**：已於 `crawler/runner.py` 的 `check_single` 閉包內加入 `current_job_id_var.set(self.job_id)`，補齊背景執行緒與降級路徑日誌的 `[Job <id>]` 標籤。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **修復 `create_job` API 路由例外處理洩露內部堆疊資訊 (S-02)**
+   * **說明**：（已寫入 `requirements.md` §5.4 成為正式資安防禦規範）
+   * **問題描述**：`create_job` 路由中的 `except Exception as e:` 捕捉區塊直接將 `str(e)` 當作 HTTP 500 的 `detail` 回傳，生產環境下可能包含內部資料庫資訊或檔案路徑。
+   * **修復方案**：已於 `backend/jobs/routers/management.py` 中補充 `logger.error("建立任務失敗: %s", e, exc_info=True)`，並將回傳 detail 統一遮蔽為通用錯誤訊息。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **修復 `_run_loop` 狀態查詢異常時的 `job` 物件過期順序 (C-01)**
+   * **說明**：（已寫入 `requirements.md` §3.4 成為正式架構容錯規範）
+   * **問題描述**：在 `_run_loop` 中，若在查詢 DB 之前先呼叫 `session.expire(job)`，一旦 `session.query(Job)` 拋出例外，`job` 屬性會保持過期狀態，後續讀取屬性時將觸發隱式查詢並引發連鎖錯誤。
+   * **修復方案**：已將 `session.expire(job)` 移至 `session.query(Job)` 確認成功執行之後，確保僅在查詢成功時才過期舊物件。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **為 `_execute_curl_cffi_fallback` 重導向防護新增 `_depth` 防禦參數 (E-01)**
+   * **說明**：（已寫入 `requirements.md` §2 成為正式核心遞迴防禦規範）
+   * **問題描述**：在 `_execute_curl_cffi_fallback` 方法中，當重導向達到 `max_redirects` 時會嘗試發起自我遞迴呼叫，但方法簽章缺乏防禦性遞迴深度控制。
+   * **修復方案**：已於 `crawler/core.py` 的 `_execute_curl_cffi_fallback` 方法簽章中加入 `_depth: int = 0` 預設參數，並在遞迴呼叫處加入 `_depth == 0` 及 `_depth=_depth + 1`，確保自我遞迴最多僅執行一次。
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **補充 `CrawlerCore.check_external_link` 核心降級路徑單元與整合測試**
    * **說明**：（已寫入 `requirements.md` §13 成為正式測試規範）

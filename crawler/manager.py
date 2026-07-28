@@ -314,7 +314,9 @@ class JobManager:
             failed = int(queue_stats.failed) if queue_stats and queue_stats.failed else 0
             skipped = int(queue_stats.skipped) if queue_stats and queue_stats.skipped else 0
 
-            total_external = session.query(ExternalLink).filter(ExternalLink.job_id == job_id).count()
+            total_external = (
+                session.query(sql_count(ExternalLink.id)).filter(ExternalLink.job_id == job_id).scalar() or 0
+            )
 
             progress_dict = {
                 "queue": {

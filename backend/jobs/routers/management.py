@@ -187,7 +187,11 @@ def create_job(
         )
         job_id = job_management.create_job(manager, current_user.id, config_obj)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+        logger.error("建立任務失敗: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="建立任務時發生內部錯誤，請聯繫管理員。",
+        ) from e
 
     return {"job_id": job_id, "message": "任務已建立。"}
 

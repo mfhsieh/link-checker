@@ -117,7 +117,7 @@
 * **畸形網域與解析容錯 (Malformed Domain Defense)**：當遇到因網頁撰寫瑕疵產生的畸形網址（例如包含連續點號 `..` 導致 DNS 標籤錯誤 `label empty or too long` 之 IDNA 解析例外）時，系統必須精確捕捉其底層例外（如 `UnicodeError`、`ValueError`），並將其優雅地標記為失敗 (`failed`) 且記錄詳細原因，嚴防單一畸形網址穿透防護網導致整個爬蟲任務中斷崩潰。
 * **指數退避機制**：重試時應引入退避等待機制，隨重試次數增加等待時間，避免連續請求加重目標伺服器負載。
 * **最外層防線與保底機制 (Top-level Exception Boundary)**：所有的背景常駐任務（如排程器迴圈）與爬蟲主程序的最外層，必須實作捕捉所有 `Exception` 的保底機制。若遭遇非預期例外，必須寫入日誌並觸發對應的錯誤狀態轉移（如標記任務為 `error`）或觸發錯誤計數告警，嚴禁任務因未捕捉例外而崩潰進入假死 (Zombie) 狀態或靜默的無窮迴圈。
-* **遞迴深度防護 (Recursion Depth Limit)**：任何涉及網路重試或狀態降級（如 HTTP 自動轉 HTTPS 再次探測）的遞迴邏輯，必須具備明確的深度計數器或次數上限，嚴防無限遞迴導致 Stack Overflow。
+* **遞迴深度防護 (Recursion Depth Limit)**：任何涉及網路重試或狀態降級（如 HTTP 自動轉 HTTPS 再次探測，或是 `_execute_curl_cffi_fallback` TLS 偽裝引擎降級）的遞迴邏輯，必須具備明確的顯式深度計數器（如 `_depth: int = 0`）或次數上限，嚴防極端重導向邊界條件下無防禦自我呼叫導致無限遞迴或 Stack Overflow。
 
 ---
 
@@ -152,7 +152,7 @@
 * **排隊機制與並發控制 (Queued & Concurrency Control)**：系統實作全域並發任務數限制 (`CRAWLER_MAX_CONCURRENT_JOBS`)。當使用者啟動任務時，若當前系統執行中 (`running` / `starting`) 的任務數量已達上限，新任務將進入 `queued` (排隊中) 狀態。背景排程器會定期輪詢，待資源有餘裕時自動依先進先出原則喚醒任務。
 * **暫停與恢復 (Pause/Resume)**：支援溫和的暫停信號，在完成當下網址爬取後安全暫停；並允許後續接續爬取未完成之佇列。針對因 OOM 或伺服器中斷被標記為 `error` 的異常任務，系統亦支援直接無縫恢復執行（CLI 需搭配強制參數），免去重新發起全站爬取的龐大時間成本。**注意：恢復執行時，同樣受系統並發數量上限管控，若資源滿載將先轉為 `queued` 狀態等候調度。**
 * **重試退避與暫停響應性 (Micro-sleep for Long Retries)**：爬蟲引擎在執行重試退避 (Backoff Sleep) 等延遲等待時，嚴禁使用單次長連線阻塞 (如 `time.sleep(30)`)。必須採用微步長 (如 0.5 秒) 輪詢機制解耦長延遲，以確保爬蟲能在 1 秒以內即時響應使用者的「暫停 (Pause)」與「停止 (Stop)」指令。
-* **資料庫暫時性異常容錯 (DB Transient Error Tolerance)**：爬蟲主迴圈在定期查詢任務最新狀態（如確認是否被使用者暫停）時，必須針對資料庫操作建立專屬的暫時性異常捕捉 (`SQLAlchemyError`)。若因資料庫鎖定 (database is locked) 或連線瞬斷拋出例外，應記錄警告並重置計時器跳過當次檢查，嚴禁直接冒泡導致運行中的爬蟲任務被誤判標記為 `error` 狀態並異常終止。
+* **資料庫暫時性異常容錯與 ORM 物件過期順序 (DB Transient Error Tolerance & Expire Order)**：爬蟲主迴圈在定期查詢任務最新狀態（如確認是否被使用者暫停）時，必須針對資料庫操作建立專屬的暫時性異常捕捉 (`SQLAlchemyError`)。若因資料庫鎖定 (database is locked) 或連線瞬斷拋出例外，應記錄警告並重置計時器跳過當次檢查，嚴禁直接冒泡導致運行中的爬蟲任務被誤判標記為 `error` 狀態並異常終止。**此外，在向資料庫發起狀態查詢前，嚴禁提早過期 (`session.expire`) ORM 實例；必須在確認 DB 查詢成功執行後方可過期舊物件，防止查詢失敗時物件屬性過期引發二次隱式查詢連鎖錯誤。**
 * **刪除任務 (Delete)**：支援徹底清理指定任務的所有佇列與外連結果，防止資料庫無限制膨脹。
 * **重置任務 (Reset)**：支援將已完成或發生中斷的任務恢復至起點，清空佇列狀態與外連紀錄以利重新爬取。
 * **失敗重試機制 (Retry Failed)**：支援針對已完成但有部分失敗（包含內部網頁爬取失敗，或外部連結探測異常）的任務進行局部重試，自動將失敗項目重新加入佇列並接續爬取，免去重新爬取整站的龐大開銷，提升維運效率。**同上，重試操作亦受並發數量管控，可能進入 `queued` 狀態排隊。**
@@ -263,6 +263,7 @@
 
 * **跨網站請求偽造防禦 (CSRF Protection)**：系統所有狀態變更 API 端點 (POST/PATCH/DELETE) 必須強制實施 Double Submit Cookie 模式的 CSRF 驗證。前端需自 Cookie 讀取 Token 並置入 `X-CSRF-Token` 請求標頭，後端採用常數時間比對校驗，杜絕跨站請求攻擊。
 * **內容安全策略與防點擊劫持 (CSP & Security Headers)**：系統 Web 服務必須全域套用防禦性 HTTP 標頭。包含實作嚴格的 `Content-Security-Policy`（搭配每次請求動態生成的 `nonce` 嚴格限制 JavaScript 執行來源）、`X-Frame-Options: DENY`（防範點擊劫持）以及 `X-Content-Type-Options: nosniff`（防 MIME 嗅探）。
+* **生產環境 HTML 動態 mtime 快取過期機制**：Web 服務在生產模式 (`DEBUG=False`) 下讀取 HTML 檔案並注入 CSP Nonce 時，實作記憶體快取以提升請求吞吐量。快取機制必須綁定實體檔案之最後修改時間 (`os.path.getmtime`)，達成檔案未修改時走 0 I/O 快取，一旦部署或更新檔案能自動即時感應並刷新快取，免除重新啟動伺服器服務之維運負擔。
 * **Cookie 傳輸安全與 CORS 限制**：生產環境下（非除錯模式），系統簽發的 Session 與 CSRF Cookie 必須強制加上 `Secure` 標記（僅限 HTTPS 傳輸）；同時，生產環境必須強制關閉跨來源資源共用 (CORS)，僅允許同源請求，徹底防堵惡意第三方網站的前端呼叫。
 
 ### 5.3 SSRF 防禦與傳輸安全
@@ -277,7 +278,8 @@
 * **機密性與配置憑證保護**：系統日誌與異常輸出中嚴格禁止明文紀錄或印出任何敏感憑證（如代理伺服器帳密）；載入此類機密配置時，應優先支援自環境變數（Environment Variables）讀取。
 * **錯誤訊息與日誌清洗機制 (Error Sanitization & Log Injection Defense)**：當底層爬蟲遇到連線失敗、伺服器錯誤時，攔截到的例外字串往往會參雜敏感資訊或惡意換行符。系統必須在寫入資料庫（如 `error_message` 欄位）或輸出日誌前，強制進行主動清洗：除了透過正規表達式遮蔽 URL 憑證 (`user:pass`)、HTTP 標頭內容 (如 `Cookie`, `Authorization`) 與伺服器回傳的 IPv4/IPv6 實體位址外，**必須強制清洗 `\r` (Carriage Return) 與 `\n` (Line Feed) 等換行字元**（替換為空格），防範攻擊者透過帶有換行符的惡意 HTTP 回應進行日誌偽造 (Log Forgery / Log Injection)，確保日誌完整性與告警可信度。
 * **最小權限暴露 (Masking)**：後端在回傳系統設定或任務快照至前端時，必須主動過濾內部邏輯設定，並將敏感憑證（如 Proxy 密碼）進行遮蔽（Masking）處理。
-* **統一例外攔截與堆疊隱藏 (Stack Trace Hiding)**：Web 服務層必須實作全域例外攔截器 (Global Exception Handler)。當捕捉到未處理的伺服器內部錯誤時，一律回傳標準的 HTTP 500 JSON 錯誤訊息，嚴禁將系統內部的堆疊追蹤 (Stack Trace) 或套件版本暴露於前端，防止架構資訊外洩。
+* **統一例外攔截與堆疊隱藏 (Stack Trace Hiding)**：Web 服務層與各 API 路由端點（如 `create_job`）必須實作全域與個別例外捕捉。當捕捉到未處理的伺服器內部錯誤（如 `Exception`）時，必須記錄詳細 Log，並一律回傳標準且已遮蔽的 HTTP 500 JSON 錯誤訊息，**嚴禁將 `str(e)`、系統內部的堆疊追蹤 (Stack Trace)、資料庫連線字串或套件細節直接暴露於前端 API 回應中**，防止架構資訊與敏感細節外洩。
+* **`ThreadPoolExecutor` 工作執行緒之 `ContextVar` 顯式傳播**：使用 `ThreadPoolExecutor` 進行多執行緒併發探測（如外部連結檢查）時，工作任務閉包內部必須顯式呼叫 `current_job_id_var.set(job_id)` 傳播任務識別碼，確保背景工作執行緒與 TLS 降級引擎輸出之所有 Log 皆能正確繼承與帶有 `[Job <id>]` 標籤。
 * **防禦計時攻擊 (Timing Attack)**：系統在處理任何敏感憑證的驗證（如登入密碼驗證、CSRF Token 比對）時，必須確保執行時間具備恆定性。字串比對須強制使用安全的時間恆定比較函式（如 `secrets.compare_digest`）；密碼驗證時，無論帳號是否存在，皆須執行等效耗時的雜湊運算，防範攻擊者透過測量回應時間探測帳號狀態。
 
 ### 5.5 資源耗盡防禦

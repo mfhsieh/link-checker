@@ -184,7 +184,7 @@ _frontend_dir: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "f
 if os.path.isdir(_frontend_dir):
     # 掛載 CSS / JS 靜態資源
     app.mount("/static", StaticFiles(directory=_frontend_dir), name="static")
-    _html_cache: dict[str, str] = {}
+    _html_cache: dict[str, tuple[str, float] | str] = {}
 
     def _serve_html_with_nonce(file_name: str, request: Request) -> HTMLResponse | RedirectResponse:
         """
@@ -197,15 +197,29 @@ if os.path.isdir(_frontend_dir):
         Returns:
             HTMLResponse | RedirectResponse: 注入 nonce 後的 HTML 回應，若檔案不存在則重導向。
         """
-        content = _html_cache.get(file_name)
-        if content is None:
-            file_path = os.path.join(_frontend_dir, file_name)
+        file_path = os.path.join(_frontend_dir, file_name)
+        cached = _html_cache.get(file_name)
+
+        if cached is not None:
+            if isinstance(cached, tuple):
+                content, cached_mtime = cached
+                if os.path.exists(file_path):
+                    current_mtime = os.path.getmtime(file_path)
+                    if current_mtime != cached_mtime:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        if not settings.DEBUG:
+                            _html_cache[file_name] = (content, current_mtime)
+            else:
+                content = cached
+        else:
             if not os.path.exists(file_path):
                 return RedirectResponse(url="/")
+            mtime = os.path.getmtime(file_path)
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
             if not settings.DEBUG:
-                _html_cache[file_name] = content
+                _html_cache[file_name] = (content, mtime)
 
         nonce = getattr(request.state, "nonce", "")
         if nonce:

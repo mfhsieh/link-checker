@@ -875,7 +875,11 @@ class CrawlerCore:
         return internal_links, external_target_links, status_code, status, request_sent, err_msg
 
     def _execute_curl_cffi_fallback(  # pylint: disable=too-many-statements,too-many-nested-blocks
-        self, url: str, is_internal: bool = False, target_domains: list[str] | None = None
+        self,
+        url: str,
+        is_internal: bool = False,
+        target_domains: list[str] | None = None,
+        _depth: int = 0,
     ) -> tuple[int | None, str | None, str | list[str] | None, str | None]:
         """終極備援核心邏輯：使用 curl_cffi 進行 TLS 指紋偽裝。
 
@@ -974,10 +978,12 @@ class CrawlerCore:
                     # 處理重導向
                     if status_code in REDIRECT_STATUS_CODES:
                         if redirect_idx >= self.config.max_redirects:
-                            if url.startswith("http://"):
+                            if url.startswith("http://") and _depth == 0:
                                 https_url = url.replace("http://", "https://", 1)
                                 logger.info("網址 %s 發生無限重導向，嘗試升級為 HTTPS 進行最後驗證: %s", url, https_url)
-                                return self._execute_curl_cffi_fallback(https_url, is_internal, target_domains)
+                                return self._execute_curl_cffi_fallback(
+                                    https_url, is_internal, target_domains, _depth=_depth + 1
+                                )
                             return None, "超過最大重導向次數", None, current_url
 
                         location = resp.headers.get("Location")
