@@ -159,7 +159,6 @@ graph TD
 
 3. **爬蟲核心引擎 (Crawler Core)**
    * **自治驅動 (CLI-First)**：由 CLI (`cli.py`) 直接驅動，可脫離 Web 伺服器獨立執行所有探索任務。
-   * **AI 代理整合 (MCP Server)**：提供獨立的 `scripts/mcp_server.py`，允許 AI 代理人透過 Model Context Protocol 查詢任務狀態與進行探測診斷。
    * **高度可靠性與防禦機制**：支援防護穿透、錯誤重試、敏感資訊清洗 (Data Sanitization)、資料庫狀態驅動 (State-driven) 的中斷恢復與多任務日誌隔離。
 
 4. **資料持久層 (Data Layer)**
