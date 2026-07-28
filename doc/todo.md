@@ -134,6 +134,12 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
+1. **建立 MCP Server 以監控遠端 Production 任務狀態**
+   * **說明**：（已寫入 `requirements.md` §15.1 成為正式 MCP 介面與工具規格）
+   * **問題描述**：開發者需要隨時查看 Production 環境中各項爬蟲任務的即時狀態，但目前必須登入後台網頁介面。希望能讓 AI 助理直接取得資料。
+   * **規劃方案**：建置一個 MCP (Model Context Protocol) 伺服器，直接連線至 `crawler.db` 提供任務清單與進度。為了不破壞現有 FastAPI 的穩定與安全性，採用獨立腳本 (`scripts/mcp_server.py`) 透過 SSH stdio 提供連線。已完成 MCP Server 建置，包含 `get_job_config`、`get_jobs_status`、`get_disk_usage` 與 `test_internal_url`/`test_external_url` 等功能驗證。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **前端程式碼重構：導入 MVC 或 Web Components 模組化封裝**
    * **說明**：（已寫入 `requirements.md` §7.5 成為正式前端規範）
    * **問題描述**：目前前端程式碼（如 `frontend/js/job-detail.js` 與 `frontend/js/jobs.js`）存在大量的全域變數狀態與未封裝的 DOM 操作（義大利麵條式程式碼），缺乏模組化設計。這導致在處理複雜的動態資料流（如 SSE 即時更新、多條件過濾）時，程式碼高度耦合，難以追蹤錯誤與進行長期維護。
@@ -378,12 +384,6 @@
    * **問題描述**：目前使用 `progress_stats` 來紀錄快取進度，但在「重新探測」部份連結後，或是發生其他非預期情況時，`progress_stats` 沒有正確同步更新，導致介面上「爬取進度」內的數據與實際狀況脫節。
    * **規劃方案**：全面盤查所有會更動內部或外部連結狀態的邏輯（尤其是重新探測、狀態變更等流程），確保每次狀態異動時，都會對應地重新計算並寫入最新的 `progress_stats`，以維持數據一致性與正確性。
    * **狀態**：**已解決 (Resolved)**。
-
-1. **建立 MCP Server 以監控遠端 Production 任務狀態**
-   * **說明**：（已寫入 `requirements.md` §15.1 成為正式 MCP 介面與工具規格）
-   * **問題描述**：開發者需要隨時查看 Production 環境中各項爬蟲任務的即時狀態，但目前必須登入後台網頁介面。希望能讓 AI 助理直接取得資料。
-   * **規劃方案**：建置一個 MCP (Model Context Protocol) 伺服器，直接連線至 `crawler.db` 提供任務清單與進度。為了不破壞現有 FastAPI 的穩定與安全性，採用獨立腳本 (`scripts/mcp_server.py`) 透過 SSH stdio 提供連線。
-   * **狀態**：**已解決 (Resolved)**。已完成 MCP Server 建置，包含 `get_job_config`、`get_jobs_status`、`get_disk_usage` 與 `test_internal_url`/`test_external_url` 等功能驗證。
 
 ---
 
