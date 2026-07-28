@@ -97,7 +97,14 @@ class AppToastContainer extends HTMLElement {
         this.shadowRoot.appendChild(this.container);
     }
 
+    /**
+     * 建立並在畫面上顯示一個提示訊息 Toast
+     * @param {string} message - 訊息內容
+     * @param {'success'|'warning'|'error'|'info'} [type='info'] - 通知類型
+     * @param {number} [duration=4000] - 自動消失時間（毫秒）
+     */
     showToast(message, type = 'info', duration = 4000) {
+
         if (!this.container) return; // Not yet connected
 
         const toastEl = document.createElement('div');
@@ -137,6 +144,10 @@ if (!customElements.get('app-toast-container')) {
 
 let _toastContainerEl = null;
 
+/**
+ * 取得或建立單例 Toast 容器 DOM 節點
+ * @returns {AppToastContainer} Toast 容器 Web Component 實例
+ */
 function getToastContainer() {
     if (!_toastContainerEl) {
         // Try to find it in the DOM first

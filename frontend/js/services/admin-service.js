@@ -151,6 +151,7 @@ export async function testSmtp(email) {
  * 取得系統操作日誌
  * @param {number} [page=1] - 頁碼
  * @param {number} [pageSize=50] - 每頁筆數
+ * @param {Object} [filters={}] - 篩選條件物件（包含 user_id, event_type, ip_address 等）
  * @returns {Promise<Object>} 回傳包含日誌陣列與分頁資訊的物件
  */
 export async function getLogs(page = 1, pageSize = 50, filters = {}) {

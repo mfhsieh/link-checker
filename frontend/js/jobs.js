@@ -64,7 +64,9 @@ export async function loadJobs(filters = null, containerEl = null) {
 
 /**
  * 渲染任務列表表格
- * @returns {void} 無回傳值
+ * @param {Array<Object>|null} [jobs=null] - 任務資料陣列，未提供則使用當前快取的 _currentJobs
+ * @param {HTMLElement|null} [containerEl=null] - 容器元素
+ * @returns {void}
  */
 export function renderJobList(jobs = null, containerEl = null) {
     if (containerEl) _listContainerEl = containerEl;
