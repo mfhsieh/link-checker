@@ -276,6 +276,41 @@
                             <p class="doc-p"><strong>💡 小撇步：</strong>兩者可以完美搭配使用！先利用副檔名擋下絕大多數的靜態檔案，再針對特殊的動態路徑撰寫
                                 Regex，就能達到最佳的爬取效能與精準度。</p>
                         </div>
+                        <h4 class="doc-q-title">
+                            Q: 任務完成後沒有收到 Email 通知信該怎麼辦？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p">
+                                系統僅會在任務狀態變更為「<strong>已完成 (completed)</strong>」或是「<strong>致命錯誤 (error)</strong>」時發送信件。若未收到信件，請參考以下排查步驟：
+                            </p>
+                            <ul class="doc-ul">
+                                <li class="doc-li"><strong>檢查個人信箱設定</strong>：請至「個人設定」確認您的 Email 地址是否填寫無誤。</li>
+                                <li class="doc-li"><strong>檢查垃圾郵件匣</strong>：部分的郵件伺服器可能會將系統發出的自動通知信歸類為垃圾郵件。</li>
+                                <li class="doc-li"><strong>開發與測試環境模式</strong>：若為本機測試環境，系統可能啟用了 Console 模擬模式（信件內容會印在伺服器 Log 中而不會真實寄出）。</li>
+                            </ul>
+                        </div>
+                        <h4 class="doc-q-title">
+                            Q: 系統可以同時執行多個掃描任務嗎？如果任務數量很多會怎樣？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p">
+                                系統完全支援多任務同時與排隊執行！為了維護伺服器效能，系統設定有「<strong>併發任務數量限制</strong>」（預設最多 3 個任務同時執行）。
+                            </p>
+                            <p class="doc-p">
+                                當您建立並啟動多個任務時，超出上限的任務會自動轉為「<strong>排隊中 (queued)</strong>」狀態。當前面的任務執行完成或暫停後，系統會自動依序喚醒佇列中的排隊任務接續執行，絕不會遺漏或導致任務遺失。
+                            </p>
+                        </div>
+                        <h4 class="doc-q-title">
+                            Q: 遇到需要 Cookie-gate 或內部跳轉驗證的網站，系統支援檢查嗎？
+                        </h4>
+                        <div class="doc-q-answer">
+                            <p class="doc-p">
+                                系統支援同網域下的自動 Cookie 穿透！對於同網域下的 HTTP 重導向（如 302/307 跳轉），爬蟲系統會自動收集伺服器核發的 <code>Set-Cookie</code> 標頭並於下一次連線時帶上，順暢通過透明的 Cookie-gate 保護。
+                            </p>
+                            <p class="doc-p">
+                                <strong>⚠️ 限制說明：</strong>若網站需要「互動式登入」（如填寫帳號密碼表單、SAML/OAuth 第三方登入、圖形驗證碼或雙重驗證 2FA），因爬蟲採用輕量級 HTTP 探測而不執行 JavaScript，此類需要互動登入的頁面則無法直接穿透。
+                            </p>
+                        </div>
                     </div>
 
                 </div>

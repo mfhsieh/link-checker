@@ -63,14 +63,10 @@
    * **狀態**：**部分完成（Partially Completed）**。已完成多數 Web Components 提取，但負責協調的「Controller/State 層」（即 `job-detail.js` 和 `jobs.js`）尚未完成。
 
 1. **建立 MCP Server 以監控遠端 Production 任務狀態**
+   * **說明**：（已寫入 `requirements.md` §15.1 成為正式 MCP 介面與工具規格）
    * **問題描述**：開發者需要隨時查看 Production 環境中各項爬蟲任務的即時狀態，但目前必須登入後台網頁介面。希望能讓 AI 助理直接取得資料。
    * **規劃方案**：建置一個 MCP (Model Context Protocol) 伺服器，直接連線至 `crawler.db` 提供任務清單與進度。為了不破壞現有 FastAPI 的穩定與安全性，採用獨立腳本 (`scripts/mcp_server.py`) 透過 SSH stdio 提供連線。
-   * **狀態**：**部分完成（Partially Completed）**。已完成 `get_job_config`、`get_jobs_status`、`get_disk_usage` 與雲端/本地比對 URL 的 MCP 工具，但其他功能尚待擴充，後續將整併至 requirements。
-
-1. **擴充與完善系統輔助說明 (Help & FAQ)**
-   * **功能描述**：目前前端的 `help.html` 與 `faq.html` 已建立基礎架構，但部分教學內容與問答細節尚待補齊。
-   * **規劃方案**：將 `frontend/help.html` 的支援與說明教學內容，以及 `frontend/faq.html` 的常見問答內容補充完整，提供使用者更詳盡的操作指引與問題排解。
-   * **狀態**：**部分完成（Partially Completed）**。
+   * **狀態**：**部分完成（Partially Completed）**。已完成 `get_job_config`、`get_jobs_status`、`get_disk_usage` 與雲端/本地比對 URL 的 MCP 工具，其他後續延伸工具擴充中。
 
 ---
 
@@ -146,6 +142,11 @@
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+1. **擴充與完善系統輔助說明 (Help & FAQ)**
+   * **說明**：（已補充 `help.html` 報表與主網域優先說明，以及 `faq.html` 補充 Email/併發/Cookie-gate 等 Q&A 內容）
+   * **功能描述**：前端 `help.html` 與 `faq.html` 說明與常見問答內容已完整補充，提供使用者詳盡的操作指引與問題排解。
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **優化 `_html_cache` 基於 `mtime` 的動態快取過期檢驗機制 (S-01)**
    * **說明**：（已寫入 `requirements.md` §5.2 成為正式靜態檔案服務快取規範）
@@ -260,9 +261,10 @@
    * **狀態**：**已解決 (Resolved)**。
 
 1. **修復 `sanitize_error_message` 未防禦日誌注入 (Log Injection)**
+   * **說明**：（已寫入 `requirements.md` §5.4 成為正式資安防禦規範）
    * **問題描述**：`crawler/utils.py` 中的 `sanitize_error_message` 函式雖有遮蔽 IP、密碼與 Token 等敏感資料，但未清洗 `\r` (Carriage Return) 與 `\n` (Line Feed) 字元。當爬蟲抓取回傳帶有換行符的惡意 HTTP 回應或例外字串時，寫入日誌可能會造成日誌偽造 (Log Forgery)，干擾日誌分析與告警機制。
    * **修復方案**：已在 `crawler/utils.py` 的 `sanitize_error_message()` 尾端加入 `msg = msg.replace("\r", "").replace("\n", " ")` 進行 CRLF 換行符清洗，徹底封堵日誌偽造風險。
-   * **狀態**：**已解決 (Resolved)**。（已寫入 `requirements.md` §5.4 成為正式資安防禦規範）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **修復 `_cleanup_finished_processes` 節流計時器未更新問題**
    * **說明**：（已寫入 `requirements.md` §4.3 成為進程清理節流規範）
@@ -271,37 +273,42 @@
    * **狀態**：**已解決 (Resolved)**。
 
 1. **支援對「被忽略的內部連結」進行輕量死檔探測**
+   * **說明**：（已寫入 `requirements.md` §2 成為正式系統規範）
    * **問題描述**：目前系統對於符合「忽略副檔名」或「忽略路徑規則」的內部連結，會直接跳過不予處理。這導致使用者雖然不希望爬蟲深入抓取這些資源（如 PDF、圖片檔或特定目錄），但同時也無從得知這些連結「是否真的存在（避免死檔或斷鏈）」。
    * **修復方案**：
      1. 在任務設定或全域設定中新增一個選項 `check_skipped_links`（預設為 `True`），啟用時採用「GET 串流標頭截斷模式」進行輕量探測（發送 GET 請求但在成功讀取 HTTP 標頭後即關閉連線，只檢查存活而不下載檔案內容）。
      2. **相容性防護**：未來新建的任務預設啟用此功能；但對於歷史舊任務，若設定檔中無此參數，則必須強制預設為 `False`，以維護其原本不發送探測請求的行為。
      3. 若探測結果為異常（如 404 或 500），則將該連結納入內部死鏈的錯誤報告中。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `doc/requirements.md` 成為正式系統規範）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **Web UI 起始網址自動帶入「目標網域」與「信任網域」時自動去除 `www.` 前綴**
+   * **說明**：（已寫入 `requirements.md` §4 成為正式前端規範）
    * **問題描述**：目前在 Web UI 建立任務頁面中，當使用者輸入起始網址 (Start URL，例如 `https://www.example.com/`) 並失焦 (`blur`) 時，前端自動帶入「目標網域」與「信任網域」填空會保留 `www.` 前綴 (即帶入 `www.example.com`)。這會導致預設情況下爬蟲將同機構下的其他附屬子網域 (如 `ws.example.com` 或 `law.example.com`) 過濾或誤判為外部連結。
    * **修復方案**：在前端 `frontend/js/app-main.js` 的 `jobUrlInput` `blur` 事件監聽器中，自動提取 `url.hostname` 並套用 `.replace(/^www\./i, "")`。當使用者輸入 `https://www.example.com/` 且未填寫網域時，前端會自動切除 `www.` 並將基底網域 `example.com` 帶入「目標網域」與「信任網域」輸入框中。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `doc/requirements.md` 成為正式前端規範）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **CrawlQueue 記憶體 ID 雙階佇列 (In-Memory ID Queue Partitioning) 優先級分流**
+   * **說明**：（已寫入 `requirements.md` §3 成為正式系統規範）
    * **問題描述**：當爬取包含多重子網域之廣域目標 (如 `target_domains: example.com` 且含資源子網域 `ws.example.com`) 時，數萬筆靜態資源/附件子網域寫入 `CrawlQueue` 佇列，佔據單一 FIFO 佇列前端，導致主目標網域 (`www.example.com`) 的深層 HTML 新聞列表與內容頁面被迫延後處理數十小時，最終因目標伺服器 Session Token (`_CSN`) 到期而引發連鎖斷鏈缺漏。
    * **規劃方案**：
      1. 在不更動任何資料庫 Schema 的前提下，於 `JobRunner` 導入「記憶體 ID 雙階佇列」機制。
      2. 任務啟動或 Resume 恢復時，以 `get_domain(job.start_url)` 鎖定主探索網域，將 `pending` 的 ID 極速分流至 `primary_id_deque` (高優先) 與 `other_id_deque` (低優先)。
      3. 爬蟲主迴圈優先取高優先 ID，透過 PK 主鍵 `WHERE id = ?` 進行 < 0.1ms 亞毫秒級高效查詢，確保主目標網域的 HTML 頁面於數小時內全數爬完。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `doc/requirements.md` 成為正式系統規範）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **重構前端 Resume 任務的邏輯與 API 呼叫**
+   * **說明**：（已寫入 `requirements.md` §4 成為正式前端規範）
    * **問題描述**：目前前端在「恢復」任務時，直接共用了 `btn-start-job` 與 `/api/jobs/{job_id}/start` API。雖然底層能順利接續跑起來，但未利用到後端專門提供、具備嚴格安全狀態檢查機制 (`paused` / `error`) 的 `/api/jobs/{job_id}/resume` 端點。
    * **規劃方案**：在前端 `job-controls.js` 中依據任務狀態分流：狀態為 `paused` 或 `error` 時派發 `job-resume` 事件。然後在 `job-detail.js` 新增對 `job-resume` 的監聽器，精準呼叫專屬的 `/resume` API。
-   * **狀態**：**已解決（Resolved）**。(已寫入 requirements.md 成為前端規範)
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **實作雲端測試 MCP 與本地/雲端結果比對 Skill**
+   * **說明**：（已寫入 `architecture.md` 成為正式架構規範）
    * **問題描述**：同一個連結在本地端用 `scripts/test_ext.py` 或 `scripts/test_url.py` 測試時可能成功，但在雲端主機測試時，偶爾會因為目標主機的防禦策略（例如阻擋雲端 IP 或資料中心網段）而失敗。這導致難以釐清是連結真的失效，還是防禦策略造成的誤判。
    * **規劃方案**：
      1. **新增 MCP 功能**：擴充現有 MCP 伺服器，提供能在遠端（雲端主機）執行單一連結探測並回傳詳細結果與狀態碼的功能。
      2. **新增 Agent Skill**：建立一個新的 Skill，用於接收特定連結後，自動同時觸發本地端測試與雲端 MCP 測試，並交叉比對兩者結果。若本地成功而雲端失敗，即可明確判斷為目標主機防禦策略所致。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `architecture.md` 成為正式架構）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **修復任務詳情頁「返回列表」按鈕失效與導覽動線問題**
    * **問題描述**：使用者在讀取大量資料的任務詳情頁面時，若中途（或甚至讀取完成後）點擊「返回列表」，畫面會卡住無法跳轉；且管理者從監控面板進入詳情頁後，返回時會被錯誤導向一般使用者的任務列表，操作體驗中斷。
@@ -317,54 +324,63 @@
    * **狀態**：**已解決（Resolved）**。
 
 1. **擴充 `sanitize_error_message` 支援 IPv6 遮蔽**
+   * **說明**：（已寫入 `requirements.md` §5.4 成為正式資安防禦規範）
    * **問題描述**：`crawler/utils.py` 中的 `sanitize_error_message` 函式目前僅能成功遮蔽 IPv4 位址。若未來目標伺服器回傳帶有 IPv6 位址的連線錯誤訊息，該 IP 仍可能會被明文暴露。
    * **修正方案**：已在 `crawler/utils.py` 的 `sanitize_error_message` 函式中加入能完整涵蓋標準與縮寫格式（含 `::`）的 IPv6 正則表達式，進一步阻絕 IPv6 位址洩漏的風險。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式資安需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **修復全域日誌變數污染導致的任務追蹤失效 (Race Condition)**
+   * **說明**：（已寫入 `requirements.md` §4.5 成為正式架構需求規範）
    * **問題描述**：`crawler/runner.py` 中使用了 `setattr(logging, "current_job_id", ...)` 的做法來注入日誌前綴。由於 `logging` 是全域模組，這會導致當多個 `JobRunner` 同時運行時，後啟動的任務會覆寫先啟動任務的 `job_id`，引發嚴重的 Race Condition 與日誌污染，使得多任務並發時的除錯追蹤功能失效。
    * **修正方案**：已將 `crawler/runner.py` 中全域的 `setattr(logging, ...)` 移除，改用 Python 原生的 `contextvars.ContextVar` 來儲存 `job_id`。由於 Python 的 `ThreadPoolExecutor` 會自動傳遞 context，這能確保在並發環境下安全地隔離，並正確標記個別任務的日誌。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **為關鍵操作日誌加入 `job_id` 上下文追蹤**
+   * **說明**：（已寫入 `requirements.md` §4.5 成為正式架構需求規範）
    * **問題描述**：當有多個爬蟲任務在背景同時運行時，若日誌只印出正在爬取的 URL，維運人員無法區分該日誌屬於哪一個任務，增加多任務並發時的除錯難度。
    * **修正方案**：已透過在 `crawler/runner.py` 中全域覆寫 `logging.setLogRecordFactory`，於 `JobRunner` 初始化時將當前執行的 `job_id` 注入環境上下文。這讓所有 `CrawlerRunner` 與底層 `CrawlerCore` 的日誌輸出皆會自動帶上 `[Job <id>]` 的前綴，不僅達成目標，且完全無須逐一修改歷史程式碼中的 `logger.info()` 呼叫，為最優雅且無侵入式的解法。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **修復殭屍任務偵測僅依賴 PID 導致的重用誤判風險**
+   * **說明**：（已寫入 `requirements.md` §4.3 成為正式容錯需求規範）
    * **問題描述**：Unix 系統的 PID 會循環重用。如果爬蟲意外崩潰，而作業系統剛好把同一個 PID 配發給了其他不相干的進程，原本單純檢查 `os.kill(pid, 0)` 的作法會誤以為爬蟲還活著，導致這個任務永遠卡在 `running` 成為無法中斷的殭屍狀態。
    * **修正方案**：已在 `backend/jobs/services/process.py` 實作防護機制。現在在寫入 PID 檔案時，會一併讀取 `/proc/{pid}/stat` 取出該進程的啟動時間 (starttime) 並寫入檔案。在後續驗證進程存活時，除了比對 PID，也會二次比對啟動時間。一旦發現 PID 存在但啟動時間不同，就能準確判斷這是被作業系統重用的進程，並立即將卡死的任務狀態設為 `error`。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式容錯需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **實作錯誤訊息與日誌的敏感資訊清洗機制**
+   * **說明**：（已寫入 `requirements.md` §5.4 成為正式資安防禦規範）
    * **問題描述**：目前爬蟲底層若遇到連線錯誤，會把原始的錯誤字串直接寫入資料庫的 `error_message` 欄位或印到 Log 中。如果連線剛好帶有 Proxy 的密碼或是敏感的 Cookie，這些機密就會被明文存下來。
    * **修正方案**：已在 `crawler/utils.py` 實作 `sanitize_error_message` 函式，透過正規表達式主動遮蔽 URL 憑證 (`user:pass`)、HTTP Header (如 `Cookie`, `Authorization`) 的值，以及內含的 IPv4 位址。並已整合至 `crawler/runner.py` 的所有例外紀錄儲存點，徹底阻絕機密外洩風險。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式資安需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **修復畸形網域 (IDNA) 解析例外導致爬蟲崩潰的風險**
    * **問題描述**：爬蟲在處理具有瑕疵的網址時，若遭遇 IDNA 編碼錯誤（如 `idna.IDNAError`），而系統目前的 `_FETCH_SAFE_EXCEPTIONS` 沒有捕捉到這個特定的例外，這會導致未處理的例外直接往上層拋，造成爬蟲任務意外崩潰。
    * **修正方案**：已在 `crawler/core.py` 引入 `idna` 套件，並將 `idna.IDNAError` 加入 `_FETCH_SAFE_EXCEPTIONS` 元組中，確保遇到格式錯誤的網域時能安全略過而不引發任務中斷。
-   * **狀態**：**已解決（Resolved）**。
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **將外部連結檢查的 `ThreadPool` 數量調優**
+   * **說明**：（已寫入 `requirements.md` §4.5 成為正式架構需求規範）
    * **問題描述**：外部連結探測是純 I/O 密集的操作，預設只開 5 個 Worker 數量過少，導致外部連結多的網頁爬取速度被嚴重拖慢。
    * **修正方案**：在 `crawler/runner.py` 中，將 `CRAWLER_MAX_WORKERS` 的預設值由 5 調大至 50，一舉提升 10 倍的外連並發探測吞吐量。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **修復 `_process_item` 非原子性 Commit 導致內外部連結資料不一致**
+   * **說明**：（已寫入 `requirements.md` §3.4 成為正式架構需求規範）
    * **問題描述**：`_process_item` 先處理內部連結並 `session.commit()`，再處理外部連結並再次 `session.commit()`。若外部連結處理途中拋出例外，內部連結已入庫但外部連結遺失，且佇列項目狀態已被標記為 `completed`，形成資料不一致。
    * **修正方案**：移除中間的提早 `commit()`，改用 `session.flush()` 取得 ID；待 `_handle_internal_links` 與 `_handle_external_links` 均執行完畢後，才於 `_process_item` 末尾統一執行最後一次 `session.commit()`。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **修復 `_handle_error` 後缺少 `session.commit()` 導致狀態更新遺失**
+   * **說明**：（已寫入 `requirements.md` §3.4 成為正式架構需求規範）
    * **問題描述**：`_process_item` 在捕捉 `httpx.HTTPError` 後呼叫 `_handle_error`，而 `_handle_error` 內部會先執行 `session.rollback()`，再修改 `queue_item` 的 `status`、`retry_count` 等屬性。但 `_handle_error` 回傳後，`_process_item` 沒有後續的 `session.commit()`，導致這些修改永遠不會寫入資料庫。結果是：永久性錯誤（404/403）的失敗狀態遺失、重試計數不遞增。
    * **修正方案**：在 `crawler/runner.py` 的 `except httpx.HTTPError` 區塊，於 `self._handle_error(...)` 呼叫後補上 `session.commit()`。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **全面盤查並修復進度數據 (progress_stats) 更新不一致的問題**
+   * **說明**：（已寫入 `requirements.md` §3.4 成為正式架構需求規範）
    * **問題描述**：目前使用 `progress_stats` 來紀錄快取進度，但在「重新探測」部份連結後，或是發生其他非預期情況時，`progress_stats` 沒有正確同步更新，導致介面上「爬取進度」內的數據與實際狀況脫節。
    * **規劃方案**：全面盤查所有會更動內部或外部連結狀態的邏輯（尤其是重新探測、狀態變更等流程），確保每次狀態異動時，都會對應地重新計算並寫入最新的 `progress_stats`，以維持數據一致性與正確性。
-   * **狀態**：**已解決（Resolved）**。（已寫入 `requirements.md` 成為正式架構需求）
+   * **狀態**：**已解決 (Resolved)**。
 
 ---
 
