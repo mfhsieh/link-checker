@@ -58,6 +58,7 @@ export class JobProgressCard extends HTMLElement {
         /** @type {HTMLElement|null} @private */ this._statWarningEl = null;
         /** @type {HTMLElement|null} @private */ this._statSkippedEl = null;
         /** @type {HTMLElement|null} @private */ this._statPendingEl = null;
+        /** @type {HTMLElement|null} @private */ this._depthTextEl = null;
     }
 
     /**
@@ -171,17 +172,33 @@ export class JobProgressCard extends HTMLElement {
         const headerEl = document.createElement('div');
         headerEl.className = 'card-header';
 
+        const headerLeftEl = document.createElement('div');
+        headerLeftEl.className = 'header-left';
+        headerLeftEl.style.display = 'flex';
+        headerLeftEl.style.alignItems = 'center';
+        headerLeftEl.style.gap = '0.75rem';
+        headerLeftEl.style.flexWrap = 'wrap';
+
         const titleEl = document.createElement('span');
         titleEl.className = 'card-title';
         titleEl.textContent = '爬取進度';
 
-        const headerRightEl = document.createElement('div');
-        headerRightEl.className = 'header-right';
+        this._depthTextEl = document.createElement('span');
+        this._depthTextEl.className = 'text-sm font-mono text-muted';
+        this._depthTextEl.id = 'job-depth-text';
+        this._depthTextEl.textContent = '深度: -';
 
         this._progressTextEl = document.createElement('span');
         this._progressTextEl.className = 'text-sm font-mono text-muted';
         this._progressTextEl.id = 'job-progress-text';
-        this._progressTextEl.textContent = '0%';
+        this._progressTextEl.textContent = '進度: 0%';
+
+        headerLeftEl.appendChild(titleEl);
+        headerLeftEl.appendChild(this._depthTextEl);
+        headerLeftEl.appendChild(this._progressTextEl);
+
+        const headerRightEl = document.createElement('div');
+        headerRightEl.className = 'header-right';
 
         this._btnExportEl = document.createElement('button');
         this._btnExportEl.className = 'btn btn-secondary btn-sm';
@@ -194,9 +211,9 @@ export class JobProgressCard extends HTMLElement {
         this._btnExportEl.appendChild(exportIconEl);
         this._btnExportEl.appendChild(document.createTextNode(' 完整報表'));
 
-        headerRightEl.appendChild(this._progressTextEl);
         headerRightEl.appendChild(this._btnExportEl);
-        headerEl.appendChild(titleEl);
+
+        headerEl.appendChild(headerLeftEl);
         headerEl.appendChild(headerRightEl);
         cardEl.appendChild(headerEl);
 
@@ -252,7 +269,8 @@ export class JobProgressCard extends HTMLElement {
 
         if (!this._job) {
             this._progressFillEl.style.width = '0%';
-            this._progressTextEl.textContent = '0%';
+            this._progressTextEl.textContent = '進度: 0%';
+            if (this._depthTextEl) this._depthTextEl.textContent = '深度: -';
             this._statTotalEl.textContent = '-';
             this._statCompletedEl.textContent = '-';
             this._statWarningEl.textContent = '-';
@@ -265,6 +283,18 @@ export class JobProgressCard extends HTMLElement {
         const progress = this._job.progress || {};
         const total = progress.total || 0;
         const pending = progress.pending || 0;
+        const currentDepth = progress.current_depth;
+        const maxDepth = this._job.config?.crawler?.max_depth ?? null;
+
+        if (this._depthTextEl) {
+            if (currentDepth === null || currentDepth === undefined) {
+                this._depthTextEl.textContent = '深度: -';
+            } else if (maxDepth !== null && maxDepth !== undefined) {
+                this._depthTextEl.textContent = `深度: ${currentDepth} / ${maxDepth}`;
+            } else {
+                this._depthTextEl.textContent = `深度: ${currentDepth}`;
+            }
+        }
 
         let percentage = 0;
         if (total > 0) {
@@ -274,7 +304,7 @@ export class JobProgressCard extends HTMLElement {
         }
 
         this._progressFillEl.style.width = `${percentage}%`;
-        this._progressTextEl.textContent = `${percentage}%`;
+        this._progressTextEl.textContent = `進度: ${percentage}%`;
 
         this._statTotalEl.textContent = total;
         this._statCompletedEl.textContent = progress.completed || 0;

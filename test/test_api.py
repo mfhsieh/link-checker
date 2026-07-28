@@ -359,13 +359,13 @@ def _run_api_full_flow() -> None:
     assert res.status_code in (200, 201, 202), f"Job create failed: {res.text}"
     job_id = res.json()["job_id"]
 
-    # 15. Jobs - List
-    res = client.get("/api/jobs")
+    # 15. Jobs - List (含 limit & offset 分頁測試)
+    res = client.get("/api/jobs?limit=10&offset=0")
     assert res.status_code in (200, 201, 202), res.text
     assert len(res.json()) == 1
 
-    # 15.5. Admin - Jobs List
-    res = client.get("/api/admin/jobs")
+    # 15.5. Admin - Jobs List (含 limit & offset 分頁測試)
+    res = client.get("/api/admin/jobs?limit=10&offset=0")
     assert res.status_code in (200, 201, 202), res.text
     assert len(res.json()) >= 1
 

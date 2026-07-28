@@ -225,7 +225,13 @@ def get_job_detail(manager: JobManager, job_id: str, user_id: str, *, bypass_aut
     }
 
 
-def list_jobs(manager: JobManager, user_id: str, status: str | None = None) -> list[dict[str, object]]:
+def list_jobs(
+    manager: JobManager,
+    user_id: str,
+    status: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+) -> list[dict[str, object]]:
     """
     列出指定使用者的所有任務。
 
@@ -233,6 +239,8 @@ def list_jobs(manager: JobManager, user_id: str, status: str | None = None) -> l
         manager (JobManager): JobManager 實例。
         user_id (str): 使用者 ID。
         status (str | None): 過濾狀態。
+        limit (int | None): 限制回傳資料筆數 (Pagination Limit)。
+        offset (int | None): 跳過資料位移筆數 (Pagination Offset)。
 
     Returns:
         list[dict[str, object]]: 任務摘要清單。
@@ -240,7 +248,7 @@ def list_jobs(manager: JobManager, user_id: str, status: str | None = None) -> l
     _cleanup_finished_processes()
     _cleanup_zombie_jobs(manager, caller="list_jobs")
 
-    return manager.get_all_jobs(user_id=user_id, status=status)
+    return manager.get_all_jobs(user_id=user_id, status=status, limit=limit, offset=offset)
 
 
 def delete_job(manager: JobManager, job_id: str, user_id: str) -> bool:

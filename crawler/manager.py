@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from sqlalchemy import Engine, case
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.functions import count as sql_count
+from sqlalchemy.sql.functions import max as sql_max
 from sqlalchemy.sql.functions import sum as sql_sum
 
 from backend.events import SystemEvent, publish
@@ -205,13 +206,21 @@ class JobManager:
         )
         runner.execute(crawler_config, force, is_api_spawn)
 
-    def get_all_jobs(self, user_id: str | None = None, status: str | None = None) -> list[dict[str, object]]:
+    def get_all_jobs(
+        self,
+        user_id: str | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[dict[str, object]]:
         """
-        取得所有任務的列表與基本資訊。可透過 user_id 與 status 進行過濾。
+        取得所有任務的列表與基本資訊。可透過 user_id 與 status 進行過濾，並支援 limit 與 offset 分頁。
 
         Args:
             user_id (str | None): (選填) 若提供，則僅回傳該擁有者的任務。
             status (str | None): (選填) 依據任務狀態進行過濾（如 ``"running"``、``"paused"``）。
+            limit (int | None): (選填) 限制回傳的任務數量筆數。
+            offset (int | None): (選填) 跳過的位移筆數。
 
         Returns:
             list[dict[str, object]]: 按建立時間進行遞減排列的任務基本資訊字典陣列。
@@ -232,7 +241,12 @@ class JobManager:
                 query = query.filter(Job.user_id == user_id)
             if status:
                 query = query.filter(Job.status == status)
-            jobs = query.order_by(Job.created_at.desc()).all()
+            query = query.order_by(Job.created_at.desc())
+            if offset is not None and offset > 0:
+                query = query.offset(offset)
+            if limit is not None and limit > 0:
+                query = query.limit(limit)
+            jobs = query.all()
             return [
                 {
                     "id": job.id,
@@ -302,6 +316,7 @@ class JobManager:
                     sql_sum(case((CrawlQueue.status == "pending", 1), else_=0)).label("pending"),
                     sql_sum(case((CrawlQueue.status == "failed", 1), else_=0)).label("failed"),
                     sql_sum(case((CrawlQueue.status == "skip", 1), else_=0)).label("skipped"),
+                    sql_max(CrawlQueue.depth).label("max_depth"),
                 )
                 .filter(CrawlQueue.job_id == job_id)
                 .first()
@@ -313,6 +328,7 @@ class JobManager:
             pending = int(queue_stats.pending) if queue_stats and queue_stats.pending else 0
             failed = int(queue_stats.failed) if queue_stats and queue_stats.failed else 0
             skipped = int(queue_stats.skipped) if queue_stats and queue_stats.skipped else 0
+            current_depth = int(queue_stats.max_depth) if (queue_stats and queue_stats.max_depth is not None) else None
 
             total_external = (
                 session.query(sql_count(ExternalLink.id)).filter(ExternalLink.job_id == job_id).scalar() or 0
@@ -326,6 +342,7 @@ class JobManager:
                     "skipped": skipped,
                     "pending": pending,
                     "failed": failed,
+                    "current_depth": current_depth,
                 },
                 "external_links": total_external,
             }

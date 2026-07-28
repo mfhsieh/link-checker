@@ -39,12 +39,7 @@
 
 ### 中優先（中大型功能擴充）
 
-1. **爬蟲深度 (Depth) 監控與動態調整任務參數**
-   * **問題描述**：目前使用者在任務執行期間，無法直觀地得知爬蟲當前探索到了哪一個層級 (Depth) 的內部連結。此外，如果任務在中途發現原本設定的 `max_depth` (最大深度) 或 `max_pages` (最大頁面數) 不符預期（例如想提早結束或擴大探索範圍），系統目前並不支援在任務執行過程中動態修改這些參數。
-   * **規劃方案**：
-     1. **深度狀態顯示**：在前端任務進度監控介面中，新增顯示「當前爬蟲深度 (Current Depth)」，讓探索進度更透明。
-     2. **動態參數調整**：實作對應的後端 API 與前端介面，允許使用者在任務「執行中」動態修改該任務的 `max_depth` 與 `max_pages` 限制，並讓爬蟲核心引擎能在下一次迭代時即時套用新設定。
-   * **狀態**：**待排程（Pending）**。
+*(目前無中優先待處理事項)*
 
 ### 低優先（邊緣需求與周邊工具）
 
@@ -57,16 +52,11 @@
 
 ## 進行中 / 部分完成 (In Progress)
 
-*(目前無進行中項目)*
+(目前無)
 
 ---
 
 ## 觀察中 / 長期規劃 (Monitoring)
-
-1. **為 `JobManager.get_all_jobs` 與前端 API 新增分頁機制 (Pagination)**
-   * **現狀描述**：`crawler/manager.py` 的 `get_all_jobs()` 函式目前呼叫 `.all()` 撈出全量歷史任務。雖然當前任務數量在一般場景下效能良好，但若未來資料庫累積龐大歷史任務時，會產生較大的記憶體與資料庫 I/O 開銷。
-   * **改善建議**：於 `get_all_jobs()` 與 `GET /api/jobs` 端點新增可選的 `limit` 與 `offset` 查詢參數，並於未來前端規劃 UI 任務分頁時一併搭配實作。
-   * **狀態**：**觀察中（Monitoring）**。目前任務數量尚在高效載入範圍內，待未來前端有明確任務分頁需求時再與後端連同 API 規格一併實作。
 
 1. **實作雙資料庫軟刪除 (Soft Delete) 與背景清理機制**
    * **現狀描述**：規格書 **§4.1** 明確要求跨資料庫資源刪除時，應採軟刪除機制以確保最終一致性。但在當前架構下，跨資料庫的資源關聯極少頻繁變動，且全面改用軟刪除需改寫幾乎所有 SQLAlchemy 查詢以過濾 `deleted_at`。
@@ -133,6 +123,24 @@
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+1. **爬蟲深度 (Depth) 監控與探索層級顯示**
+   * **說明**：（符合 `requirements.md` §7.2 之任務監控與進度規範）
+   * **問題描述**：目前使用者在任務執行期間，無法在前端介面直觀地得知爬蟲當前探索到了哪一個層級 (Depth) 的內部連結。
+   * **修復方案**：於 `JobManager.get_job_progress` 統計查詢 `max(CrawlQueue.depth)`，並於前端 `<job-progress>` 元件新增「當前探索深度 Badge」，即時隨 SSE 串流反饋當前探測層級（若無資料以 `-` 優雅顯示）。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **全站表格操作欄與工具列 RWD 自動折行優化 (Responsive Actions Group)**
+   * **說明**：（已寫入 `requirements.md` §7.6 成為正式前端 UI/RWD 規範）
+   * **問題描述**：原本在「我的任務」列表、後台管理表格與任務詳情/比對工具列中，操作欄位的按鈕在窄螢幕或行動端會排成一長橫列而不折行，導致爆欄或排版不優雅。
+   * **修復方案**：全域與元件層級（`jobs.js`, `admin-main.js`, `link-table.js`, `app.html` 及全域 CSS）補齊 `.job-actions`, `.table-actions`, `.link-toolbar` 的 `flex-wrap: wrap` 與適應性間距，確保窄畫面與行動端自動優雅折行。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **為 `JobManager.get_all_jobs` 與 API 端點新增分頁機制 (Pagination)**
+   * **說明**：（已寫入 `requirements.md` 與 `api_spec.md` 成為正式 API 分頁規範）
+   * **問題描述**：`crawler/manager.py` 的 `get_all_jobs()` 函式先前呼叫 `.all()` 撈出全量歷史任務，若資料庫累積龐大歷史任務時會產生記憶體與資料庫 I/O 開銷。
+   * **修復方案**：已於 `JobManager.get_all_jobs`、`list_jobs` 服務、`GET /api/jobs` 與 `GET /api/admin/jobs` 端點成功引入 `limit` 與 `offset` 分頁查詢參數，並同步調整前端 `JobsStore.fetchJobs()` 支援分頁。
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **建立 MCP Server 以監控遠端 Production 任務狀態**
    * **說明**：（已寫入 `requirements.md` §15.1 成為正式 MCP 介面與工具規格）

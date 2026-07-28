@@ -52,14 +52,24 @@ export class JobsStore {
 
     /**
      * 向後端 API 取得任務清單資料
+     * @param {Object} [pagination={}] - (選填) 分頁參數物件
+     * @param {number} [pagination.limit] - 限制回傳筆數
+     * @param {number} [pagination.offset] - 跳過筆數
      * @returns {Promise<Array<Object>>} 回傳任務列表資料陣列
      */
-    async fetchJobs() {
+    async fetchJobs(pagination = {}) {
         const params = {
             sort_by: this.sort.key,
             order: this.sort.asc ? 'asc' : 'desc',
             ...this.colFilters
         };
+
+        if (pagination.limit !== undefined && pagination.limit !== null) {
+            params.limit = pagination.limit;
+        }
+        if (pagination.offset !== undefined && pagination.offset !== null) {
+            params.offset = pagination.offset;
+        }
 
         if (this.colFilters.status === 'ALL' || !this.colFilters.status) {
             delete params.status;

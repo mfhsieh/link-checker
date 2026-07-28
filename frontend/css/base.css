@@ -701,6 +701,25 @@ ol {
   margin-bottom: var(--space-6);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--surface-border-subtle);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* ── 操作按鈕組與響應式折行 (Responsive Actions) ───────────────────── */
+.job-actions,
+.table-actions,
+.actions-group,
+.btn-group,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+td .job-actions,
+td .table-actions {
+  gap: 4px 6px;
 }
 
 .card-title {

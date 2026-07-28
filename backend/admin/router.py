@@ -494,6 +494,8 @@ def resend_invite(
 def list_all_jobs(
     user_id: str | None = Query(None, description="依使用者 ID 篩選"),
     status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
+    limit: int | None = Query(None, ge=1, le=1000, description="限制回傳資料筆數 (Pagination Limit)"),
+    offset: int | None = Query(None, ge=0, description="跳過資料位移筆數 (Pagination Offset)"),
     manager: JobManager = Depends(get_job_manager),
     _admin: User = Depends(require_admin),
 ) -> list[dict[str, object]]:
@@ -503,12 +505,19 @@ def list_all_jobs(
     Args:
         user_id (str | None): (選填) 依使用者 ID 篩選。
         status_filter (str | None): (選填) 依任務狀態篩選。
+        limit (int | None): (選填) 限制回傳資料筆數 (Pagination Limit)。
+        offset (int | None): (選填) 跳過資料位移筆數 (Pagination Offset)。
         manager (JobManager): JobManager 實例。
 
     Returns:
         list[dict[str, object]]: 系統中所有任務的列表。
     """
-    return manager.get_all_jobs(user_id=user_id, status=status_filter)
+    return manager.get_all_jobs(
+        user_id=user_id,
+        status=status_filter,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post("/jobs/{job_id}/takeover", status_code=status.HTTP_200_OK)

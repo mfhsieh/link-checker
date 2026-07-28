@@ -107,6 +107,8 @@ def get_default_config(
 @router.get("")
 def list_jobs(
     status_filter: str | None = Query(None, alias="status", description="依任務狀態篩選"),
+    limit: int | None = Query(None, ge=1, le=1000, description="限制回傳資料筆數 (Pagination Limit)"),
+    offset: int | None = Query(None, ge=0, description="跳過資料位移筆數 (Pagination Offset)"),
     current_user: User = Depends(get_current_user),
     manager: JobManager = Depends(get_job_manager),
 ) -> list[dict[str, object]]:
@@ -115,13 +117,21 @@ def list_jobs(
 
     Args:
         status_filter (str | None): 依任務狀態篩選。
+        limit (int | None): 限制回傳資料筆數 (Pagination Limit)。
+        offset (int | None): 跳過資料位移筆數 (Pagination Offset)。
         current_user (User): 當前登入的使用者物件。
         manager (JobManager): JobManager 實例。
 
     Returns:
         list[dict[str, object]]: 任務清單。
     """
-    return job_management.list_jobs(manager, current_user.id, status=status_filter)
+    return job_management.list_jobs(
+        manager,
+        current_user.id,
+        status=status_filter,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post("")

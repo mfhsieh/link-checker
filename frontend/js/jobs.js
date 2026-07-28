@@ -145,7 +145,9 @@ export class JobsController {
                     const divActions = document.createElement('div');
                     divActions.className = 'job-actions';
                     divActions.style.display = 'flex';
-                    divActions.style.gap = '8px';
+                    divActions.style.flexWrap = 'wrap';
+                    divActions.style.gap = '6px';
+                    divActions.style.alignItems = 'center';
 
                     const btn = document.createElement('button');
                     btn.className = 'btn btn-sm btn-secondary';

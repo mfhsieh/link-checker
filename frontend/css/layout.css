@@ -213,9 +213,21 @@
     }
 
 
-    /* 窄螢幕時將工具列強制分行 */
+    /* 窄螢幕時將工具列與操作按鈕強制分行 */
     .link-toolbar {
         flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .job-actions,
+    .table-actions {
+        gap: 4px;
+    }
+
+    .job-actions .btn,
+    .table-actions .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: var(--text-xs);
     }
 
     .link-title {

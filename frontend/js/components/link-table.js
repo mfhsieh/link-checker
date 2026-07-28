@@ -203,6 +203,14 @@ export class LinkDataTable extends HTMLElement {
             tr:hover td { 
                 background: var(--surface-raised); 
             }
+            .job-actions,
+            .table-actions,
+            .actions-group {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 4px 6px;
+            }
             .th-header { 
                 display: flex; 
                 align-items: center; 

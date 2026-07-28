@@ -314,7 +314,7 @@
           "jobs"
         ],
         "summary": "List Jobs",
-        "description": "列出當前使用者的所有任務。\n\nArgs:\n    status_filter (str | None): 依任務狀態篩選。\n    current_user (User): 當前登入的使用者物件。\n    manager (JobManager): JobManager 實例。\n\nReturns:\n    list[dict[str, object]]: 任務清單。",
+        "description": "列出當前使用者的所有任務。\n\nArgs:\n    status_filter (str | None): 依任務狀態篩選。\n    limit (int | None): 限制回傳資料筆數 (Pagination Limit)。\n    offset (int | None): 跳過資料位移筆數 (Pagination Offset)。\n    current_user (User): 當前登入的使用者物件。\n    manager (JobManager): JobManager 實例。\n\nReturns:\n    list[dict[str, object]]: 任務清單。",
         "operationId": "list_jobs_api_jobs_get",
         "parameters": [
           {
@@ -334,6 +334,45 @@
               "title": "Status"
             },
             "description": "依任務狀態篩選"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 1000,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "限制回傳資料筆數 (Pagination Limit)",
+              "title": "Limit"
+            },
+            "description": "限制回傳資料筆數 (Pagination Limit)"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "跳過資料位移筆數 (Pagination Offset)",
+              "title": "Offset"
+            },
+            "description": "跳過資料位移筆數 (Pagination Offset)"
           }
         ],
         "responses": {
@@ -1878,7 +1917,7 @@
           "admin"
         ],
         "summary": "List All Jobs",
-        "description": "列出所有使用者的任務（Admin 全視圖）。\n\nArgs:\n    user_id (str | None): (選填) 依使用者 ID 篩選。\n    status_filter (str | None): (選填) 依任務狀態篩選。\n    manager (JobManager): JobManager 實例。\n\nReturns:\n    list[dict[str, object]]: 系統中所有任務的列表。",
+        "description": "列出所有使用者的任務（Admin 全視圖）。\n\nArgs:\n    user_id (str | None): (選填) 依使用者 ID 篩選。\n    status_filter (str | None): (選填) 依任務狀態篩選。\n    limit (int | None): (選填) 限制回傳資料筆數 (Pagination Limit)。\n    offset (int | None): (選填) 跳過資料位移筆數 (Pagination Offset)。\n    manager (JobManager): JobManager 實例。\n\nReturns:\n    list[dict[str, object]]: 系統中所有任務的列表。",
         "operationId": "list_all_jobs_api_admin_jobs_get",
         "parameters": [
           {
@@ -1916,6 +1955,45 @@
               "title": "Status"
             },
             "description": "依任務狀態篩選"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 1000,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "限制回傳資料筆數 (Pagination Limit)",
+              "title": "Limit"
+            },
+            "description": "限制回傳資料筆數 (Pagination Limit)"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "跳過資料位移筆數 (Pagination Offset)",
+              "title": "Offset"
+            },
+            "description": "跳過資料位移筆數 (Pagination Offset)"
           }
         ],
         "responses": {

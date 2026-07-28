@@ -230,6 +230,8 @@
 
 **Args**:
 - `status_filter` (str | None): 依任務狀態篩選。
+- `limit` (int | None): 限制回傳資料筆數 (Pagination Limit)。
+- `offset` (int | None): 跳過資料位移筆數 (Pagination Offset)。
 - `current_user` (User): 當前登入的使用者物件。
 - `manager` (JobManager): JobManager 實例。
 
@@ -918,6 +920,8 @@
 **Args**:
 - `user_id` (str | None): (選填) 依使用者 ID 篩選。
 - `status_filter` (str | None): (選填) 依任務狀態篩選。
+- `limit` (int | None): (選填) 限制回傳資料筆數 (Pagination Limit)。
+- `offset` (int | None): (選填) 跳過資料位移筆數 (Pagination Offset)。
 - `manager` (JobManager): JobManager 實例。
 
 

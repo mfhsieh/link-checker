@@ -996,8 +996,11 @@ function renderAllJobsTable(container) {
             sortable: false,
             render: (_, j) => {
                 const divActions = document.createElement("div");
+                divActions.className = "table-actions";
                 divActions.style.display = "flex";
-                divActions.style.gap = "0.5rem";
+                divActions.style.flexWrap = "wrap";
+                divActions.style.gap = "6px";
+                divActions.style.alignItems = "center";
                 if (["running", "starting"].includes(j.status)) {
                     const btnTakeover = document.createElement("button");
                     btnTakeover.className = "btn btn-sm btn-secondary";
