@@ -41,13 +41,15 @@ link-checker/
 ├── frontend/           # 網站前台 UI (原生 Vanilla JS/CSS)
 │   ├── css/            # Vanilla CSS 樣式表
 │   ├── image/          # 靜態圖片與圖示資源
-│   ├── js/             # Vanilla JS (ESM) 邏輯模組
-│   │   ├── components/ # 原生 Web Components 元件庫 (例如 link-table, toast 等)
-│   │   ├── services/   # 前端服務與邏輯抽象層 (例如 API 操作封裝)
-│   │   ├── api.js, auth.js, auth-reset.js # API 與身分驗證
-│   │   ├── jobs.js, job-detail.js         # 任務列表與詳情 (組合 Component 並管理狀態)
-│   │   ├── compare.js, duplicate.js       # 任務比對與複製
-│   │   ├── transfer.js                    # 任務移交
+│   ├── js/             # Vanilla JS (ESM) 邏輯模組 (MVC 分層架構)
+│   │   ├── components/ # 原生 Web Components 元件庫 (例如 link-table, job-stats, job-status, job-progress 等)
+│   │   ├── controllers/# 前端頁面控制器層 (JobsController, JobDetailController, CompareController, TransferController, DuplicateController)
+│   │   ├── stores/     # 前端集中式狀態庫層 (JobsStore, JobDetailStore, CompareStore)
+│   │   ├── services/   # 前端服務與 API 業務邏輯封裝 (JobService, AdminService)
+│   │   ├── api.js, auth.js, auth-reset.js # 基礎 API 通訊與身分驗證工具
+│   │   ├── jobs.js, job-detail.js         # 任務列表與詳情模組進入點
+│   │   ├── compare.js, duplicate.js       # 任務比對與複製進入點
+│   │   ├── transfer.js                    # 任務移交進入點
 │   │   └── app-main.js, admin-main.js     # 前端應用主進入點腳本
 │   ├── index.html      # 登入與首頁
 │   ├── app.html        # 爬蟲任務管理主介面
@@ -147,8 +149,12 @@ graph TD
 本系統整體架構分為以下四個核心層級：
 
 1. **前端展示層 (Frontend Layer)**
-   * 原生 Vanilla JS (ESM) 與 Vanilla CSS，不依賴任何前端框架，確保極低的維護成本與供應鏈安全。
-   * 採用 Single Page Application (SPA) 架構，所有狀態更新皆透過 REST API 與 Server-Sent Events (SSE) 即時通訊獲取，並具備前端路由解析能力。
+   * 原生 Vanilla JS (ESM) 與 Vanilla CSS，不依賴任何第三方前端框架，確保極低的維護成本與供應鏈安全。
+   * 採用 Single Page Application (SPA) 架構，所有狀態更新皆透過 REST API 與 Server-Sent Events (SSE) 即時通訊獲取，並具備 Hash-based 前端 SPA 路由解析能力。
+   * **MVC 模組化與組件拆分**：
+     - **View (Web Components)**：將 UI 區塊抽象封裝為原生 Web Components (Custom Elements)，包含 `<link-table>` (純 DOM 渲染表格與分頁排序)、`<job-stats>` (狀態統計卡片)、`<job-status>` (任務屬性) 與 `<job-progress>` (爬取進度條) 等。全站 100% 使用 DOM API 節點建立，徹底防範 XSS 攻擊。
+     - **Store (集中式狀態庫)**：建立獨立狀態庫 (`JobsStore`, `JobDetailStore`, `CompareStore`)，集中維護快取、排序選項、欄位篩選器與勾選 URL 集合。
+     - **Controller (控制器層)**：建立頁面控制器 (`JobsController`, `JobDetailController`, `CompareController`, `TransferController`, `DuplicateController`, `JobDetailSSEManager`, `JobDetailTableManager`) 負責協調 Store 與 UI 互動、管理 SSE 串流連線與 30s 輪詢備援。
 
 2. **Web 服務層 (API & Application Layer)**
    * 採用 FastAPI 框架提供非同步的 HTTP 服務，負責處理路由、身分驗證 (Auth/Session)、CSRF 防禦、全域配置管理與請求校驗。
