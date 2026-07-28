@@ -158,12 +158,9 @@ graph TD
    * **進程隔離 (Subprocess Bridge)**：Web 服務不直接在主記憶體內執行爬蟲，而是負責生成 (Spawn) 獨立的子程序呼叫 Crawler 引擎，藉此保護 API 主事件迴圈不被阻塞。
 
 3. **爬蟲核心引擎 (Crawler Core)**
-   * CLI (`cli.py`) 直接驅動，能在沒有 Web 伺服器的情況下獨立完成所有工作。
-   * 提供獨立的 `scripts/mcp_server.py` 伺服器，允許 AI 代理人 (如 Claude Desktop) 直接透過 Model Context Protocol 查詢任務狀態、控制爬蟲行為，並可作為**遠端網路探測節點**，輔助進行跨環境的防禦策略診斷。
-   * 結合 `httpx` 與 `BeautifulSoup4`，負責網路探測、HTML 解析、防護機制穿透 (Anti-Bot Bypass) 與錯誤重試。重試退避採用 `_MICRO_SLEEP_STEP_SECONDS` (0.5 秒) 微步長解耦長延遲，確保能即時響應使用者的暫停/停止指令；並對狀態查詢具備 `SQLAlchemyError` 暫時性 DB 異常容錯防護。
-   * **主動式敏感資訊清洗 (Data Sanitization)**：內建錯誤訊息過濾機制，在例外發生時自動遮蔽代理伺服器憑證、Cookie、Authorization Header 與 IP 位址 (IPv4/IPv6)，徹底阻絕機密明文落地的外洩風險。
-   * 全程由資料庫狀態 (State-driven) 引導執行，具備中斷恢復、協同暫停與殭屍進程防禦（PID 與啟動時間雙重比對）等高可靠度機制。
-   * **可觀測性與多任務隔離 (Observability)**：採用 `contextvars` 原生上下文變數進行無侵入式日誌綁定，確保在高併發環境下各任務的追蹤日誌絕對隔離，免於全域變數污染。
+   * **自治驅動 (CLI-First)**：由 CLI (`cli.py`) 直接驅動，可脫離 Web 伺服器獨立執行所有探索任務。
+   * **AI 代理整合 (MCP Server)**：提供獨立的 `scripts/mcp_server.py`，允許 AI 代理人透過 Model Context Protocol 查詢任務狀態與進行探測診斷。
+   * **高度可靠性與防禦機制**：支援防護穿透、錯誤重試、敏感資訊清洗 (Data Sanitization)、資料庫狀態驅動 (State-driven) 的中斷恢復與多任務日誌隔離。
 
 4. **資料持久層 (Data Layer)**
    * 採用雙資料庫實體分離架構：**Auth DB** (掌管帳號、日誌與權限) 與 **Crawler DB** (掌管任務、佇列與外連結果)。
