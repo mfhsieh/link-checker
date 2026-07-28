@@ -151,10 +151,7 @@ graph TD
 1. **前端展示層 (Frontend Layer)**
    * 原生 Vanilla JS (ESM) 與 Vanilla CSS，不依賴任何第三方前端框架，確保極低的維護成本與供應鏈安全。
    * 採用 Single Page Application (SPA) 架構，所有狀態更新皆透過 REST API 與 Server-Sent Events (SSE) 即時通訊獲取，並具備 Hash-based 前端 SPA 路由解析能力。
-   * **MVC 模組化與組件拆分**：
-     - **View (Web Components)**：將 UI 區塊抽象封裝為原生 Web Components (Custom Elements)，包含 `<link-table>` (純 DOM 渲染表格與分頁排序)、`<job-stats>` (狀態統計卡片)、`<job-status>` (任務屬性) 與 `<job-progress>` (爬取進度條) 等。全站 100% 使用 DOM API 節點建立，徹底防範 XSS 攻擊。
-     - **Store (集中式狀態庫)**：建立獨立狀態庫 (`JobsStore`, `JobDetailStore`, `CompareStore`)，集中維護快取、排序選項、欄位篩選器與勾選 URL 集合。
-     - **Controller (控制器層)**：建立頁面控制器 (`JobsController`, `JobDetailController`, `CompareController`, `TransferController`, `DuplicateController`, `JobDetailSSEManager`, `JobDetailTableManager`) 負責協調 Store 與 UI 互動、管理 SSE 串流連線與 30s 輪詢備援。
+   * **MVC 模組化架構**：採用原生 Web Components (Custom Elements) 封裝 View 視圖元件，並搭配獨立的 Store 狀態庫與 Controller 控制器層進行狀態管理與 UI 協調。
 
 2. **Web 服務層 (API & Application Layer)**
    * 採用 FastAPI 框架提供非同步的 HTTP 服務，負責處理路由、身分驗證 (Auth/Session)、CSRF 防禦、全域配置管理與請求校驗。
