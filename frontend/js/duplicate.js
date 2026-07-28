@@ -1,70 +1,29 @@
 /**
- * duplicate.js — 複製任務專屬頁面邏輯（ESM）
+ * duplicate.js — 複製任務模組進入點（ESM）
  */
 
-import * as api from './api.js';
+import { DuplicateController } from './controllers/duplicate-controller.js';
 
-/** @type {boolean} 是否已綁定複製任務事件 */
-let _eventsBound = false;
-
-/**
- * 綁定複製任務相關事件
- * @returns {void}
- */
-function bindDuplicateEvents() {
-    const formEl = document.getElementById('duplicate-view-form');
-    if (!formEl) return;
-
-    formEl.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const jobSelectEl = document.getElementById('duplicate-job-select');
-        const jobId = jobSelectEl.value;
-
-        if (!jobId) return;
-
-        // 跳轉至新增任務頁面並帶入 clone 參數
-        window.location.hash = `#/new?clone=${jobId}`;
-    });
-}
+/** @type {DuplicateController|null} 單一控制器實例 */
+let duplicateController = null;
 
 /**
  * 初始化任務複製頁面
- * @returns {Promise<void>} 無回傳值
+ * @returns {Promise<void>}
  */
 export async function initDuplicatePage() {
-    if (!_eventsBound) {
-        bindDuplicateEvents();
-        _eventsBound = true;
+    if (!duplicateController) {
+        duplicateController = new DuplicateController();
     }
+    await duplicateController.init();
+}
 
-    const jobSelectEl = document.getElementById('duplicate-job-select');
-    const runBtn = document.getElementById('btn-run-duplicate');
-
-    if (!jobSelectEl) return;
-
-    jobSelectEl.options.length = 0;
-    jobSelectEl.options.add(new Option('載入中...', ''));
-    runBtn.disabled = true;
-
-    try {
-        const jobs = await api.get('/api/jobs');
-
-        if (jobs.length === 0) {
-            jobSelectEl.options.length = 0;
-            jobSelectEl.options.add(new Option('無歷史任務可複製', ''));
-            return;
-        }
-
-        jobSelectEl.replaceChildren();
-        jobSelectEl.appendChild(new Option('-- 請選擇欲複製的任務 --', ''));
-
-        jobs.forEach(j => {
-            const statusStr = api.formatStatus(j.status);
-            jobSelectEl.appendChild(new Option(`${api.formatShortUuid(j.id)} - ${j.start_url} [${statusStr}]`, j.id));
-        });
-        runBtn.disabled = false;
-    } catch (err) {
-        jobSelectEl.options.length = 0;
-        jobSelectEl.options.add(new Option('無法載入任務列表', ''));
+/**
+ * 銷毀並清理複製頁面資源
+ * @returns {void}
+ */
+export function destroyDuplicatePage() {
+    if (duplicateController) {
+        duplicateController.destroy();
     }
 }

@@ -57,10 +57,6 @@
 
 ## 進行中 / 部分完成 (In Progress)
 
-1. **前端程式碼重構：導入 MVC 或 Web Components 模組化封裝**
-   * **問題描述**：目前前端程式碼（如 `frontend/js/job-detail.js` 與 `frontend/js/jobs.js`）存在大量的全域變數狀態與未封裝的 DOM 操作（義大利麵條式程式碼），缺乏模組化設計。這導致在處理複雜的動態資料流（如 SSE 即時更新、多條件過濾）時，程式碼高度耦合，難以追蹤錯誤與進行長期維護。
-   * **規劃方案**：遵循 `doc/requirements.md` 中的「前端狀態管理與元件封裝防呆」規範，全面重構現有的 Vanilla JS 程式碼。將各個獨立的 UI 區塊（例如：任務狀態卡片、數據表格、篩選面板等）封裝成獨立的類別 (Class) 或原生 Web Components (Custom Elements)。確保每個元件自行管理內部狀態與事件監聽，達成高內聚低耦合的架構。
-   * **狀態**：**部分完成（Partially Completed）**。已完成多數 Web Components 提取，但負責協調的「Controller/State 層」（即 `job-detail.js` 和 `jobs.js`）尚未完成。
 
 1. **建立 MCP Server 以監控遠端 Production 任務狀態**
    * **說明**：（已寫入 `requirements.md` §15.1 成為正式 MCP 介面與工具規格）
@@ -142,6 +138,12 @@
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+1. **前端程式碼重構：導入 MVC 或 Web Components 模組化封裝**
+   * **說明**：（已寫入 `requirements.md` §7.5 成為正式前端規範）
+   * **問題描述**：目前前端程式碼（如 `frontend/js/job-detail.js` 與 `frontend/js/jobs.js`）存在大量的全域變數狀態與未封裝的 DOM 操作（義大利麵條式程式碼），缺乏模組化設計。這導致在處理複雜的動態資料流（如 SSE 即時更新、多條件過濾）時，程式碼高度耦合，難以追蹤錯誤與進行長期維護。
+   * **修復方案**：遵循 `doc/requirements.md` 中的「前端狀態管理與元件封裝防呆」規範，已全面重構現有的 Vanilla JS 程式碼。將各個獨立的 UI 區塊封裝成獨立的類別 (Class) 或原生 Web Components (Custom Elements)。確保每個元件自行管理內部狀態與事件監聽，達成高內聚低耦合的架構。已完成 Web Components 提取與 Controller/State 協調層重構 (`JobsStore`, `JobsController`, `JobDetailStore`, `JobDetailSSEManager`, `JobDetailTableManager`, `JobDetailController`, `CompareController`, `TransferController`, `DuplicateController`)，並將全域 UI 監聽邏輯抽離至 `modal-helper.js`。
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **擴充與完善系統輔助說明 (Help & FAQ)**
    * **說明**：（已補充 `help.html` 報表與主網域優先說明，以及 `faq.html` 補充 Email/併發/Cookie-gate 等 Q&A 內容）

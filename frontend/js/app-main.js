@@ -6,9 +6,10 @@ import {
     initJobDetailPage,
     destroyJobDetailPage,
 } from "/static/js/job-detail.js";
-import { initComparePage } from "/static/js/compare.js";
-import { initTransferPage } from "/static/js/transfer.js";
-import { initDuplicatePage } from "/static/js/duplicate.js";
+import { initComparePage, destroyComparePage } from "/static/js/compare.js";
+import { initTransferPage, destroyTransferPage } from "/static/js/transfer.js";
+import { initDuplicatePage, destroyDuplicatePage } from "/static/js/duplicate.js";
+import { initModalObserver } from "/static/js/components/modal-helper.js";
 import * as jobService from "/static/js/services/job-service.js";
 
 // ── 初始化使用者資訊 ──────────────────────────────────────
@@ -250,6 +251,17 @@ async function loadJobDefaults() {
 let _currentView = null;
 
 /**
+ * 銷毀目前所有活躍的頁面，清空記憶體與事件綁定
+ * @returns {void}
+ */
+function destroyAllPages() {
+    destroyJobDetailPage();
+    destroyComparePage();
+    destroyTransferPage();
+    destroyDuplicatePage();
+}
+
+/**
  * 處理 Hash Router 路由變更事件。
  * 根據 window.location.hash 切換不同的視圖 (View) 與側邊欄啟用狀態。
  * @returns {Promise<void>} 無回傳值
@@ -271,12 +283,12 @@ async function route() {
         if (viewHelp) viewHelp.style.display = "";
         if (appSidebar) appSidebar.setAttribute("active-id", "nav-help");
         _currentView = "help";
-        destroyJobDetailPage();
+        destroyAllPages();
     } else if (hash.startsWith("#/compare")) {
         if (viewCompare) viewCompare.style.display = "";
         if (appSidebar) appSidebar.setAttribute("active-id", "nav-compare");
         _currentView = "compare";
-        destroyJobDetailPage();
+        destroyAllPages();
 
         const params = new URLSearchParams(hash.split("?")[1] || "");
         const baseId = params.get("base");
@@ -287,7 +299,7 @@ async function route() {
         if (viewTransfer) viewTransfer.style.display = "";
         if (appSidebar) appSidebar.setAttribute("active-id", "nav-transfer");
         _currentView = "transfer";
-        destroyJobDetailPage();
+        destroyAllPages();
 
         const params = new URLSearchParams(hash.split("?")[1] || "");
         const jobId = params.get("job");
@@ -297,14 +309,14 @@ async function route() {
         if (viewDuplicate) viewDuplicate.style.display = "";
         if (appSidebar) appSidebar.setAttribute("active-id", "nav-duplicate");
         _currentView = "duplicate";
-        destroyJobDetailPage();
+        destroyAllPages();
 
         await initDuplicatePage();
     } else if (hash.startsWith("#/new")) {
         if (viewCreate) viewCreate.style.display = "";
         if (appSidebar) appSidebar.setAttribute("active-id", "nav-new-job");
         _currentView = "new";
-        destroyJobDetailPage();
+        destroyAllPages();
         await loadJobDefaults();
 
         // 每次進入新建/複製頁面，都先重置表單以避免舊有狀態殘留
@@ -452,19 +464,20 @@ async function route() {
         viewDetail.style.display = "";
         document.getElementById("job-id-display").textContent = jobId;
         _currentView = "detail";
-        destroyJobDetailPage();
+        destroyAllPages();
         await initJobDetailPage(jobId);
     } else {
         viewJobs.style.display = "";
         if (appSidebar) appSidebar.setAttribute("active-id", "nav-jobs");
         _currentView = "list";
-        destroyJobDetailPage();
+        destroyAllPages();
         await loadJobsList();
     }
 }
 
 // 初始化
 await initUser();
+initModalObserver();
 await route();
 window.addEventListener("hashchange", route);
 
