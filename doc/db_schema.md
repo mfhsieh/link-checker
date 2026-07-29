@@ -296,8 +296,9 @@ erDiagram
 | `created_at` | `DateTime` | `Default: 當下時間` | 任務建立的 UTC 時間戳記。 |
 | `updated_at` | `DateTime` | `Default: 當下時間` | 任務最後狀態被更新的 UTC 時間戳記。 |
 
-##### 索引資訊 (Indexes)
+##### 索引與約束資訊 (Indexes & Constraints)
 * **`ix_jobs_user_id`** (單一索引): `(user_id)`。用於快速過濾與查詢特定使用者的歷史任務。
+* **`job_status_check`** (檢查約束): `CHECK(status IN ('pending', 'queued', 'starting', 'running', 'paused', 'completed', 'error'))`。於資料庫層級嚴格防止非法的狀態變更 (如從 completed 變回 running)。
 
 ##### 任務狀態 (`status`) 說明：
 * **`pending` (等待中)**：任務剛剛被建立，但尚未被爬蟲管理器啟動。

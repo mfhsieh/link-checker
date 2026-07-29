@@ -238,6 +238,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
         self.state = JobRunnerState()
         self.executor: ThreadPoolExecutor | None = None
         self._domain_delay_cache: dict[str, float] = {}
+        self._start_time: float = time.time()
 
     def _get_domain_delay_cached(self, domain: str) -> float:
         """
@@ -597,6 +598,16 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
         self._flush_progress(session, job)
         job.status = "completed"
         session.commit()
+
+        elapsed_time = time.time() - self._start_time
+        logger.info(
+            "任務 %s 執行完畢 | 爬取: %d 頁 | 外連探測: %d 個 | 總耗時: %.1f 秒",
+            self.job_id,
+            self.state.crawled_count,
+            self.state.external_links_total,
+            elapsed_time,
+        )
+
         if self.on_event_callback:
             self.on_event_callback(SystemEvent.JOB_STATUS_CHANGED, job_id=self.job_id, status="completed")
 
@@ -763,7 +774,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
                 self.state.crawled_count += 1
 
         except httpx.HTTPError as e:
-            self._handle_error(queue_item, e)
+            self._handle_error(session, queue_item, e)
             session.commit()
         except Exception as e:  # pylint: disable=broad-exception-caught
             session.rollback()
@@ -1048,7 +1059,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
         code_res, err_res = crawler.check_external_link(link)
         return link, ip_res, code_res, err_res
 
-    def _handle_error(self, queue_item: CrawlQueue, e: httpx.HTTPError) -> None:
+    def _handle_error(self, session: Session, queue_item: CrawlQueue, e: httpx.HTTPError) -> None:
         """
         處理 HTTP 請求過程中的錯誤，套用重試邏輯或標記永久失效。
 
@@ -1099,7 +1110,8 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
                     retries,
                     f"{backoff_delay:.1f}",
                 )
-                # 依 Code Review 修正：移除此處的提早 commit，由上層統一 commit
+                # 在長時間退避前預先持久化重試計數，防止等待期間進程中斷導致重試次數遺失
+                session.commit()
 
                 jitter_ratio = cast(float, self.crawler_config_dict.get("jitter_ratio", 0.2))
                 actual_delay = (

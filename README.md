@@ -222,12 +222,13 @@ python cli.py --help
 ## 版本更新日誌 (Release Notes)
 
 - **v1.9.7 (2026-07-29)**:
-  - 導入 Alembic 資料庫遷移管理 (Database Migrations)：支援雙資料庫（SQLite 與 PostgreSQL）的自動化 Schema 增量升級與版號控制。
+  - 導入 Alembic 資料庫遷移管理：支援雙資料庫（SQLite 與 PostgreSQL）的自動化 Schema 增量升級與版號控制。
   - 前端程式碼重構：將前端重構為 MVC 分層架構與原生 Web Components 元件組合。
   - 新增「探測略過連結」功能：支援對被忽略之連結僅進行存活探測而不下載內容。
   - 資安與穩定度修正：實作錯誤訊息敏感資訊過濾（遮蔽憑證、Cookie 與 IP）、增加資料庫連線容錯、防止重導向無窮迴圈，並調整 HTML 靜態快取依檔案修改時間自動更新。
   - 測試與 Agent 規範更新：補充爬蟲例外分支自動化測試，新增 Agent 資安與除錯規範，並整合 MCP 系統診斷工具。
   - 介面與輸入優化：輸入網址時自動移除開頭 `www.` 前綴。
+  - 其它 code review 建議事項。
 - **v1.9.6 (2026-07-18)**: 
   - 新增 MCP 伺服器 (`scripts/mcp_server.py`)，提供遠端讀取任務狀態、設定快照與磁碟使用量。
   - 擴充單一連結測試腳本 (`test_url.py`, `test_ext.py`) 並封裝為 MCP 工具，配合新增的 Agent Skill 進行本地與雲端測試結果比對，輔助診斷防火牆阻擋問題。

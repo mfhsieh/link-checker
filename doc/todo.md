@@ -73,13 +73,6 @@
    * **改善建議**：盤點現有程式碼與 API 設計進行正名。
    * **狀態**：**觀察中（Monitoring）**。屬於大規模的重構與字串替換，風險較高且目前不影響功能，可待未來 API 版本升級時處理。
 
-1. **任務狀態轉換缺乏資料庫層面約束**
-   * **位置**: `crawler/models.py` `Job` 模型、`crawler/manager.py` 各狀態變更方法  
-   * **現狀描述**: 狀態轉換僅在應用層檢查 (如 `pause_job` 檢查 `status in ("running", "pending", ...)`)，資料庫無 `CHECK CONSTRAINT` 或 Trigger 防止非法轉換 (如 `completed` -> `running`)。並發請求可能繞過應用層檢查。  
-   * **改善建議**: 
-     1. 在資料庫加入 `CHECK (status IN (...))`。
-     1. 關鍵轉換 (如 `queued` -> `starting`) 使用 `SELECT FOR UPDATE` 或樂觀鎖 (`version` 欄位) 確保原子性。
-   * **狀態**：**觀察中（Monitoring）**。Uvicorn 單 worker 情況下，目前架構足夠安全，暫時不處理。
 
 1. **`socket.getaddrinfo` 的 Monkey Patch 副作用與 Async 隱患**
    * **問題描述**：目前為了支援自訂 DNS 解析（例如防禦 SSRF 或是本機測試），爬蟲模組全域攔截了 `socket.getaddrinfo`，並使用 `threading.local()` 來隔離不同執行緒的覆寫規則。這樣做有兩個潛在問題：
@@ -109,15 +102,25 @@
      5. **採用 JSONB**：若遷移至 PostgreSQL，將 `progress_stats` 等 JSON 欄位改為 `JSONB` 以獲得更好的二進位壓縮比。
    * **狀態**：**觀察中（Monitoring）**。若未來爬蟲資料量成長且造成嚴重的儲存空間瓶頸，再行評估啟動大規模 Schema 遷移計畫。
 
-1. **`_handle_error` 重試退避期間未獨立 commit 持久化 `retry_count`**
-   * **位置**：[runner.py](file:///home/mfhsieh/projects/python/link-checker/crawler/runner.py#L1060-L1096)
-   * **問題描述**：當 `_handle_error` 判定為暫時性錯誤並進入重試等待時（`retry_count < retries`），僅遞增了 `queue_item.retry_count` 但未發起資料庫 commit，隨即進入長達數秒的 sleep 退避。若在此 sleep 期間進程遭遇強行終止（例如 OOM Killer 或斷電），`retry_count` 的遞增將丟失，重啟後會從舊有的計數重新開始，多出一次額外重試。
-   * **改善建議**：此為已知設計權衡（避免在 sleep 退避前產生頻繁 I/O commit），上層 `_process_item` 會在返回後統一 commit。列為技術債監控，待未來進行重試持久化機制翻新時再評估處置。
-   * **狀態**：**觀察中（Monitoring）**。
-
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+1. **`_handle_error` 重試退避期間未持久化 `retry_count`**
+   * **說明**：（依據 TODO CP 值評估優先實作）
+   * **修復方案**：在 `crawler/runner.py` 的 `_handle_error` 中補上 `session` 參數，並於進入長時間 sleep 之前執行 `session.commit()`，確保重試計數在退避等待期間不會因斷電或中斷而遺失。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **加入結構化的任務執行統計日誌 (Observability)**
+   * **說明**：（依據 TODO CP 值評估從擱置中恢復實作）
+   * **修復方案**：在 `crawler/runner.py` 的 `_mark_job_completed` 加上了包含 `crawled_count`、`external_links_total` 與總耗時的結構化日誌輸出。大幅提升無介面 CLI 執行與伺服器日誌除錯的可觀測性。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **任務狀態轉換缺乏資料庫層面約束**
+   * **說明**：（依據 TODO CP 值評估優先實作）
+   * **問題描述**：狀態轉換僅在應用層檢查，資料庫無 `CHECK CONSTRAINT`，並發請求可能繞過應用層檢查。
+   * **修復方案**：在 SQLAlchemy `Job` 模型中加入 `CheckConstraint("status IN ('pending', 'queued', 'starting', 'running', 'paused', 'completed', 'error')")`，從資料庫底層徹底封堵非法狀態轉換，並已透過 Alembic 自動遷移。
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **外部網域延遲設定的快取優化 (Performance)**
    * **說明**：（依據 Deep Code Review 建議優化）
@@ -461,8 +464,3 @@
    * **規劃方案**：在生成 CSRF Token 時，引入 HMAC 機制，以使用者的 Session ID 作為金鑰對 Token 進行簽章。後端驗證時一併檢查該簽章是否合法，防止 Token 遭偽造。
    * **相關位置**：`backend/auth/router.py` L223-L228
    * **狀態**：**已擱置（Dropped）** - 原因：本專案並未牽涉到複雜的子網域架構。目前的 `SameSite=Strict` Cookie 加上標準的 Double Submit Cookie 模式已經足以防禦絕大部分的 CSRF 攻擊。HMAC 綁定實作複雜度高但帶來的實際安全效益邊際遞減。
-
-1. **加入結構化的任務執行統計日誌 (Observability)**
-   * **問題描述**：目前在 `crawler/runner.py` 的 `_mark_job_completed` 中，任務完成時僅記錄了「任務完成」的簡單字串。缺少爬取頁數、外部連結探測數量、重試次數與總耗時等關鍵數據，不利於維運人員事後排查效能瓶頸或偵測反爬蟲異常。
-   * **規劃方案**：在任務完成時（包含成功與異常中斷），加入結構化的統計日誌輸出，例如：`logger.info("任務 %s 完成 | 爬取: %d 頁 | 外連檢查: %d | 耗時: %.1f 秒", ...)`，提供系統效能基準 (Benchmark)。
-   * **狀態**：**已擱置（Dropped）** - 原因：因為幾乎用不到，且任務詳情頁面就能直接看到相關數據了。

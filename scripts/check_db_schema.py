@@ -18,7 +18,7 @@ import logging
 import os
 import sys
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import CheckConstraint, create_engine, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql.schema import MetaData
 
@@ -168,6 +168,22 @@ def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -
                     target_col,
                 )
                 has_diff = True
+
+        # D. 檢查 Check Constraints
+        try:
+            db_checks = {ck["name"] for ck in inspector.get_check_constraints(table_name) if ck.get("name")}
+            expected_checks = {
+                ck.name for ck in table_obj.constraints 
+                if isinstance(ck, CheckConstraint) and ck.name
+            }
+            
+            for ck_name in expected_checks:
+                if ck_name not in db_checks:
+                    logger.error("[%s] 資料表 %s 缺失 Check 約束 (Check Constraint): %s", db_name, table_name, ck_name)
+                    has_diff = True
+        except NotImplementedError:
+            # 某些資料庫方言可能不支援反射 check constraint
+            pass
 
     if not has_diff:
         logger.info("[%s] 結構檢查完成：完全符合程式預期！\n", db_name)

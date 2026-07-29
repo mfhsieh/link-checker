@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import cast
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Query, mapped_column, relationship
 
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
@@ -133,6 +133,12 @@ class Job(Base):  # pylint: disable=too-few-public-methods
     """
 
     __tablename__ = "jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'queued', 'starting', 'running', 'paused', 'completed', 'error')",
+            name="job_status_check",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)

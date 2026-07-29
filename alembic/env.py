@@ -33,13 +33,13 @@ def get_url() -> str:
     """
     從環境變數或設定檔取得資料庫連線 DSN。
 
-    優先讀取環境變數 DATABASE_URL 或 CRAWLER_DATABASE_URL，
+    優先讀取環境變數 CRAWLER_DB_URL，
     若未設定則退回讀取 alembic.ini 之 sqlalchemy.url 設定或預設本機 SQLite。
 
     Returns:
         str: 資料庫連線 URL 字串。
     """
-    env_url = os.getenv("DATABASE_URL") or os.getenv("CRAWLER_DATABASE_URL")
+    env_url = os.getenv("CRAWLER_DB_URL")
     if env_url:
         return env_url
     ini_url = config.get_main_option("sqlalchemy.url")

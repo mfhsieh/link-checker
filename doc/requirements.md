@@ -146,6 +146,7 @@
 ### 3.4 任務生命週期管理
 
 * **狀態轉換的原子性保護 (Atomic State Transitions)**：當進行狀態轉換（如啟動任務或檢查並發上限）時，嚴禁使用單純的「先讀取後寫入 (Read-then-Write)」模式。必須強制使用帶有條件的原子性更新 (Atomic UPDATE with Optimistic Locking) 或分散式鎖，防範雙重啟動或突破並發上限的 Race Condition。
+* **狀態轉移的資料庫層級約束 (Database-level State Constraint)**：所有任務狀態（如 `pending`, `running`, `completed`）的轉換不僅必須在應用層進行邏輯校驗，更必須於資料庫層級（如 SQLAlchemy 的 `CheckConstraint`）建立嚴格的狀態白名單約束，確保在任何高並發或嘗試繞過 API 的情況下，皆無法寫入非法的狀態字串，徹底封堵非法狀態轉換的風險。
 * **排隊機制與並發控制 (Queued & Concurrency Control)**：系統實作全域並發任務數限制 (`CRAWLER_MAX_CONCURRENT_JOBS`)。當使用者啟動任務時，若當前系統執行中 (`running` / `starting`) 的任務數量已達上限，新任務將進入 `queued` (排隊中) 狀態。背景排程器會定期輪詢，待資源有餘裕時自動依先進先出原則喚醒任務。
 * **暫停與恢復 (Pause/Resume)**：支援溫和的暫停信號，在完成當下網址爬取後安全暫停；並允許後續接續爬取未完成之佇列。針對因 OOM 或伺服器中斷被標記為 `error` 的異常任務，系統亦支援直接無縫恢復執行（CLI 需搭配強制參數），免去重新發起全站爬取的龐大時間成本。**注意：恢復執行時，同樣受系統並發數量上限管控，若資源滿載將先轉為 `queued` 狀態等候調度。**
 * **重試退避與暫停響應性 (Micro-sleep for Long Retries)**：爬蟲引擎在執行重試退避 (Backoff Sleep) 等延遲等待時，嚴禁使用單次長連線阻塞 (如 `time.sleep(30)`)。必須採用微步長 (如 0.5 秒) 輪詢機制解耦長延遲，以確保爬蟲能在 1 秒以內即時響應使用者的「暫停 (Pause)」與「停止 (Stop)」指令。
