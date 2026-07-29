@@ -1,5 +1,11 @@
 # 已解決的待辦事項 (Resolved TODOs)
 
+1. **解耦 `crawler` 模組對 `backend.events` 的反向依賴**
+   * **說明**：（符合 CLI-First 架構原則，徹底隔離模組邊界）
+   * **問題描述**：爬蟲模組 (`crawler/manager.py`, `crawler/runner.py`) 直接 `from backend.events import SystemEvent, publish`，造成底層爬蟲引擎反向依賴 Web 後端模組。
+   * **修復方案**：移除 `crawler/` 對 `backend.events` 的所有直接 import。將狀態變更通知完全改由外部注入的 `on_event_callback` 機制處理，並改用純字串事件名稱（如 `"job_status_changed"`），實現 100% 的物理與模組解耦。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **CLI 支援匯出內部紀錄之狀態篩選 (export-internal filter)**
    * **說明**：（從 Dropped 中撈回並實作，因 CP 值極高）
    * **問題描述**：CLI 雖然可用 `jq` 處理匯出結果，但作為 CLI-first 專案，讓 CLI 內建 `--filter` 過濾內部結果 (如 `--filter failed`) 能大幅提升使用者體驗與減少磁碟 I/O。

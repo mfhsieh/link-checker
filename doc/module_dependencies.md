@@ -101,11 +101,11 @@
 
 ---
 
-## 6. 爬蟲核心 (Crawler) 的依賴狀況 (高度解耦)
+## 6. 爬蟲核心 (Crawler) 的依賴狀況 (完全解耦)
 
-在重構完成後，`crawler` 模組（包含 `manager.py`, `runner.py`, `core.py`, `utils.py`）**幾乎完全去除了對 `backend` 與 `cli.py` 的直接業務邏輯引入**，僅保留對輕量級內部事件定義 (`StrEnum`) 的依賴。
+在重構完成後，`crawler` 模組（包含 `manager.py`, `runner.py`, `core.py`, `utils.py`）**完全去除了對 `backend` 與 `cli.py` 的任何直接相依性**，達成 100% 獨立與純粹。
 
-- **狀態通知**: 改由外部注入 `on_event_callback`。內部僅引入 `SystemEvent` 確保事件強型別；若未傳入 callback 亦能無錯執行（優雅降級）。
+- **狀態通知**: 完全改由外部注入 `on_event_callback`。內部使用字串事件名稱（如 `"job_status_changed"`）通知外部；未傳入 callback 時優雅降級跳過。
 - **報表匯出**: 移除所有報表產生邏輯，將產出 CSV/ZIP 的職責完全交給外部（如 `backend` 的 exporter 服務）。
 - **資料庫訪問**: 完全依賴自有的 `crawler.models` 中宣告的 SQLite/PostgreSQL schema 映射，與後端 Auth DB 保持完全的庫級分離與物理隔離。
 

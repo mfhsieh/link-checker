@@ -30,7 +30,6 @@ from sqlalchemy.sql.functions import count as sql_count
 from sqlalchemy.sql.functions import max as sql_max
 from sqlalchemy.sql.functions import sum as sql_sum
 
-from backend.events import SystemEvent, publish
 from crawler.env import get_env
 from crawler.models import Base, CrawlQueue, ExternalLink, Job
 from crawler.runner import JobRunner
@@ -457,7 +456,8 @@ class JobManager:
                 logger.error("任務 %s 被標記為異常: %s", job_id, error_msg)
                 job.status = "error"
                 session.commit()
-                publish(SystemEvent.JOB_STATUS_CHANGED, job_id=job_id, status="error")
+                if self.on_event_callback:
+                    self.on_event_callback("job_status_changed", job_id=job_id, status="error")
             return True
 
     def transfer_job(self, job_id: str, new_user_id: str) -> bool:

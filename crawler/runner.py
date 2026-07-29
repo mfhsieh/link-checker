@@ -37,7 +37,6 @@ from cachetools import LRUCache
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from backend.events import SystemEvent
 from crawler.config_utils import DEFAULT_GLOBAL_CONFIG
 from crawler.core import CrawlerCore
 from crawler.env import get_env
@@ -299,7 +298,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
                     job.status = "error"
                     session.commit()
                     if self.on_event_callback:
-                        self.on_event_callback(SystemEvent.JOB_STATUS_CHANGED, job_id=self.job_id, status="error")
+                        self.on_event_callback("job_status_changed", job_id=self.job_id, status="error")
             finally:
                 if self.executor:
                     self.executor.shutdown(wait=True, cancel_futures=True)
@@ -609,7 +608,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
         )
 
         if self.on_event_callback:
-            self.on_event_callback(SystemEvent.JOB_STATUS_CHANGED, job_id=self.job_id, status="completed")
+            self.on_event_callback("job_status_changed", job_id=self.job_id, status="completed")
 
     def _process_pending_external_links(self, session: Session, crawler: CrawlerCore) -> bool:
         """

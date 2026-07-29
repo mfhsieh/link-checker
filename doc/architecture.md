@@ -141,8 +141,8 @@ graph TD
     CLI -->|依賴核心業務| Crawler
     CLI -->|呼叫通知/匯出服務| Backend
     
-    %% 消除反向耦合
-    Crawler -.->|僅引入事件定義| Backend
+    %% 消除反向耦合 (100% 完全解耦)
+    Crawler -.->|Callback 回呼發送通知 (無相依)| Backend
     Crawler -.->|Callback 回呼狀態| CLI
 ```
 
@@ -161,6 +161,7 @@ graph TD
 
 3. **爬蟲核心引擎 (Crawler Core)**
    * **自治驅動 (CLI-First)**：由 CLI (`cli.py`) 直接驅動，可脫離 Web 伺服器獨立執行所有探索任務。
+   * **完全模組獨立 (100% Decoupled)**：零依賴 Web 後端 (`backend`) 模組，狀態變更通知完全透過外部注入的 Event Callback 機制處理，實現物理與邏輯上的徹底隔離。
    * **高度可靠性與防禦機制**：支援防護穿透、錯誤重試、敏感資訊清洗 (Data Sanitization)、資料庫狀態驅動 (State-driven) 的中斷恢復與多任務日誌隔離。
 
 4. **資料持久層 (Data Layer)**
