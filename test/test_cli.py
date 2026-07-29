@@ -656,6 +656,30 @@ crawler:
         assert "url" in internal_data[0], "Internal export data should contain 'url' field"
         os.remove(internal_export_file)
 
+        # 測試 --export-internal 搭配 --filter (如 filter skip)
+        print("Testing Export CLI with Internal Report & Filter (skip)...")
+        internal_filter_file = "tmp_internal_filter_skip.json"
+        if os.path.exists(internal_filter_file):
+            os.remove(internal_filter_file)
+        export_internal_filter_cmd = [
+            sys.executable,
+            "cli.py",
+            "--export-internal",
+            job_id,
+            "--filter",
+            "skip",
+            "--json",
+            "--output",
+            internal_filter_file,
+        ]
+        res_internal_filter = subprocess.run(export_internal_filter_cmd, capture_output=True, text=True)
+        assert res_internal_filter.returncode == 0, "Export internal report with --filter skip failed"
+        with open(internal_filter_file, "r", encoding="utf-8") as f:
+            internal_filter_data = json.load(f)
+        assert len(internal_filter_data) == 2, f"Expected 2 skipped internal links, got {len(internal_filter_data)}"
+        assert all(item.get("status_category") == "skip" for item in internal_filter_data), "All items should have status_category 'skip'"
+        os.remove(internal_filter_file)
+
         # 測試 --export-full
         print("Testing Export CLI with Full Report (ZIP)...")
         full_zip_file = "tmp_full_report.zip"

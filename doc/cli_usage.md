@@ -36,7 +36,7 @@
 | `--export-internal` | *(無)* | 字串 | 指定任務 ID，將該任務的內部網頁爬取紀錄匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
 | `--export-full` | *(無)*| 字串 | 指定任務 ID，匯出該任務的完整報表 (ZIP 壓縮檔，含內部爬取診斷紀錄與外部連結清單)。亦可搭配 `--output` 自訂檔名。 | 無 |
 | `--output` | *(無)* | 字串 | (選填) 搭配匯出指令使用，自訂輸出路徑。 | 依格式而定，如 `report/<JOB_ID>.csv` 或 `.zip` |
-| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export-external` 使用，篩選匯出內容 (支援 `dead`, `broken`, `not_found`, `server_error`, `insecure` 等多種狀態，詳見下方提示)。 | 無 |
+| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export-external` 或 `--export-internal` 使用，指定狀態過濾器。可選值為 `dead`, `broken`, `not_found`, `server_error`, `connection_error`, `other_error`, `blocked`, `insecure`, `healthy`, `warning`, `timeout`, `completed`, `skip`, `all`。 | `all` |
 | `--exclude`| *(無)* | 字串 | (選填) 搭配 `--export-external` 使用，排除指定的目標網域（多個以逗號分隔）。 | 無 |
 | `--group-by`| *(無)* | 字串 | (選填) 搭配 `--export-external` 使用，聚合模式：`target` (依外連)、`source` (依來源頁面)、`domain` (依網域)。 | `none` |
 | `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及各項匯出指令的 JSON 檔案導出。 | 無 |
@@ -200,6 +200,9 @@ python cli.py --export-external <JOB_ID>
 # 單獨匯出內部網頁診斷紀錄（爬蟲走過的內部頁面與健康狀態）
 python cli.py --export-internal <JOB_ID>
 
+# 匯出內部網頁診斷紀錄中「略過爬取 (skip)」的頁面
+python cli.py --export-internal <JOB_ID> --filter skip --output ./skipped_pages.json --json
+
 # 您也可以加上 --output 自訂路徑
 python cli.py --export-external <JOB_ID> --output ./my_result.csv
 
@@ -236,9 +239,7 @@ python cli.py --export-external <JOB_ID> --exclude "facebook.com,youtube.com,twi
 
 ### 進階篩選條件 (`--filter`)
 
-當使用 `--export-external` 匯出時，您可以搭配 `--filter` 來精確篩選要匯出的連結狀態。
-> [!NOTE]
-> 目前 CLI 的 `--filter` 參數僅專門為 `--export-external` 設計。若您使用 `--export-internal` 匯出內部紀錄時將不受此過濾參數影響，系統會無條件匯出所有內部頁面的完整爬取結果。
+當使用 `--export-external` 或 `--export-internal` 匯出時，您可以搭配 `--filter` 來精確篩選要匯出的連結狀態。
 
 以下為系統支援的狀態字典與其詳細判定邏輯：
 
@@ -248,7 +249,11 @@ python cli.py --export-external <JOB_ID> --exclude "facebook.com,youtube.com,twi
 * `server_error`：精確篩選 **「伺服器異常 (500~599)」** 的連結。
 * `connection_error`：精確篩選 **「底層連線異常 (DNS 成功但無 HTTP 狀態碼，例如連線逾時、憑證無效、連線被拒等)」** 的連結。
 * `other_error`：精確篩選 **「其他未歸類的 HTTP 異常 (如 400, 408 或 >=600)」** 的連結。
-* `blocked`：特指 **「遭目標網站防火牆 (WAF) 阻擋或權限不足 (401, 403, 405, 406, 429)」**，這類連結多半仍存活，只是爬蟲身分被阻擋，不被系統視為 Broken。
+* `warning`：(僅限 `--export-internal`) 爬蟲處理時遇到非致命問題，例如內容非 HTML 但狀態碼正常。
+* `timeout`：(僅限 `--export-internal`) 爬蟲在處理該頁面時發生超時。
+* `skip`：(僅限 `--export-internal`) 略過爬取的連結（如非目標副檔名或 MIME 類型）。
+* `completed`：(僅限 `--export-internal`) 正常完成爬取的內部網頁。
+* `blocked`：精確篩選 **「遭阻擋 (401, 403, 429)」** 的連結。
 * `insecure`：特指 **「使用明文 HTTP 傳輸的非安全外部連結」**（資安稽核重點）。
 * `healthy`：正常存活連結 (有 IP 解析成功，且 HTTP 狀態碼 < 400)。
 * `all`：不進行篩選，匯出所有結果。

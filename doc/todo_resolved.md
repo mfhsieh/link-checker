@@ -1,5 +1,11 @@
 # 已解決的待辦事項 (Resolved TODOs)
 
+1. **CLI 支援匯出內部紀錄之狀態篩選 (export-internal filter)**
+   * **說明**：（從 Dropped 中撈回並實作，因 CP 值極高）
+   * **問題描述**：CLI 雖然可用 `jq` 處理匯出結果，但作為 CLI-first 專案，讓 CLI 內建 `--filter` 過濾內部結果 (如 `--filter failed`) 能大幅提升使用者體驗與減少磁碟 I/O。
+   * **修復方案**：於 `cli.py` 的 `--filter` 增加對內部狀態（如 `warning`, `timeout` 等）的支援說明，並傳遞該參數至 `backend.jobs.services.exporter.export_internal_job_results`，在 SQLAlchemy 查詢時依 `status_category` 進行篩選。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **實作 Alembic 破壞性操作 (Downgrade) 環境防呆鎖**
    * **說明**：（符合 `requirements.md` §9.3「Schema 遷移與破壞性操作防護」規範）
    * **問題描述**：Alembic 的 `downgrade base` 操作具備高度破壞性（會執行 `DROP TABLE`）。若在正式或開發環境中手滑誤觸，將導致資料庫瞬間被清空且歷史資料永久遺失。

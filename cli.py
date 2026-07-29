@@ -312,9 +312,13 @@ def parse_args() -> argparse.Namespace | None:
             "insecure",
             *ERROR_STATUS_FILTERS,
             "healthy",
+            "warning",
+            "timeout",
+            "completed",
+            "skip",
             "all",
         ],
-        help="(選填) 搭配 --export-external 使用，篩選匯出內容",
+        help="(選填) 搭配 --export-external 或 --export-internal 使用，篩選匯出內容",
     )
     group_report.add_argument(
         "--exclude",
@@ -500,6 +504,7 @@ def _handle_export_internal(manager: JobManager, args: argparse.Namespace) -> No
             session_factory=manager.session_factory,
             job_id=args.export_internal,
             output_path=output_path,
+            status_filter=args.filter,
         )
         if success:
             logging.info("匯出成功！檔案已儲存於: %s", output_path)

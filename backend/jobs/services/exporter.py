@@ -151,6 +151,7 @@ def export_internal_job_results(
     session_factory: Callable[[], Session],
     job_id: str,
     output_path: str,
+    status_filter: str | None = None,
 ) -> bool:
     """
     將指定任務的內部爬取紀錄匯出為 CSV 或 JSON 格式。
@@ -159,6 +160,8 @@ def export_internal_job_results(
         session_factory (Callable[[], Session]): 資料庫 Session 工廠。
         job_id (str): 欲匯出結果的任務 ID。
         output_path (str): 匯出檔案的目的地路徑。
+        status_filter (str | None): 可選的過濾條件，依據 status_category 篩選特定狀態
+            （如 'warning', 'timeout', 'failed' 等）的紀錄。若為 None 或 'all' 則匯出所有紀錄。
 
     Returns:
         bool: 匯出成功則回傳 True，發生錯誤或任務不存在回傳 False。
@@ -170,14 +173,19 @@ def export_internal_job_results(
             return False
 
         try:
-            q_count = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).count()
+            q_query = session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id)
+            if status_filter and status_filter != "all":
+                if status_filter == "skip":
+                    q_query = q_query.filter(CrawlQueue.status_category.in_(["skip", "skipped"]))
+                else:
+                    q_query = q_query.filter(CrawlQueue.status_category == status_filter)
+
+            q_count = q_query.count()
             if q_count == 0:
-                logger.warning("任務 %s 無任何內部爬取紀錄可匯出。", job_id)
+                logger.warning("任務 %s 無任何符合條件的內部爬取紀錄可匯出。", job_id)
                 return True
 
-            q_items = (
-                session.query(CrawlQueue).filter(CrawlQueue.job_id == job_id).order_by(CrawlQueue.id).yield_per(2000)
-            )
+            q_items = q_query.order_by(CrawlQueue.id).yield_per(2000)
             items_list = []
             for q in q_items:
                 d = format_crawl_queue_item(q)

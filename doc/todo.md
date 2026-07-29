@@ -12,8 +12,8 @@
   - [低優先（邊緣需求與周邊工具）](#低優先邊緣需求與周邊工具)
 - [進行中 / 部分完成 (In Progress)](#進行中--部分完成-in-progress)
 - [觀察中 / 長期規劃 (Monitoring)](#觀察中--長期規劃-monitoring)
-- [已解決 / 已完成 (Resolved / Completed)](#已解決--已完成-resolved--completed)
 - [永久擱置 / 已移除 (Dropped / Removed)](#永久擱置--已移除-dropped--removed)
+- [已解決 / 已完成 (Resolved / Completed)](#已解決--已完成-resolved--completed)
 
 ---
 
@@ -73,7 +73,6 @@
    * **改善建議**：盤點現有程式碼與 API 設計進行正名。
    * **狀態**：**觀察中（Monitoring）**。屬於大規模的重構與字串替換，風險較高且目前不影響功能，可待未來 API 版本升級時處理。
 
-
 1. **`socket.getaddrinfo` 的 Monkey Patch 副作用與 Async 隱患**
    * **問題描述**：目前為了支援自訂 DNS 解析（例如防禦 SSRF 或是本機測試），爬蟲模組全域攔截了 `socket.getaddrinfo`，並使用 `threading.local()` 來隔離不同執行緒的覆寫規則。這樣做有兩個潛在問題：
      1. 會影響同一個執行緒上所有依賴底層 `socket` 的第三方套件，可能導致非預期的網路路由。
@@ -104,12 +103,6 @@
 
 ---
 
-## 已解決 / 已完成 (Resolved / Completed)
-
-> 💡 詳細歷史紀錄已移至 [todo_resolved.md](./todo_resolved.md)。
-
----
-
 ## 永久擱置 / 已移除 (Dropped / Removed)
 
 以下項目經評估後認為過度設計或效益極低，已決定擱置不再實作。
@@ -132,13 +125,14 @@
    * **規劃方案**：將外部連結檢查徹底解耦為物理獨立的背景任務。主爬蟲專職遍歷，並將待探測外連丟入非同步工作佇列（如 Celery、Redis 或是 RabbitMQ），由背景的探測 worker 進程池獨立執行診斷並非同步寫入資料庫。此為未來 Web 後台架構擴充時的重要優化方向。
    * **狀態**：**已擱置（Dropped）** - 原因：引入 Celery 或 Redis 等外部依賴會大幅增加專案的部署難度與架構複雜度。目前的 `ThreadPoolExecutor` 已經足夠應付單機環境下的效能需求，維持輕量級部署更符合本專案的定位。
 
-1. **CLI 支援匯出內部紀錄之狀態篩選 (export-internal filter)**
-   * **功能描述**：目前 CLI 的 `--export-internal` 參數不支援使用 `--filter` 進行精確狀態篩選，會無條件匯出全部的內部頁面（包含成功與各種失敗）。雖然 Web API 的 `InternalResultQuery` 已具備過濾能力，但尚未整合至命令列工具中。
-   * **規劃方案**：擴充 `cli.py` 中關於 `--export-internal` 的參數解析邏輯，使其能夠接收與處理 `--filter` 參數（例如支援 `not_found`, `server_error` 等），並將此參數對接傳遞給底層的匯出服務 (`export_internal_job_results`)。
-   * **狀態**：**已擱置（Dropped）** - 原因：CLI 主要用於自動化或 CI 環境，使用者通常會將完整結果輸出為 JSON 後再利用 `jq` 進行處理。將複雜的過濾邏輯重複實作在 CLI 參數中不但效益低，也會增加開發負擔。Web 介面已經提供完整的篩選功能。
-
 1. **CSRF Token 與 Session 綁定（R2-02）**
    * **問題描述**（來源：Code Review v3.0 R2-02）：目前 CSRF 防護採用 Double Submit Cookie 模式（驗證 Cookie 與 Header 中的 Token 是否一致），並未將 Token 密碼學綁定至特定使用者的 Session。若發生子網域（Subdomain）遭攻破，駭客有可能偽造 Cookie，進而繞過 CSRF 驗證。
    * **規劃方案**：在生成 CSRF Token 時，引入 HMAC 機制，以使用者的 Session ID 作為金鑰對 Token 進行簽章。後端驗證時一併檢查該簽章是否合法，防止 Token 遭偽造。
    * **相關位置**：`backend/auth/router.py` L223-L228
    * **狀態**：**已擱置（Dropped）** - 原因：本專案並未牽涉到複雜的子網域架構。目前的 `SameSite=Strict` Cookie 加上標準的 Double Submit Cookie 模式已經足以防禦絕大部分的 CSRF 攻擊。HMAC 綁定實作複雜度高但帶來的實際安全效益邊際遞減。
+
+---
+
+## 已解決 / 已完成 (Resolved / Completed)
+
+> 💡 詳細歷史紀錄已移至 [todo_resolved.md](./todo_resolved.md)。
