@@ -167,10 +167,14 @@ export class JobControls extends HTMLElement {
 
         if (!this._jobStatus) return;
 
-        // 固定顯示：複製、移交、刪除
+        // 固定顯示：複製
         this._buttons['btn-duplicate-job'].style.display = 'inline-flex';
-        this._buttons['btn-transfer-job'].style.display = 'inline-flex';
-        this._buttons['btn-delete-job'].style.display = 'inline-flex';
+
+        // 進行中的任務不可以移交，也不可以刪除
+        if (!(this._jobIsRunning || ['queued', 'starting'].includes(this._jobStatus))) {
+            this._buttons['btn-transfer-job'].style.display = 'inline-flex';
+            this._buttons['btn-delete-job'].style.display = 'inline-flex';
+        }
 
         // 比對：僅任務完成後顯示
         if (this._jobStatus === 'completed') {

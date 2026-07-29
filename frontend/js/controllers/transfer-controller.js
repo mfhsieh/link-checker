@@ -105,7 +105,7 @@ export class TransferController {
 
         try {
             const jobs = await api.get('/api/jobs');
-            const transferableJobs = jobs.filter(j => j.status !== 'running');
+            const transferableJobs = jobs.filter(j => !(j.is_running || ['queued', 'starting', 'running'].includes(j.status)));
 
             if (transferableJobs.length === 0) {
                 jobSelectEl.options.length = 0;

@@ -658,6 +658,20 @@ export class JobDetailController {
 
         // ── 檢視任務設定 (Web Component) ───────────────────────────────────
         const configModalEl = document.getElementById('job-config-modal');
+        const configModalCloseBtn = document.getElementById('job-config-close');
+        const configModalOkBtn = document.getElementById('job-config-ok');
+
+        const closeConfigModal = () => {
+            if (configModalEl) configModalEl.style.display = 'none';
+        };
+
+        if (configModalCloseBtn) {
+            configModalCloseBtn.addEventListener('click', closeConfigModal);
+        }
+        if (configModalOkBtn) {
+            configModalOkBtn.addEventListener('click', closeConfigModal);
+        }
+
         document.addEventListener('view-config', (e) => {
             if (!e.detail || !e.detail.job) return;
             const job = e.detail.job;
