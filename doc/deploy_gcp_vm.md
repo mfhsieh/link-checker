@@ -328,6 +328,10 @@ http://<您的 VM 外部 IP>/
    ```bash
    alembic upgrade head
    ```
+   > [!WARNING]  
+   > **舊資料庫首次導入 Alembic 注意事項：**  
+   > 若您的 Production 資料庫是較早前建立的舊庫，第一次執行升級時可能會出現 `DuplicateTable: relation "..." already exists` 的錯誤。  
+   > 這是因為 Alembic 不知道舊表已經存在。請先執行 `alembic stamp 2f5653065b96` (為舊庫手動蓋上初始基線印章)，接著再重新執行一次 `alembic upgrade head` 即可平滑過渡。
 6. **重新啟動背景服務**：
    ```bash
    sudo systemctl start link-checker
