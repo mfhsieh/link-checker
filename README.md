@@ -221,7 +221,7 @@ python cli.py --help
 
 ## 版本更新日誌 (Release Notes)
 
-- **v1.9.7 (2026-07-28)**:
+- **v1.9.7 (2026-07-29)**:
   - 導入 Alembic 資料庫遷移管理 (Database Migrations)：支援雙資料庫（SQLite 與 PostgreSQL）的自動化 Schema 增量升級與版號控制。
   - 前端程式碼重構：將前端重構為 MVC 分層架構與原生 Web Components 元件組合。
   - 新增「探測略過連結」功能：支援對被忽略之連結僅進行存活探測而不下載內容。
