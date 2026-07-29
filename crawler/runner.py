@@ -185,7 +185,7 @@ def _get_domain_delay(domain: str, domain_delays: dict[str, float], default_dela
     return matched_delays[0][1]
 
 
-class JobRunner:
+class JobRunner:  # pylint: disable=too-many-instance-attributes
     """
     封裝並執行單一爬蟲任務的執行器。
 
@@ -209,6 +209,8 @@ class JobRunner:
         state (JobRunnerState): 記憶體進度追蹤狀態物件。
         executor (ThreadPoolExecutor | None): 用於併發探測外部連結的執行緒池，
             於 ``execute`` 方法啟動後才會有值。
+        _domain_delay_cache (dict[str, float]): 用於快取網域延遲結果，
+            避免大量的重複子網域比對。
     """
 
     def __init__(
@@ -235,6 +237,25 @@ class JobRunner:
         self.crawler_config_dict: dict[str, object] = {}
         self.state = JobRunnerState()
         self.executor: ThreadPoolExecutor | None = None
+        self._domain_delay_cache: dict[str, float] = {}
+
+    def _get_domain_delay_cached(self, domain: str) -> float:
+        """
+        取得快取的網域延遲，避免大量重複子網域比對的 O(N) 開銷。
+
+        Args:
+            domain (str): 欲查詢延遲的目標網域。
+
+        Returns:
+            float: 適用於該網域的延遲秒數。
+        """
+        if domain in self._domain_delay_cache:
+            return self._domain_delay_cache[domain]
+        domain_delays: dict[str, float] = cast(dict[str, float], self.crawler_config_dict.get("domain_delays", {}))
+        base_delay = cast(float, self.crawler_config_dict.get("delay", 0.0))
+        delay = _get_domain_delay(domain, domain_delays, base_delay)
+        self._domain_delay_cache[domain] = delay
+        return delay
 
     def execute(
         self,
@@ -762,13 +783,7 @@ class JobRunner:
 
         if should_delay:
             domain = get_domain(current_url) or ""
-            domain_delays: dict[str, float] = cast(dict[str, float], self.crawler_config_dict.get("domain_delays", {}))
-            base_delay = cast(float, self.crawler_config_dict.get("delay", 0.0))
-            delay = _get_domain_delay(
-                domain,
-                domain_delays,
-                base_delay,
-            )
+            delay = self._get_domain_delay_cached(domain)
 
             jitter_ratio = cast(float, self.crawler_config_dict.get("jitter_ratio", 0.0))
             min_delay = delay - (delay * jitter_ratio)
@@ -1075,15 +1090,7 @@ class JobRunner:
             retries = cast(int, self.crawler_config_dict.get("retries", 3))
             if queue_item.retry_count < retries:
                 queue_item.retry_count += 1
-                domain_delays: dict[str, float] = cast(
-                    dict[str, float], self.crawler_config_dict.get("domain_delays", {})
-                )
-                base_delay = cast(float, self.crawler_config_dict.get("delay", 1.0))
-                current_domain_delay = _get_domain_delay(
-                    get_domain(current_url) or "",
-                    domain_delays,
-                    base_delay,
-                )
+                current_domain_delay = self._get_domain_delay_cached(get_domain(current_url) or "")
                 backoff_delay = current_domain_delay * (2 ** (queue_item.retry_count - 1))
                 logger.warning(
                     "處理網址 %s 發生暫時性錯誤，將進行重試 (第 %s/%s 次)。啟用指數退避延遲 %s 秒...",

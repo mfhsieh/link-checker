@@ -119,6 +119,12 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
+1. **外部網域延遲設定的快取優化 (Performance)**
+   * **說明**：（依據 Deep Code Review 建議優化）
+   * **問題描述**：`crawler/runner.py` 內的 `_get_domain_delay` 方法在處理大量外部連結時，會透過迴圈逐一比對子網域來決定 Crawl Delay。這在遇到上萬個外部連結時，會產生額外的字串比對開銷 `O(N)`。
+   * **修復方案**：在 `JobRunner` 初始化時，已引入一個簡單的字典 (`_domain_delay_cache`) 作為快取。當解析過某個 hostname 的 delay 後即暫存，下次同一個 hostname 直接 O(1) 讀取，壓低 CPU 消耗。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **前端 `JobService` 業務邏輯層封裝與 API 調用規範統一**
    * **說明**：（符合 `requirements.md` §7 前端模組化、職責分離與 API 呼叫契約一致性規範）
    * **功能描述**：原 `job-service.js` 僅封裝 2 個 API 函式，其餘 API 直接呼叫底層 `api.js`，導致調用風格不一致與抽象層薄弱。
