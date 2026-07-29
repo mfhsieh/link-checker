@@ -4,6 +4,7 @@ httpx==0.28.1
 h2==4.3.0
 PyYAML==6.0.3
 SQLAlchemy==2.0.50
+alembic==1.13.1
 types-PyYAML==6.0.12.20260518
 fake-useragent==1.5.1
 psycopg2-binary==2.9.12

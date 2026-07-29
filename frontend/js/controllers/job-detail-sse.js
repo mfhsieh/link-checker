@@ -38,7 +38,11 @@ export class JobDetailSSEManager {
             }, 30000);
         }
 
+        this.errorCount = 0;
+        this.maxRetries = 5;
+
         this.eventSource.onmessage = (event) => {
+            this.errorCount = 0; // 收到正常訊息重置計數
             try {
                 const jobUpdate = JSON.parse(event.data);
                 if (typeof this.onMessage === 'function') {
@@ -53,7 +57,14 @@ export class JobDetailSSEManager {
         };
 
         this.eventSource.onerror = (err) => {
-            // console.warn('SSE connection error:', err);
+            this.errorCount++;
+            if (this.errorCount >= this.maxRetries) {
+                console.warn(`SSE connection error count reached max limit (${this.maxRetries}), closing EventSource.`);
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
+            }
         };
     }
 

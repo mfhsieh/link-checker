@@ -17,13 +17,20 @@
   * **`pool_size` & `max_overflow`**：提升基礎連線數與突發溢發量，完美支撐 `ThreadPoolExecutor` 的高併發爬取與前端高頻 API 請求。
   * **`pool_pre_ping` (斷線防護)**：每次從連線池取出連線前主動發送輕量級 `SELECT 1`，若因網路波動或伺服器重啟導致連線失效，系統將自動拋棄並重連，徹底解決 `Server closed the connection unexpectedly` 錯誤。
 
-### 1.1 資料庫遷移與 PostgreSQL 序列 (Sequence) 同步
+### 1.1 資料庫遷移管理 (Alembic Database Migrations)
+
+本專案自 **v1.9.7** 起正式導入 **Alembic** 管理雙資料庫 (Auth DB 與 Crawler DB) 的 Schema 版號與增量遷移。
+所有資料庫結構變更（新增資料表、欄位、索引調整）均必須透過 `.venv/bin/alembic revision --autogenerate` 產生版本腳本，並儲存於 `alembic/versions/` 中。
+
+升級時執行 `.venv/bin/alembic upgrade head`，系統會自動比對實體資料庫版號並按順序執行增量套用。
+
+### 1.2 PostgreSQL 序列 (Sequence) 同步 (SQLite 轉 PG 專用)
 
 系統支援從 SQLite 完整無縫遷移至 PostgreSQL (`scripts/migrate_sqlite_to_pg.py`)。由於 SQLite 的 AUTOINCREMENT 與 PostgreSQL 的 Sequence 運作機制不同，在跨資料庫批量導入舊資料後，PostgreSQL 的內部序列指標（如 `auth_logs_id_seq`）不會自動更新，這會導致後續新增資料時發生 Primary Key 衝突。
 
-因此，遷移腳本會在導入完成後，自動執行 `setval(pg_get_serial_sequence('table_name', 'id'), coalesce(max(id), 1))`，強制將序列指標推進至目前最大值，保障遷移後的資料庫能立即無縫接軌寫入。
+因此，遷移腳本會在導入完成後，自動執行 `setval(pg_get_serial_sequence('table_name', 'id'), coalesce(max(id), 1))`，強制將序列指標推進至目前最大值，保障遷移後的資料庫能處理後續寫入。
 
-### 1.2 擴充其他資料庫之注意事項
+### 1.3 擴充其他資料庫之注意事項
 
 目前系統基於深度效能優化與底層特性的考量，**僅官方支援 SQLite 與 PostgreSQL** 兩種資料庫引擎。若未來專案需要擴充支援其他關聯式資料庫（如 MySQL、MariaDB 等），開發人員必須特別注意以下事項：
 
@@ -39,7 +46,7 @@
 > * **Auth DB 連線與 SessionMaker**：位於 `backend/auth/db.py` 中，透過 `get_auth_session_local()` 進行初始化與調用。
 > * **Crawler DB 連線與 SessionMaker**：統一由 Crawler 核心引擎 `crawler/manager.py` 中的 `JobManager` 管理，FastAPI 則透過 `backend/deps.py` 的依賴注入取得其連線。
 
-### 1.3 查詢效能優化與 ORM 避坑指南 (Query Optimization & ORM Pitfalls)
+### 1.4 查詢效能優化與 ORM 避坑指南 (Query Optimization & ORM Pitfalls)
 
 在同時兼容 SQLite 與 PostgreSQL 的雙引擎架構下，開發人員在撰寫 SQLAlchemy ORM 查詢時，必須特別注意以下效能陷阱與語法相容性：
 
@@ -53,7 +60,7 @@
    * **優化策略**：在 PostgreSQL 中，`IS false` 與 `= false` 在抽象語法樹 (AST) 裡是完全不同的結構，會導致優化器判定索引條件不符而放棄使用 Partial Index。開發時**絕對禁止使用 `.is_(False)`**，請一律使用 `== False`。
    * **相容性**：SQLAlchemy 極度聰明，當遇到 `== False` 時，在 PostgreSQL 會完美轉譯為 `= false`，而在 SQLite 則會轉譯為 `= 0`，完美對接兩種資料庫的 Partial Index 宣告。
 
-### 1.4 實體外鍵 (Physical FK) vs. 邏輯外鍵 (Logical FK) 策略
+### 1.5 實體外鍵 (Physical FK) vs. 邏輯外鍵 (Logical FK) 策略
 
 本專案分為 Auth DB 與 Crawler DB 兩個獨立的資料庫，在關聯設計上有截然不同的策略，開發或刪除資料時需特別留意：
 

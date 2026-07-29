@@ -20,11 +20,20 @@ description: 當需要修改 SQLAlchemy Models 或是資料表 Schema 時，指�
 - 在對應的 Markdown 表格中補上新欄位的名稱、型態、以及詳細的用途說明。
 - 確保文件與程式碼永遠保持一致 (Living Documentation)。
 
-## 3. 處理 Migration 腳本
-- 確認現有的維護腳本（如 `scripts/migrate_sqlite_to_pg.py` 等）是否需要配合修改欄位。
-- 如果系統已經在運行中且有既有資料，需處理舊紀錄的升級與預設值填補：
-  - **若異動只需一兩行簡單的 SQL 指令**（例如單純的 `ALTER TABLE` 或 `UPDATE`），原則上將指令寫在 `README.md` 的維護段落中即可，**不要特別為此新增獨立的腳本檔案**。
-  - **若牽涉複雜邏輯**，則撰寫一段臨時的升級腳本（例如 `scripts/backfill_xxx.py`）。
+## 3. 產生與驗證 Alembic Migration 腳本
+- 本專案已正式導入 **Alembic** 管理 SQLite 與 PostgreSQL 雙庫 Schema。
+- 修改 ORM Models 後，請使用虛擬環境執行以下指令產生增量版號：
+  ```bash
+  .venv/bin/alembic revision --autogenerate -m "描述 Schema 變更"
+  ```
+- 檢查產生的 `alembic/versions/xxx_描述.py` 腳本，確認 `upgrade()` 與 `downgrade()` 邏輯正確（特別注意 SQLite 的 `batch_alter_table` 處理），並確保開頭具備說明該次變更目的之 **PyDoc Docstring** 與 `# pylint: skip-file`。
+- 執行升級測試與驗證：
+  ```bash
+  .venv/bin/alembic upgrade head
+  .venv/bin/alembic check
+  ```
+- （選用提示）：若為既有資料庫且欄位已符合最新 Models，可使用 `.venv/bin/alembic stamp head` 進行快速版號對齊標記。
+- 確認維護腳本（如 `scripts/migrate_sqlite_to_pg.py` 等）是否需要配合調整。
 
 ## 4. 驗證資料庫行為
 - 執行 `Run Quality Gate` 或直接執行 `pytest test/ -v`。

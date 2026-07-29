@@ -203,7 +203,10 @@ export async function download(path) {
  */
 export function formatLocalTime(dateStr) {
   if (!dateStr) return '-';
-  let ds = String(dateStr);
+  let ds = String(dateStr).trim();
+  if (ds.includes(' ') && !ds.includes('T')) {
+    ds = ds.replace(' ', 'T');
+  }
   if (!ds.endsWith('Z') && !ds.includes('+') && !ds.match(/-\d{2}:\d{2}$/)) {
     ds += 'Z';
   }

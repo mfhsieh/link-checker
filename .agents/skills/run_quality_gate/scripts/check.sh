@@ -9,26 +9,32 @@ cd "$(dirname "$0")/../../../.."
 source .venv/bin/activate
 
 echo "========================================"
-echo "[1/4] 執行自動排版與匯入排序 (Ruff)..."
+echo "[1/5] 執行自動排版與匯入排序 (Ruff)..."
 echo "========================================"
 ruff check --extend-select I,RUF100 --fix .
 ruff format .
 
 echo ""
 echo "========================================"
-echo "[2/4] 執行 Pylint 靜態分析..."
+echo "[2/5] 執行 Pylint 靜態分析..."
 echo "========================================"
-pylint --load-plugins=pylint.extensions.docparams --enable=useless-suppression backend/ crawler/ cli.py scripts/ test/
+pylint --load-plugins=pylint.extensions.docparams --enable=useless-suppression backend/ crawler/ alembic/ cli.py scripts/ test/
 
 echo ""
 echo "========================================"
-echo "[3/4] 執行 Mypy 靜態型別檢查..."
+echo "[3/5] 執行 Mypy 靜態型別檢查..."
 echo "========================================"
-mypy --explicit-package-bases backend/ crawler/ cli.py scripts/ test/
+mypy --explicit-package-bases backend/ crawler/ alembic/ cli.py scripts/ test/
 
 echo ""
 echo "========================================"
-echo "[4/4] 執行 Pytest 整合測試..."
+echo "[4/5] 執行 Alembic 資料庫 Migration 狀態檢查..."
+echo "========================================"
+alembic check
+
+echo ""
+echo "========================================"
+echo "[5/5] 執行 Pytest 整合測試..."
 echo "========================================"
 pytest test/ -v
 

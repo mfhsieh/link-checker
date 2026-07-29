@@ -576,6 +576,10 @@ def recalculate_job_progress(session: Session, job_id: str) -> None:
     queue_pending = counts_dict.get("pending", 0)
     queue_failed = counts_dict.get("failed", 0)
 
+    # 統計最大深度
+    max_depth_val = session.query(func.max(CrawlQueue.depth)).filter(CrawlQueue.job_id == job_id).scalar()
+    current_depth = int(max_depth_val) if max_depth_val is not None else None
+
     # 統計外部連結總數
     external_total = session.query(func.count(ExternalLink.id)).filter(ExternalLink.job_id == job_id).scalar() or 0  # pylint: disable=not-callable
 
@@ -587,6 +591,7 @@ def recalculate_job_progress(session: Session, job_id: str) -> None:
             "skipped": queue_skipped,
             "pending": queue_pending,
             "failed": queue_failed,
+            "current_depth": current_depth,
         },
         "external_links": external_total,
     }

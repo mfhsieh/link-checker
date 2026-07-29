@@ -34,17 +34,19 @@
 * **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** (`4.14.3`)：負責 HTML 解析，從網頁原始碼中萃取連結。
 * **[fake-useragent](https://github.com/fake-useragent/fake-useragent)** (`1.5.1`)：自動產生隨機的 User-Agent，規避基礎防爬蟲機制。
 * **[PyYAML](https://pyyaml.org/)** (`6.0.3`)：解析、校驗與讀寫 `.yaml` 設定檔（搭配 `types-PyYAML` 提供型別檢查）。
-* **[cachetools](https://github.com/tkem/cachetools/)** (`7.1.4`)：提供具備自動到期 (TTL) 能力的記憶體快取，減輕重複運算的負擔。(也同時用在 Web Backend)
+* **[SQLAlchemy](https://www.sqlalchemy.org/)** (`2.0.50`)：標準的 Python ORM 框架，封裝 SQL 語法並支援 SQLite 與 PostgreSQL。
+* **[Alembic](https://alembic.sqlalchemy.org/)** (`1.13.1`)：SQLAlchemy 官方資料庫 Schema 遷移管理工具，負責雙資料庫（SQLite 與 PostgreSQL）的自動化增量升級與版號控制。
+* **[psycopg2-binary](https://www.psycopg.org/)** (`2.9.12`)：PostgreSQL 的 Python 底層驅動程式，為 SQLAlchemy 提供 PostgreSQL 資料庫連線能力。
+* **[cachetools](https://github.com/tkem/cachetools/)** (`7.1.4`)：提供具備自動到期 (TTL) 能力的記憶體快取，減輕重複運算的負擔（同時用於 Web 後端快取）。
 
 ### 後端與系統基礎 (Web Backend)
 * **[FastAPI](https://fastapi.tiangolo.com/)** (`0.115.12`)：非同步 Web 框架，負責建構管理後台的 RESTful API 與 SSE (Server-Sent Events) 串流。
 * **[Starlette](https://www.starlette.io/)** (`0.41.3`)：FastAPI 的底層非同步框架，鎖定版本以確保相容性與系統穩定。
 * **[Uvicorn](https://www.uvicorn.org/)** (`0.34.3`)：FastAPI 底層的 ASGI 伺服器，負責處理 HTTP 請求。
-* **[SQLAlchemy](https://www.sqlalchemy.org/)** (`2.0.50`)：標準的 Python ORM 框架，封裝 SQL 語法並支援 SQLite 與 PostgreSQL。
-* **[psycopg2-binary](https://www.psycopg.org/)** (`2.9.12`)：PostgreSQL 的 Python 驅動程式。
 * **[bcrypt](https://github.com/pyca/bcrypt/)** (`4.3.0`)：密碼雜湊演算法，處理並保護使用者的登入密碼。
 * **[email-validator](https://github.com/JoshData/python-email-validator)** (`2.2.0`)：提供符合 RFC 標準的 Email 格式與 DNS 驗證。
 * **[python-dotenv](https://github.com/theskumar/python-dotenv)** (`1.0.1`)：負責從 `.env` 檔案載入環境變數，確保組態與程式碼分離。
+
 ### 開發與測試環境 (Development & Testing)
 * **[pytest](https://docs.pytest.org/)** (`8.2.0`)：自動化單元與整合測試框架。
 * **[Playwright](https://playwright.dev/)** (`1.60.0`) 與 **[pytest-playwright](https://playwright.dev/python/docs/intro)** (`0.8.0`)：無頭 (Headless) 瀏覽器測試框架及 pytest 整合外掛，負責執行前端 UI 的端到端 (E2E) 互動測試。
@@ -157,37 +159,50 @@ python cli.py --help
 ## 升級提醒 (Upgrading)
 
 > [!IMPORTANT]
-> **從 v1.8.x 升級至 v1.9.0 或更高版本**
-> 因為 `crawl_queue` 新增 HTTPS 檢測欄位 (`is_secure`)，如使用 PostgreSQL，請務必手動執行以下指令（ `lc_user` 指 `crawler_db` 的 username）：
+> **自動化資料庫遷移規範 (Alembic Database Migrations)**
+> 本專案自 **v1.9.7** 起正式導入 **Alembic** 管理雙資料庫（SQLite 與 PostgreSQL）的 Schema 異動與自動平滑升級。
+> 今後升級系統時，**無需再手動執行長串的 SQL 指令**，請依據下方標準步驟執行自動化增量遷移：
 > 
 > ```bash
+> # 1. 暫停服務
 > sudo systemctl stop link-checker
-> psql -U lc_user -d crawler_db -c "ALTER TABLE crawl_queue ADD COLUMN is_secure BOOLEAN DEFAULT TRUE NOT NULL;"
-> psql -U lc_user -d crawler_db -c "UPDATE crawl_queue SET is_secure = FALSE WHERE url LIKE 'http://%';"
-> psql -U lc_user -d crawler_db -c "DROP INDEX CONCURRENTLY IF EXISTS ix_crawl_queue_internal_issues;"
-> psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crawl_queue_internal_issues ON crawl_queue (job_id) WHERE status IN ('failed', 'warning') OR is_secure = false;"
+> 
+> # 2. 執行 Alembic 自動化升級 (自動套用所有增量 Schema 與索引異動)
+> .venv/bin/alembic upgrade head
+> 
+> # 3. 重啟服務
 > sudo systemctl start link-checker
 > ```
+> 
+> *(提示：若您是從已存在且符合 v1.9.7 欄位的既有資料庫升級，可以直接執行 `.venv/bin/alembic stamp head` 快速將資料庫版號標記為最新狀態。)*
 
-> [!IMPORTANT]
-> **升級至 v1.9.4 或更高版本**
-> 為了讓外部連結具備 `updated_at` 追蹤能力、減輕 `poller.py` 輪詢造成的 `O(N)` 全表掃描負擔（`jobs` 新增 `progress_stats` 欄位快取），以及解決爬蟲引擎查重時的 `O(N²)` 效能瓶頸（新增 `ix_external_links_job_target` 索引），如使用 PostgreSQL，請務必手動執行以下指令：
-> 
-> ```bash
-> sudo systemctl stop link-checker
-> psql -U lc_user -d crawler_db -c "ALTER TABLE external_links ADD COLUMN updated_at TIMESTAMP;"
-> psql -U lc_user -d crawler_db -c "UPDATE external_links SET updated_at = created_at WHERE updated_at IS NULL;"
-> psql -U lc_user -d crawler_db -c "ALTER TABLE external_links ALTER COLUMN updated_at SET NOT NULL;"
-> psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_external_links_job_target ON external_links (job_id, target_url);"
-> psql -U lc_user -d crawler_db -c "ALTER TABLE jobs ADD COLUMN progress_stats TEXT;"
-> sudo systemctl start link-checker
-> ```
+<details>
+<summary><b>歷史版本手動 SQL 指令參考 (v1.9.6 以前舊版備查)</b></summary>
+
+若您維運的為舊版 PostgreSQL 且希望手動比對執行，以下為過往版本的 SQL 指令參考：
+
+* **從 v1.8.x 升級至 v1.9.0 (新增 `is_secure` 欄位與條件索引)**：
+  ```bash
+  psql -U lc_user -d crawler_db -c "ALTER TABLE crawl_queue ADD COLUMN is_secure BOOLEAN DEFAULT TRUE NOT NULL;"
+  psql -U lc_user -d crawler_db -c "UPDATE crawl_queue SET is_secure = FALSE WHERE url LIKE 'http://%';"
+  psql -U lc_user -d crawler_db -c "DROP INDEX CONCURRENTLY IF EXISTS ix_crawl_queue_internal_issues;"
+  psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_crawl_queue_internal_issues ON crawl_queue (job_id) WHERE status IN ('failed', 'warning') OR is_secure = false;"
+  ```
+
+* **升級至 v1.9.4 (新增 `updated_at`, `progress_stats` 欄位與查重索引)**：
+  ```bash
+  psql -U lc_user -d crawler_db -c "ALTER TABLE external_links ADD COLUMN updated_at TIMESTAMP;"
+  psql -U lc_user -d crawler_db -c "UPDATE external_links SET updated_at = created_at WHERE updated_at IS NULL;"
+  psql -U lc_user -d crawler_db -c "ALTER TABLE external_links ALTER COLUMN updated_at SET NOT NULL;"
+  psql -U lc_user -d crawler_db -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_external_links_job_target ON external_links (job_id, target_url);"
+  psql -U lc_user -d crawler_db -c "ALTER TABLE jobs ADD COLUMN progress_stats TEXT;"
+  ```
+
+</details>
 
 > [!TIP]
 > **資料庫結構驗證 (Schema Check)**
-> 在您手動完成上述升級指令（或任何資料庫異動）後，建議您執行內建腳本 `python scripts/check_db_schema.py`。這個工具會自動檢驗您的實體資料庫欄位與程式中的 SQLAlchemy 模型定義是否完全吻合，確保升級過程沒有任何遺漏。
-
-*(備註：若是在測試環境使用 SQLite，您可以刪除舊有資料庫讓系統自動重建，或是參考上述 SQL 語法自行更新。)*
+> 完成升級後，建議執行標準檢驗指令 `.venv/bin/alembic check` 驗證實體資料庫與 ORM 模型定義是否 100% 同步；亦可隨時執行腳本 `python scripts/check_db_schema.py` 進行詳細的欄位型態與索引比對。
 
 ---
 
@@ -207,6 +222,7 @@ python cli.py --help
 ## 版本更新日誌 (Release Notes)
 
 - **v1.9.7 (2026-07-28)**:
+  - 導入 Alembic 資料庫遷移管理 (Database Migrations)：支援雙資料庫（SQLite 與 PostgreSQL）的自動化 Schema 增量升級與版號控制。
   - 前端程式碼重構：將前端重構為 MVC 分層架構與原生 Web Components 元件組合。
   - 新增「探測略過連結」功能：支援對被忽略之連結僅進行存活探測而不下載內容。
   - 資安與穩定度修正：實作錯誤訊息敏感資訊過濾（遮蔽憑證、Cookie 與 IP）、增加資料庫連線容錯、防止重導向無窮迴圈，並調整 HTML 靜態快取依檔案修改時間自動更新。

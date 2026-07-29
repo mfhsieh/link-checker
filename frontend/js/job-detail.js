@@ -29,12 +29,6 @@ document.addEventListener('click', (e) => {
             window.location.hash = '#/jobs';
         }
     }
-
-    // Config modal close buttons
-    if (e.target.closest('#job-config-close') || e.target.closest('#job-config-ok')) {
-        const configModalEl = document.getElementById('job-config-modal');
-        if (configModalEl) configModalEl.style.display = 'none';
-    }
 });
 
 /**
@@ -200,7 +194,9 @@ export class JobDetailController {
 
             const isActuallyRunning = ['running', 'starting'].includes(job.status) || job.is_running;
             if (isActuallyRunning) {
-                if (!this.sseManager.eventSource) this.sseManager.start(jobId);
+                if (this.store.currentJobId === jobId && !this.sseManager.eventSource) {
+                    this.sseManager.start(jobId);
+                }
             } else {
                 this.sseManager.stop();
             }

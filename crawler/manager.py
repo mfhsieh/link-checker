@@ -259,7 +259,7 @@ class JobManager:
                 for job in jobs
             ]
 
-    def get_job_report(self, job_id: str) -> dict[str, object] | None:
+    def get_job_report(self, job_id: str) -> dict[str, object] | None:  # pylint: disable=too-many-locals
         """
         取得指定任務的詳細統計報告。
 
@@ -292,15 +292,33 @@ class JobManager:
             if job.progress_stats:
                 try:
                     stats = json.loads(job.progress_stats)
+                    queue_data = stats.get(
+                        "queue",
+                        {
+                            "total": 0,
+                            "completed": 0,
+                            "warning": 0,
+                            "skipped": 0,
+                            "pending": 0,
+                            "failed": 0,
+                            "current_depth": None,
+                        },
+                    )
+                    if queue_data.get("current_depth") is None:
+                        max_depth_val = (
+                            session.query(sql_max(CrawlQueue.depth)).filter(CrawlQueue.job_id == job_id).scalar()
+                        )
+                        queue_data["current_depth"] = int(max_depth_val) if max_depth_val is not None else None
+                        stats["queue"] = queue_data
+                        job.progress_stats = json.dumps(stats)
+                        session.commit()
                     return {
                         "id": job.id,
                         "start_url": job.start_url,
                         "status": job.status,
                         "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                         "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-                        "queue": stats.get(
-                            "queue", {"total": 0, "completed": 0, "warning": 0, "skipped": 0, "pending": 0, "failed": 0}
-                        ),
+                        "queue": queue_data,
                         "external_links": stats.get("external_links", 0),
                     }
                 except json.JSONDecodeError:

@@ -21,7 +21,7 @@
 
 ### 最優先（安全性、資料庫與基礎架構）
 
-(目前無)
+*(目前無)*
 
 ### 高優先（效能優化、核心精準度與程式品質）
 
@@ -32,19 +32,14 @@
      2. 重新梳理並調整比對任務的診斷方式與分類邏輯，確保各種狀態變遷（例如新增失效、狀態復原、錯誤代碼改變等）都能被精準標示。
    * **狀態**：**待排程（Pending）**。
 
-1. **導入 Alembic 進行資料庫 Schema 遷移管理**
-   * **功能描述**：目前專案在啟動時會直接透過 SQLAlchemy 的 `create_all()` 建立資料庫表。在生產環境下，若有後續的 Schema 異動（如新增欄位），無法做到自動化的增量遷移。
-   * **規劃方案**：引入 Alembic 作為雙資料庫（Auth DB 與 Crawler DB）的 Migration 工具，取代直接建表的方式，並將遷移腳本納入版本控制，以確保未來欄位更動時的安全性。
-   * **狀態**：**待排程（Pending）**。
-
 ### 中優先（中大型功能擴充）
 
-*(目前無中優先待處理事項)*
+*(目前無)*
 
 ### 低優先（邊緣需求與周邊工具）
 
 1. **前端 CSS 樣式清理 (Clean up unused CSS styles)**
-   * **問題描述**：隨著專案演進與 UI 元件重構，前端可能殘留了許多不再使用的 Vanilla CSS 樣式與 Class。這些冗餘代碼會無謂地增加檔案體積，並降低樣式表的可維護性。
+   * **問題描述**：隨著專案演進與 UI 元件重構，前端可能殘留了許多不再使用的 Vanilla CSS 樣式與 Class。這些冗餘代碼會無衛地增加檔案體積，並降低樣式表的可維護性。
    * **規劃方案**：盤點前端目錄下的 HTML 與 CSS 檔案，找出從未被引用或已被廢棄的 CSS class 並予以移除，確保前端資源保持極致輕量與乾淨。
    * **狀態**：**待排程（Pending）**。
 
@@ -52,7 +47,7 @@
 
 ## 進行中 / 部分完成 (In Progress)
 
-(目前無)
+*(目前無)*
 
 ---
 
@@ -123,6 +118,39 @@
 ---
 
 ## 已解決 / 已完成 (Resolved / Completed)
+
+1. **前端 `JobService` 業務邏輯層封裝與 API 調用規範統一**
+   * **說明**：（符合 `requirements.md` §7 前端模組化、職責分離與 API 呼叫契約一致性規範）
+   * **功能描述**：原 `job-service.js` 僅封裝 2 個 API 函式，其餘 API 直接呼叫底層 `api.js`，導致調用風格不一致與抽象層薄弱。
+   * **修復方案**：補齊 `getJobs`, `getJob`, `deleteJob`, `pauseJob`, `resumeJob` 等通用 CRUD 介面，統一全站前端對 Job 資源的調用規範。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **通用二次確認 Modal (Confirm Modal) 二重送防呆與 Loading 狀態防護**
+   * **說明**：（符合 `requirements.md` §7 前端 UI/UX 互動、敏感操作與防呆機制規範）
+   * **功能描述**：在刪除任務、停用帳號等二次確認對話框中，若非同步操作耗時較長，使用者快速連擊按鈕會引發二次重複 API 發送。
+   * **修復方案**：於點擊「確認」按鈕時立即將按鈕設為 `disabled` 並提示 Loading，防範連擊重複發送。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **SSE 即時串流連線失敗自動降級與斷線上限防護**
+   * **說明**：（符合 `requirements.md` §7.2「當串流發生錯誤時，前端需優雅處理並停止連線，避免資源洩漏」條文）
+   * **功能描述**：`job-detail-sse.js` 在 `onerror` 缺乏重試上限，當網路中斷或 Session 過期時原生的 `EventSource` 會無限背景重連發起失敗請求。
+   * **修復方案**：加入 `maxRetries = 5` 失敗次數累計上限，超過 5 次自動關閉 `EventSource` 串流連線並退回背景 30s 定期輪詢。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **前端模組 Code Review v3.0 架構重構與資源洩漏修復**
+   * **說明**：（包含異步競態資源洩漏修復、透傳檔精簡、死碼監聽器清理與日期解析容錯）
+   * **修復方案**：
+     1. **[High] 異步競態資源洩漏修復**：修正 `job-detail.js` 中的 `refreshJobDetail` 異步競態防禦，當切離詳情頁或 `currentJobId` 變更時，自動阻止發起新的背景 `EventSource` 連線。
+     2. **[Medium] 介面與透傳檔精簡**：精簡重構 `compare.js`, `duplicate.js`, `transfer.js` 透傳中轉檔。
+     3. **[Low] 日期格式化解析容錯**：`api.js` 之 `formatLocalTime` 加入空格至 `T` 轉換與格式清理，保障跨瀏覽器解析 100% 正確。
+     4. **[Low] 移除死碼事件監聽器**：清理 `job-detail.js` 對全域 `#job-config-close` 的重複監聽器。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **導入 Alembic 進行資料庫 Schema 遷移管理 (Database Migrations)**
+   * **說明**：（符合 `requirements.md` §9.3「Schema 遷移」規範與 `README.md` 升級指南）
+   * **問題描述**：目前專案在啟動時會直接透過 SQLAlchemy 的 `create_all()` 建立資料庫表。在生產環境下，若有後續的 Schema 異動（如新增欄位），無法做到自動化的增量遷移。
+   * **修復方案**：已建立 Alembic 工具結構（`alembic.ini`, `alembic/env.py`），支援 `Auth DB` 與 `Crawler DB` 雙庫連線與 SQLite `render_as_batch=True` 語法，產生 `v1.9.7` 初始 Schema 版本（包含歷史 `is_secure`、`progress_stats` 等欄位與索引），並於 [README.md](file:///home/mfhsieh/projects/python/link-checker/README.md) 中將過去手動貼 `psql` 指令升級為 `.venv/bin/alembic upgrade head` 標準自動化流程。
+   * **狀態**：**已解決 (Resolved)**。
 
 1. **爬蟲深度 (Depth) 監控與探索層級顯示**
    * **說明**：（符合 `requirements.md` §7.2 之任務監控與進度規範）

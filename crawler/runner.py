@@ -142,6 +142,7 @@ class JobRunnerState:  # pylint: disable=too-many-instance-attributes
     queue_failed: int = 0
     queue_skipped: int = 0
     external_links_total: int = 0
+    current_depth: int | None = None
     last_flush_time: float = 0.0
 
 
@@ -414,6 +415,7 @@ class JobRunner:
 
         from sqlalchemy import case  # pylint: disable=import-outside-toplevel
         from sqlalchemy.sql.functions import count as sql_count  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.sql.functions import max as sql_max  # pylint: disable=import-outside-toplevel
         from sqlalchemy.sql.functions import sum as sql_sum  # pylint: disable=import-outside-toplevel
 
         # pylint: disable=duplicate-code
@@ -425,6 +427,7 @@ class JobRunner:
                 sql_sum(case((CrawlQueue.status == "pending", 1), else_=0)).label("pending"),
                 sql_sum(case((CrawlQueue.status == "failed", 1), else_=0)).label("failed"),
                 sql_sum(case((CrawlQueue.status == "skip", 1), else_=0)).label("skipped"),
+                sql_max(CrawlQueue.depth).label("max_depth"),
             )
             .filter(CrawlQueue.job_id == self.job_id)
             .first()
@@ -436,6 +439,9 @@ class JobRunner:
         self.state.queue_pending = int(queue_stats.pending) if queue_stats and queue_stats.pending else 0
         self.state.queue_failed = int(queue_stats.failed) if queue_stats and queue_stats.failed else 0
         self.state.queue_skipped = int(queue_stats.skipped) if queue_stats and queue_stats.skipped else 0
+        self.state.current_depth = (
+            int(queue_stats.max_depth) if (queue_stats and queue_stats.max_depth is not None) else None
+        )
 
         self.state.external_links_total = session.query(ExternalLink).filter(ExternalLink.job_id == self.job_id).count()
 
@@ -552,6 +558,7 @@ class JobRunner:
                 "skipped": self.state.queue_skipped,
                 "pending": self.state.queue_pending,
                 "failed": self.state.queue_failed,
+                "current_depth": self.state.current_depth,
             },
             "external_links": self.state.external_links_total,
         }
@@ -661,6 +668,12 @@ class JobRunner:
         current_url: str = queue_item.url
         queue_item_id: int = queue_item.id
         logger.info("正在爬取: %s", current_url)
+
+        if queue_item.depth is not None:
+            if self.state.current_depth is None:
+                self.state.current_depth = queue_item.depth
+            else:
+                self.state.current_depth = max(self.state.current_depth, queue_item.depth)
 
         should_delay = True
         try:

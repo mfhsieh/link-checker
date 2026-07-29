@@ -164,6 +164,13 @@ sudo -u postgres psql -c "SHOW max_wal_size;"
 sudo -u postgres psql -c "SHOW wal_keep_size;"
 ```
 
+#### 4. 標記 Alembic 遷移版號 (Alembic Stamp Head)
+資料批次寫入 PostgreSQL 完成後，請執行以下指令將 PostgreSQL 的 Alembic 遷移版號標記為最新狀態：
+```bash
+source .venv/bin/activate
+alembic stamp head
+```
+
 ### 5.2 日常空間管理與維護
 當系統正式上線並持續運行後，資料表與日誌會不可避免地產生膨脹，請參考以下方式進行日常維運。
 

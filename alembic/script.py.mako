@@ -1,0 +1,34 @@
+# pylint: skip-file
+"""
+${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+Create Date: ${create_date}
+"""
+
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+${imports if imports else ""}
+
+# revision identifiers, used by Alembic.
+revision: str = ${repr(up_revision)}
+down_revision: Union[str, None] = ${repr(down_revision)}
+branch_labels: Union[str, Sequence[str], None] = ${repr(branch_labels)}
+depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
+
+
+def upgrade() -> None:
+    """
+    執行資料庫增量升級 (Upgrade)。
+    """
+    ${upgrades if upgrades else "pass"}
+
+
+def downgrade() -> None:
+    """
+    執行資料庫降級 (Downgrade)。
+    """
+    ${downgrades if downgrades else "pass"}

@@ -284,7 +284,7 @@ export class JobProgressCard extends HTMLElement {
         const total = progress.total || 0;
         const pending = progress.pending || 0;
         const currentDepth = progress.current_depth;
-        const maxDepth = this._job.config?.crawler?.max_depth ?? null;
+        const maxDepth = this._job.config?.max_depth ?? this._job.config?.crawler?.max_depth ?? null;
 
         if (this._depthTextEl) {
             if (currentDepth === null || currentDepth === undefined) {
@@ -297,9 +297,11 @@ export class JobProgressCard extends HTMLElement {
         }
 
         let percentage = 0;
-        if (total > 0) {
+        if (this._job.status === 'completed') {
+            percentage = 100;
+        } else if (total > 0) {
             percentage = Math.floor(((total - pending) / total) * 100);
-        } else if (['completed', 'error'].includes(this._job.status)) {
+        } else if (this._job.status === 'error') {
             percentage = 100;
         }
 

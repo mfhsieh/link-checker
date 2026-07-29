@@ -12,6 +12,8 @@ link-checker/
 ├── .pylintrc           # Pylint 靜態程式碼分析設定檔
 ├── ruff.toml           # Ruff 程式碼排版設定檔
 ├── README.md           # 專案首頁與安裝啟動說明
+├── alembic.ini         # Alembic 資料庫 Migration 主設定檔
+├── alembic/             # Alembic 雙資料庫 Schema 遷移腳本目錄 (`versions/`)
 ├── cli.py              # 系統核心單一入口 (CLI 操作、伺服器啟動與管理員建立)
 ├── requirements.txt    # Python 依賴套件清單
 ├── backend/            # 網站後台 (FastAPI / Web API Server)
@@ -163,7 +165,7 @@ graph TD
 
 4. **資料持久層 (Data Layer)**
    * 採用雙資料庫實體分離架構：**Auth DB** (掌管帳號、日誌與權限) 與 **Crawler DB** (掌管任務、佇列與外連結果)。
-   * 透過 SQLAlchemy ORM 抽象化，支援從輕量級 SQLite 無縫擴展至企業級 PostgreSQL。
+   * 透過 SQLAlchemy ORM 抽象化，支援從輕量級 SQLite 無縫擴展至企業級 PostgreSQL；並透過 Alembic 進行雙資料庫 Schema 版號控管與自動化平滑增量遷移。
 
 > 💡 **詳細的技術規範與實作機制：** 關於爬蟲廣度優先策略、OOM 保護、Anti-Bot 穿透、Session 機制、OOM 巨量串流匯出等詳細功能要求與開發規範，請參閱 **系統需求規格書 (requirements.md)**。
 

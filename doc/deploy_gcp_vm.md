@@ -106,7 +106,13 @@ nano .env
 > CRAWLER_DB_URL="postgresql://lc_user:your_secure_password@localhost:5432/crawler_db"
 > ```
 
-2. 初始化系統，建立第一位管理員帳號：
+2. 執行 Alembic 自動化初始化資料庫 Schema：
+
+```bash
+.venv/bin/alembic upgrade head
+```
+
+3. 初始化系統，建立第一位管理員帳號：
 
 ```bash
 # 請替換為您的信箱
@@ -318,11 +324,15 @@ http://<您的 VM 外部 IP>/
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
-5. **重新啟動背景服務**：
+5. **執行 Alembic 自動化資料庫遷移 (自動升級 Schema 與索引)**：
+   ```bash
+   alembic upgrade head
+   ```
+6. **重新啟動背景服務**：
    ```bash
    sudo systemctl start link-checker
    ```
-6. **確認服務狀態**：
+7. **確認服務狀態**：
    ```bash
    sudo systemctl status link-checker
    ```

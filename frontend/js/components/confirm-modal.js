@@ -123,6 +123,7 @@ class ConfirmModal extends HTMLElement {
 
             submitBtn.textContent = confirmText;
             submitBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+            submitBtn.disabled = false;
             cancelBtn.style.display = hideCancel ? 'none' : '';
 
             const cleanup = () => {
@@ -133,7 +134,11 @@ class ConfirmModal extends HTMLElement {
                 document.dispatchEvent(new CustomEvent('modal-closed'));
             };
 
-            const onConfirm = () => { cleanup(); resolve(true); };
+            const onConfirm = () => {
+                submitBtn.disabled = true;
+                cleanup();
+                resolve(true);
+            };
             const onCancel = () => { cleanup(); resolve(false); };
 
             submitBtn.addEventListener('click', onConfirm);
