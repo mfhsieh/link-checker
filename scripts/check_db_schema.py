@@ -172,11 +172,8 @@ def compare_metadata_with_db(engine: Engine, metadata: MetaData, db_name: str) -
         # D. 檢查 Check Constraints
         try:
             db_checks = {ck["name"] for ck in inspector.get_check_constraints(table_name) if ck.get("name")}
-            expected_checks = {
-                ck.name for ck in table_obj.constraints 
-                if isinstance(ck, CheckConstraint) and ck.name
-            }
-            
+            expected_checks = {ck.name for ck in table_obj.constraints if isinstance(ck, CheckConstraint) and ck.name}
+
             for ck_name in expected_checks:
                 if ck_name not in db_checks:
                     logger.error("[%s] 資料表 %s 缺失 Check 約束 (Check Constraint): %s", db_name, table_name, ck_name)

@@ -626,6 +626,7 @@
   * **Crawler DB**：延續現有爬蟲資料庫引擎（SQLite）。系統必須支援透過 `.env` 檔案中的 `CRAWLER_DB_URL` 環境變數動態抽換路徑，以落實開發、測試、生產環境之物理隔離。
   * 針對 SQLite，為配合 FastAPI/Starlette 的 `StreamingResponse` 跨執行緒池串流輸出，必須設定 `check_same_thread=False`，並搭配 `WAL` 模式以保障高併發讀取與生成器跨執行緒操作的安全。
 * **Schema 遷移**：使用遷移工具（如 Alembic）管理兩個資料庫的 Schema 版本，遷移腳本需納入版本控制並可在 CI/CD 中自動執行。
+* **Schema 遷移與破壞性操作防護 (Safe Destructive Testing)**：針對 Alembic 等工具提供的資料庫降級 (Downgrade) 等具備毀滅性（如 `DROP TABLE`）的操作，必須在程式底層與環境層建立防呆保護鎖。當攔截到 `downgrade` 操作時，必須強制要求攜帶特定的環境變數（如 `CONFIRM_DESTRUCTIVE_DOWNGRADE=yes`）才能放行，嚴防正式環境或具備歷史資料的開發環境遭誤觸清空。
 * **ORM / 查詢**：可選用輕量 ORM（如 SQLAlchemy Core）或直接使用參數化 SQL 查詢；**嚴禁字串拼接 SQL**，以防 SQL Injection。
 
 ### 9.4 郵件發送

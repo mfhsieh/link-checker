@@ -23,7 +23,15 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
+def upgrade(engine_name: str = "") -> None:
+    globals()["upgrade_%s" % engine_name]()
+
+
+def downgrade(engine_name: str = "") -> None:
+    globals()["downgrade_%s" % engine_name]()
+
+
+def upgrade_auth() -> None:
     """
     執行資料庫增量升級 (Upgrade)。
 
@@ -103,6 +111,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("email"),
     )
+
+
+def upgrade_crawler() -> None:
     op.create_table(
         "jobs",
         sa.Column("id", sa.String(length=36), nullable=False),
@@ -177,7 +188,7 @@ def upgrade() -> None:
     # ### end Alembic commands ###
 
 
-def downgrade() -> None:
+def downgrade_crawler() -> None:
     """
     執行資料庫降級 (Downgrade)。
 
@@ -206,6 +217,9 @@ def downgrade() -> None:
         batch_op.drop_index(batch_op.f("ix_jobs_user_id"))
 
     op.drop_table("jobs")
+
+
+def downgrade_auth() -> None:
     op.drop_table("users")
     with op.batch_alter_table("sessions", schema=None) as batch_op:
         batch_op.drop_index("ix_sessions_user_id")

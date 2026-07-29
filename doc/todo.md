@@ -106,6 +106,12 @@
 
 ## 已解決 / 已完成 (Resolved / Completed)
 
+1. **實作 Alembic 破壞性操作 (Downgrade) 環境防呆鎖**
+   * **說明**：（符合 `requirements.md` §9.3「Schema 遷移與破壞性操作防護」規範）
+   * **問題描述**：Alembic 的 `downgrade base` 操作具備高度破壞性（會執行 `DROP TABLE`）。若在正式或開發環境中手滑誤觸，將導致資料庫瞬間被清空且歷史資料永久遺失。
+   * **修復方案**：已於 `alembic/env.py` 中寫入底層的防呆保護鎖。當腳本偵測到 `downgrade` 指令時，會要求必須攜帶 `CONFIRM_DESTRUCTIVE_DOWNGRADE=yes` 環境變數才能放行，否則立即阻擋並中斷執行。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **`_handle_error` 重試退避期間未持久化 `retry_count`**
    * **說明**：（依據 TODO CP 值評估優先實作）
    * **修復方案**：在 `crawler/runner.py` 的 `_handle_error` 中補上 `session` 參數，並於進入長時間 sleep 之前執行 `session.commit()`，確保重試計數在退避等待期間不會因斷電或中斷而遺失。
