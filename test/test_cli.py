@@ -677,7 +677,9 @@ crawler:
         with open(internal_filter_file, "r", encoding="utf-8") as f:
             internal_filter_data = json.load(f)
         assert len(internal_filter_data) == 2, f"Expected 2 skipped internal links, got {len(internal_filter_data)}"
-        assert all(item.get("status_category") == "skip" for item in internal_filter_data), "All items should have status_category 'skip'"
+        assert all(item.get("status_category") == "skip" for item in internal_filter_data), (
+            "All items should have status_category 'skip'"
+        )
         os.remove(internal_filter_file)
 
         # 測試 --export-full
