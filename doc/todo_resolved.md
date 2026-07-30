@@ -1,5 +1,11 @@
 # 已解決的待辦事項 (Resolved TODOs)
 
+1. **任務結束時自動即時刷新診斷摘要與結果列表 (Diagnostic Summary Auto-Refresh)**
+   * **說明**：（符合 `requirements.md` 7.2 任務管理（前台）規範）
+   * **問題描述**：任務執行完畢時，前端透過 SSE 推送能即時更新控制按鈕狀態（如移轉、刪除解鎖），但頂部診斷摘要卡片與詳細連結列表需等待使用者手動切換頁籤或刷新頁面，才能看到最終結果。
+   * **修復方案**：於 `frontend/js/job-detail.js` 的 `handleSseMessage` 加入狀態轉換偵測。當任務由執行中轉換為終態（`completed`/`error`/`paused`）時，先觸發 `invalidateCaches()` 清空快取，並立即自動呼叫 `loadResults()` 向 API 發起最新診斷統計與詳細列表之請求，隨後關閉 SSE 串流與輪詢。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **解耦 `crawler` 模組對 `backend.events` 的反向依賴**
    * **說明**：（符合 CLI-First 架構原則，徹底隔離模組邊界）
    * **問題描述**：爬蟲模組 (`crawler/manager.py`, `crawler/runner.py`) 直接 `from backend.events import SystemEvent, publish`，造成底層爬蟲引擎反向依賴 Web 後端模組。

@@ -85,12 +85,19 @@ export class JobDetailController {
      * @returns {void}
      */
     handleSseMessage(jobUpdate) {
+        const wasRunning = this.store.currentJobData ? (['running', 'starting'].includes(this.store.currentJobData.status) || !!this.store.currentJobData.is_running) : false;
+
         if (this.store.currentJobData) {
             Object.assign(this.store.currentJobData, jobUpdate);
             this.renderJobInfo(this.store.currentJobData);
         } else {
             this.store.currentJobData = jobUpdate;
             this.renderJobInfo(this.store.currentJobData);
+        }
+
+        const isNowFinished = ['completed', 'error', 'paused'].includes(jobUpdate.status) && !jobUpdate.is_running;
+        if (wasRunning && isNowFinished && this.store.currentJobId) {
+            this.loadResults(this.store.currentJobId);
         }
     }
 
