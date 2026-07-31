@@ -11,6 +11,7 @@ from datetime import timedelta
 from typing import Any
 from urllib.parse import urlparse
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
 from crawler.models import CrawlQueue, ExternalLink, Job, JobDiffItem, JobDiffResult, get_utc_now
@@ -523,6 +524,7 @@ def get_job_diff(  # pylint: disable=too-many-arguments,too-many-locals
 
     Raises:
         ValueError: 若基準任務或對照任務不存在，或使用者無權限存取時拋出。
+        RuntimeError: 當高並發下無法建立或取得任務比對快取時拋出。
     """
     job_a = db.query(Job).filter(Job.id == base_job_id).first()
     job_b = db.query(Job).filter(Job.id == compare_job_id).first()
@@ -561,7 +563,27 @@ def get_job_diff(  # pylint: disable=too-many-arguments,too-many-locals
     summary_json = json.dumps({"ext_summary": ext_summary, "int_summary": int_summary})
     new_diff = JobDiffResult(job_a_id=base_job_id, job_b_id=compare_job_id, summary_json=summary_json)
     db.add(new_diff)
-    db.flush()
+
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        # Race condition: 另一個請求或執行緒已經寫入了相同的 (job_a_id, job_b_id) 快取紀錄
+        db.rollback()
+        diff_record = db.query(JobDiffResult).filter_by(job_a_id=base_job_id, job_b_id=compare_job_id).first()
+        if diff_record:
+            diff_record.last_accessed_at = get_utc_now()
+            db.commit()
+            summary = json.loads(diff_record.summary_json)
+            return {
+                "id": diff_record.id,
+                "base_job": {"id": job_a.id, "created_at": job_a.created_at.isoformat()},
+                "compare_job": {"id": job_b.id, "created_at": job_b.created_at.isoformat()},
+                "scope": scope,
+                "summary": summary.get("ext_summary", {}),
+                "external": {"summary": summary.get("ext_summary", {})},
+                "internal": {"summary": summary.get("int_summary", {})},
+            }
+        raise RuntimeError("無法建立或取得任務比對快取") from exc
 
     items = []
     # 寫入 external details

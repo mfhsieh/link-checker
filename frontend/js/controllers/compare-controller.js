@@ -384,7 +384,7 @@ export class CompareController {
                 { label: '外部網域', key: 'domain', truncate: '200px', render: v => renderDomainNode(v) },
                 { label: '舊 IP 位址', key: 'old_ip', className: 'font-mono text-sm text-muted', render: v => createTextNode(v) },
                 { label: '新 IP 位址', key: 'new_ip', className: 'font-mono text-sm text-danger', render: v => createTextNode(v) },
-                { label: '目標數量', key: 'url_count', className: 'font-semibold', render: v => createTextNode(v) },
+                { label: '目標數量', key: 'url_count', className: 'font-semibold', align: 'center', render: v => createTextNode(v) },
                 { label: '目標頁面', key: 'target_urls', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) },
                 { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) }
             ];
@@ -402,9 +402,9 @@ export class CompareController {
                 { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v) },
                 { label: 'IP 位址', key: 'ip', className: 'font-mono text-sm', render: v => createTextNode(v) },
                 { label: 'HTTPS', key: 'is_secure', align: 'center', render: v => v ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
-                { label: 'HTTP 狀態', key: 'status_code', render: v => renderHttpStatusCode(v) },
+                { label: 'HTTP 狀態', key: 'status_code', align: 'center', render: v => renderHttpStatusCode(v) },
                 { label: '錯誤訊息', key: 'error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
-                { label: '來源數量', key: 'sources_count', className: 'font-semibold', render: (v, item) => createTextNode(v ?? (item.sources ? item.sources.length : 0)) },
+                { label: '來源數量', key: 'sources_count', className: 'font-semibold', align: 'center', render: (v, item) => createTextNode(v ?? (item.sources ? item.sources.length : 0)) },
                 { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) }
             ];
         } else if (tabName === 'removed_links') {
@@ -412,9 +412,9 @@ export class CompareController {
                 { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v) },
                 { label: '原 IP 位址', key: 'old_ip', className: 'font-mono text-sm text-muted', render: v => createTextNode(v) },
                 { label: '原 HTTPS', key: 'old_is_secure', align: 'center', render: v => v ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
-                { label: '原 HTTP 狀態', key: 'old_status_code', render: v => renderHttpStatusCode(v) },
+                { label: '原 HTTP 狀態', key: 'old_status_code', align: 'center', render: v => renderHttpStatusCode(v) },
                 { label: '原錯誤訊息', key: 'old_error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
-                { label: '來源數量', key: 'sources_count', className: 'font-semibold', render: (v, item) => createTextNode(v ?? (item.sources ? item.sources.length : 0)) },
+                { label: '來源數量', key: 'sources_count', className: 'font-semibold', align: 'center', render: (v, item) => createTextNode(v ?? (item.sources ? item.sources.length : 0)) },
                 { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) }
             ];
         } else if (tabName.startsWith('internal_')) {
@@ -424,17 +424,17 @@ export class CompareController {
                 this.store.currentCompareHeaders = [
                     { label: '目標頁面', key: 'url', truncate: '260px', render: v => renderSingleUrlNode(v) },
                     { label: 'HTTPS', key: 'is_secure', align: 'center', render: v => v ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
-                    { label: 'HTTP 狀態', key: 'status_code', render: v => renderHttpStatusCode(v) },
+                    { label: 'HTTP 狀態', key: 'status_code', align: 'center', render: v => renderHttpStatusCode(v) },
                     { label: '錯誤訊息', key: 'error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
-                    { label: '探索深度', key: 'depth', className: 'font-mono text-sm', render: v => createTextNode(v) }
+                    { label: '探索深度', key: 'depth', className: 'font-mono text-sm', align: 'center', render: v => createTextNode(v) }
                 ];
             } else if (tabName === 'internal_removed_pages') {
                 this.store.currentCompareHeaders = [
                     { label: '目標頁面', key: 'url', truncate: '260px', render: v => renderSingleUrlNode(v) },
                     { label: '原 HTTPS', key: 'old_is_secure', align: 'center', render: v => v ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
-                    { label: '原 HTTP 狀態', key: 'old_status_code', render: v => renderHttpStatusCode(v) },
+                    { label: '原 HTTP 狀態', key: 'old_status_code', align: 'center', render: v => renderHttpStatusCode(v) },
                     { label: '原錯誤訊息', key: 'old_error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
-                    { label: '探索深度', key: 'depth', className: 'font-mono text-sm', render: v => createTextNode(v) }
+                    { label: '探索深度', key: 'depth', className: 'font-mono text-sm', align: 'center', render: v => createTextNode(v) }
                 ];
             } else {
                 this.store.currentCompareHeaders = [

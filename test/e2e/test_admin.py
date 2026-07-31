@@ -77,6 +77,7 @@ def test_admin_user_management_ui(page: Page, base_url: str) -> None:
     page.fill('input[type="password"]', "Admin@12345678")
     page.click('button[type="submit"]')
     page.wait_for_url(re.compile(r".*/(app|help)\.html.*"), timeout=10000)
+    page.wait_for_timeout(1000)  # 讓潛在的客戶端二次跳轉 (app.html -> help.html) 沉澱，避免中斷下一個 goto
 
     page.goto(f"{base_url}/admin.html")
     page.wait_for_selector("#users-table-container")

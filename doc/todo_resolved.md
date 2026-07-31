@@ -1,5 +1,11 @@
 # 已解決的待辦事項 (Resolved TODOs)
 
+1. **修復任務比對引擎快取寫入的競態條件 (Race Condition)**
+   * **說明**：（修正 `get_job_diff` 在高並發下可能因重複寫入觸發 `IntegrityError` 的系統不穩定問題）
+   * **問題描述**：當資料庫不存在快取紀錄時，會動態計算差異並寫入新的 `JobDiffResult`。若同時有兩個以上對同一個任務組合的並發請求，兩者都會嘗試寫入，導致觸發 `uq_job_diff_a_b` 唯一約束，引發 `IntegrityError` 並導致 500 Server Error。
+   * **修復方案**：在寫入時使用 `try...except IntegrityError` 捕捉例外，若發生衝突則進行 `db.rollback()`，並重新撈取已由其他執行緒成功建立的快取資料返回，此設計在 SQLite 與 PostgreSQL 均可安全生效。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **重構任務比對架構：實作比對結果持久化 (Materialized Diff Table)**
    * **說明**：（符合 `requirements.md` 任務歷史差異比對引擎之「比對結果持久化 (Materialized Diff)」規範，解決大任務比對時的記憶體與 OOM 崩潰問題，並支援分頁）
    * **問題描述**：目前「任務比對」API 是在記憶體中一次性算出所有差異，並回傳巨大 JSON 給前端處理分頁。當任務包含數十萬個連結時，這會引發 Server 記憶體飆升、網路傳輸壅塞與瀏覽器 OOM 崩潰。
