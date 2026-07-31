@@ -12,6 +12,7 @@
 - **主要依賴的 API 路由端點**:
   - **身分驗證**: `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/password/reset`
   - **任務管理**: `/api/jobs` (CRUD), `/api/jobs/{job_id}/start`, `/api/jobs/{job_id}/pause`, `/api/jobs/{job_id}/reprobe`, `/api/jobs/{job_id}/results`
+  - **任務比對**: `/api/jobs/{job_id}/diff`, `/api/jobs/{job_id}/diff/items`, `/api/jobs/{job_id}/diff/export`
   - **報表匯出**: `/api/jobs/{job_id}/results/export`, `/api/jobs/{job_id}/internal-results/export`, `/api/jobs/{job_id}/export/full`, `/api/jobs/{job_id}/export/partial`
   - **系統管理**: `/api/admin/users`, `/api/admin/logs`
 - **安全防禦依賴**: POST / PATCH / DELETE 請求必須在 Request Header 中附加 `X-CSRF-Token`（讀取自 Cookie中的 `csrf_token`）。
@@ -43,10 +44,10 @@
     ```python
     from crawler.manager import JobManager
     ```
-  - **任務管理、查詢與局部重測**: [backend/jobs/services/management.py](../backend/jobs/services/management.py)、[backend/jobs/services/results.py](../backend/jobs/services/results.py) 與 [backend/jobs/services/reprobe.py](../backend/jobs/services/reprobe.py) 中，直接調用 `JobManager` 類別並引入 `crawler.models`。
+  - **任務管理、查詢、比對與局部重測**: [backend/jobs/services/management.py](../backend/jobs/services/management.py)、[backend/jobs/services/results.py](../backend/jobs/services/results.py)、[backend/jobs/services/reprobe.py](../backend/jobs/services/reprobe.py) 與 [backend/jobs/services/diff.py](../backend/jobs/services/diff.py) 中，直接調用 `JobManager` 類別並引入 `crawler.models`。
 - **核心引入語句 (Imports)**:
   - `from crawler.manager import JobManager, JobCreateOptions`
-  - `from crawler.models import Job, CrawlQueue, ExternalLink`
+  - `from crawler.models import Job, CrawlQueue, ExternalLink, JobDiffResult, JobDiffItem`
   - `from crawler.config_utils import merge_and_validate_crawler_config`
 
 ---

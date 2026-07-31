@@ -235,6 +235,8 @@ erDiagram
 erDiagram
     jobs ||--o{ crawl_queue : "has many"
     jobs ||--o{ external_links : "has many"
+    jobs ||--o{ job_diff_results : "has many (as job_a / job_b)"
+    job_diff_results ||--o{ job_diff_items : "has many"
     jobs {
         String(36) id PK "任務的主鍵 (UUID)"
         String(128) user_id "任務擁有者 ID"
@@ -275,6 +277,21 @@ erDiagram
         Text error_message "錯誤訊息"
         DateTime created_at "紀錄時間"
         DateTime updated_at "更新時間"
+    }
+    job_diff_results {
+        String(36) id PK "比對紀錄主鍵 (UUID)"
+        String(36) job_a_id FK "基準任務 ID"
+        String(36) job_b_id FK "對照任務 ID"
+        Text summary_json "統計總覽快取 (JSON)"
+        DateTime created_at "建立時間"
+        DateTime last_accessed_at "最後存取時間"
+    }
+    job_diff_items {
+        Integer id PK "比對結果明細主鍵"
+        String(36) diff_id FK "關聯的比對紀錄 ID"
+        String(50) category "分類名稱"
+        Text target_url "目標網址"
+        Text details_json "詳細資料快取 (JSON)"
     }
 ```
 
@@ -359,6 +376,38 @@ erDiagram
 * **`ix_external_links_job_domain`** (複合索引): `(job_id, target_domain)`。用於 `group_by=domain` 的群組統計。
 * **`ix_external_links_job_target`** (複合索引): `(job_id, target_url)`。用於加速 `group_by=target` 查詢，避免全表掃描。
 * **`ix_external_links_insecure_issues`** (部分索引 / Partial Index): 僅針對 `(job_id)` 建立，過濾條件為 `WHERE is_secure = false` (或 SQLite 的 `= 0`)。用於快速查詢非 HTTPS 的外部連結，並可搭配 `id + 0` 數學表達式來規避 PostgreSQL 的分頁排序效能問題。
+
+---
+
+#### `job_diff_results` (比對結果快照表)
+此資料表記錄兩次任務之間的比對結果摘要 (Materialized Diff Result)，用於解決大量資料比對時的記憶體耗盡問題，並提供後續分頁查詢與匯出。
+
+| 欄位名稱 | 型別 | 限制/預設值 | 說明 |
+| :--- | :--- | :--- | :--- |
+| `id` | `String(36)` | **Primary Key** | 比對紀錄主鍵，UUID v4 字串。 |
+| `job_a_id` | `String(36)` | **Foreign Key** | 基準任務 ID，關聯至 `jobs.id` (`ON DELETE CASCADE`)。 |
+| `job_b_id` | `String(36)` | **Foreign Key** | 對照任務 ID，關聯至 `jobs.id` (`ON DELETE CASCADE`)。 |
+| `summary_json` | `Text` | `NOT NULL` | 各分類數量的統計總覽快取 (JSON 格式)，供前端快速繪製摘要卡片。 |
+| `created_at` | `DateTime` | `Default: 當下時間` | 建立時間。 |
+| `last_accessed_at` | `DateTime` | `Default: 當下時間` | 最後存取時間，用於後續搭配排程腳本實作 LRU 淘汰機制（如自動清理超過 14 天未存取之快取）。 |
+
+##### 索引與約束資訊 (Indexes & Constraints)
+* **`uq_job_diff_a_b`** (唯一約束): `(job_a_id, job_b_id)`。確保同一對任務的比對紀錄唯一。
+* **`ix_job_diff_last_accessed`** (索引): `(last_accessed_at)`。用於加速過期快取清理的查詢。
+
+#### `job_diff_items` (比對結果明細表)
+此資料表記錄比對結果中的各個變更項目 (Materialized Diff Item)，供前端進行分頁與分類篩選。
+
+| 欄位名稱 | 型別 | 限制/預設值 | 說明 |
+| :--- | :--- | :--- | :--- |
+| `id` | `Integer` | **Primary Key** | 比對明細主鍵。 |
+| `diff_id` | `String(36)` | **Foreign Key** | 關聯的比對紀錄 ID，關聯至 `job_diff_results.id` (`ON DELETE CASCADE`)。 |
+| `category` | `String(50)` | `NOT NULL` | 分類名稱（如 `ext_degraded`, `int_new_pages` 等）。 |
+| `target_url` | `Text` | `NOT NULL` | 發生變動的目標網址。 |
+| `details_json` | `Text` | `NOT NULL` | 詳細資料快取 (JSON 格式)，包含舊狀態、新狀態、錯誤訊息與來源清單，供前端直接渲染明細列而無須 Join 原表。 |
+
+##### 索引與約束資訊 (Indexes & Constraints)
+* **`ix_job_diff_items_diff_category`** (複合索引): `(diff_id, category)`。用於加速前端依照特定分類（如僅看退化或死鏈）的分頁查詢。
 
 ---
 

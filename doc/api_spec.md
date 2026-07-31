@@ -604,6 +604,30 @@
 - **422**: Validation Error
 ---
 
+## GET /api/jobs/{job_id}/diff/items
+**摘要**: Get Job Diff Items
+
+**說明**: 取得任務比對明細的分頁資料。
+
+**標籤**: jobs
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
+## GET /api/jobs/{job_id}/diff/export
+**摘要**: Export Job Diff
+
+**說明**: 匯出任務比對明細。
+
+**標籤**: jobs
+
+### 回應 (Responses)
+- **200**: Successful Response
+- **422**: Validation Error
+---
+
 ## GET /api/jobs/{job_id}/internal-results/summary
 **摘要**: Get Internal Results Summary
 

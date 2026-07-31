@@ -33,7 +33,7 @@ link-checker/
 │   │   ├── router.py   # 任務模組總路由聚合器
 │   │   ├── schemas.py  # 任務模組專用 Pydantic 與依賴注入 Model
 │   │   ├── routers/    # 子 API 路由定義 (管理、結果、匯出)
-│   │   └── services/   # 任務核心服務 (管理、進程、結果、郵件通知、報表匯出、局部重新探測)
+│   │   └── services/   # 任務核心服務 (管理、進程、結果、比對持久化、郵件通知、匯出、局部重測)
 │   ├── cache_utils.py  # 系統快取工具 (如設定檔快取)
 │   ├── config.py       # 系統組態與環境變數設定
 │   ├── deps.py         # 依賴注入 (如 Session, Current User)
@@ -134,7 +134,7 @@ link-checker/
 ```mermaid
 graph TD
     Frontend -->|API 溝通| Backend
-    Backend -->|Subprocess 呼叫| CLI[cli.py]
+    Backend -->|Subprocess 呼叫| CLI["cli.py"]
     Backend -->|依賴核心業務| Crawler
     
     %% CLI 與 Backend 的關係
@@ -142,8 +142,8 @@ graph TD
     CLI -->|呼叫通知/匯出服務| Backend
     
     %% 消除反向耦合 (100% 完全解耦)
-    Crawler -.->|Callback 回呼發送通知 (無相依)| Backend
-    Crawler -.->|Callback 回呼狀態| CLI
+    Crawler -. Callback 回呼發送通知 (無相依) .-> Backend
+    Crawler -. Callback 回呼狀態 .-> CLI
 ```
 
 ### 核心設計層級

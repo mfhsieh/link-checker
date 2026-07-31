@@ -33,6 +33,8 @@
 | `GET` | `/api/jobs/{job_id}/results` | 外連結果列表（支援篩選、搜尋、去重聚合與分頁）。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/summary` | 取得任務結果統計摘要。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/diff` | 比對兩個任務的結果差異 (支援外部連結與內部網頁，以及排除網域)。 | 已登入（僅限自身任務） |
+| `GET` | `/api/jobs/{job_id}/diff/items` | 取得任務比對明細的分頁資料。 | 已登入（僅限自身任務） |
+| `GET` | `/api/jobs/{job_id}/diff/export` | 匯出任務比對明細。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/internal-results/summary` | 取得任務內部網頁爬取失敗的統計摘要。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/internal-results` | 取得內部網頁爬取失敗的紀錄列表（支援分頁）。 | 已登入（僅限自身任務） |
 | `GET` | `/api/jobs/{job_id}/results/export` | 匯出外連結果（CSV 或 JSON 格式下載）。 | 已登入（僅限自身任務） |

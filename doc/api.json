@@ -1213,6 +1213,170 @@
         }
       }
     },
+    "/api/jobs/{job_id}/diff/items": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Get Job Diff Items",
+        "description": "取得任務比對明細的分頁資料。",
+        "operationId": "get_job_diff_items_api_jobs__job_id__diff_items_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "compare_with",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "要比對的新任務 ID (對照組)",
+              "title": "Compare With"
+            },
+            "description": "要比對的新任務 ID (對照組)"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "分類名稱",
+              "title": "Category"
+            },
+            "description": "分類名稱"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Job Diff Items Api Jobs  Job Id  Diff Items Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/diff/export": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Export Job Diff",
+        "description": "匯出任務比對明細。",
+        "operationId": "export_job_diff_api_jobs__job_id__diff_export_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "compare_with",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "要比對的新任務 ID (對照組)",
+              "title": "Compare With"
+            },
+            "description": "要比對的新任務 ID (對照組)"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "分類名稱",
+              "title": "Category"
+            },
+            "description": "分類名稱"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(csv|json)$",
+              "default": "csv",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/jobs/{job_id}/internal-results/summary": {
       "get": {
         "tags": [

@@ -36,7 +36,7 @@
 | `--export-internal` | *(無)* | 字串 | 指定任務 ID，將該任務的內部網頁爬取紀錄匯出 (預設為 CSV，若帶有 `--json` 則為 JSON)。 | 無 |
 | `--export-full` | *(無)*| 字串 | 指定任務 ID，匯出該任務的完整報表 (ZIP 壓縮檔，含內部爬取診斷紀錄與外部連結清單)。亦可搭配 `--output` 自訂檔名。 | 無 |
 | `--output` | *(無)* | 字串 | (選填) 搭配匯出指令使用，自訂輸出路徑。 | 依格式而定，如 `report/<JOB_ID>.csv` 或 `.zip` |
-| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export-external` 或 `--export-internal` 使用，指定狀態過濾器。可選值為 `dead`, `broken`, `not_found`, `server_error`, `connection_error`, `other_error`, `blocked`, `insecure`, `healthy`, `warning`, `timeout`, `completed`, `skip`, `all`。 | `all` |
+| `--filter` | *(無)* | 字串 | (選填) 搭配 `--export-external` 或 `--export-internal` 使用，指定狀態過濾器。可選值為 `dead`, `broken`, `insecure`, `dns_failed`, `not_found`, `server_error`, `connection_error`, `other_error`, `blocked`, `healthy`, `warning`, `timeout`, `completed`, `skip`, `all`。 | `all` |
 | `--exclude`| *(無)* | 字串 | (選填) 搭配 `--export-external` 使用，排除指定的目標網域（多個以逗號分隔）。 | 無 |
 | `--group-by`| *(無)* | 字串 | (選填) 搭配 `--export-external` 使用，聚合模式：`target` (依外連)、`source` (依來源頁面)、`domain` (依網域)。 | `none` |
 | `--json` | *(無)* | 旗標 | (選填) 啟用 JSON 格式支援。支援 `--list-jobs` 與 `--report` 的 stdout 輸出，以及各項匯出指令的 JSON 檔案導出。 | 無 |
