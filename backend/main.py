@@ -47,6 +47,17 @@ async def _run_scheduler_loop() -> None:
         try:
             # 任務操作包含資料庫讀寫與子程序啟動，應丟入 Thread Pool 避免阻塞 Event Loop
             await asyncio.to_thread(check_and_spawn_queued_jobs)
+            # pylint: disable=import-outside-toplevel
+            from backend.deps import get_job_manager
+            from backend.jobs.services.diff import cleanup_expired_diffs
+
+            def run_cleanup():
+                manager = get_job_manager()
+                with manager.session_factory() as db:
+                    cleanup_expired_diffs(db)
+
+            await asyncio.to_thread(run_cleanup)
+
             error_count = 0  # 執行成功，重置計數
         except asyncio.CancelledError:
             break

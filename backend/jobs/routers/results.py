@@ -2,7 +2,10 @@
 任務結果查詢相關 API 端點。
 """
 
+import csv
+import json
 import logging
+from io import StringIO
 
 from fastapi import (
     APIRouter,
@@ -11,6 +14,7 @@ from fastapi import (
     Query,
     status,
 )
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session as DBSession
 
 from backend.auth.models import User
@@ -18,7 +22,7 @@ from backend.cache_utils import get_cached_job_result
 from backend.deps import get_crawler_db, get_current_user
 from backend.jobs.schemas import InternalResultQuery, JobResultQuery, ResultsQueryArgs
 from backend.jobs.services import diff, external_results, internal_results
-from crawler.models import Job
+from crawler.models import Job, JobDiffItem, JobDiffResult
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -131,26 +135,130 @@ def get_job_diff(  # pylint: disable=too-many-arguments
         if not job or (job.user_id != current_user.id and current_user.role != "admin"):
             raise ValueError(f"Job not found: {job_id}")
 
-        def compute():
-            return diff.get_job_diff(
-                db,
-                base_job_id=job_id,
-                compare_job_id=compare_with,
-                user_id=current_user.id,
-                exclude=exclude,
-                scope=scope,
-            )
-
-        return get_cached_job_result(
-            job_status=job.status,
-            job_updated_at=job.updated_at.timestamp(),
-            job_id=job_id,
-            endpoint_name="job_diff",
-            params={"compare_with": compare_with, "exclude": exclude, "scope": scope},
-            compute_func=compute,
+        return diff.get_job_diff(
+            db,
+            base_job_id=job_id,
+            compare_job_id=compare_with,
+            user_id=current_user.id,
+            exclude=exclude,
+            scope=scope,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+
+@router.get("/{job_id}/diff/items")
+# pylint: disable=too-many-arguments
+def get_job_diff_items(
+    job_id: str,
+    compare_with: str = Query(..., description="要比對的新任務 ID (對照組)"),
+    category: str = Query(..., description="分類名稱"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_crawler_db),
+) -> dict[str, object]:
+    """
+    取得任務比對明細的分頁資料。
+    """
+    try:
+        job = db.get(Job, job_id)
+        if not job or (job.user_id != current_user.id and current_user.role != "admin"):
+            raise ValueError(f"Job not found: {job_id}")
+
+        diff_record = db.query(JobDiffResult).filter_by(job_a_id=job_id, job_b_id=compare_with).first()
+        if not diff_record:
+            raise ValueError("尚未建立比對結果，請先呼叫 /diff API。")
+
+        # 確保更新 last_accessed_at
+        diff_record.last_accessed_at = diff.get_utc_now()
+        db.commit()
+
+        query = db.query(JobDiffItem).filter(JobDiffItem.diff_id == diff_record.id, JobDiffItem.category == category)
+        total = query.count()
+        items = query.order_by(JobDiffItem.id).offset((page - 1) * page_size).limit(page_size).all()
+
+        parsed_items = []
+        for it in items:
+            parsed_items.append(json.loads(it.details_json))
+
+        return {"total": total, "page": page, "page_size": page_size, "items": parsed_items}
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+
+@router.get("/{job_id}/diff/export")
+# pylint: disable=too-many-arguments,redefined-builtin
+def export_job_diff(
+    job_id: str,
+    compare_with: str = Query(..., description="要比對的新任務 ID (對照組)"),
+    category: str = Query(..., description="分類名稱"),
+    format: str = Query("csv", pattern="^(csv|json)$"),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = Depends(get_crawler_db),
+):
+    """
+    匯出任務比對明細。
+    """
+    job = db.get(Job, job_id)
+    if not job or (job.user_id != current_user.id and current_user.role != "admin"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    diff_record = db.query(JobDiffResult).filter_by(job_a_id=job_id, job_b_id=compare_with).first()
+    if not diff_record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="尚未建立比對結果，請先呼叫 /diff API。")
+
+    diff_record.last_accessed_at = diff.get_utc_now()
+    db.commit()
+
+    query = (
+        db.query(JobDiffItem)
+        .filter(JobDiffItem.diff_id == diff_record.id, JobDiffItem.category == category)
+        .order_by(JobDiffItem.id)
+    )
+
+    filename = f"diff_{category}.{format}"
+
+    if format == "json":
+
+        def generate_json():
+            yield "["
+            first = True
+            for item in query.yield_per(1000):
+                if not first:
+                    yield ","
+                yield item.details_json
+                first = False
+            yield "]"
+
+        return StreamingResponse(
+            generate_json(),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+    # CSV
+    def generate_csv():
+        buf = StringIO()
+        writer = None
+        for item in query.yield_per(1000):
+            data = json.loads(item.details_json)
+            # 將 list 型別的來源網址轉成字串
+            if "sources" in data and isinstance(data["sources"], list):
+                data["sources"] = " | ".join(data["sources"])
+
+            if writer is None:
+                writer = csv.DictWriter(buf, fieldnames=data.keys())
+                writer.writeheader()
+            writer.writerow(data)
+            yield buf.getvalue()
+            buf.seek(0)
+            buf.truncate(0)
+
+    return StreamingResponse(
+        generate_csv(), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 
 @router.get("/{job_id}/internal-results/summary")

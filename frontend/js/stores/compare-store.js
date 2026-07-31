@@ -22,6 +22,8 @@ export class CompareStore {
     reset() {
         /** @type {Object|null} 目前比對的差異資料 */
         this.currentDiffData = null;
+        this.baseId = null;
+        this.targetId = null;
         /** @type {string} 目前選取的差異頁籤 */
         this.currentTab = 'ip_changed';
         /** @type {{key: string|null, asc: boolean}} 差異表格的排序狀態 */
@@ -34,6 +36,8 @@ export class CompareStore {
         this.currentPage = 1;
         /** @type {number} 每頁筆數（與任務詳情表格保持一致 50 筆） */
         this.pageSize = 50;
+        this.totalItems = 0;
+        this.pagedData = [];
     }
 
     /**
@@ -53,8 +57,31 @@ export class CompareStore {
         
         const res = await api.get(url);
         this.currentDiffData = res;
+        this.baseId = baseId;
+        this.targetId = targetId;
         this.currentPage = 1;
         return res;
+    }
+
+    async fetchItems() {
+        if (!this.currentDiffData || !this.baseId || !this.targetId) return [];
+        let cat = this.currentTab;
+        // The backend expects "ext_ip_changed", "int_degraded", etc.
+        // We know that in diff.py we saved it as:
+        // ext_{category} or int_{category}
+        // If currentTab starts with internal_, we map it to int_{category}
+        // Otherwise, we map it to ext_{category}
+        if (cat.startsWith('internal_')) {
+            cat = cat.replace('internal_', 'int_');
+        } else {
+            cat = 'ext_' + cat;
+        }
+
+        const url = `/api/jobs/${this.baseId}/diff/items?compare_with=${this.targetId}&category=${cat}&page=${this.currentPage}&page_size=${this.pageSize}`;
+        const res = await api.get(url);
+        this.totalItems = res.total;
+        this.pagedData = res.items;
+        return this.pagedData;
     }
 
     /**
@@ -100,73 +127,10 @@ export class CompareStore {
     }
 
     /**
-     * 進行 Client-side 的過濾與排序計算
-     * @returns {Array<Object>} 回傳處理後的差異清單
-     */
-    getFilteredData() {
-        if (!this.currentDiffData) return [];
-
-        let detailsObj = null;
-        if (this.currentTab.startsWith('internal_')) {
-            if (this.currentDiffData.internal && this.currentDiffData.internal.details) {
-                const internalKey = this.currentTab.replace(/^internal_/, '');
-                detailsObj = this.currentDiffData.internal.details[internalKey];
-            }
-        } else {
-            if (this.currentDiffData.details && this.currentDiffData.details[this.currentTab]) {
-                detailsObj = this.currentDiffData.details[this.currentTab];
-            }
-        }
-
-        if (!detailsObj) return [];
-        let data = [...detailsObj];
-
-        for (const [k, v] of Object.entries(this.compareColFilters)) {
-            if (!v) continue;
-            data = data.filter(item => {
-                let val = item[k];
-                return String(val || '').toLowerCase().includes(v.toLowerCase());
-            });
-        }
-
-        if (this.compareSort.key) {
-            const { key, asc } = this.compareSort;
-            data.sort((a, b) => {
-                let valA = a[key];
-                let valB = b[key];
-                if (valA === valB) return 0;
-                if (valA === null || valA === undefined) return 1;
-                if (valB === null || valB === undefined) return -1;
-                if (typeof valA === 'number' && typeof valB === 'number') {
-                    return asc ? valA - valB : valB - valA;
-                }
-                return asc
-                    ? String(valA).localeCompare(String(valB))
-                    : String(valB).localeCompare(String(valA));
-            });
-        } else if (this.currentTab === 'ip_changed') {
-            data.sort((a, b) => b.url_count - a.url_count);
-        }
-
-        return data;
-    }
-
-    /**
-     * 取得當前頁碼切片後的資料
-     * @returns {Array<Object>} 當前頁碼筆數清單
-     */
-    getPagedData() {
-        const data = this.getFilteredData();
-        const start = (this.currentPage - 1) * this.pageSize;
-        return data.slice(start, start + this.pageSize);
-    }
-
-    /**
      * 計算目前總頁數
      * @returns {number} 總頁數（至少為 1）
      */
     getTotalPages() {
-        const data = this.getFilteredData();
-        return Math.ceil(data.length / this.pageSize) || 1;
+        return Math.ceil(this.totalItems / this.pageSize) || 1;
     }
 }

@@ -336,3 +336,58 @@ def apply_job_result_filters(
     elif status_filter == "healthy":
         query = query.filter(ExternalLink.status_category == "healthy")
     return query
+
+
+class JobDiffResult(Base):  # pylint: disable=too-few-public-methods
+    """
+    任務比對結果的元資料表 (Materialized Diff Result)。
+
+    Attributes:
+        id (str): 比對紀錄主鍵，使用 UUID。
+        job_a_id (str): 基準任務 ID。
+        job_b_id (str): 對照任務 ID。
+        summary_json (str): 各分類數量的統計總覽 (JSON 格式)。
+        created_at (datetime): 建立時間。
+        last_accessed_at (datetime): 最後存取時間，用於 LRU 淘汰機制。
+    """
+
+    __tablename__ = "job_diff_results"
+    __table_args__ = (
+        UniqueConstraint("job_a_id", "job_b_id", name="uq_job_diff_a_b"),
+        Index("ix_job_diff_last_accessed", "last_accessed_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_a_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    job_b_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    summary_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
+    last_accessed_at: Mapped[datetime] = mapped_column(DateTime, default=get_utc_now)
+
+    items: Mapped[list["JobDiffItem"]] = relationship(
+        back_populates="diff_result", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class JobDiffItem(Base):  # pylint: disable=too-few-public-methods
+    """
+    任務比對結果的詳細項目 (Materialized Diff Item)。
+
+    Attributes:
+        id (int): 主鍵。
+        diff_id (str): 關聯的比對紀錄 ID。
+        category (str): 分類名稱 (如 ext_degraded, int_new_links 等)。
+        target_url (str): 目標網址。
+        details_json (str): 詳細資料快取 (包含舊狀態、新狀態、錯誤與來源清單)。
+    """
+
+    __tablename__ = "job_diff_items"
+    __table_args__ = (Index("ix_job_diff_items_diff_category", "diff_id", "category"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    diff_id: Mapped[str] = mapped_column(ForeignKey("job_diff_results.id", ondelete="CASCADE"), nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    target_url: Mapped[str] = mapped_column(Text, nullable=False)
+    details_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+    diff_result: Mapped["JobDiffResult"] = relationship(back_populates="items")

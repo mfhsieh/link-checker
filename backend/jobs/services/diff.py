@@ -5,13 +5,15 @@ diff.py — 任務歷史差異比對服務模組
 支援持續失效 (Persistently Failed) 診斷、狀態變遷追蹤與範疇篩選。
 """
 
+import json
 from collections import defaultdict
+from datetime import timedelta
 from typing import Any
 from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session as DBSession
 
-from crawler.models import CrawlQueue, ExternalLink, Job
+from crawler.models import CrawlQueue, ExternalLink, Job, JobDiffItem, JobDiffResult, get_utc_now
 
 
 def _build_external_dict_for_diff(db: DBSession, job_id: str, exclude: str | None = None) -> dict[str, dict[str, Any]]:
@@ -81,15 +83,25 @@ def _is_bad_external_link(item: dict[str, Any]) -> bool:
     status_code = item.get("status_code")
     if status_code is not None and int(str(status_code)) >= 400:
         return True
-        
+
     cat = item.get("status_category")
-    if cat in ["failed", "error", "timeout", "blocked", "connection_error", "dns_failed", "not_found", "server_error", "other_error"]:
+    if cat in [
+        "failed",
+        "error",
+        "timeout",
+        "blocked",
+        "connection_error",
+        "dns_failed",
+        "not_found",
+        "server_error",
+        "other_error",
+    ]:
         return True
-        
+
     # 正常、略過或完成的連結，即使 error 中有提示訊息，也不視為異常死鏈
     if cat in ["healthy", "skip", "completed", "warning"]:
         return False
-        
+
     if item.get("error"):
         return True
     return False
@@ -128,7 +140,7 @@ def _extract_domain(url: str) -> str:
         return url
 
 
-def _compare_external_links(  # pylint: disable=too-many-locals
+def _compare_external_links(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     dict_a: dict[str, dict[str, Any]],
     dict_b: dict[str, dict[str, Any]],
 ) -> tuple[dict[str, int], dict[str, list[dict[str, Any]]]]:
@@ -301,6 +313,19 @@ def _compare_external_links(  # pylint: disable=too-many-locals
 
 
 def _build_internal_dict_for_diff(db: DBSession, job_id: str) -> dict[str, dict[str, Any]]:
+    """
+    為指定任務建立內部網頁紀錄的聚合字典，供 Diff 比對使用。
+
+    針對指定任務 ID 的內部頁面掃描結果，整理出該網頁是否安全 (HTTPS)、HTTP 狀態碼、
+    錯誤訊息與探索深度 (Depth)。
+
+    Args:
+        db (DBSession): Crawler DB Session。
+        job_id (str): 任務 ID。
+
+    Returns:
+        dict[str, dict[str, Any]]: 聚合後的內連字典，Key 為網址字串。
+    """
     query = db.query(CrawlQueue).filter(CrawlQueue.job_id == job_id)
     records: dict[str, dict[str, Any]] = {}
     cursor = query.yield_per(2000)
@@ -318,26 +343,38 @@ def _build_internal_dict_for_diff(db: DBSession, job_id: str) -> dict[str, dict[
 
 
 def _is_bad_internal_record(item: dict[str, Any]) -> bool:
+    """
+    判斷給定的內部網頁紀錄是否處於異常/失敗狀態。
+
+    若 HTTP 狀態碼大於等於 400，或是分類屬於明確失敗/錯誤類別，即判定為異常網頁。
+    正常略過或成功完成的頁面則視為正常。
+
+    Args:
+        item (dict[str, Any]): 內部網頁項目的字典資料。
+
+    Returns:
+        bool: 若為異常/失效網頁則回傳 True，否則回傳 False。
+    """
     status_code = item.get("status_code")
     if status_code is not None and int(str(status_code)) >= 400:
         return True
-        
+
     cat = item.get("status_category")
     if cat in ["failed", "error", "timeout", "blocked", "connection_error", "not_found", "server_error"]:
         return True
-        
+
     # 正常略過 (skip) 或 成功完成 (completed) 的網頁，
     # 即使 error_message 中有附加資訊 (例如: "略過非目標 MIME 類型", "重導向至外部網域")，
     # 也絕不應視為異常死鏈
     if cat in ["skip", "completed", "healthy"]:
         return False
-        
+
     if item.get("error"):
         return True
     return False
 
 
-def _compare_internal_links(
+def _compare_internal_links(  # pylint: disable=too-many-locals
     dict_a: dict[str, dict[str, Any]],
     dict_b: dict[str, dict[str, Any]],
 ) -> tuple[dict[str, int], dict[str, list[dict[str, Any]]]]:
@@ -470,22 +507,22 @@ def get_job_diff(  # pylint: disable=too-many-arguments,too-many-locals
     """
     比對兩個任務的歷史差異（支援外部連結、內部網頁或全選範疇）。
 
-    根據基準任務 (Job A) 與對照任務 (Job B) 進行跨維度比對，產出包含外部連結異動與內部網頁
-    健康度變遷的完整診斷結果與統計數據。
+    若資料庫中尚未建立這兩個任務的比對快取 (Materialized Diff)，則會動態進行比對，
+    將結果與明細寫入資料庫後再回傳摘要。若已有快取則直接更新最後存取時間並回傳。
 
     Args:
         db (DBSession): Crawler DB Session。
-        base_job_id (str): 基準任務 ID (舊任務)。
-        compare_job_id (str): 對照任務 ID (新任務)。
-        user_id (str): 請求查詢的使用者 ID。
-        exclude (str | None): 要排除的目標網域，以逗號分隔。
-        scope (str): 比對範疇，可選 'all'、'external' 或 'internal'，預設為 'all'。
+        base_job_id (str): 基準任務 ID (較舊的任務)。
+        compare_job_id (str): 對照任務 ID (較新的任務)。
+        user_id (str): 當前請求使用者的 ID，用以驗證任務擁有權。
+        exclude (str | None): 欲排除的比對目標網域（以逗號分隔），預設為 None。
+        scope (str): 比對範疇，預設為 "all"。
 
     Returns:
-        dict[str, Any]: 完整的歷史差異比對結果字典。
+        dict[str, Any]: 包含比對結果摘要與任務基本資訊的字典物件。
 
     Raises:
-        ValueError: 當找不到指定 ID 的任務或使用者無權限存取該任務時拋出。
+        ValueError: 若基準任務或對照任務不存在，或使用者無權限存取時拋出。
     """
     job_a = db.query(Job).filter(Job.id == base_job_id).first()
     job_b = db.query(Job).filter(Job.id == compare_job_id).first()
@@ -495,27 +532,90 @@ def get_job_diff(  # pylint: disable=too-many-arguments,too-many-locals
     if not job_b or (job_b.user_id or "") != (user_id or ""):
         raise ValueError(f"找不到對照任務 ID: {compare_job_id}")
 
-    res: dict[str, Any] = {
-        "base_job": {"id": job_a.id, "created_at": job_a.created_at.isoformat()},
-        "compare_job": {"id": job_b.id, "created_at": job_b.created_at.isoformat()},
-        "scope": scope,
-    }
+    diff_record = db.query(JobDiffResult).filter_by(job_a_id=base_job_id, job_b_id=compare_job_id).first()
+    if diff_record:
+        diff_record.last_accessed_at = get_utc_now()
+        db.commit()
+        summary = json.loads(diff_record.summary_json)
+        return {
+            "id": diff_record.id,
+            "base_job": {"id": job_a.id, "created_at": job_a.created_at.isoformat()},
+            "compare_job": {"id": job_b.id, "created_at": job_b.created_at.isoformat()},
+            "scope": scope,
+            "summary": summary.get("ext_summary", {}),
+            "external": {"summary": summary.get("ext_summary", {})},
+            "internal": {"summary": summary.get("int_summary", {})},
+        }
 
     # 1. 外部連結比對
     ext_dict_a = _build_external_dict_for_diff(db, base_job_id, exclude)
     ext_dict_b = _build_external_dict_for_diff(db, compare_job_id, exclude)
     ext_summary, ext_details = _compare_external_links(ext_dict_a, ext_dict_b)
 
-    # 最外層保留原本的 summary 與 details，維護向上相容
-    res["summary"] = ext_summary
-    res["details"] = ext_details
-    res["external"] = {"summary": ext_summary, "details": ext_details}
-
     # 2. 內部連結比對
     int_dict_a = _build_internal_dict_for_diff(db, base_job_id)
     int_dict_b = _build_internal_dict_for_diff(db, compare_job_id)
     int_summary, int_details = _compare_internal_links(int_dict_a, int_dict_b)
 
-    res["internal"] = {"summary": int_summary, "details": int_details}
+    # 儲存到 Materialized Table
+    summary_json = json.dumps({"ext_summary": ext_summary, "int_summary": int_summary})
+    new_diff = JobDiffResult(job_a_id=base_job_id, job_b_id=compare_job_id, summary_json=summary_json)
+    db.add(new_diff)
+    db.flush()
 
-    return res
+    items = []
+    # 寫入 external details
+    for cat, records in ext_details.items():
+        for rec in records:
+            items.append(
+                JobDiffItem(
+                    diff_id=new_diff.id,
+                    category=f"ext_{cat}",
+                    target_url=rec.get("target_url", ""),
+                    details_json=json.dumps(rec),
+                )
+            )
+
+    # 寫入 internal details
+    for cat, records in int_details.items():
+        for rec in records:
+            items.append(
+                JobDiffItem(
+                    diff_id=new_diff.id,
+                    category=f"int_{cat}",
+                    target_url=rec.get("url", rec.get("target_url", "")),
+                    details_json=json.dumps(rec),
+                )
+            )
+
+    db.bulk_save_objects(items)
+    db.commit()
+
+    return {
+        "id": new_diff.id,
+        "base_job": {"id": job_a.id, "created_at": job_a.created_at.isoformat()},
+        "compare_job": {"id": job_b.id, "created_at": job_b.created_at.isoformat()},
+        "scope": scope,
+        "summary": ext_summary,
+        "external": {"summary": ext_summary},
+        "internal": {"summary": int_summary},
+    }
+
+
+def cleanup_expired_diffs(db: DBSession, days: int = 14) -> int:
+    """
+    清理過期的任務比對快取紀錄 (LRU 清理機制)。
+
+    預設刪除超過 14 天未存取 (last_accessed_at) 的紀錄。
+
+    Args:
+        db (DBSession): Crawler DB Session。
+        days (int): 過期天數，預設 14。
+
+    Returns:
+        int: 刪除的快取數量。
+    """
+    cutoff = get_utc_now() - timedelta(days=days)
+    deleted = db.query(JobDiffResult).filter(JobDiffResult.last_accessed_at < cutoff).delete()
+    db.commit()
+    return deleted

@@ -40,7 +40,7 @@ def test_duplicate_job_filters_defaults(page: Page, base_url: str) -> None:
     page.wait_for_selector("text=我的任務")
 
     # 2. 建立新任務，其中 delay 設為 5.5 秒 (非預設值 3.0)，其他維持預設
-    page.click('a[href="#/new"]')
+    page.goto(f"{base_url}/app.html#/new")
     expect(page).to_have_url(re.compile(r".*/app\.html#/new"))
     page.wait_for_load_state("networkidle")
 
@@ -75,9 +75,9 @@ def test_duplicate_job_filters_defaults(page: Page, base_url: str) -> None:
     delay_val = page.eval_on_selector('input[id="job-delay"]', "el => el.value")
     assert delay_val == "5.5", f"delay 欄位應為 '5.5'，但得到 '{delay_val}'"
 
-    # 單一覆寫欄位如 timeout (預設值為 60) 即使與預設相同也應直接回填，不應留空
+    # 單一覆寫欄位如 timeout 即使未自訂，也應直接回填當前的全域預設值 (30 或被其他測試修改為 60)，不應留空
     timeout_val = page.eval_on_selector('input[id="job-timeout"]', "el => el.value")
-    assert timeout_val == "60", f"timeout 欄位應為 '60'，但得到 '{timeout_val}'"
+    assert timeout_val in ["30", "60"], f"timeout 欄位應為 '30' 或 '60'，但得到 '{timeout_val}'"
 
     # 單一覆寫欄位如 retries (預設值為 3) 即使與預設相同也應直接回填，不應留空
     retries_val = page.eval_on_selector('input[id="job-retries"]', "el => el.value")

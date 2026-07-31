@@ -345,16 +345,28 @@ export class CompareController {
     /**
      * 渲染指定的差異頁籤內容
      * @param {string} tabName - 頁籤名稱
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    renderCompareTab(tabName) {
+    async renderCompareTab(tabName) {
         this.store.setTab(tabName);
 
         const containerEl = document.getElementById('compare-details-container');
         if (!this.store.currentDiffData) return;
+        
+        let linkTable = containerEl.querySelector('link-table');
+        if (linkTable) {
+            linkTable.config = { ...linkTable.config, loading: true };
+        } else {
+            containerEl.replaceChildren();
+            linkTable = document.createElement('link-table');
+            linkTable.id = 'compare-data-table';
+            containerEl.appendChild(linkTable);
+            linkTable.config = { loading: true };
+        }
 
-        const filteredData = this.store.getFilteredData();
-        if (filteredData.length === 0) {
+        const data = await this.store.fetchItems();
+        
+        if (this.store.totalItems === 0) {
             containerEl.replaceChildren();
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'empty-state';
@@ -435,32 +447,32 @@ export class CompareController {
             }
         }
 
-        let linkTable = containerEl.querySelector('link-table');
-        if (!linkTable) {
+        let tableEl = containerEl.querySelector('link-table');
+        if (!tableEl) {
             containerEl.replaceChildren();
-            linkTable = document.createElement('link-table');
-            linkTable.id = 'compare-data-table';
+            tableEl = document.createElement('link-table');
+            tableEl.id = 'compare-data-table';
 
-            linkTable.addEventListener('sort-change', (e) => {
+            tableEl.addEventListener('sort-change', (e) => {
                 this.store.setSort(e.detail);
                 this.renderCompareTab(this.store.currentTab);
             });
-            linkTable.addEventListener('filter-change', (e) => {
+            tableEl.addEventListener('filter-change', (e) => {
                 this.store.setFilter(e.detail.key, e.detail.value);
                 this.renderCompareTab(this.store.currentTab);
             });
-            linkTable.addEventListener('page-change', (e) => {
+            tableEl.addEventListener('page-change', (e) => {
                 this.store.setPage(e.detail.page);
                 this.renderCompareTab(this.store.currentTab);
             });
 
-            containerEl.appendChild(linkTable);
+            containerEl.appendChild(tableEl);
         }
         containerEl.dataset.renderedTab = tabName;
 
-        linkTable.config = {
+        tableEl.config = {
             headers: this.store.currentCompareHeaders,
-            data: this.store.getPagedData(),
+            data: data,
             sort: this.store.compareSort,
             colFilters: this.store.compareColFilters,
             pagination: { current: this.store.currentPage, total: this.store.getTotalPages() },
@@ -473,20 +485,13 @@ export class CompareController {
      * @returns {void}
      */
     exportCompareJson() {
-        const data = this.store.getFilteredData();
-        if (!data.length) {
-            toast.warning('目前無資料可匯出');
-            return;
-        }
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `compare_${this.store.currentTab}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        if (!this.store.baseId || !this.store.targetId) return;
+        let cat = this.store.currentTab;
+        if (cat.startsWith('internal_')) cat = cat.replace('internal_', 'int_');
+        else cat = 'ext_' + cat;
+        
+        const url = `/api/jobs/${this.store.baseId}/diff/export?compare_with=${this.store.targetId}&category=${cat}&format=json`;
+        window.open(url, '_blank');
     }
 
     /**
@@ -494,90 +499,13 @@ export class CompareController {
      * @returns {void}
      */
     exportCompareCsv() {
-        const data = this.store.getFilteredData();
-        if (!data.length) {
-            toast.warning('目前無資料可匯出');
-            return;
-        }
-
-        let headers = [];
-        const tabName = this.store.currentTab;
-        if (tabName === 'ip_changed') headers = ['外部網域', '舊 IP 位址', '新 IP 位址', '目標數量', '目標頁面', '來源頁面'];
-        else if (tabName === 'degraded' || tabName === 'recovered') headers = ['目標頁面', '原狀態', '新狀態', '新錯誤訊息 / 協定變遷', '來源頁面'];
-        else if (tabName === 'new_links') headers = ['目標頁面', 'IP 位址', 'HTTPS', 'HTTP 狀態', '錯誤訊息', '來源數量', '來源頁面'];
-        else if (tabName === 'removed_links') headers = ['目標頁面', '原 IP 位址', '原 HTTPS', '原 HTTP 狀態', '原錯誤訊息', '來源數量', '來源頁面'];
-        else if (tabName === 'internal_degraded' || tabName === 'internal_recovered') headers = ['目標頁面', '原狀態', '新狀態', '新錯誤訊息 / 協定變遷', '探索深度'];
-        else if (tabName === 'internal_new_pages') headers = ['目標頁面', 'HTTPS', 'HTTP 狀態', '錯誤訊息', '探索深度'];
-        else if (tabName === 'internal_removed_pages') headers = ['目標頁面', '原 HTTPS', '原 HTTP 狀態', '原錯誤訊息', '探索深度'];
-
-        let csvContent = '\uFEFF'; // BOM
-        csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
-
-        data.forEach(item => {
-            let row = [];
-
-            if (tabName === 'ip_changed') {
-                row.push(_sanitizeCsv(item.domain));
-                row.push(_sanitizeCsv(item.old_ip || ''));
-                row.push(_sanitizeCsv(item.new_ip || ''));
-                row.push(item.url_count);
-                row.push(_sanitizeCsv((item.target_urls || []).join('\n')));
-                row.push(_sanitizeCsv((item.sources || []).join('\n')));
-            } else if (tabName.startsWith('internal_')) {
-                row.push(_sanitizeCsv(item.url));
-                if (tabName === 'internal_new_pages') {
-                    row.push(item.is_secure ? '是' : '否');
-                    row.push(_sanitizeCsv(item.status_code || ''));
-                    row.push(_sanitizeCsv(item.error || ''));
-                    row.push(item.depth ?? '');
-                } else if (tabName === 'internal_removed_pages') {
-                    row.push(item.old_is_secure ? '是' : '否');
-                    row.push(_sanitizeCsv(item.old_status_code || ''));
-                    row.push(_sanitizeCsv(item.old_error || ''));
-                    row.push(item.depth ?? '');
-                } else {
-                    row.push(_sanitizeCsv(item.old_status || '連線失敗'));
-                    row.push(_sanitizeCsv(item.new_status || '連線失敗'));
-                    row.push(_sanitizeCsv(item.new_error || ''));
-                    row.push(item.depth ?? '');
-                }
-            } else {
-                row.push(_sanitizeCsv(item.target_url));
-
-                if (tabName === 'degraded' || tabName === 'recovered') {
-                    row.push(_sanitizeCsv(item.old_status || '連線失敗'));
-                    row.push(_sanitizeCsv(item.new_status || '連線失敗'));
-                    row.push(_sanitizeCsv(item.new_error || ''));
-                } else if (tabName === 'new_links') {
-                    row.push(_sanitizeCsv(item.ip || ''));
-                    row.push(item.is_secure ? '是' : '否');
-                    row.push(_sanitizeCsv(item.status_code || ''));
-                    row.push(_sanitizeCsv(item.error || ''));
-                    row.push(item.sources_count ?? (item.sources ? item.sources.length : 0));
-                } else if (tabName === 'removed_links') {
-                    row.push(_sanitizeCsv(item.old_ip || ''));
-                    row.push(item.old_is_secure ? '是' : '否');
-                    row.push(_sanitizeCsv(item.old_status_code || ''));
-                    row.push(_sanitizeCsv(item.old_error || ''));
-                    row.push(item.sources_count ?? (item.sources ? item.sources.length : 0));
-                }
-
-                const sourcesStr = (item.sources || []).join('\n');
-                row.push(_sanitizeCsv(sourcesStr));
-            }
-
-            csvContent += row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',') + '\n';
-        });
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `compare_${this.store.currentTab}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        if (!this.store.baseId || !this.store.targetId) return;
+        let cat = this.store.currentTab;
+        if (cat.startsWith('internal_')) cat = cat.replace('internal_', 'int_');
+        else cat = 'ext_' + cat;
+        
+        const url = `/api/jobs/${this.store.baseId}/diff/export?compare_with=${this.store.targetId}&category=${cat}&format=csv`;
+        window.open(url, '_blank');
     }
 
     /**
