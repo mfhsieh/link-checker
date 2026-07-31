@@ -24,68 +24,126 @@ function createTextNode(text, className = '') {
 }
 
 /**
+ * 建立一個帶有 className 的 span 元素
+ * @param {string|number|null} text - 內容
+ * @param {string} [className=''] - 附加 CSS 類別
+ * @returns {HTMLSpanElement|Text}
+ */
+function createCell(text, className = '') {
+    return createTextNode(text, className);
+}
+
+/**
  * 渲染網址清單 (List)
  * @param {Array<string>} urls - URL 清單
- * @param {string} [className='text-muted'] - 附加的 CSS 類別
+ * @param {string} [className='truncate font-mono text-link'] - 附加的 CSS 類別
  * @returns {HTMLDivElement|Text}
  */
-function renderUrlArrayNode(urls, className = 'text-muted') {
+function renderUrlArrayNode(urls, className = 'truncate font-mono text-link') {
     if (!urls || urls.length === 0) return createTextNode('-');
     const div = document.createElement('div');
-    div.style.maxHeight = '150px';
-    div.style.overflowY = 'auto';
-    div.style.paddingRight = '4px';
-    const ul = document.createElement('ul');
-    ul.style.margin = '0';
-    ul.style.paddingLeft = '0';
-    ul.style.listStyle = 'none';
-    ul.style.fontSize = '0.8125rem';
+    div.style.display = 'flex';
+    div.style.flexDirection = 'column';
+    div.style.gap = '0.25rem';
     const displayLimit = 5;
     const displayList = urls.slice(0, displayLimit);
     displayList.forEach(u => {
-        const li = document.createElement('li');
-        li.className = 'truncate ' + className;
-        li.style.maxWidth = '250px';
-        li.style.marginBottom = '0.25rem';
-        li.title = u;
         const a = document.createElement('a');
         a.href = u;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        if (className === 'text-muted') a.style.color = 'inherit';
-        else a.className = 'text-link';
+        a.className = className;
+        a.style.maxWidth = '250px';
+        a.style.display = 'inline-block';
         a.textContent = u;
-        li.appendChild(a);
-        ul.appendChild(li);
+        a.title = u;
+        div.appendChild(a);
     });
     if (urls.length > displayLimit) {
-        const truncLi = document.createElement('li');
-        truncLi.className = 'text-xs text-muted';
-        truncLi.style.marginTop = '0.25rem';
-        truncLi.textContent = '及其它';
-        ul.appendChild(truncLi);
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.style.alignSelf = 'flex-start';
+        badge.textContent = '及其它';
+        div.appendChild(badge);
     }
-    div.appendChild(ul);
     return div;
 }
 
 /**
  * 渲染單一網址
  * @param {string|null} url - 網址
- * @param {string} [className='text-link'] - 附加的 CSS 類別
+ * @param {string} [className='truncate font-mono text-link'] - 附加的 CSS 類別
  * @returns {HTMLAnchorElement|Text}
  */
-function renderSingleUrlNode(url, className = 'text-link') {
+function renderSingleUrlNode(url, className = 'truncate font-mono text-link') {
     if (!url) return createTextNode('-');
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
     a.className = className;
-    if (className === 'text-muted') a.style.color = 'inherit';
+    a.style.display = 'inline-block';
+    a.style.verticalAlign = 'middle';
     a.textContent = url;
     a.title = url;
     return a;
+}
+
+/**
+ * 渲染網域 (Domain) 節點（完全對齊任務詳情風格）
+ * @param {string|null} domain - 網域字串
+ * @returns {HTMLAnchorElement|Text}
+ */
+function renderDomainNode(domain) {
+    if (!domain) return createTextNode('-');
+    const url = domain.startsWith('http://') || domain.startsWith('https://') ? domain : `http://${domain}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.className = 'truncate font-mono text-link';
+    a.style.maxWidth = '200px';
+    a.style.display = 'inline-block';
+    a.style.verticalAlign = 'middle';
+    a.textContent = domain;
+    a.title = url;
+    return a;
+}
+
+/**
+ * 渲染 HTTP 狀態碼節點（對齊任務詳情色彩）
+ * @param {number|string|null} code - HTTP 狀態碼
+ * @returns {HTMLSpanElement|Text}
+ */
+function renderHttpStatusCode(code) {
+    if (code === null || code === undefined || code === '') return createTextNode('-', 'text-muted');
+    const span = document.createElement('span');
+    span.style.display = 'inline-block';
+    span.textContent = code;
+    const numCode = Number(code);
+    if (numCode >= 200 && numCode < 300) span.className = 'text-success font-mono font-semibold';
+    else if (numCode >= 300 && numCode < 400) span.className = 'text-warning font-mono font-semibold';
+    else if (numCode >= 400) span.className = 'text-danger font-mono font-semibold';
+    else span.className = 'text-muted font-mono';
+    return span;
+}
+
+/**
+ * 渲染錯誤訊息節點
+ * @param {string|null} msg - 錯誤訊息
+ * @param {string} [maxWidth='180px'] - 最大寬度
+ * @returns {HTMLSpanElement|Text}
+ */
+function renderErrorMessage(msg, maxWidth = '180px') {
+    if (!msg) return createTextNode('-', 'text-muted');
+    const span = document.createElement('span');
+    span.className = 'truncate text-danger text-xs';
+    span.style.maxWidth = maxWidth;
+    span.style.display = 'inline-block';
+    span.style.verticalAlign = 'middle';
+    span.title = msg;
+    span.textContent = msg;
+    return span;
 }
 
 /**
@@ -148,25 +206,27 @@ export class CompareController {
             try {
                 const res = await this.store.fetchDiff(baseId, targetId);
 
-                const setTextContent = (id, value) => {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = value ?? '-';
-                };
+                const extStatsEl = document.getElementById('compare-ext-stats');
+                const intStatsEl = document.getElementById('compare-int-stats');
 
-                setTextContent('diff-stat-ip', res.summary.ip_changed);
-                setTextContent('diff-stat-degraded', res.summary.degraded);
-                setTextContent('diff-stat-recovered', res.summary.recovered);
-                setTextContent('diff-stat-sec', res.summary.security_downgraded);
-                setTextContent('diff-stat-new', res.summary.new_links);
-                setTextContent('diff-stat-removed', res.summary.removed_links);
+                if (extStatsEl && res.summary) {
+                    extStatsEl.updateView(res.summary);
+                }
+                if (intStatsEl && res.internal && res.internal.summary) {
+                    intStatsEl.updateView({
+                        internal_degraded: res.internal.summary.degraded,
+                        internal_recovered: res.internal.summary.recovered,
+                        internal_persistently_failed: res.internal.summary.persistently_failed,
+                        internal_new_pages: res.internal.summary.new_pages,
+                        internal_removed_pages: res.internal.summary.removed_pages,
+                    });
+                }
 
                 resultsAreaEl.style.display = 'flex';
 
-                document.querySelectorAll('#view-compare .diff-tab-card').forEach(c => c.classList.remove('active'));
-                const firstTab = document.querySelector('#view-compare .diff-tab-card[data-diff-tab="ip_changed"]');
-                if (firstTab) firstTab.classList.add('active');
-
-                this.renderCompareTab('ip_changed');
+                // 預設選擇外部連結比對
+                const extScopeBtn = document.querySelector('#compare-scope-tabs .tab-btn[data-scope="external"]');
+                if (extScopeBtn) extScopeBtn.click();
             } catch (err) {
                 errorEl.textContent = err.message || '比對失敗';
             } finally {
@@ -175,14 +235,51 @@ export class CompareController {
             }
         });
 
-        document.querySelectorAll('#view-compare .diff-tab-card').forEach(card => {
-            card.addEventListener('click', () => {
-                document.querySelectorAll('#view-compare .diff-tab-card').forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-                this.store.setSort({ key: null, asc: true });
-                this.store.compareColFilters = {};
-                this.renderCompareTab(card.dataset.diffTab);
+        // ── 比對範疇頁籤切換 (Scope Tabs: External vs Internal) ────────────────
+        document.querySelectorAll('#compare-scope-tabs .tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#compare-scope-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const scope = btn.dataset.scope;
+                const extStatsEl = document.getElementById('compare-ext-stats');
+                const intStatsEl = document.getElementById('compare-int-stats');
+
+                if (scope === 'external') {
+                    if (extStatsEl) {
+                        extStatsEl.style.display = 'block';
+                        extStatsEl.activeFilter = 'ip_changed';
+                    }
+                    if (intStatsEl) intStatsEl.style.display = 'none';
+                    this.store.setSort({ key: null, asc: true });
+                    this.store.compareColFilters = {};
+                    this.renderCompareTab('ip_changed');
+                } else {
+                    if (extStatsEl) extStatsEl.style.display = 'none';
+                    if (intStatsEl) {
+                        intStatsEl.style.display = 'block';
+                        intStatsEl.activeFilter = 'internal_degraded';
+                    }
+                    this.store.setSort({ key: null, asc: true });
+                    this.store.compareColFilters = {};
+                    this.renderCompareTab('internal_degraded');
+                }
             });
+        });
+
+        // ── 監聽比對 Web Component 的 filter-change 事件 ──────────────────────────
+        const extStatsEl = document.getElementById('compare-ext-stats');
+        const intStatsEl = document.getElementById('compare-int-stats');
+
+        [extStatsEl, intStatsEl].forEach(statsEl => {
+            if (statsEl) {
+                statsEl.addEventListener('filter-change', (e) => {
+                    const filterId = e.detail.filter;
+                    this.store.setSort({ key: null, asc: true });
+                    this.store.compareColFilters = {};
+                    this.renderCompareTab(filterId);
+                });
+            }
         });
 
         const btnExportCsv = document.getElementById('btn-compare-export-csv');
@@ -254,10 +351,10 @@ export class CompareController {
         this.store.setTab(tabName);
 
         const containerEl = document.getElementById('compare-details-container');
-        if (!this.store.currentDiffData || !this.store.currentDiffData.details[tabName]) return;
+        if (!this.store.currentDiffData) return;
 
-        let data = this.store.currentDiffData.details[tabName];
-        if (data.length === 0) {
+        const filteredData = this.store.getFilteredData();
+        if (filteredData.length === 0) {
             containerEl.replaceChildren();
             const emptyDiv = document.createElement('div');
             emptyDiv.className = 'empty-state';
@@ -272,44 +369,70 @@ export class CompareController {
 
         if (tabName === 'ip_changed') {
             this.store.currentCompareHeaders = [
-                { label: '網域', key: 'domain', truncate: '200px', className: 'font-mono font-medium', render: v => createTextNode(v) },
-                { label: '舊 IP 位址', key: 'old_ip', className: 'font-mono text-xs text-muted', render: v => createTextNode(v) },
-                { label: '新 IP 位址', key: 'new_ip', className: 'font-mono text-xs text-danger', render: v => createTextNode(v) },
-                { label: '影響 URL 數', key: 'url_count', className: 'font-semibold', render: v => createTextNode(v) },
-                { label: '目標頁面 清單', key: 'target_urls', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, '') },
-                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+                { label: '外部網域', key: 'domain', truncate: '200px', render: v => renderDomainNode(v) },
+                { label: '舊 IP 位址', key: 'old_ip', className: 'font-mono text-sm text-muted', render: v => createTextNode(v) },
+                { label: '新 IP 位址', key: 'new_ip', className: 'font-mono text-sm text-danger', render: v => createTextNode(v) },
+                { label: '目標數量', key: 'url_count', className: 'font-semibold', render: v => createTextNode(v) },
+                { label: '目標頁面', key: 'target_urls', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) },
+                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) }
             ];
         } else if (tabName === 'degraded' || tabName === 'recovered') {
             const isDeg = tabName === 'degraded';
             this.store.currentCompareHeaders = [
-                { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v, 'text-muted') },
+                { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v) },
                 { label: '原狀態', key: 'old_status', className: isDeg ? 'text-success' : 'text-danger', render: v => createTextNode(v || '連線失敗') },
                 { label: '新狀態', key: 'new_status', className: isDeg ? 'text-danger' : 'text-success', render: v => createTextNode(v || '連線失敗') },
-                { label: '新錯誤訊息', key: 'new_error', className: 'text-xs text-muted', truncate: '160px', render: v => createTextNode(v) },
-                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
-            ];
-        } else if (tabName === 'security_downgraded') {
-            this.store.currentCompareHeaders = [
-                { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v, 'text-muted') },
-                { label: '安全狀態變化', key: 'status', sortable: false, filterable: false, render: () => createTextNode('HTTPS ➔ HTTP', 'text-warning text-sm') },
-                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+                { label: '新錯誤訊息 / 協定變遷', key: 'new_error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
+                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) }
             ];
         } else if (tabName === 'new_links') {
             this.store.currentCompareHeaders = [
-                { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v, 'text-muted') },
-                { label: 'IP 位址', key: 'ip', className: 'font-mono text-xs', render: v => createTextNode(v) },
-                { label: 'HTTP 狀態', key: 'status_code', render: v => createTextNode(v, !v ? 'text-muted' : (v >= 400 ? 'text-danger' : 'text-success')) },
-                { label: '錯誤訊息', key: 'error', className: 'text-xs text-muted', truncate: '160px', render: v => createTextNode(v) },
-                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+                { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v) },
+                { label: 'IP 位址', key: 'ip', className: 'font-mono text-sm', render: v => createTextNode(v) },
+                { label: 'HTTPS', key: 'is_secure', align: 'center', render: v => v ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
+                { label: 'HTTP 狀態', key: 'status_code', render: v => renderHttpStatusCode(v) },
+                { label: '錯誤訊息', key: 'error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
+                { label: '來源數量', key: 'sources_count', className: 'font-semibold', render: (v, item) => createTextNode(v ?? (item.sources ? item.sources.length : 0)) },
+                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) }
             ];
         } else if (tabName === 'removed_links') {
             this.store.currentCompareHeaders = [
-                { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v, 'text-muted') },
-                { label: '原 IP 位址', key: 'old_ip', className: 'font-mono text-xs text-muted', render: v => createTextNode(v) },
-                { label: '原 HTTP 狀態', key: 'old_status_code', className: 'text-muted', render: v => createTextNode(v) },
-                { label: '原錯誤訊息', key: 'old_error', className: 'text-xs text-muted', truncate: '160px', render: v => createTextNode(v) },
-                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v, 'text-muted') }
+                { label: '目標頁面', key: 'target_url', truncate: '260px', render: v => renderSingleUrlNode(v) },
+                { label: '原 IP 位址', key: 'old_ip', className: 'font-mono text-sm text-muted', render: v => createTextNode(v) },
+                { label: '原 HTTPS', key: 'old_is_secure', align: 'center', render: v => v ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
+                { label: '原 HTTP 狀態', key: 'old_status_code', render: v => renderHttpStatusCode(v) },
+                { label: '原錯誤訊息', key: 'old_error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
+                { label: '來源數量', key: 'sources_count', className: 'font-semibold', render: (v, item) => createTextNode(v ?? (item.sources ? item.sources.length : 0)) },
+                { label: '來源頁面', key: 'sources', sortable: false, filterable: false, render: v => renderUrlArrayNode(v) }
             ];
+        } else if (tabName.startsWith('internal_')) {
+            const isDeg = tabName === 'internal_degraded';
+
+            if (tabName === 'internal_new_pages') {
+                this.store.currentCompareHeaders = [
+                    { label: '目標頁面', key: 'url', truncate: '260px', render: v => renderSingleUrlNode(v) },
+                    { label: 'HTTPS', key: 'is_secure', align: 'center', render: v => v ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
+                    { label: 'HTTP 狀態', key: 'status_code', render: v => renderHttpStatusCode(v) },
+                    { label: '錯誤訊息', key: 'error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
+                    { label: '探索深度', key: 'depth', className: 'font-mono text-sm', render: v => createTextNode(v) }
+                ];
+            } else if (tabName === 'internal_removed_pages') {
+                this.store.currentCompareHeaders = [
+                    { label: '目標頁面', key: 'url', truncate: '260px', render: v => renderSingleUrlNode(v) },
+                    { label: '原 HTTPS', key: 'old_is_secure', align: 'center', render: v => v ? createCell('✓', 'text-success') : createCell('✗', 'text-danger') },
+                    { label: '原 HTTP 狀態', key: 'old_status_code', render: v => renderHttpStatusCode(v) },
+                    { label: '原錯誤訊息', key: 'old_error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
+                    { label: '探索深度', key: 'depth', className: 'font-mono text-sm', render: v => createTextNode(v) }
+                ];
+            } else {
+                this.store.currentCompareHeaders = [
+                    { label: '目標頁面', key: 'url', truncate: '260px', render: v => renderSingleUrlNode(v) },
+                    { label: '原狀態', key: 'old_status', className: isDeg ? 'text-success' : 'text-danger', render: v => createTextNode(v || '連線失敗') },
+                    { label: '新狀態', key: 'new_status', className: isDeg ? 'text-danger' : 'text-success', render: v => createTextNode(v || '連線失敗') },
+                    { label: '新錯誤訊息 / 協定變遷', key: 'new_error', truncate: '180px', render: v => renderErrorMessage(v, '180px') },
+                    { label: '探索深度', key: 'depth', className: 'font-mono text-sm', render: v => createTextNode(v) }
+                ];
+            }
         }
 
         let linkTable = containerEl.querySelector('link-table');
@@ -317,7 +440,7 @@ export class CompareController {
             containerEl.replaceChildren();
             linkTable = document.createElement('link-table');
             linkTable.id = 'compare-data-table';
-            
+
             linkTable.addEventListener('sort-change', (e) => {
                 this.store.setSort(e.detail);
                 this.renderCompareTab(this.store.currentTab);
@@ -326,19 +449,21 @@ export class CompareController {
                 this.store.setFilter(e.detail.key, e.detail.value);
                 this.renderCompareTab(this.store.currentTab);
             });
-            
+            linkTable.addEventListener('page-change', (e) => {
+                this.store.setPage(e.detail.page);
+                this.renderCompareTab(this.store.currentTab);
+            });
+
             containerEl.appendChild(linkTable);
         }
         containerEl.dataset.renderedTab = tabName;
 
-        const filteredData = this.store.getFilteredData();
-        
         linkTable.config = {
             headers: this.store.currentCompareHeaders,
-            data: filteredData,
+            data: this.store.getPagedData(),
             sort: this.store.compareSort,
             colFilters: this.store.compareColFilters,
-            pagination: { current: 1, total: 1 },
+            pagination: { current: this.store.currentPage, total: this.store.getTotalPages() },
             loading: false
         };
     }
@@ -377,11 +502,13 @@ export class CompareController {
 
         let headers = [];
         const tabName = this.store.currentTab;
-        if (tabName === 'ip_changed') headers = ['網域', '舊 IP 位址', '新 IP 位址', '影響 URL 數', '目標頁面 清單', '來源頁面'];
-        else if (tabName === 'degraded' || tabName === 'recovered') headers = ['目標頁面', '原狀態', '新狀態', '新錯誤訊息', '來源頁面'];
-        else if (tabName === 'security_downgraded') headers = ['目標頁面', '安全狀態變化', '來源頁面'];
-        else if (tabName === 'new_links') headers = ['目標頁面', 'IP 位址', 'HTTP 狀態', '錯誤訊息', '來源頁面'];
-        else if (tabName === 'removed_links') headers = ['目標頁面', '原 IP 位址', '原 HTTP 狀態', '原錯誤訊息', '來源頁面'];
+        if (tabName === 'ip_changed') headers = ['外部網域', '舊 IP 位址', '新 IP 位址', '目標數量', '目標頁面', '來源頁面'];
+        else if (tabName === 'degraded' || tabName === 'recovered') headers = ['目標頁面', '原狀態', '新狀態', '新錯誤訊息 / 協定變遷', '來源頁面'];
+        else if (tabName === 'new_links') headers = ['目標頁面', 'IP 位址', 'HTTPS', 'HTTP 狀態', '錯誤訊息', '來源數量', '來源頁面'];
+        else if (tabName === 'removed_links') headers = ['目標頁面', '原 IP 位址', '原 HTTPS', '原 HTTP 狀態', '原錯誤訊息', '來源數量', '來源頁面'];
+        else if (tabName === 'internal_degraded' || tabName === 'internal_recovered') headers = ['目標頁面', '原狀態', '新狀態', '新錯誤訊息 / 協定變遷', '探索深度'];
+        else if (tabName === 'internal_new_pages') headers = ['目標頁面', 'HTTPS', 'HTTP 狀態', '錯誤訊息', '探索深度'];
+        else if (tabName === 'internal_removed_pages') headers = ['目標頁面', '原 HTTPS', '原 HTTP 狀態', '原錯誤訊息', '探索深度'];
 
         let csvContent = '\uFEFF'; // BOM
         csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
@@ -396,6 +523,24 @@ export class CompareController {
                 row.push(item.url_count);
                 row.push(_sanitizeCsv((item.target_urls || []).join('\n')));
                 row.push(_sanitizeCsv((item.sources || []).join('\n')));
+            } else if (tabName.startsWith('internal_')) {
+                row.push(_sanitizeCsv(item.url));
+                if (tabName === 'internal_new_pages') {
+                    row.push(item.is_secure ? '是' : '否');
+                    row.push(_sanitizeCsv(item.status_code || ''));
+                    row.push(_sanitizeCsv(item.error || ''));
+                    row.push(item.depth ?? '');
+                } else if (tabName === 'internal_removed_pages') {
+                    row.push(item.old_is_secure ? '是' : '否');
+                    row.push(_sanitizeCsv(item.old_status_code || ''));
+                    row.push(_sanitizeCsv(item.old_error || ''));
+                    row.push(item.depth ?? '');
+                } else {
+                    row.push(_sanitizeCsv(item.old_status || '連線失敗'));
+                    row.push(_sanitizeCsv(item.new_status || '連線失敗'));
+                    row.push(_sanitizeCsv(item.new_error || ''));
+                    row.push(item.depth ?? '');
+                }
             } else {
                 row.push(_sanitizeCsv(item.target_url));
 
@@ -403,16 +548,18 @@ export class CompareController {
                     row.push(_sanitizeCsv(item.old_status || '連線失敗'));
                     row.push(_sanitizeCsv(item.new_status || '連線失敗'));
                     row.push(_sanitizeCsv(item.new_error || ''));
-                } else if (tabName === 'security_downgraded') {
-                    row.push('HTTPS ➔ HTTP');
                 } else if (tabName === 'new_links') {
                     row.push(_sanitizeCsv(item.ip || ''));
+                    row.push(item.is_secure ? '是' : '否');
                     row.push(_sanitizeCsv(item.status_code || ''));
                     row.push(_sanitizeCsv(item.error || ''));
+                    row.push(item.sources_count ?? (item.sources ? item.sources.length : 0));
                 } else if (tabName === 'removed_links') {
                     row.push(_sanitizeCsv(item.old_ip || ''));
+                    row.push(item.old_is_secure ? '是' : '否');
                     row.push(_sanitizeCsv(item.old_status_code || ''));
                     row.push(_sanitizeCsv(item.old_error || ''));
+                    row.push(item.sources_count ?? (item.sources ? item.sources.length : 0));
                 }
 
                 const sourcesStr = (item.sources || []).join('\n');
@@ -454,7 +601,7 @@ export class CompareController {
             this.bindCompareEvents();
             this.eventsBound = true;
         }
-        
+
         this.destroy(); // 重置狀態
 
         const baseSelectEl = document.getElementById('compare-base-select');

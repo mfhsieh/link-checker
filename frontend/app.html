@@ -103,7 +103,8 @@
                   flex-wrap: wrap;
                   gap: 1rem;
                 ">
-                            <div class="link-toolbar" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                            <div class="link-toolbar"
+                                style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                                 <span class="card-title link-title" style="margin-right: 0.5rem">外部連結</span>
                                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                                     <select id="results-group-select" class="form-input" style="
@@ -121,12 +122,7 @@
                                     </select>
                                     <button class="btn btn-secondary btn-icon" id="btn-open-exclude-modal"
                                         title="設定排除網域" style="flex-shrink: 0">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                            stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
-                                            <path d="m22 3-5 5" />
-                                            <path d="m17 3 5 5" />
-                                        </svg>
+                                        <div class="icon-filter"></div>
                                     </button>
                                 </div>
                             </div>
@@ -192,7 +188,8 @@
                   flex-wrap: wrap;
                   gap: 1rem;
                 ">
-                            <div class="link-toolbar" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                            <div class="link-toolbar"
+                                style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                                 <span class="card-title link-title" style="margin-right: 0.5rem">內部連結診斷</span>
                                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                                     <select id="internal-results-group-select" class="form-input" style="
@@ -322,7 +319,8 @@
                                     <span class="card-title">進階過濾與網路</span>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 1.5rem">
-                                    <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
+                                    <label
+                                        style="display:flex;align-items:center;gap:0.5rem;font-weight:600;color:var(--text-primary);cursor:pointer">
                                         <input type="checkbox" id="job-check-skipped-links" /> 啟用「略過副檔名」與「排除的路徑規則」的存活探測
                                     </label>
                                     <div class="form-hint">
@@ -643,8 +641,8 @@
                     <div>
                         <h1 class="page-title">比對任務</h1>
                         <p class="page-subtitle">
-                            比對兩個不同時期的歷史任務，找出外連健康度與資安狀態變化。
-                            <span id="job-status" class="badge badge-error">施工中</span>
+                            比對兩個不同時期的歷史任務，找出外部連結與內部網頁健康度及資安狀態變化。<span class="badge badge-error"
+                                style="margin-left: 0.25rem;">施工中</span>
                         </p>
                     </div>
                 </div>
@@ -670,81 +668,17 @@
                     <div id="compare-error" class="text-danger text-sm" style="margin-top: 0.75rem"></div>
                 </div>
 
-                <div id="compare-results-area" style="display: none; flex-direction: column; gap: 1.5rem">
-                    <style>
-                        .diff-tab-card {
-                            cursor: pointer;
-                            transition: all 0.2s ease;
-                        }
-
-                        .diff-tab-card:hover {
-                            transform: translateY(-2px);
-                            box-shadow:
-                                0 4px 6px -1px rgba(0, 0, 0, 0.1),
-                                0 2px 4px -1px rgba(0, 0, 0, 0.06);
-                        }
-
-                        .diff-tab-card.active {
-                            border-color: var(--color-brand-500);
-                            box-shadow: 0 0 0 3px hsla(221, 83%, 53%, 0.15);
-                        }
-                    </style>
-
-                    <!-- Stats Grid as Tabs -->
-                    <div class="grid-stats" style="
-                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-                gap: 0.75rem;
-              ">
-                        <div class="stat-card diff-tab-card active" data-diff-tab="ip_changed" style="padding: 0.75rem">
-                            <div class="stat-label text-danger">🚨 IP 異動</div>
-                            <div class="stat-value text-danger" id="diff-stat-ip">0</div>
-                            <div class="text-xs text-muted" style="margin-top: auto; line-height: 1.3">
-                                目標 IP 改變，需防範網域遭搶註或劫持
-                            </div>
-                        </div>
-                        <div class="stat-card diff-tab-card" data-diff-tab="degraded" style="padding: 0.75rem">
-                            <div class="stat-label text-warning">⚠️ 狀態劣化</div>
-                            <div class="stat-value text-warning" id="diff-stat-degraded">
-                                0
-                            </div>
-                            <div class="text-xs text-muted" style="margin-top: auto; line-height: 1.3">
-                                原本正常的連結變成失效或發生連線錯誤
-                            </div>
-                        </div>
-                        <div class="stat-card diff-tab-card" data-diff-tab="recovered" style="padding: 0.75rem">
-                            <div class="stat-label text-success">🟢 狀態復原</div>
-                            <div class="stat-value text-success" id="diff-stat-recovered">
-                                0
-                            </div>
-                            <div class="text-xs text-muted" style="margin-top: auto; line-height: 1.3">
-                                原本失效的連結已修復或恢復正常連線
-                            </div>
-                        </div>
-                        <div class="stat-card diff-tab-card" data-diff-tab="security_downgraded"
-                            style="padding: 0.75rem">
-                            <div class="stat-label text-warning">🔓 安全降級</div>
-                            <div class="stat-value text-warning" id="diff-stat-sec">0</div>
-                            <div class="text-xs text-muted" style="margin-top: auto; line-height: 1.3">
-                                連線從安全的 HTTPS 降級為明文 HTTP 傳輸
-                            </div>
-                        </div>
-                        <div class="stat-card diff-tab-card" data-diff-tab="new_links" style="padding: 0.75rem">
-                            <div class="stat-label text-info">➕ 新增外連</div>
-                            <div class="stat-value text-info" id="diff-stat-new">0</div>
-                            <div class="text-xs text-muted" style="margin-top: auto; line-height: 1.3">
-                                新出現的外部連結，需防範未經授權之植入
-                            </div>
-                        </div>
-                        <div class="stat-card diff-tab-card" data-diff-tab="removed_links" style="padding: 0.75rem">
-                            <div class="stat-label text-muted">➖ 消失外連</div>
-                            <div class="stat-value text-muted" id="diff-stat-removed">
-                                0
-                            </div>
-                            <div class="text-xs text-muted" style="margin-top: auto; line-height: 1.3">
-                                過去存在但本次掃描已移除的外部連結
-                            </div>
-                        </div>
+                <div id="compare-results-area" style="display: none; flex-direction: column">
+                    <!-- 比對範疇頁籤 (Scope Tabs) -->
+                    <div id="compare-scope-tabs" class="tab-nav"
+                        style="margin-bottom: 0.5rem; display: flex; gap: 0.5rem; border-bottom: 1px solid var(--surface-border); padding-bottom: 0.5rem;">
+                        <button class="btn btn-sm tab-btn active" data-scope="external">外部連結比對</button>
+                        <button class="btn btn-sm tab-btn" data-scope="internal">內部連結比對</button>
                     </div>
+
+                    <!-- 比對任務卡片元件 (Web Components) -->
+                    <job-stats id="compare-ext-stats" type="compare-external"></job-stats>
+                    <job-stats id="compare-int-stats" type="compare-internal" style="display: none"></job-stats>
 
                     <div class="card" style="padding: 0; overflow: hidden">
                         <div class="card-header" style="
@@ -755,21 +689,17 @@
                   flex-wrap: wrap;
                   gap: 1rem;
                 ">
-                            <div class="link-toolbar" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                            <div class="link-toolbar"
+                                style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                                 <span class="card-title link-title" style="margin-right: 0.5rem">比對結果</span>
                                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                                     <button class="btn btn-secondary btn-icon" id="btn-compare-exclude-modal"
                                         title="設定排除網域" style="flex-shrink: 0">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                                            stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055" />
-                                            <path d="m22 3-5 5" />
-                                            <path d="m17 3 5 5" />
-                                        </svg>
+                                        <div class="icon-filter"></div>
                                     </button>
                                 </div>
                             </div>
-                            <div style="display: flex; gap: 0.75rem">
+                            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
                                 <button class="btn btn-secondary btn-sm" id="btn-compare-export-csv">
                                     <div style="
                         width: 14px;

@@ -175,9 +175,27 @@ export class JobStats extends HTMLElement {
         const gridEl = document.createElement('div');
         gridEl.className = 'grid-stats';
 
-        this._isInternal = this.getAttribute('type') === 'internal';
+        this._mode = this.getAttribute('type') || 'external';
+        this._isInternal = this._mode === 'internal';
+        this._isCompareExternal = this._mode === 'compare-external';
+        this._isCompareInternal = this._mode === 'compare-internal';
 
-        if (this._isInternal) {
+        let defaultFilter = 'all';
+
+        if (this._isCompareExternal) {
+            gridEl.appendChild(this._createStatCard('ip_changed', 'IP 異動', 'danger', '目標網域的 IP 改變', '目標網域的 IP 與上次掃描無交集，發生實質變更。建議確認該目標網域的安全性。'));
+            gridEl.appendChild(this._createStatCard('degraded', '狀態劣化', 'warning', '連結變失效或傳輸協定降級', '原本正常的連結在本次掃描變為失效，或連線由安全的 HTTPS 降級為明文 HTTP。建議確認後修正。'));
+            gridEl.appendChild(this._createStatCard('recovered', '狀態復原', 'success', '連結已修復或傳輸協定升級', '原本失效的連結在本次掃描已恢復正常，或連線由明文 HTTP 升級為安全的 HTTPS。'));
+            gridEl.appendChild(this._createStatCard('new_links', '新增連結', 'info', '新出現的外部連結', '本次掃描新出現的外部連結。需注意是否被植入惡意連結。'));
+            gridEl.appendChild(this._createStatCard('removed_links', '消失連結', 'muted', '已移除的外部連結', '本次掃描未再出現的外部連結。'));
+            defaultFilter = 'ip_changed';
+        } else if (this._isCompareInternal) {
+            gridEl.appendChild(this._createStatCard('internal_degraded', '狀態劣化', 'warning', '連結變失效或傳輸協定降級', '原本正常的連結在本次掃描變為失效，或連線由安全的 HTTPS 降級為明文 HTTP。建議確認後修正。'));
+            gridEl.appendChild(this._createStatCard('internal_recovered', '狀態復原', 'success', '連結已修復或傳輸協定升級', '原本失效的連結在本次掃描已恢復正常，或連線由明文 HTTP 升級為安全的 HTTPS。'));
+            gridEl.appendChild(this._createStatCard('internal_new_pages', '新增連結', 'info', '新出現的內部連結', '本次掃描新出現的內部連結。'));
+            gridEl.appendChild(this._createStatCard('internal_removed_pages', '消失連結', 'muted', '已移除的內部連結', '本次掃描未再出現的內部連結。'));
+            defaultFilter = 'internal_degraded';
+        } else if (this._isInternal) {
             gridEl.appendChild(this._createStatCard('all', '診斷總數', 'brand', '包含失敗與截斷的總數量', '此任務在您的網站內部爬行時，遭遇的所有異常、警告與抓取失敗事件。'));
             gridEl.appendChild(this._createStatCard('server_error', '伺服器異常', 'danger', '伺服器無法完成請求', '目標伺服器發生崩潰或過載 (回傳 5XX 狀態碼)，若非防禦機制或停機維護，則為嚴重的系統異常，需請工程師立刻處理。'));
             gridEl.appendChild(this._createStatCard('connection_error', '底層異常', 'danger', 'DNS、憑證或連線有問題', 'DNS 解析失敗、SSL 憑證異常或連線被目標主機拒絕。這通常代表基礎網路設施或防火牆設定有誤。'));
@@ -209,7 +227,9 @@ export class JobStats extends HTMLElement {
         descIconEl.className = 'mask-icon icon-info';
 
         this._descTextEl = document.createElement('span');
-        this._descTextEl.textContent = this._statCards['all'].dataset.desc;
+        if (this._statCards[defaultFilter]) {
+            this._descTextEl.textContent = this._statCards[defaultFilter].dataset.desc;
+        }
 
         this._descBox.appendChild(descIconEl);
         this._descBox.appendChild(this._descTextEl);
@@ -217,7 +237,7 @@ export class JobStats extends HTMLElement {
         this.shadowRoot.appendChild(this._descBox);
 
         // 初始化預設選中狀態
-        this.activeFilter = 'all';
+        this.activeFilter = defaultFilter;
     }
 
     /**
@@ -246,18 +266,6 @@ export class JobStats extends HTMLElement {
      * 根據傳入的統計資料更新各卡片上顯示的數字。
      * 各欄位名稱使用雙重 fallback（`xxx_count` → `xxx`）以相容不同版本的 API 回應格式。
      * @param {Object} stats - 各種狀態的數量統計物件
-     * @param {number} [stats.total_external_links]   - 外部連結總數
-     * @param {number} [stats.total]                  - 診斷總數（內部連結模式）
-     * @param {number} [stats.healthy_count]          - 正常連結數（外部模式專用）
-     * @param {number} [stats.dns_failed_count]       - DNS 錯誤數
-     * @param {number} [stats.not_found_count]        - 資源遺失數
-     * @param {number} [stats.server_error_count]     - 伺服器異常數
-     * @param {number} [stats.connection_error_count] - 底層連線異常數
-     * @param {number} [stats.other_error_count]      - 其他異常數
-     * @param {number} [stats.blocked_count]          - 權限阻擋數
-     * @param {number} [stats.insecure_count]         - 非 HTTPS 數
-     * @param {number} [stats.timeout]                - 連線逾時數（內部模式專用）
-     * @param {number} [stats.warning]                - 網頁截斷數（內部模式專用）
      */
     updateView(stats) {
         const s = stats || {};
@@ -272,6 +280,19 @@ export class JobStats extends HTMLElement {
         if (this._statValues['timeout']) this._statValues['timeout'].textContent = s.timeout ?? 0;
         if (this._statValues['warning']) this._statValues['warning'].textContent = s.warning ?? 0;
         if (this._statValues['insecure']) this._statValues['insecure'].textContent = s.insecure_count ?? s.insecure ?? 0;
+
+        // 比對任務數據欄位
+        if (this._statValues['ip_changed']) this._statValues['ip_changed'].textContent = s.ip_changed ?? 0;
+        if (this._statValues['degraded']) this._statValues['degraded'].textContent = s.degraded ?? 0;
+        if (this._statValues['recovered']) this._statValues['recovered'].textContent = s.recovered ?? 0;
+        if (this._statValues['new_links']) this._statValues['new_links'].textContent = s.new_links ?? 0;
+        if (this._statValues['removed_links']) this._statValues['removed_links'].textContent = s.removed_links ?? 0;
+
+        // 內部比對數據欄位
+        if (this._statValues['internal_degraded']) this._statValues['internal_degraded'].textContent = s.internal_degraded ?? 0;
+        if (this._statValues['internal_recovered']) this._statValues['internal_recovered'].textContent = s.internal_recovered ?? 0;
+        if (this._statValues['internal_new_pages']) this._statValues['internal_new_pages'].textContent = s.internal_new_pages ?? 0;
+        if (this._statValues['internal_removed_pages']) this._statValues['internal_removed_pages'].textContent = s.internal_removed_pages ?? 0;
     }
 
     /**

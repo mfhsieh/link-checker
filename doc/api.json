@@ -1133,7 +1133,7 @@
           "jobs"
         ],
         "summary": "Get Job Diff",
-        "description": "比對兩個任務的外連結果差異 (支援排除網域)。\n\n以 job_id 作為基準 (舊任務)，compare_with 作為對照 (新任務)。\n\nArgs:\n    job_id (str): 基準任務 ID。\n    compare_with (str): 對照任務 ID。\n    exclude (str | None): 要排除的目標網域。\n    current_user (User): 當前登入的使用者。\n    db (DBSession): Crawler DB Session。\n\nReturns:\n    dict[str, object]: 差異比對報表。\n\nRaises:\n    HTTPException 404: 找不到任務時拋出。",
+        "description": "比對兩個任務的結果差異 (支援外部連結與內部網頁，以及排除網域)。\n\n以 job_id 作為基準 (舊任務)，compare_with 作為對照 (新任務)。\n\nArgs:\n    job_id (str): 基準任務 ID。\n    compare_with (str): 對照任務 ID。\n    exclude (str | None): 要排除的目標網域。\n    scope (str): 比對範疇 ('all', 'external', 'internal')。\n    current_user (User): 當前登入的使用者。\n    db (DBSession): Crawler DB Session。\n\nReturns:\n    dict[str, object]: 差異比對報表。\n\nRaises:\n    HTTPException 404: 找不到任務時拋出。",
         "operationId": "get_job_diff_api_jobs__job_id__diff_get",
         "parameters": [
           {
@@ -1173,6 +1173,18 @@
               "title": "Exclude"
             },
             "description": "排除指定的目標網域（多個以逗號分隔）"
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "比對範疇 (all, external, internal)",
+              "default": "all",
+              "title": "Scope"
+            },
+            "description": "比對範疇 (all, external, internal)"
           }
         ],
         "responses": {

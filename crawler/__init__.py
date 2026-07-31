@@ -5,6 +5,7 @@
 
 - config_utils: 提供爬蟲設定檔解析、驗證與環境變數管理功能。
 - core: 實作 HTTP 請求發送、內容解析與連結萃取的核心爬蟲引擎。
+- env: 提供爬蟲專用環境變數讀取與全域預設值定義。
 - manager: 負責管理爬蟲任務狀態與資料庫操作的管理器。
 - models: 定義爬蟲專用資料庫的模型 (Job, CrawlQueue, ExternalLink 等)。
 - profiles: 管理不同的爬蟲參數設定檔。

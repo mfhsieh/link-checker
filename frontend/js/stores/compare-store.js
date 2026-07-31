@@ -30,6 +30,10 @@ export class CompareStore {
         this.compareColFilters = {};
         /** @type {Array<Object>} 目前差異表格的表頭設定 */
         this.currentCompareHeaders = [];
+        /** @type {number} 當前頁碼 (1-indexed) */
+        this.currentPage = 1;
+        /** @type {number} 每頁筆數（與任務詳情表格保持一致 50 筆） */
+        this.pageSize = 50;
     }
 
     /**
@@ -49,6 +53,7 @@ export class CompareStore {
         
         const res = await api.get(url);
         this.currentDiffData = res;
+        this.currentPage = 1;
         return res;
     }
 
@@ -59,6 +64,7 @@ export class CompareStore {
      */
     setSort(sortOption) {
         this.compareSort = sortOption;
+        this.currentPage = 1;
     }
 
     /**
@@ -69,6 +75,7 @@ export class CompareStore {
      */
     setFilter(key, value) {
         this.compareColFilters[key] = value;
+        this.currentPage = 1;
     }
 
     /**
@@ -77,7 +84,19 @@ export class CompareStore {
      * @returns {void}
      */
     setTab(tabName) {
-        this.currentTab = tabName;
+        if (this.currentTab !== tabName) {
+            this.currentTab = tabName;
+            this.currentPage = 1;
+        }
+    }
+
+    /**
+     * 設定當前頁碼
+     * @param {number} page - 頁碼
+     * @returns {void}
+     */
+    setPage(page) {
+        this.currentPage = page;
     }
 
     /**
@@ -85,47 +104,22 @@ export class CompareStore {
      * @returns {Array<Object>} 回傳處理後的差異清單
      */
     getFilteredData() {
-        if (!this.currentDiffData || !this.currentDiffData.details[this.currentTab]) return [];
-        let data = [...this.currentDiffData.details[this.currentTab]];
+        if (!this.currentDiffData) return [];
 
-        if (this.currentTab === 'ip_changed') {
-            const grouped = {};
-            data.forEach(item => {
-                let domain = '';
-                try {
-                    domain = new URL(item.target_url).hostname;
-                } catch (e) {
-                    domain = item.target_url;
-                }
-                const key = `${domain}|${item.old_ip}|${item.new_ip}`;
-                if (!grouped[key]) {
-                    grouped[key] = {
-                        domain: domain,
-                        old_ip: item.old_ip,
-                        new_ip: item.new_ip,
-                        url_count: 0,
-                        target_urls: new Set(),
-                        sources: new Set()
-                    };
-                }
-                grouped[key].url_count += 1;
-                if (grouped[key].target_urls.size < 10) {
-                    grouped[key].target_urls.add(item.target_url);
-                }
-                if (item.sources) {
-                    item.sources.forEach(src => {
-                        if (grouped[key].sources.size < 10) {
-                            grouped[key].sources.add(src);
-                        }
-                    });
-                }
-            });
-            data = Object.values(grouped).map(g => ({
-                ...g,
-                target_urls: Array.from(g.target_urls).sort(),
-                sources: Array.from(g.sources).sort()
-            }));
+        let detailsObj = null;
+        if (this.currentTab.startsWith('internal_')) {
+            if (this.currentDiffData.internal && this.currentDiffData.internal.details) {
+                const internalKey = this.currentTab.replace(/^internal_/, '');
+                detailsObj = this.currentDiffData.internal.details[internalKey];
+            }
+        } else {
+            if (this.currentDiffData.details && this.currentDiffData.details[this.currentTab]) {
+                detailsObj = this.currentDiffData.details[this.currentTab];
+            }
         }
+
+        if (!detailsObj) return [];
+        let data = [...detailsObj];
 
         for (const [k, v] of Object.entries(this.compareColFilters)) {
             if (!v) continue;
@@ -136,22 +130,43 @@ export class CompareStore {
         }
 
         if (this.compareSort.key) {
+            const { key, asc } = this.compareSort;
             data.sort((a, b) => {
-                let valA = a[this.compareSort.key];
-                let valB = b[this.compareSort.key];
-                if (valA === undefined || valA === null) valA = '';
-                if (valB === undefined || valB === null) valB = '';
-                if (typeof valA === 'number' && typeof valB === 'number') return this.compareSort.asc ? valA - valB : valB - valA;
-                valA = String(valA).toLowerCase();
-                valB = String(valB).toLowerCase();
-                if (valA < valB) return this.compareSort.asc ? -1 : 1;
-                if (valA > valB) return this.compareSort.asc ? 1 : -1;
-                return 0;
+                let valA = a[key];
+                let valB = b[key];
+                if (valA === valB) return 0;
+                if (valA === null || valA === undefined) return 1;
+                if (valB === null || valB === undefined) return -1;
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return asc ? valA - valB : valB - valA;
+                }
+                return asc
+                    ? String(valA).localeCompare(String(valB))
+                    : String(valB).localeCompare(String(valA));
             });
         } else if (this.currentTab === 'ip_changed') {
             data.sort((a, b) => b.url_count - a.url_count);
         }
 
         return data;
+    }
+
+    /**
+     * 取得當前頁碼切片後的資料
+     * @returns {Array<Object>} 當前頁碼筆數清單
+     */
+    getPagedData() {
+        const data = this.getFilteredData();
+        const start = (this.currentPage - 1) * this.pageSize;
+        return data.slice(start, start + this.pageSize);
+    }
+
+    /**
+     * 計算目前總頁數
+     * @returns {number} 總頁數（至少為 1）
+     */
+    getTotalPages() {
+        const data = this.getFilteredData();
+        return Math.ceil(data.length / this.pageSize) || 1;
     }
 }

@@ -11,6 +11,9 @@ from collections.abc import Generator
 
 import pytest
 
+# 測試環境預設強制開啟 SMTP Console 模式，避免發送真實郵件
+os.environ["SMTP_CONSOLE_MODE"] = "true"
+
 
 def refresh_settings_cache() -> None:
     """
@@ -22,6 +25,9 @@ def refresh_settings_cache() -> None:
     """
     from backend.config import Settings, get_settings  # pylint: disable=import-outside-toplevel
 
+    # 強制測試環境下的 SMTP 為 console 模擬模式
+    os.environ["SMTP_CONSOLE_MODE"] = "true"
+
     # 清除 lru_cache
     get_settings.cache_clear()
 
@@ -29,6 +35,7 @@ def refresh_settings_cache() -> None:
     Settings.AUTH_DB_URL = os.environ.get("AUTH_DB_URL", "sqlite:///db/auth.db")
     Settings.CRAWLER_DB_URL = os.environ.get("CRAWLER_DB_URL", "sqlite:///db/crawler.db")
     Settings.GLOBAL_CONFIG_PATH = os.environ.get("GLOBAL_CONFIG_PATH", "config/config_global.yaml")
+    Settings.SMTP_CONSOLE_MODE = True
 
 
 @pytest.fixture(autouse=True, scope="module")

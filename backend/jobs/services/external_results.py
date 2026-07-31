@@ -506,135 +506,6 @@ def get_results_summary(  # pylint: disable=too-many-locals
     }
 
 
-def _build_target_dict_for_diff(db: DBSession, job_id: str, exclude: str | None = None) -> dict[str, dict[str, object]]:
-    """
-    為指定任務建立目標網址的聚合字典，以供 Diff 比對使用。
-
-    Args:
-        db (DBSession): Crawler DB Session。
-        job_id (str): 任務 ID。
-        exclude (str | None): 要排除的目標網域。
-
-    Returns:
-        dict[str, dict[str, object]]: 聚合後的外連字典。
-    """
-    _SetStr = set[str]
-    agg: dict[str, dict[str, str | bool | int | _SetStr | None]] = defaultdict(
-        lambda: {
-            "ip": None,
-            "is_secure": True,
-            "status_code": None,
-            "error": None,
-            "sources": set(),
-        }
-    )
-    query = db.query(ExternalLink).filter(ExternalLink.job_id == job_id)
-
-    if exclude:
-        excludes = [e.strip() for e in exclude.split(",") if e.strip()]
-        for exc in excludes:
-            query = query.filter(~ExternalLink.target_url.ilike(f"%{exc}%"))
-
-    cursor = query.yield_per(2000)
-    for lnk in cursor:
-        d = agg[lnk.target_url]
-        sources = d["sources"]
-        if isinstance(sources, set):
-            sources.add(lnk.source_url)
-        d["is_secure"] = d["is_secure"] and lnk.is_secure
-        if not d["ip"] and lnk.ip_address:
-            d["ip"] = lnk.ip_address
-        if d["status_code"] is None and lnk.http_status_code is not None:
-            d["status_code"] = lnk.http_status_code
-        if not d["error"] and lnk.error_message:
-            d["error"] = lnk.error_message
-    return {k: dict(v) for k, v in agg.items()}
-
-
-def _is_bad_link(item: dict[str, object]) -> bool:
-    """
-    判斷給定的外連項目是否處於異常/失效狀態。
-
-    Args:
-        item (dict[str, object]): 外連項目的字典資料。
-
-    Returns:
-        bool: 若為異常/失效連結則回傳 True，否則回傳 False。
-    """
-    if not item["ip"]:
-        return True
-    status_code = item["status_code"]
-    if status_code is not None and int(str(status_code)) >= 400:
-        return True
-    if item["error"]:
-        return True
-    return False
-
-
-def _get_top_10_sources(item: dict[str, object]) -> list[str]:
-    """取得最多 10 個排序後的來源網址。"""
-    sources = item["sources"]
-    if isinstance(sources, (set, list)):
-        return sorted([str(s) for s in sources])[:10]
-    return []
-
-
-def _process_diff_common_url(
-    url: str, item_a: dict[str, object], item_b: dict[str, object], diff_lists: dict[str, list[dict[str, object]]]
-) -> None:
-    """
-    處理兩個任務中皆存在的外連網址，比較差異並加入對應的結果清單中。
-
-    Args:
-        url (str): 目標網址。
-        item_a (dict[str, object]): 舊任務的外連項目資料。
-        item_b (dict[str, object]): 新任務的外連項目資料。
-        diff_lists (dict[str, list[dict[str, object]]]): 存放差異結果的字典。
-    """
-    if item_a["ip"] and item_b["ip"] and item_a["ip"] != item_b["ip"]:
-        diff_lists["ip_changed"].append(
-            {
-                "target_url": url,
-                "old_ip": item_a["ip"],
-                "new_ip": item_b["ip"],
-                "sources": _get_top_10_sources(item_b),
-            }
-        )
-    if item_a["is_secure"] and not item_b["is_secure"]:
-        diff_lists["security_downgraded"].append(
-            {
-                "target_url": url,
-                "sources": _get_top_10_sources(item_b),
-            }
-        )
-
-    a_bad = _is_bad_link(item_a)
-    b_bad = _is_bad_link(item_b)
-
-    if not a_bad and b_bad:
-        diff_lists["degraded"].append(
-            {
-                "target_url": url,
-                "old_status": item_a["status_code"],
-                "old_error": item_a["error"],
-                "new_status": item_b["status_code"],
-                "new_error": item_b["error"],
-                "sources": _get_top_10_sources(item_b),
-            }
-        )
-    elif a_bad and not b_bad:
-        diff_lists["recovered"].append(
-            {
-                "target_url": url,
-                "old_status": item_a["status_code"],
-                "old_error": item_a["error"],
-                "new_status": item_b["status_code"],
-                "new_error": item_b["error"],
-                "sources": _get_top_10_sources(item_b),
-            }
-        )
-
-
 def get_job_diff(
     db: DBSession,
     base_job_id: str,
@@ -643,87 +514,18 @@ def get_job_diff(
     exclude: str | None = None,
 ) -> dict[str, object]:
     """
-    比對兩個任務的外部連結差異 (支援排除網域)。
-
-    Args:
-        db (DBSession): Crawler DB Session。
-        base_job_id (str): 基準任務 ID (舊)。
-        compare_job_id (str): 對照任務 ID (新)。
-        user_id (str): 請求查詢的使用者 ID。
-        exclude (str | None): 要排除的目標網域。
-
-    Returns:
-        dict[str, object]: 差異比對結果字典。
-
-    Raises:
-        ValueError: 找不到任務或無權限存取時拋出。
+    向下相容的比對兩個任務的外部連結差異轉呼叫函式。
     """
-    job_a = db.query(Job).filter(Job.id == base_job_id).first()
-    job_b = db.query(Job).filter(Job.id == compare_job_id).first()
+    from backend.jobs.services.diff import get_job_diff as diff_get_job_diff  # pylint: disable=import-outside-toplevel
 
-    if not job_a or (job_a.user_id or "") != (user_id or ""):
-        raise ValueError(f"找不到基準任務 ID: {base_job_id}")
-    if not job_b or (job_b.user_id or "") != (user_id or ""):
-        raise ValueError(f"找不到對照任務 ID: {compare_job_id}")
-
-    dict_a = _build_target_dict_for_diff(db, base_job_id, exclude)
-    dict_b = _build_target_dict_for_diff(db, compare_job_id, exclude)
-
-    set_a = set(dict_a.keys())
-    set_b = set(dict_b.keys())
-
-    diff_lists: dict[str, list[dict[str, object]]] = {
-        "ip_changed": [],
-        "degraded": [],
-        "security_downgraded": [],
-        "recovered": [],
-    }
-
-    for url in set_a & set_b:
-        _process_diff_common_url(url, dict_a[url], dict_b[url], diff_lists)
-
-    new_links = [
-        {
-            "target_url": url,
-            "ip": dict_b[url]["ip"],
-            "status_code": dict_b[url]["status_code"],
-            "error": dict_b[url]["error"],
-            "sources": _get_top_10_sources(dict_b[url]),
-        }
-        for url in (set_b - set_a)
-    ]
-
-    removed_links = [
-        {
-            "target_url": url,
-            "old_ip": dict_a[url]["ip"],
-            "old_status_code": dict_a[url]["status_code"],
-            "old_error": dict_a[url]["error"],
-            "sources": _get_top_10_sources(dict_a[url]),
-        }
-        for url in (set_a - set_b)
-    ]
-
-    return {
-        "base_job": {"id": job_a.id, "created_at": job_a.created_at.isoformat()},
-        "compare_job": {"id": job_b.id, "created_at": job_b.created_at.isoformat()},
-        "summary": {
-            "ip_changed": len(diff_lists["ip_changed"]),
-            "degraded": len(diff_lists["degraded"]),
-            "security_downgraded": len(diff_lists["security_downgraded"]),
-            "new_links": len(new_links),
-            "removed_links": len(removed_links),
-            "recovered": len(diff_lists["recovered"]),
-        },
-        "details": {
-            "ip_changed": diff_lists["ip_changed"],
-            "degraded": diff_lists["degraded"],
-            "security_downgraded": diff_lists["security_downgraded"],
-            "new_links": new_links,
-            "removed_links": removed_links,
-            "recovered": diff_lists["recovered"],
-        },
-    }
+    return diff_get_job_diff(
+        db=db,
+        base_job_id=base_job_id,
+        compare_job_id=compare_job_id,
+        user_id=user_id,
+        exclude=exclude,
+        scope="external",
+    )
 
 
 def _stream_no_grouping(cursor) -> Iterator[dict[str, object]]:

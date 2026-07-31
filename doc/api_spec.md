@@ -576,7 +576,7 @@
 ## GET /api/jobs/{job_id}/diff
 **摘要**: Get Job Diff
 
-**說明**: 比對兩個任務的外連結果差異 (支援排除網域)。
+**說明**: 比對兩個任務的結果差異 (支援外部連結與內部網頁，以及排除網域)。
 
 以 job_id 作為基準 (舊任務)，compare_with 作為對照 (新任務)。
 
@@ -585,6 +585,7 @@
 - `job_id` (str): 基準任務 ID。
 - `compare_with` (str): 對照任務 ID。
 - `exclude` (str | None): 要排除的目標網域。
+- `scope` (str): 比對範疇 ('all', 'external', 'internal')。
 - `current_user` (User): 當前登入的使用者。
 - `db` (DBSession): Crawler DB Session。
 

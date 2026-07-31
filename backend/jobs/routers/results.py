@@ -17,7 +17,7 @@ from backend.auth.models import User
 from backend.cache_utils import get_cached_job_result
 from backend.deps import get_crawler_db, get_current_user
 from backend.jobs.schemas import InternalResultQuery, JobResultQuery, ResultsQueryArgs
-from backend.jobs.services import external_results, internal_results
+from backend.jobs.services import diff, external_results, internal_results
 from crawler.models import Job
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -99,15 +99,16 @@ def get_results_summary(
 
 
 @router.get("/{job_id}/diff")
-def get_job_diff(
+def get_job_diff(  # pylint: disable=too-many-arguments
     job_id: str,
     compare_with: str = Query(..., description="要比對的新任務 ID (對照組)"),
     exclude: str | None = Query(None, description="排除指定的目標網域（多個以逗號分隔）"),
+    scope: str = Query("all", description="比對範疇 (all, external, internal)"),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> dict[str, object]:
     """
-    比對兩個任務的外連結果差異 (支援排除網域)。
+    比對兩個任務的結果差異 (支援外部連結與內部網頁，以及排除網域)。
 
     以 job_id 作為基準 (舊任務)，compare_with 作為對照 (新任務)。
 
@@ -115,6 +116,7 @@ def get_job_diff(
         job_id (str): 基準任務 ID。
         compare_with (str): 對照任務 ID。
         exclude (str | None): 要排除的目標網域。
+        scope (str): 比對範疇 ('all', 'external', 'internal')。
         current_user (User): 當前登入的使用者。
         db (DBSession): Crawler DB Session。
 
@@ -130,12 +132,13 @@ def get_job_diff(
             raise ValueError(f"Job not found: {job_id}")
 
         def compute():
-            return external_results.get_job_diff(
+            return diff.get_job_diff(
                 db,
                 base_job_id=job_id,
                 compare_job_id=compare_with,
                 user_id=current_user.id,
                 exclude=exclude,
+                scope=scope,
             )
 
         return get_cached_job_result(
@@ -143,7 +146,7 @@ def get_job_diff(
             job_updated_at=job.updated_at.timestamp(),
             job_id=job_id,
             endpoint_name="job_diff",
-            params={"compare_with": compare_with, "exclude": exclude},
+            params={"compare_with": compare_with, "exclude": exclude, "scope": scope},
             compute_func=compute,
         )
     except ValueError as e:

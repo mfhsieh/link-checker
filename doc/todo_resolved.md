@@ -1,5 +1,11 @@
 # 已解決的待辦事項 (Resolved TODOs)
 
+1. **擴充比對任務 (Job Diff) 支援內部連結與診斷邏輯全面升級**
+   * **說明**：（符合 `requirements.md` §7.3「任務歷史差異比對引擎 (Job Diff Engine)」規範）
+   * **問題描述**：原本任務比對僅限於外部連結，且未標示雙方皆失敗的死鏈（持續失效）。內部網頁健康度變遷亦無比對機制。
+   * **修復方案**：建立專責比對模組 `backend/jobs/services/diff.py`。新增 `persistently_failed`（持續失效）外部比對診斷，並全新實作內部網頁健康度差異比對（`internal_degraded`, `internal_recovered`, `internal_persistently_failed`, `internal_new_pages`, `internal_removed_pages`）。前端 `compare` 頁面同步更新頁籤導覽與表格渲染。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **任務結束時自動即時刷新診斷摘要與結果列表 (Diagnostic Summary Auto-Refresh)**
    * **說明**：（符合 `requirements.md` 7.2 任務管理（前台）規範）
    * **問題描述**：任務執行完畢時，前端透過 SSE 推送能即時更新控制按鈕狀態（如移轉、刪除解鎖），但頂部診斷摘要卡片與詳細連結列表需等待使用者手動切換頁籤或刷新頁面，才能看到最終結果。
