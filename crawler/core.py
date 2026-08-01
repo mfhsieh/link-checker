@@ -34,7 +34,7 @@ import idna
 from bs4 import BeautifulSoup
 
 from crawler.models import CrawlerConfig
-from crawler.profiles import get_random_profile
+from crawler.profiles import DEFAULT_IMPERSONATE_PROFILES, get_random_profile
 from crawler.utils import get_domain, is_in_domain_list, is_safe_ip, normalize_url, resolve_ip
 
 if TYPE_CHECKING:
@@ -196,15 +196,21 @@ class CrawlerCore:
                     if match:
                         edge_versions.append((int(match.group(1)), b))
 
-            chrome_latest = max(chrome_versions, key=lambda x: x[0])[1] if chrome_versions else "chrome120"
+            chrome_latest = (
+                max(chrome_versions, key=lambda x: x[0])[1] if chrome_versions else DEFAULT_IMPERSONATE_PROFILES[0]
+            )
             # 取得最新版本的 Safari 指紋
-            safari_latest = max(safari_versions, key=lambda x: x[0])[1] if safari_versions else "safari15_3"
-            edge_latest = max(edge_versions, key=lambda x: x[0])[1] if edge_versions else "edge101"
+            safari_latest = (
+                max(safari_versions, key=lambda x: x[0])[1] if safari_versions else DEFAULT_IMPERSONATE_PROFILES[1]
+            )
+            edge_latest = (
+                max(edge_versions, key=lambda x: x[0])[1] if edge_versions else DEFAULT_IMPERSONATE_PROFILES[2]
+            )
 
             cls._dynamic_impersonate_profiles = [chrome_latest, safari_latest, edge_latest]
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("動態解析 curl_cffi 瀏覽器指紋失敗，退回預設名單: %s", e)
-            cls._dynamic_impersonate_profiles = ["chrome120", "safari15_3", "edge101"]
+            cls._dynamic_impersonate_profiles = list(DEFAULT_IMPERSONATE_PROFILES)
 
         return cls._dynamic_impersonate_profiles
 

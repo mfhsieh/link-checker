@@ -1,5 +1,35 @@
 # 已解決的待辦事項 (Resolved TODOs)
 
+1. **`JobManager.run_job` 任務狀態切換之原子化防禦（Code Review v1.9.8 Finding 2）**
+   * **說明**：（於 `crawler/runner.py` 實作條件式原子化 UPDATE，避免多 Worker 競態搶佔執行相同任務）
+   * **問題描述**：多 Worker 或 API 進程同時呼叫 `run_job` 時採「先查詢後更新」方式，存在 Race Condition 視窗，可能導致兩個程序同時搶佔並重複執行同一個任務。
+   * **修復方案**：在 `JobRunner._initialize` 檢查前置合法狀態後，採用原子化 `UPDATE jobs SET status='running' WHERE id=:job_id AND status=:old_status` 語法並透過 `synchronize_session="fetch"` 自動同步 ORM 物件，若影響列數為 0 則安全退出。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **正則表達式防禦與長度限制（Code Review v1.9.8 Finding 3）**
+   * **說明**：（於 `crawler/config_utils.py` 增加正則表達式單條長度與總條數限制，防止 ReDoS 攻擊）
+   * **問題描述**：`validate_ignore_regexes` 僅檢查語法是否合法。若傳入具備災難性回溯特徵的正則表達式，爬行特定長字串時可能引發 ReDoS (Regex Denial of Service) 導致 CPU 卡死。
+   * **修復方案**：於 `crawler/config_utils.py` 設定常數 `MAX_REGEX_COUNT = 50` 與 `MAX_REGEX_LENGTH = 200`，並於 `validate_ignore_regexes` 驗證時進行長度與數量檢查。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **預設瀏覽器指紋版本常數收攏（Code Review v1.9.8 Finding 4）**
+   * **說明**：（將分散於 `profiles.py` 與 `core.py` 的退回版本與 TLS 指紋名單收攏於 `crawler/profiles.py` 頂層常數管理）
+   * **問題描述**：預設退回的 Chrome/Edge 版本號 `"120"` 以及 `curl_cffi` 備援指紋名單 `["chrome120", "safari15_3", "edge101"]` 分散硬編碼在 `profiles.py` 與 `core.py` 的例外處理處，不易維護與統一升級。
+   * **修復方案**：將全域預設指紋常數 `DEFAULT_FALLBACK_BROWSER_VERSION` 與 `DEFAULT_IMPERSONATE_PROFILES` 統一宣告於 `crawler/profiles.py` 頂層，並在 `profiles.py` 與 `core.py` 中引用。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **說明文件繁簡用語一致性修復（Code Review v1.9.8 Finding 5）**
+   * **說明**：（修正 `crawler/config_utils.py` 註解中殘留的簡體字，維護繁體中文文件規範）
+   * **問題描述**：`_sanitize_domain_delays` 函式註解寫有「會过濾掉負數...」，其中「过」字為簡體字，不符專案繁體中文標準。
+   * **修復方案**：將 `crawler/config_utils.py` 函式註解中的簡體字修復為繁體中文「會過濾掉負數與無法轉換為 float 的對應值」。
+   * **狀態**：**已解決 (Resolved)**。
+
+1. **多方言資料庫連線池設定彈性強化（Code Review v1.9.8 Finding 6）**
+   * **說明**：（改善 `crawler/manager.py` 的資料庫分流判斷，擴充非 SQLite 關係型資料庫的連線池與 Pre-ping 支援）
+   * **問題描述**：`JobManager` 初始化時僅在連線字串為 `postgresql://` 時設定 `pool_size` 與 `pool_pre_ping`，若採用 MySQL 或使用指定驅動前綴的 PostgreSQL 時會誤走 SQLite 分支。
+   * **修復方案**：將 `crawler/manager.py` 的判斷邏輯改為 `is_sqlite = db_url.startswith("sqlite")` 進行反向分流保護，使所有非 SQLite 關係型資料庫皆能正確套用連線池與 `pool_pre_ping` 設定。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **修復任務比對引擎快取寫入的競態條件 (Race Condition)**
    * **說明**：（修正 `get_job_diff` 在高並發下可能因重複寫入觸發 `IntegrityError` 的系統不穩定問題）
    * **問題描述**：當資料庫不存在快取紀錄時，會動態計算差異並寫入新的 `JobDiffResult`。若同時有兩個以上對同一個任務組合的並發請求，兩者都會嘗試寫入，導致觸發 `uq_job_diff_a_b` 唯一約束，引發 `IntegrityError` 並導致 500 Server Error。

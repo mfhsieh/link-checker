@@ -2,15 +2,15 @@
 爬蟲設定與全域設定合併工具模組。
 
 此模組負責將個別任務的爬蟲設定與系統全域配置進行合併、驗證與安全上下限強制，
-提供以下三個公開元素：
+提供以下四個公開元素：
 
 - ``DEFAULT_GLOBAL_CONFIG``：系統內建的安全預設設定常數，作為未指定設定時的最終退路保障。
 - ``ALLOWED_CRAWLER_KEYS``：個別任務允許覆寫的爬蟲設定鍵白名單。
+- ``MAX_REGEX_COUNT`` 與 ``MAX_REGEX_LENGTH``：正則表達式防禦性上限常數 (防範 ReDoS)。
 - ``merge_and_validate_crawler_config``：主要公開入口，完整執行白名單過濾、預設値補對、
-  清單聯集合併、環境變數覆寫與上下限強制等幾個步驟。
+  清單聯集合併、環境變數覆寫與上下限強制等步驟。
 
-模組內的私有函式（開頭有 ``_`` 字首者）為內部輔助工具，
-非專案公開介面，不建議直接呼叫。
+模組內的私有函式（開頭有 ``_`` 字首者）為內部輔助工具，非專案公開介面，不建議直接呼叫。
 """
 
 import logging
@@ -22,20 +22,37 @@ from crawler.env import get_env
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+#: MAX_REGEX_COUNT: 個別任務允許設定的正則表達式數量上限。
+MAX_REGEX_COUNT: int = 50
+#: MAX_REGEX_LENGTH: 個別任務正則表達式單條長度的最大字元數限制。
+MAX_REGEX_LENGTH: int = 200
+
 
 def validate_ignore_regexes(regexes: list[str] | None) -> list[str] | None:
     """
-    驗證正則表達式列表是否合法。
+    驗證正則表達式列表是否合法，並進行長度與條數上限安全防護。
+
+    對傳入的正則表達式清單進行去空白清理、數量限制與長度限制檢查，
+    並使用 ``re.compile`` 確保所有表達式皆能順利編譯，以防禦 ReDoS 攻擊。
 
     Args:
-        regexes (list[str] | None): 原始的正則表達式字串列表。
+        regexes (list[str] | None): 原始的正則表達式字串列表。若傳入 None 則直接回傳 None。
 
     Returns:
-        list[str] | None: 去除空白後的正則表達式列表，若輸入為 None 則回傳 None。
+        list[str] | None: 清理與驗證後的正則表達式列表，若輸入為 None 則回傳 None。
+
+    Raises:
+        ValueError: 當正則表達式條數超過 MAX_REGEX_COUNT、單條長度超過 MAX_REGEX_LENGTH
+            或語法無法編譯時拋出。
     """
     if regexes is not None:
         cleaned = [pattern.strip() for pattern in regexes if pattern.strip()]
+        if len(cleaned) > MAX_REGEX_COUNT:
+            raise ValueError(f"正則表達式數量上限為 {MAX_REGEX_COUNT} 條，傳入 {len(cleaned)} 條。")
+
         for pattern in cleaned:
+            if len(pattern) > MAX_REGEX_LENGTH:
+                raise ValueError(f"正則表達式單條長度不可超過 {MAX_REGEX_LENGTH} 個字元 (傳入長度 {len(pattern)})。")
             try:
                 re.compile(pattern)
             except re.error as e:
@@ -46,13 +63,18 @@ def validate_ignore_regexes(regexes: list[str] | None) -> list[str] | None:
 
 def validate_domain_delays(delays: dict[str, float] | None) -> dict[str, float] | None:
     """
-    驗證網域延遲時間是否合法。
+    驗證網域延遲時間字典中的數值是否合法。
+
+    走訪字典中的各個網域延遲設定，確保延遲秒數皆大於或等於 0。
 
     Args:
-        delays (dict[str, float] | None): 網域對應的延遲時間字典。
+        delays (dict[str, float] | None): 網域對應的延遲時間字典 (單位為秒)。
 
     Returns:
         dict[str, float] | None: 驗證後的延遲時間字典，若輸入為 None 則回傳 None。
+
+    Raises:
+        ValueError: 當任一網域的延遲時間設定為負數時拋出。
     """
     if delays is not None:
         for domain, delay in delays.items():
@@ -61,6 +83,7 @@ def validate_domain_delays(delays: dict[str, float] | None) -> dict[str, float] 
     return delays
 
 
+#: DEFAULT_GLOBAL_CONFIG: 系統內建的安全預設設定常數。
 DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
     "crawler": {
         # --- 安全上下限（全域配置可覆寫）---
@@ -114,6 +137,7 @@ DEFAULT_GLOBAL_CONFIG: dict[str, object] = {
     },
 }
 
+#: ALLOWED_CRAWLER_KEYS: 個別任務允許覆寫的爬蟲設定鍵白名單。
 ALLOWED_CRAWLER_KEYS: set[str] = {
     "user_agent",
     "proxy_url",
@@ -132,11 +156,6 @@ ALLOWED_CRAWLER_KEYS: set[str] = {
     "ignore_extensions",
     "check_skipped_links",
 }
-"""個別任務允許覆寫的爬蟲設定鍵白名單。
-
-隱含設定（如安全上下限 ``min_*``/``max_*``、``max_content_length`` 等）
-僅允許全域配置覆寫，不得由個別任務直接設定。
-"""
 
 
 def _sanitize_numeric_type(k: str, v: object, exp: type | tuple[type, ...], config: dict[str, object]) -> None:
@@ -173,28 +192,27 @@ def _sanitize_string_type(k: str, v: object, config: dict[str, object]) -> None:
     Args:
         k (str): 設定的鍵名。
         v (object): 設定的原始値。
-        config (dict[str, object]): 爬蟲設定字典。
+        config (dict[str, object]): 爬蟲設定字典，清理後會就地修改此字典。
     """
     if not isinstance(v, str):
         config[k] = str(v)
 
 
-def _sanitize_domain_delays(k: str, v: dict, config: dict[str, object]) -> None:
+def _sanitize_domain_delays(k: str, v: dict[str, object], config: dict[str, object]) -> None:
     """
     清理 domain_delays 字典並寫回至 config。
 
-    會过濾掉負數與無法轉換為 float 的對应值，
-    並將所有鍵強制轉換為字串。
+    會過濾掉負數與無法轉換為 float 的對應值，並將所有鍵強制轉換為字串。
 
     Args:
         k (str): 設定的鍵名（常為 ``"domain_delays"``）。
-        v (dict): 原始的 domain_delays 字典。
-        config (dict[str, object]): 爬蟲設定字典，清理後會直接寫回此字典。
+        v (dict[str, object]): 原始的 domain_delays 字典。
+        config (dict[str, object]): 爬蟲設定字典，清理後會就地修改此字典。
     """
-    sanitized_dd = {}
+    sanitized_dd: dict[str, float] = {}
     for dd_k, dd_v in v.items():
         try:
-            val = float(dd_v)
+            val = float(str(dd_v))
             if val >= 0:
                 sanitized_dd[str(dd_k)] = val
             else:
@@ -204,15 +222,14 @@ def _sanitize_domain_delays(k: str, v: dict, config: dict[str, object]) -> None:
     config[k] = sanitized_dd
 
 
-def _sanitize_mime_type_filter(v: dict) -> None:
+def _sanitize_mime_type_filter(v: dict[str, object]) -> None:
     """
-    清理 mime_type_filter 字典（就地修改）。
+    清理 mime_type_filter 字典。
 
-    將 ``enabled`` 欄位的字串形式變換為 bool，
-    並確保 ``allowed_types`` 為字串清單格式。
+    將 ``enabled`` 欄位的字串形式變換為 bool，並確保 ``allowed_types`` 為字串清單格式。
 
     Args:
-        v (dict): mime_type_filter 字典（就地修改）。
+        v (dict[str, object]): mime_type_filter 字典（就地修改）。
     """
     if "enabled" in v and isinstance(v["enabled"], str):
         v["enabled"] = v["enabled"].lower() in ("true", "1", "yes", "on")
@@ -235,7 +252,7 @@ def _sanitize_dict_type(k: str, v: object, config: dict[str, object]) -> None:
     Args:
         k (str): 設定的鍵名。
         v (object): 設定的原始値。
-        config (dict[str, object]): 爬蟲設定字典。
+        config (dict[str, object]): 爬蟲設定字典，清理後會就地修改此字典。
     """
     if not isinstance(v, dict):
         logging.warning("設定 '%s' 必須為字典 (Key-Value) 格式，將被忽略。", k)
@@ -251,12 +268,12 @@ def _sanitize_list_type(k: str, v: object, config: dict[str, object]) -> None:
     處理陣列清單型別的設定値清理。
 
     若對應鍵的値為字串，自動包裝為單元素陣列。
-    若為可迭代物件則將其轉换為 list，否則清除為空陣列。
+    若為可迭代物件則將其轉換為 list，否則清除為空陣列。
 
     Args:
         k (str): 設定的鍵名。
         v (object): 設定的原始値。
-        config (dict[str, object]): 爬蟲設定字典。
+        config (dict[str, object]): 爬蟲設定字典，清理後會就地修改此字典。
     """
     if isinstance(v, str):
         config[k] = [v]
@@ -351,7 +368,7 @@ def _apply_crawler_defaults(crawler_config: dict[str, object], global_crawler_co
        - 陣列與字典：ignore_extensions, ignore_regexes, ssl_exempt_domains, social_domains, domain_delays
 
     Args:
-        crawler_config (dict[str, object]): 個別任務的爬蟲設定。
+        crawler_config (dict[str, object]): 個別任務的爬蟲設定 (就地修改)。
         global_crawler_config (dict[str, object]): 全域爬蟲預設設定。
     """
     default_crawler = DEFAULT_GLOBAL_CONFIG.get("crawler")
@@ -403,7 +420,7 @@ def _merge_crawler_lists(crawler_config: dict[str, object], global_crawler_confi
     此操作會就地 (in-place) 修改 crawler_config。
 
     Args:
-        crawler_config (dict[str, object]): 個別任務的爬蟲設定。
+        crawler_config (dict[str, object]): 個別任務的爬蟲設定 (就地修改)。
         global_crawler_config (dict[str, object]): 全域爬蟲預設設定。
     """
     list_keys = [
@@ -458,7 +475,7 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
     - 若個別値小於 1，則強制設為 1。
 
     Args:
-        crawler_config (dict[str, object]): 個別任務的爬蟲設定。
+        crawler_config (dict[str, object]): 個別任務的爬蟲設定 (就地修改)。
         global_crawler_config (dict[str, object]): 全域爬蟲限制設定。
     """
     default_crawler = DEFAULT_GLOBAL_CONFIG.get("crawler")
@@ -466,7 +483,8 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
         default_crawler = {}
 
     def _clamp_numeric_limit(key: str, min_k: str, max_k: str, def_min: float | int, def_max: float | int) -> None:
-        """套用數值型別的上下限。
+        """
+        套用數值型別的上下限。
 
         Args:
             key (str): 設定鍵名。
@@ -506,8 +524,7 @@ def _enforce_crawler_limits(crawler_config: dict[str, object], global_crawler_co
         """
         套用可為 None（無限制）的選項上限限制。
 
-        如果個別設定為 None（表示無限制）而全域有設定最大値，
-        則將其強制受限為全域最大値。
+        如果個別設定為 None（表示無限制）而全域有設定最大値，則將其強制受限為全域最大値。
         如果個別値小於 1，則強制修正為 1。
 
         Args:

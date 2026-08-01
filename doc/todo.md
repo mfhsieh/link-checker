@@ -25,7 +25,11 @@
 
 ### 高優先（效能優化、核心精準度與程式品質）
 
-*(目前無)*
+1. **`checked_links_cache` 併發存取加鎖保護（Code Review v1.9.8 Finding 1）**
+   * **問題描述**：`JobRunnerState.checked_links_cache` 使用 `cachetools.LRUCache(maxsize=1000)` 進行記憶體快取。但在多執行緒併發探測（如 `ThreadPoolExecutor` 執行 `_save_checked_links` 或批次讀寫）時未進行線程安全鎖定。`LRUCache` 本身非執行緒安全 (Not Thread-Safe)，在高併發讀寫時極端情況下可能引發 `KeyError` 或內部鏈結損壞。
+   * **改善建議**：於 `JobRunnerState` 中加入 `threading.Lock()` 鎖頭保護 `checked_links_cache` 的讀寫操作。
+   * **相關位置**：[crawler/runner.py:L129](file:///home/mfhsieh/projects/python/link-checker/crawler/runner.py#L129), [L677](file:///home/mfhsieh/projects/python/link-checker/crawler/runner.py#L677), [L921](file:///home/mfhsieh/projects/python/link-checker/crawler/runner.py#L921), [L1016](file:///home/mfhsieh/projects/python/link-checker/crawler/runner.py#L1016)
+   * **狀態**：**待排程（Pending）**。
 
 ### 中優先（中大型功能擴充）
 

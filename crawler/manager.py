@@ -100,19 +100,19 @@ class JobManager:
             SQLAlchemyError: 若建立資料表失敗時拋出。
         """
         env = get_env()
-        is_postgres = db_url.startswith("postgresql://")
-        if is_postgres:
+        is_sqlite = db_url.startswith("sqlite")
+        if is_sqlite:
             self.engine: Engine = create_optimized_engine(
                 db_url=db_url,
-                pool_size=env.db_pool_size,
-                max_overflow=env.db_max_overflow,
-                pool_pre_ping=env.db_pool_pre_ping,
+                sqlite_timeout=env.sqlite_timeout,
+                sqlite_cache_size=10000,
             )
         else:
             self.engine = create_optimized_engine(
                 db_url=db_url,
-                sqlite_timeout=env.sqlite_timeout,
-                sqlite_cache_size=10000,
+                pool_size=env.db_pool_size,
+                max_overflow=env.db_max_overflow,
+                pool_pre_ping=env.db_pool_pre_ping,
             )
 
         Base.metadata.create_all(self.engine)

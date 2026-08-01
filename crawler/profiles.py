@@ -20,6 +20,12 @@ from fake_useragent.errors import FakeUserAgentError  # type: ignore[import-unty
 
 logger: logging.Logger = logging.getLogger(__name__)
 
+#: DEFAULT_FALLBACK_BROWSER_VERSION: 預設退回的 Chrome/Edge 主版本號。
+DEFAULT_FALLBACK_BROWSER_VERSION: str = "120"
+
+#: DEFAULT_IMPERSONATE_PROFILES: 預設退回的 curl_cffi 瀏覽器 TLS 偽裝指紋名單。
+DEFAULT_IMPERSONATE_PROFILES: list[str] = ["chrome120", "safari15_3", "edge101"]
+
 # 初始化 UserAgent (避免每次呼叫都讀取磁碟或網路)
 _ua: UserAgent = UserAgent(os=["windows", "macos", "linux"], browsers=["chrome", "firefox", "safari", "edge"])
 
@@ -32,10 +38,10 @@ def _extract_chrome_version(ua_string: str) -> str:
         ua_string (str): User-Agent 字串。
 
     Returns:
-        str: Chrome 主版本號字串。若無法從 ua_string 中擷取，則 fallback 為 ``"120"``。
+        str: Chrome 主版本號字串。若無法從 ua_string 中擷取，則 fallback 為常數 ``DEFAULT_FALLBACK_BROWSER_VERSION``。
     """
     match = re.search(r"Chrome/(\d+)\.", ua_string)
-    return match.group(1) if match else "120"  # fallback 為常規 Chrome 版本號
+    return match.group(1) if match else DEFAULT_FALLBACK_BROWSER_VERSION
 
 
 def _extract_edge_version(ua_string: str) -> str:
@@ -46,10 +52,10 @@ def _extract_edge_version(ua_string: str) -> str:
         ua_string (str): User-Agent 字串。
 
     Returns:
-        str: Edge 主版本號字串。若無法從 ua_string 中擷取，則 fallback 為 ``"120"``。
+        str: Edge 主版本號字串。若無法從 ua_string 中擷取，則 fallback 為常數 ``DEFAULT_FALLBACK_BROWSER_VERSION``。
     """
     match = re.search(r"Edg/(\d+)\.", ua_string)
-    return match.group(1) if match else "120"  # fallback 為常規 Edge 版本號
+    return match.group(1) if match else DEFAULT_FALLBACK_BROWSER_VERSION
 
 
 def get_random_profile(url: str | None = None) -> dict[str, str]:

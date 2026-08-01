@@ -357,8 +357,18 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
             )
             return None
 
-        job.status = "running"
+        # 採用原子化條件 UPDATE 搶佔任務，並透過 synchronize_session="fetch" 自動同步 ORM 實例狀態
+        old_status = job.status
+        updated_count = (
+            session.query(Job)
+            .filter(Job.id == self.job_id, Job.status == old_status)
+            .update({"status": "running"}, synchronize_session="fetch")
+        )
         session.commit()
+
+        if updated_count == 0:
+            logger.warning("任務 %s 狀態已被其他 Worker 搶先變更 (無法從 %s 搶佔)。", self.job_id, old_status)
+            return None
 
         self.state.target_domains_list = job.target_domains.split(",") if job.target_domains else []
         self.state.trusted_domains_list = job.trusted_domains.split(",") if job.trusted_domains else []
