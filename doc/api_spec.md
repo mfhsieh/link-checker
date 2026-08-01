@@ -607,7 +607,7 @@
 ## GET /api/jobs/{job_id}/diff/items
 **摘要**: Get Job Diff Items
 
-**說明**: 取得任務比對明細的分頁資料。
+**說明**: 取得任務比對明細的分頁資料 (支援記憶體內排序與篩選)。
 
 **標籤**: jobs
 

@@ -30,6 +30,7 @@ from collections import deque
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from threading import Lock
 from typing import cast
 
 import httpx
@@ -127,6 +128,7 @@ class JobRunnerState:  # pylint: disable=too-many-instance-attributes
 
     crawled_count: int = 0
     checked_links_cache: LRUCache = field(default_factory=lambda: LRUCache(maxsize=DEFAULT_LRU_CACHE_MAXSIZE))
+    cache_lock: Lock = field(default_factory=Lock)
     target_domains_list: list[str] = field(default_factory=list)
     trusted_domains_list: list[str] = field(default_factory=list)
     primary_domain: str = ""
@@ -143,6 +145,43 @@ class JobRunnerState:  # pylint: disable=too-many-instance-attributes
     external_links_total: int = 0
     current_depth: int | None = None
     last_flush_time: float = 0.0
+
+    def get_cached_link(self, link: str) -> tuple[str | None, int | None, str | None] | None:
+        """
+        線程安全地自 LRU 快取中取得外部連結檢測結果。
+
+        Args:
+            link (str): 目標連結網址。
+
+        Returns:
+            tuple[str | None, int | None, str | None] | None: (IP, HTTP 狀態碼, 錯誤訊息) 元組，若不存在則回傳 None。
+        """
+        with self.cache_lock:
+            return self.checked_links_cache.get(link)
+
+    def set_cached_link(self, link: str, result: tuple[str | None, int | None, str | None]) -> None:
+        """
+        線程安全地將外部連結檢測結果寫入 LRU 快取。
+
+        Args:
+            link (str): 目標連結網址。
+            result (tuple[str | None, int | None, str | None]): (IP, HTTP 狀態碼, 錯誤訊息) 元組。
+        """
+        with self.cache_lock:
+            self.checked_links_cache[link] = result
+
+    def contains_cached_link(self, link: str) -> bool:
+        """
+        線程安全地檢查外部連結是否存在於 LRU 快取中。
+
+        Args:
+            link (str): 目標連結網址。
+
+        Returns:
+            bool: 若已在快取中存在則回傳 True，否則回傳 False。
+        """
+        with self.cache_lock:
+            return link in self.checked_links_cache
 
 
 def _get_domain_delay(domain: str, domain_delays: dict[str, float], default_delay: float) -> float:
@@ -684,7 +723,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
                     synchronize_session=False,
                 )
 
-                self.state.checked_links_cache[target_url] = (res_ip, res_code, res_err)
+                self.state.set_cached_link(target_url, (res_ip, res_code, res_err))
 
             session.commit()
             return True
@@ -910,7 +949,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
         # 只對尚未在當頁已完成結果中出現、且尚未在快取中出現的連結進行後續處理。
         # 這樣 pending 的外部連結會被重新送回探測流程，而不是被誤判為「已查過」。
         links_to_process = [link for link in unique_external_links if link not in existing_completed_urls_for_page]
-        links_not_in_cache = [link for link in unique_external_links if link not in self.state.checked_links_cache]
+        links_not_in_cache = [link for link in unique_external_links if not self.state.contains_cached_link(link)]
 
         if links_not_in_cache:
             db_checked_links = (
@@ -928,7 +967,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
                 .all()
             )
             for target_url, ip, status_code, err_msg in db_checked_links:
-                self.state.checked_links_cache[target_url] = (ip, status_code, err_msg)
+                self.state.set_cached_link(target_url, (ip, status_code, err_msg))
 
         new_exts = []
         existing_urls_set = set()
@@ -937,8 +976,8 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
             if link in existing_urls_set:
                 continue
 
-            if link in self.state.checked_links_cache:
-                cached_data = self.state.checked_links_cache[link]
+            cached_data = self.state.get_cached_link(link)
+            if cached_data is not None:
                 is_sec = link.startswith("https://")
                 status_cat = determine_external_link_status_category(cached_data[0], cached_data[1])
                 new_ext = ExternalLink(
@@ -1023,7 +1062,7 @@ class JobRunner:  # pylint: disable=too-many-instance-attributes
         """
         mappings: list[dict[str, object]] = []
         for res_link, res_ip, res_code, res_err in results:
-            self.state.checked_links_cache[res_link] = (res_ip, res_code, res_err)
+            self.state.set_cached_link(res_link, (res_ip, res_code, res_err))
             is_sec = res_link.startswith("https://")
             status_cat = determine_external_link_status_category(res_ip, res_code)
             mappings.append(

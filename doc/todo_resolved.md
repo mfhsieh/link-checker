@@ -1,5 +1,11 @@
 # 已解決的待辦事項 (Resolved TODOs)
 
+1. **`checked_links_cache` 併發存取加鎖保護（Code Review v1.9.8 Finding 1）**
+   * **說明**：（於 `crawler/runner.py` 為 `JobRunnerState.checked_links_cache` 增加 `cache_lock` 鎖定機制與線程安全存取方法）
+   * **問題描述**：`JobRunnerState.checked_links_cache` 使用 `cachetools.LRUCache(maxsize=1000)`，在多執行緒併發探測外部連結時未進行鎖定，可能引發競態條件或快取資料損壞。
+   * **修復方案**：在 `JobRunnerState` 中加入 `cache_lock: Lock` 鎖頭，並實作 `get_cached_link`、`set_cached_link` 與 `contains_cached_link` 線程安全方法，替代所有直接存取區塊。
+   * **狀態**：**已解決 (Resolved)**。
+
 1. **`JobManager.run_job` 任務狀態切換之原子化防禦（Code Review v1.9.8 Finding 2）**
    * **說明**：（於 `crawler/runner.py` 實作條件式原子化 UPDATE，避免多 Worker 競態搶佔執行相同任務）
    * **問題描述**：多 Worker 或 API 進程同時呼叫 `run_job` 時採「先查詢後更新」方式，存在 Race Condition 視窗，可能導致兩個程序同時搶佔並重複執行同一個任務。

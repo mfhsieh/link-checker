@@ -1219,7 +1219,7 @@
           "jobs"
         ],
         "summary": "Get Job Diff Items",
-        "description": "取得任務比對明細的分頁資料。",
+        "description": "取得任務比對明細的分頁資料 (支援記憶體內排序與篩選)。",
         "operationId": "get_job_diff_items_api_jobs__job_id__diff_items_get",
         "parameters": [
           {
@@ -1275,6 +1275,54 @@
               "default": 50,
               "title": "Page Size"
             }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "排序欄位",
+              "title": "Sort By"
+            },
+            "description": "排序欄位"
+          },
+          {
+            "name": "sort_asc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "是否升冪排序",
+              "default": true,
+              "title": "Sort Asc"
+            },
+            "description": "是否升冪排序"
+          },
+          {
+            "name": "col_filters",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "欄位篩選條件 (JSON 字串)",
+              "title": "Col Filters"
+            },
+            "description": "欄位篩選條件 (JSON 字串)"
           }
         ],
         "responses": {
