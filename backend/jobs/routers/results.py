@@ -148,18 +148,21 @@ def get_job_diff(  # pylint: disable=too-many-arguments
 
 
 @router.get("/{job_id}/diff/items")
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments, too-many-locals
 def get_job_diff_items(
     job_id: str,
     compare_with: str = Query(..., description="要比對的新任務 ID (對照組)"),
     category: str = Query(..., description="分類名稱"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    sort_by: str | None = Query(None, description="排序欄位"),
+    sort_asc: bool = Query(True, description="是否升冪排序"),
+    col_filters: str | None = Query(None, description="欄位篩選條件 (JSON 字串)"),
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_crawler_db),
 ) -> dict[str, object]:
     """
-    取得任務比對明細的分頁資料。
+    取得任務比對明細的分頁資料 (支援記憶體內排序與篩選)。
     """
     try:
         job = db.get(Job, job_id)
@@ -175,14 +178,46 @@ def get_job_diff_items(
         db.commit()
 
         query = db.query(JobDiffItem).filter(JobDiffItem.diff_id == diff_record.id, JobDiffItem.category == category)
-        total = query.count()
-        items = query.order_by(JobDiffItem.id).offset((page - 1) * page_size).limit(page_size).all()
+        items = query.order_by(JobDiffItem.id).all()
 
         parsed_items = []
         for it in items:
             parsed_items.append(json.loads(it.details_json))
 
-        return {"total": total, "page": page, "page_size": page_size, "items": parsed_items}
+        if col_filters:
+            try:
+                filters_dict = json.loads(col_filters)
+
+                def _is_match(item: dict[str, object]) -> bool:
+                    for k, v in filters_dict.items():
+                        if v.lower() not in str(item.get(k, "")).lower():
+                            return False
+                    return True
+
+                parsed_items = [item for item in parsed_items if _is_match(item)]
+            except json.JSONDecodeError:
+                pass
+
+        if sort_by:
+
+            def sort_key(x):
+                val = x.get(sort_by)
+                return (val is None, val)
+
+            try:
+                parsed_items.sort(key=sort_key, reverse=not sort_asc)
+            except TypeError:
+
+                def safe_sort_key(x):
+                    val = x.get(sort_by)
+                    return (val is None, str(val))
+
+                parsed_items.sort(key=safe_sort_key, reverse=not sort_asc)
+
+        total = len(parsed_items)
+        page_items = parsed_items[(page - 1) * page_size : page * page_size]
+
+        return {"total": total, "page": page, "page_size": page_size, "items": page_items}
 
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e

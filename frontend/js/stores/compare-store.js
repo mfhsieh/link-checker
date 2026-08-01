@@ -77,7 +77,19 @@ export class CompareStore {
             cat = 'ext_' + cat;
         }
 
-        const url = `/api/jobs/${this.baseId}/diff/items?compare_with=${this.targetId}&category=${cat}&page=${this.currentPage}&page_size=${this.pageSize}`;
+        let url = `/api/jobs/${this.baseId}/diff/items?compare_with=${this.targetId}&category=${cat}&page=${this.currentPage}&page_size=${this.pageSize}`;
+
+        if (this.compareSort && this.compareSort.key) {
+            url += `&sort_by=${encodeURIComponent(this.compareSort.key)}&sort_asc=${this.compareSort.asc}`;
+        }
+        
+        if (this.compareColFilters) {
+            const activeFilters = Object.fromEntries(Object.entries(this.compareColFilters).filter(([_, v]) => v.trim() !== ''));
+            if (Object.keys(activeFilters).length > 0) {
+                url += `&col_filters=${encodeURIComponent(JSON.stringify(activeFilters))}`;
+            }
+        }
+
         const res = await api.get(url);
         this.totalItems = res.total;
         this.pagedData = res.items;

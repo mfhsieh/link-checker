@@ -360,24 +360,28 @@ export class CompareController {
             containerEl.replaceChildren();
             linkTable = document.createElement('link-table');
             linkTable.id = 'compare-data-table';
+
+            linkTable.addEventListener('sort-change', (e) => {
+                this.store.setSort(e.detail);
+                this.renderCompareTab(this.store.currentTab);
+            });
+            linkTable.addEventListener('filter-change', (e) => {
+                this.store.setFilter(e.detail.key, e.detail.value);
+                this.renderCompareTab(this.store.currentTab);
+            });
+            linkTable.addEventListener('page-change', (e) => {
+                this.store.setPage(e.detail.page);
+                this.renderCompareTab(this.store.currentTab);
+            });
+
             containerEl.appendChild(linkTable);
             linkTable.config = { loading: true };
         }
 
         const data = await this.store.fetchItems();
         
-        if (this.store.totalItems === 0) {
-            containerEl.replaceChildren();
-            const emptyDiv = document.createElement('div');
-            emptyDiv.className = 'empty-state';
-            const descDiv = document.createElement('div');
-            descDiv.className = 'empty-state-desc';
-            descDiv.textContent = '此項目無差異或查無結果';
-            emptyDiv.appendChild(descDiv);
-            containerEl.appendChild(emptyDiv);
-            delete containerEl.dataset.renderedTab;
-            return;
-        }
+        // 我們不再手動摧毀表格，將空資料的呈現交由 link-table 本身的 empty-state 處理，
+        // 這樣即使篩選結果為空，表頭的篩選器依然存在，使用者可以修改或清除條件。
 
         if (tabName === 'ip_changed') {
             this.store.currentCompareHeaders = [
@@ -447,30 +451,9 @@ export class CompareController {
             }
         }
 
-        let tableEl = containerEl.querySelector('link-table');
-        if (!tableEl) {
-            containerEl.replaceChildren();
-            tableEl = document.createElement('link-table');
-            tableEl.id = 'compare-data-table';
-
-            tableEl.addEventListener('sort-change', (e) => {
-                this.store.setSort(e.detail);
-                this.renderCompareTab(this.store.currentTab);
-            });
-            tableEl.addEventListener('filter-change', (e) => {
-                this.store.setFilter(e.detail.key, e.detail.value);
-                this.renderCompareTab(this.store.currentTab);
-            });
-            tableEl.addEventListener('page-change', (e) => {
-                this.store.setPage(e.detail.page);
-                this.renderCompareTab(this.store.currentTab);
-            });
-
-            containerEl.appendChild(tableEl);
-        }
         containerEl.dataset.renderedTab = tabName;
 
-        tableEl.config = {
+        linkTable.config = {
             headers: this.store.currentCompareHeaders,
             data: data,
             sort: this.store.compareSort,

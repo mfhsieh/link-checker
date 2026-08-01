@@ -49,15 +49,23 @@ if command -v pg_repack >/dev/null 2>&1; then
     # 2. 針對 crawler_db，依照資料表大小 (小 -> 大) 逐一進行「先 Index 再 Table」重組
     echo "  -> [crawler_db] 進行兩階段重組 (先重組索引瘦身，再重組資料表)..."
     
-    # Table 1: jobs (最小)
+    # Table 1: jobs
     sudo -u postgres pg_repack -x -t jobs -d crawler_db || true
     sudo -u postgres pg_repack -t jobs -d crawler_db || true
     
-    # Table 2: crawl_queue (中等)
+    # Table 2: job_diff_results
+    sudo -u postgres pg_repack -x -t job_diff_results -d crawler_db || true
+    sudo -u postgres pg_repack -t job_diff_results -d crawler_db || true
+
+    # Table 3: job_diff_items
+    sudo -u postgres pg_repack -x -t job_diff_items -d crawler_db || true
+    sudo -u postgres pg_repack -t job_diff_items -d crawler_db || true
+
+    # Table 4: crawl_queue
     sudo -u postgres pg_repack -x -t crawl_queue -d crawler_db || true
     sudo -u postgres pg_repack -t crawl_queue -d crawler_db || true
     
-    # Table 3: external_links (最大)
+    # Table 5: external_links
     sudo -u postgres pg_repack -x -t external_links -d crawler_db || true
     sudo -u postgres pg_repack -t external_links -d crawler_db || true
     
