@@ -166,6 +166,7 @@ export class JobDetailController {
         if (intTabEl) intTabEl.style.display = 'none';
 
         this.clearJobDetailUI();
+        this.updateExcludeBtnState();
 
         if (!this.eventsBound) {
             this.bindWebComponentEvents();
@@ -384,6 +385,20 @@ export class JobDetailController {
     }
 
     /**
+     * 更新排除網域按鈕外觀狀態 (當啟用且有排除網域時標記高亮)
+     * @returns {void}
+     */
+    updateExcludeBtnState() {
+        const openExcludeBtn = document.getElementById('btn-open-exclude-modal');
+        if (openExcludeBtn) {
+            const isActive = this.store.currentExcludeEnabled && Boolean(this.store.currentExclude);
+            openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';
+            openExcludeBtn.style.borderColor = isActive ? 'var(--color-brand-500)' : '';
+            openExcludeBtn.style.background = isActive ? 'hsla(221, 83%, 53%, 0.1)' : '';
+        }
+    }
+
+    /**
      * 綁定頁面與 Web Components 的自訂與原生事件監聽
      * @returns {void}
      */
@@ -424,6 +439,7 @@ export class JobDetailController {
                     this.store.currentExclude = lines.join(',');
                     localStorage.setItem('link-checker-exclude-domains', this.store.currentExclude);
 
+                    this.updateExcludeBtnState();
                     closeExcludeModal();
 
                     this.store.currentPage = 1;

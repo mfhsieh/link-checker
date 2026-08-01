@@ -327,11 +327,7 @@ export class CompareController {
                     localStorage.setItem('link-checker-exclude-enabled', isEnabled);
                     localStorage.setItem('link-checker-exclude-domains', newExclude);
 
-                    const isActive = isEnabled && newExclude;
-                    openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';
-                    openExcludeBtn.style.borderColor = isActive ? 'var(--color-brand-500)' : '';
-                    openExcludeBtn.style.background = isActive ? 'hsla(221, 83%, 53%, 0.1)' : '';
-
+                    this.updateExcludeBtnState();
                     closeExcludeModal();
 
                     if (!runBtn.disabled && this.store.currentDiffData) {
@@ -339,6 +335,22 @@ export class CompareController {
                     }
                 });
             }
+        }
+    }
+
+    /**
+     * 更新排除網域按鈕外觀狀態 (當啟用且有排除網域時標記高亮)
+     * @returns {void}
+     */
+    updateExcludeBtnState() {
+        const openExcludeBtn = document.getElementById('btn-compare-exclude-modal');
+        if (openExcludeBtn) {
+            const currentExclude = localStorage.getItem('link-checker-exclude-domains') || '';
+            const isEnabled = localStorage.getItem('link-checker-exclude-enabled') !== 'false';
+            const isActive = isEnabled && Boolean(currentExclude);
+            openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';
+            openExcludeBtn.style.borderColor = isActive ? 'var(--color-brand-500)' : '';
+            openExcludeBtn.style.background = isActive ? 'hsla(221, 83%, 53%, 0.1)' : '';
         }
     }
 
@@ -590,15 +602,7 @@ export class CompareController {
                 targetSelectEl.value = targetJobId;
             }
 
-            const openExcludeBtn = document.getElementById('btn-compare-exclude-modal');
-            if (openExcludeBtn) {
-                const currentExclude = localStorage.getItem('link-checker-exclude-domains') || '';
-                const isEnabled = localStorage.getItem('link-checker-exclude-enabled') !== 'false';
-                const isActive = isEnabled && currentExclude;
-                openExcludeBtn.style.color = isActive ? 'var(--color-brand-500)' : '';
-                openExcludeBtn.style.borderColor = isActive ? 'var(--color-brand-500)' : '';
-                openExcludeBtn.style.background = isActive ? 'hsla(221, 83%, 53%, 0.1)' : '';
-            }
+            this.updateExcludeBtnState();
         } catch (err) {
             errorEl.textContent = '無法載入歷史任務：' + err.message;
         }
