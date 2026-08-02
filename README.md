@@ -96,7 +96,7 @@ pip install -r requirements.txt
 系統採邀請制，首次使用需手動建立第一組管理員帳號：
 
 ```bash
-python cli.py --create-admin admin@example.com
+source .venv/bin/activate && python cli.py --create-admin admin@example.com
 ```
 
 建立完成後，終端機會顯示一組系統產生的隨機初始密碼。請使用該密碼首次登入 Web 介面，並依照系統提示設定您的專屬密碼。
@@ -107,7 +107,7 @@ python cli.py --create-admin admin@example.com
 
 ```bash
 # 若為開發環境，可加上 --reload 啟用熱重載
-python cli.py --serve
+source .venv/bin/activate && python cli.py --serve
 ```
 
 網站預設在 `http://127.0.0.1:8000` 啟動，請開啟瀏覽器進入。

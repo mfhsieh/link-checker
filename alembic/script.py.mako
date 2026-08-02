@@ -8,10 +8,13 @@ Revision ID: ${up_revision}
 Revises: ${down_revision | comma,n}
 Create Date: ${create_date}
 """
+
+# pylint: disable=no-member, invalid-name
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
@@ -53,13 +56,13 @@ def upgrade_${db_name}() -> None:
     """
     執行 ${db_name.capitalize()} 資料庫的升級操作。
     """
-    ${context.get("%s_upgrades" % db_name, "pass")}
+    ${context.get(f"{db_name}_upgrades", "pass")}
 
 
 def downgrade_${db_name}() -> None:
     """
     執行 ${db_name.capitalize()} 資料庫的降級操作。
     """
-    ${context.get("%s_downgrades" % db_name, "pass")}
+    ${context.get(f"{db_name}_downgrades", "pass")}
 
 % endfor

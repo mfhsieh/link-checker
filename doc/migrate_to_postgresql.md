@@ -104,7 +104,7 @@ DB_POOL_PRE_PING=true
 ### 執行遷移指令：
 於專案根目錄下，在啟用了虛擬環境的情況下執行：
 ```bash
-python scripts/migrate_sqlite_to_pg.py
+source .venv/bin/activate && python scripts/migrate_sqlite_to_pg.py
 ```
 
 **執行成功的輸出範例：**

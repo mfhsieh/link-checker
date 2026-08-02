@@ -116,7 +116,7 @@ nano .env
 
 ```bash
 # 請替換為您的信箱
-python cli.py --create-admin admin@example.com
+source .venv/bin/activate && python cli.py --create-admin admin@example.com
 ```
 
 > **重要**：請務必記下終端機畫面上顯示的**初始隨機密碼**，以便稍後登入系統。
