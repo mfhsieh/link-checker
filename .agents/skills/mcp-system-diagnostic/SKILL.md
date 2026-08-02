@@ -1,5 +1,5 @@
 ---
-name: mcp_system_diagnostic
+name: mcp-system-diagnostic
 description: 自動整合 MCP 工具（get_jobs_status + get_disk_usage），提供一鍵式系統健康度盤點，自動巡檢生產環境與本地端的任務執行狀況、佇列堆積量與磁碟佔用告警。
 ---
 

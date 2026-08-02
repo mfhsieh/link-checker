@@ -1,5 +1,5 @@
 ---
-name: Trace Redirects
+name: trace-redirects
 description: 追蹤並顯示一個連結完整的 HTTP 重導向 (Redirect) 跳轉過程，包含中間的狀態碼與最終落點網址。
 ---
 

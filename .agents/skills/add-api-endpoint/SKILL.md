@@ -1,5 +1,5 @@
 ---
-name: Add API Endpoint
+name: add-api-endpoint
 description: 當需要新增或修改 FastAPI 路由時，指導 Agent 遵守專案的標準化流水線，包含 Schema 定義、Router 實作、測試與文件更新。
 ---
 

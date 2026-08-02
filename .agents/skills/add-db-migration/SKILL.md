@@ -1,5 +1,5 @@
 ---
-name: Add DB Migration
+name: add-db-migration
 description: 當需要修改 SQLAlchemy Models 或是資料表 Schema 時，指導 Agent 安全地進行變更並確保文件與跨資料庫的相容性。
 ---
 

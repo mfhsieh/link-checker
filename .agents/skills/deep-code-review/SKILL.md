@@ -1,5 +1,5 @@
 ---
-name: Deep Code Review
+name: deep-code-review
 description: 執行深度程式碼審查，關注併發、資安、架構、效能、韌性與需求合規性，產出結構化報告。
 ---
 

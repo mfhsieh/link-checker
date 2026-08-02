@@ -1,6 +1,6 @@
 # 模組間詳細依賴說明文件 (Module Dependencies)
 
-本文件明確條列本專案各核心模組（Frontend, Backend, Crawler, CLI）之間的依賴關係、通訊介面以及具體的程式碼引入情況。
+本專案主要由採用 HTML/JS/CSS 的前端、基於 FastAPI 的 Python 後端、純 Python 實作的爬蟲核心以及 Python 命令列介面 (CLI) 組成。本文件明確條列這些核心模組之間的依賴關係、通訊介面以及具體的程式碼引入情況。
 
 ---
 

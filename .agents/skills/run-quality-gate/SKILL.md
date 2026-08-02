@@ -1,5 +1,5 @@
 ---
-name: Run Quality Gate
+name: run-quality-gate
 description: 執行專案的完整品質檢查流程（排版、靜態分析、型別檢查、單元測試）。遇到錯誤時，會自動嘗試修復並重試。
 ---
 
@@ -13,7 +13,7 @@ description: 執行專案的完整品質檢查流程（排版、靜態分析、�
 
 請使用 `run_command` 工具執行以下腳本：
 ```bash
-/home/mfhsieh/projects/python/link-checker/.agents/skills/run_quality_gate/scripts/check.sh
+/home/mfhsieh/projects/python/link-checker/.agents/skills/run-quality-gate/scripts/check.sh
 ```
 （該腳本已經內建了虛擬環境載入與 `set -e` 提早失敗機制）。
 

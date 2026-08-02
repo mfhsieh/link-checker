@@ -6,21 +6,28 @@
 
 ```text
 link-checker/
-├── .env                # 環境變數設定檔 (如資料庫路徑、SMTP 憑證等)
-├── .env.example        # 環境變數範例檔 (提供可用的設定項目參考)
+├── .env                # 環境變數設定檔
+├── .env.example        # 環境變數範例檔
 ├── .gitignore          # git 追蹤忽略清單
 ├── .pylintrc           # Pylint 靜態程式碼分析設定檔
-├── ruff.toml           # Ruff 程式碼排版設定檔
-├── README.md           # 專案首頁與安裝啟動說明
 ├── alembic.ini         # Alembic 資料庫 Migration 主設定檔
-├── alembic/             # Alembic 雙資料庫 Schema 遷移腳本目錄 (`versions/`)
 ├── cli.py              # 系統核心單一入口 (CLI 操作、伺服器啟動與管理員建立)
 ├── requirements.txt    # Python 依賴套件清單
+├── ruff.toml           # Ruff 程式碼排版設定檔
+├── README.md           # 專案首頁與安裝啟動說明
+├── .agents/            # Agent Skills 自動化擴充能力庫
+│   └── rules/          # Agent 規則定義
+│   └── skills/         # Agent 技能定義
+├── .vscode/            # VS Code 工作區設定
+├── alembic/            # Alembic 雙資料庫 Schema 遷移腳本目錄
+│   ├── env.py          # Migration 環境設定
+│   └── versions/       # 資料庫 Schema 版本遷移紀錄
 ├── backend/            # 網站後台 (FastAPI / Web API Server)
 │   ├── __init__.py
 │   ├── admin/          # 後台管理員 API 模組
 │   │   ├── __init__.py
-│   │   └── router.py   # 管理員專用 API 路由
+│   │   ├── router.py   # 管理員專用 API 路由
+│   │   └── services/   # 管理員業務邏輯服務 (audit.py)
 │   ├── auth/           # 身分驗證與 Session 管理模組
 │   │   ├── __init__.py
 │   │   ├── db.py       # Auth DB 連線與初始化
@@ -32,8 +39,8 @@ link-checker/
 │   │   ├── constants.py# 任務設定鍵值共用常數
 │   │   ├── router.py   # 任務模組總路由聚合器
 │   │   ├── schemas.py  # 任務模組專用 Pydantic 與依賴注入 Model
-│   │   ├── routers/    # 子 API 路由定義 (管理、結果、匯出)
-│   │   └── services/   # 任務核心服務 (管理、進程、結果、比對持久化、郵件通知、匯出、局部重測)
+│   │   ├── routers/    # 子 API 路由定義 (management.py, results.py, export.py)
+│   │   └── services/   # 任務核心服務 (management, process, poller, scheduler, internal/external_results, reprobe, diff, notifier, exporter, backup, events, query_utils)
 │   ├── cache_utils.py  # 系統快取工具 (如設定檔快取)
 │   ├── config.py       # 系統組態與環境變數設定
 │   ├── deps.py         # 依賴注入 (如 Session, Current User)
@@ -41,13 +48,13 @@ link-checker/
 │   ├── events.py       # 系統內部事件發布/訂閱 (Pub/Sub) 模組
 │   └── main.py         # FastAPI 應用程式進入點
 ├── frontend/           # 網站前台 UI (原生 Vanilla JS/CSS)
-│   ├── css/            # Vanilla CSS 樣式表
+│   ├── css/            # Vanilla CSS 樣式表 (base.css, components.css, help.css, layout.css)
 │   ├── image/          # 靜態圖片與圖示資源
 │   ├── js/             # Vanilla JS (ESM) 邏輯模組 (MVC 分層架構)
-│   │   ├── components/ # 原生 Web Components 元件庫 (例如 link-table, job-stats, job-status, job-progress 等)
-│   │   ├── controllers/# 前端頁面控制器層 (JobsController, JobDetailController, CompareController, TransferController, DuplicateController)
-│   │   ├── stores/     # 前端集中式狀態庫層 (JobsStore, JobDetailStore, CompareStore)
-│   │   ├── services/   # 前端服務與 API 業務邏輯封裝 (JobService, AdminService)
+│   │   ├── components/ # 原生 Web Components 元件庫 (link-table, job-stats, job-status, job-progress, job-controls, confirm-modal, toast 等)
+│   │   ├── controllers/# 前端頁面控制器層 (job-detail-table, job-detail-sse, compare-controller, transfer-controller, duplicate-controller)
+│   │   ├── stores/     # 前端集中式狀態庫層 (jobs-store, job-detail-store, compare-store)
+│   │   ├── services/   # 前端服務與 API 業務邏輯封裝 (job-service, admin-service)
 │   │   ├── api.js, auth.js, auth-reset.js # 基礎 API 通訊與身分驗證工具
 │   │   ├── jobs.js, job-detail.js         # 任務列表與詳情模組進入點
 │   │   ├── compare.js, duplicate.js       # 任務比對與複製進入點
@@ -66,6 +73,7 @@ link-checker/
 │   ├── __init__.py
 │   ├── config_utils.py # 組態防呆驗證與全域設定合併工具
 │   ├── core.py         # 爬蟲核心邏輯 (抓取網頁、解析 HTML、提取與過濾連結)
+│   ├── env.py          # 爬蟲環境變數載入工具
 │   ├── manager.py      # JOB 管理 (任務分派、資料持久化、防呆安全鎖，支援 Callback 狀態回呼)
 │   ├── models.py       # Crawler DB 資料庫模型
 │   ├── profiles.py     # 動態瀏覽器特徵 (Browser Profiles) 產生模組
@@ -80,6 +88,7 @@ link-checker/
 │   ├── crawler_workflow.md   # 網站爬蟲核心流程說明
 │   ├── db_schema.md          # 資料庫 Schema 說明
 │   ├── deploy_gcp_vm.md      # GCP 雲端部署指南
+│   ├── initial_prompt.txt    # 專案初始需求與提示詞紀錄
 │   ├── js_coding_style.md    # JavaScript 程式風格與開發規範
 │   ├── mcp_usage.md          # MCP Server (AI 代理) 使用指南
 │   ├── migrate_to_postgresql.md # PostgreSQL 遷移指南
@@ -87,7 +96,8 @@ link-checker/
 │   ├── python_coding_style.md# Python 程式風格與開發規範
 │   ├── requirements.md       # 系統需求規格書
 │   ├── testing_strategy.md   # 自動化測試策略與執行指南
-│   └── todo.md               # 待辦清單與優化計畫
+│   ├── todo.md               # 待辦清單與優化計畫
+│   └── todo_resolved.md      # 已完成與解決之歷史項目
 ├── job/                # 存放個別任務 YAML 設定檔的安全目錄
 ├── log/                # 存放系統日誌與進程狀態
 │   ├── pids/           # 存放運行中爬蟲子程序的 PID 檔案
@@ -102,7 +112,8 @@ link-checker/
 │   ├── mcp_server.py           # Model Context Protocol (MCP) 伺服器，提供 AI 代理存取介面
 │   ├── migrate_sqlite_to_pg.py # PostgreSQL 平滑升級全自動遷移腳本
 │   ├── test_ext.py             # 單一外部連結存活測試腳本
-│   └── test_url.py             # 單一頁面爬取測試腳本
+│   ├── test_url.py             # 單一頁面爬取測試腳本
+│   └── old/                    # 歷史一次性資料轉置腳本 (backfill_status_category.py, backfill_target_domain.py)
 ├── test/               # 一鍵式自動化整合測試套件 (基於 Pytest)
 │   ├── conftest.py     # 模組級隔離與全域 Fixture
 │   ├── utils.py        # 測試輔助工具 (Port 與 Server 監控)
@@ -110,6 +121,7 @@ link-checker/
 │   ├── test_api.py     # API 端點與 Web 後台整合測試
 │   ├── test_cli.py     # CLI 爬蟲核心與調度整合測試
 │   ├── test_crawler_fallback.py # 爬蟲核心引擎 5 大降級分支專屬單元與整合測試
+│   ├── test_job_diff.py # 任務比對功能整合測試
 │   ├── test_scheduler.py  # 任務排程器自動化測試
 │   ├── test_skipped_head_check.py # 被忽略內部連結之輕量死檔探測單元測試
 │   ├── test_utils.py   # 核心工具與 Log Injection 清洗單元測試
