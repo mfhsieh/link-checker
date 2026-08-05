@@ -23,16 +23,26 @@ from crawler.models import Base as CrawlerBase
 
 
 class MigrationTransaction(Protocol):
-    """資料庫 Transaction 的型別介面 (供 Mypy 推斷使用)"""
+    """
+    資料庫 Transaction 的型別介面。
+
+    主要供 Mypy 在多資料庫交易管理（含單一交易與二階段提交）時進行靜態型別推斷與檢查。
+    """
 
     def prepare(self) -> None:
-        """準備二階段提交 (Two-Phase Commit)"""
+        """
+        準備二階段提交 (Two-Phase Commit)。
+        """
 
     def commit(self) -> None:
-        """提交目前交易"""
+        """
+        提交目前交易。
+        """
 
     def rollback(self) -> None:
-        """回溯目前交易"""
+        """
+        回溯目前交易。
+        """
 
 
 # 載入專案環境變數 (.env)
@@ -78,6 +88,9 @@ def get_url(name: str) -> str:
     """
     從環境變數取得各個資料庫連線 DSN。
 
+    若環境變數中未設定對應名稱的 URL，則嘗試從 alembic.ini 設定檔讀取；
+    若皆未設定，則降級使用預設的 SQLite 本地資料庫檔案路徑。
+
     Args:
         name (str): 資料庫識別名稱（例如 'auth' 或 'crawler'）。
 
@@ -98,7 +111,10 @@ def run_migrations_offline() -> None:
     """
     以離線 (Offline) 模式執行資料庫 Schema 遷移。
 
-    無須直接連接實體資料庫，僅根據 MetaData 與指定 Dialect 產出對應之 SQL DDL 腳本。
+    無須直接連接實體資料庫，僅根據 MetaData 與指定 Dialect 產出對應之 SQL DDL 腳本檔案。
+
+    Raises:
+        OSError: 當寫入輸出的 SQL 檔案發生 I/O 錯誤時拋出。
     """
     # 針對離線 (--sql) 的使用情境，將各個資料庫的 DDL 輸出至對應的 SQL 檔案中。
 

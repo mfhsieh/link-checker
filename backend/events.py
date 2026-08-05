@@ -8,7 +8,7 @@ import logging
 from collections.abc import Callable
 from enum import StrEnum
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class SystemEvent(StrEnum):
@@ -49,7 +49,7 @@ def unsubscribe(event_name: SystemEvent | str, fn: Callable[..., object]) -> Non
     """
     取消訂閱特定的系統內部事件。
 
-    將指定的處理常式 (handler) 從對應的事件名稱中移除。
+    從指定的事件名稱中移除已註冊的處理常式。
     若該處理常式未曾訂閱或已移除，則忽略。
 
     Args:

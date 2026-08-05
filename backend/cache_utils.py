@@ -11,8 +11,8 @@ from typing import TypeVar, cast
 from cachetools import TTLCache
 
 # API 快取常數設定：預設最多快取 500 個查詢結果，存活時間 300 秒（5 分鐘）
-API_CACHE_MAXSIZE = 500
-API_CACHE_TTL = 300
+API_CACHE_MAXSIZE: float = 500
+API_CACHE_TTL: float = 300
 
 # 建立全域的任務查詢結果快取
 job_results_cache = cast(

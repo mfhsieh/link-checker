@@ -36,24 +36,29 @@ logger: logging.Logger = logging.getLogger(__name__)
 settings: Settings = get_settings()
 
 
-SCHEDULER_INTERVAL_SEC = 5
-MAX_BACKOFF_SEC = 640
+SCHEDULER_INTERVAL_SEC: float = 5
+MAX_BACKOFF_SEC: float = 640
 
 
 async def _run_scheduler_loop() -> None:
     """背景排程器迴圈，喚醒 queued 任務"""
+    # pylint: disable=import-outside-toplevel
+    from sqlalchemy.orm import Session
+
+    from backend.deps import get_job_manager
+    from backend.jobs.services.diff import cleanup_expired_diffs
+    from backend.jobs.services.management import JobManager
+
     error_count = 0
     while True:
         try:
             # 任務操作包含資料庫讀寫與子程序啟動，應丟入 Thread Pool 避免阻塞 Event Loop
             await asyncio.to_thread(check_and_spawn_queued_jobs)
-            # pylint: disable=import-outside-toplevel
-            from backend.deps import get_job_manager
-            from backend.jobs.services.diff import cleanup_expired_diffs
 
             def run_cleanup():
-                manager = get_job_manager()
+                manager: JobManager = get_job_manager()
                 with manager.session_factory() as db:
+                    db: Session
                     cleanup_expired_diffs(db)
 
             await asyncio.to_thread(run_cleanup)
@@ -199,14 +204,19 @@ if os.path.isdir(_frontend_dir):
 
     def _serve_html_with_nonce(file_name: str, request: Request) -> HTMLResponse | RedirectResponse:
         """
-        讀取 HTML 檔案並動態注入 CSP nonce。
+        動態服務 HTML 檔案，並注入 CSP Nonce。
+
+        此函式會根據 `file_name` 讀取對應的 HTML 檔案，並在開發模式下進行快取。
+        如果請求的狀態中包含 `nonce`，則會將其動態注入到 `<script>` 標籤中，
+        以符合 Content Security Policy (CSP) 的要求。
 
         Args:
-            file_name (str): 欲讀取的 HTML 檔案名稱。
-            request (Request): FastAPI 請求物件。
+            file_name (str): 要服務的 HTML 檔案名稱 (例如 "index.html", "app.html")。
+            request (Request): FastAPI 請求物件，用於獲取 `nonce` 狀態。
 
         Returns:
-            HTMLResponse | RedirectResponse: 注入 nonce 後的 HTML 回應，若檔案不存在則重導向。
+            HTMLResponse | RedirectResponse: 包含注入 Nonce 的 HTML 回應，
+            如果檔案不存在則重導向到根路徑。
         """
         file_path = os.path.join(_frontend_dir, file_name)
         cached = _html_cache.get(file_name)
